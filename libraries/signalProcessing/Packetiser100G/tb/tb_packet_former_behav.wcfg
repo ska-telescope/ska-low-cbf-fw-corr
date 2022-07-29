@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="tb_packet_former_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="axi4_full_pkg" />
+            <top_module name="axi4_lite_pkg" />
+            <top_module name="axi4_stream_pkg" />
+            <top_module name="cbfpsrheader_pkg" />
+            <top_module name="common_mem_pkg" />
+            <top_module name="common_pkg" />
+            <top_module name="ethernet_pkg" />
+            <top_module name="glbl" />
+            <top_module name="tb_packet_former" />
+            <top_module name="tech_mac_100g_pkg" />
+            <top_module name="technology_pkg" />
+            <top_module name="vcomponents" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="1037824fs"></ZoomStartTime>
+      <ZoomEndTime time="4547825fs"></ZoomEndTime>
+      <Cursor1Time time="2092490fs"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="422"></NameColumnWidth>
+      <ValueColumnWidth column_width="193"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="34" />
+   <wave_markers>
+      <marker time="2047468" label="" />
+      <marker time="1557468" label="" />
+   </wave_markers>
+   <wvobject fp_name="/tb_packet_former/clock_400" type="logic">
+      <obj_property name="ElementShortName">clock_400</obj_property>
+      <obj_property name="ObjectShortName">clock_400</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/testCount" type="other">
+      <obj_property name="ElementShortName">testCount</obj_property>
+      <obj_property name="ObjectShortName">testCount</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/clock_400_rst" type="logic">
+      <obj_property name="ElementShortName">clock_400_rst</obj_property>
+      <obj_property name="ObjectShortName">clock_400_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/i_clk400_rst" type="logic">
+      <obj_property name="ElementShortName">i_clk400_rst</obj_property>
+      <obj_property name="ObjectShortName">i_clk400_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/power_up_rst_clock_400" type="array">
+      <obj_property name="ElementShortName">power_up_rst_clock_400[31:0]</obj_property>
+      <obj_property name="ObjectShortName">power_up_rst_clock_400[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/i_clk400" type="logic">
+      <obj_property name="ElementShortName">i_clk400</obj_property>
+      <obj_property name="ObjectShortName">i_clk400</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/test_count" type="other">
+      <obj_property name="ElementShortName">test_count</obj_property>
+      <obj_property name="ObjectShortName">test_count</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/test_data" type="array">
+      <obj_property name="ElementShortName">test_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">test_data[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/test_data_d1" type="array">
+      <obj_property name="ElementShortName">test_data_d1[511:0]</obj_property>
+      <obj_property name="ObjectShortName">test_data_d1[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/test_data_dout" type="array">
+      <obj_property name="ElementShortName">test_data_dout[511:0]</obj_property>
+      <obj_property name="ObjectShortName">test_data_dout[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/test_data_valid" type="logic">
+      <obj_property name="ElementShortName">test_data_valid</obj_property>
+      <obj_property name="ObjectShortName">test_data_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/test_mode_sm" type="other">
+      <obj_property name="ElementShortName">test_mode_sm</obj_property>
+      <obj_property name="ObjectShortName">test_mode_sm</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/o_test_beam_number" type="array">
+      <obj_property name="ElementShortName">o_test_beam_number[3:0]</obj_property>
+      <obj_property name="ObjectShortName">o_test_beam_number[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/o_test_data" type="array">
+      <obj_property name="ElementShortName">o_test_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_test_data[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/o_test_data_wr" type="logic">
+      <obj_property name="ElementShortName">o_test_data_wr</obj_property>
+      <obj_property name="ObjectShortName">o_test_data_wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/test_logic_gen/psr_test_gen/test_data_dword" type="array">
+      <obj_property name="ElementShortName">test_data_dword[15:0][31:0]</obj_property>
+      <obj_property name="ObjectShortName">test_data_dword[15:0][31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/o_bytes_to_transmit" type="array">
+      <obj_property name="ElementShortName">o_bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="ObjectShortName">o_bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/o_data_to_player" type="array">
+      <obj_property name="ElementShortName">o_data_to_player[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_player[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/o_data_to_player_wr" type="logic">
+      <obj_property name="ElementShortName">o_data_to_player_wr</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_player_wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/o_dbg_ILA_trigger" type="logic">
+      <obj_property name="ElementShortName">o_dbg_ILA_trigger</obj_property>
+      <obj_property name="ObjectShortName">o_dbg_ILA_trigger</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/BYTE_CHECK" type="other">
+      <obj_property name="ElementShortName">BYTE_CHECK</obj_property>
+      <obj_property name="ObjectShortName">BYTE_CHECK</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/packet_sm" type="other">
+      <obj_property name="ElementShortName">packet_sm</obj_property>
+      <obj_property name="ObjectShortName">packet_sm</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/valid_delay" type="array">
+      <obj_property name="ElementShortName">valid_delay[8:0]</obj_property>
+      <obj_property name="ObjectShortName">valid_delay[8:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/sig_data_to_quad" type="array">
+      <obj_property name="ElementShortName">sig_data_to_quad[511:0]</obj_property>
+      <obj_property name="ObjectShortName">sig_data_to_quad[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/quad_0" type="array">
+      <obj_property name="ElementShortName">quad_0[127:0]</obj_property>
+      <obj_property name="ObjectShortName">quad_0[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/quad_1" type="array">
+      <obj_property name="ElementShortName">quad_1[127:0]</obj_property>
+      <obj_property name="ObjectShortName">quad_1[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/quad_2" type="array">
+      <obj_property name="ElementShortName">quad_2[127:0]</obj_property>
+      <obj_property name="ObjectShortName">quad_2[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/quad_3" type="array">
+      <obj_property name="ElementShortName">quad_3[127:0]</obj_property>
+      <obj_property name="ObjectShortName">quad_3[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/quad_pack" type="array">
+      <obj_property name="ElementShortName">quad_pack[511:0]</obj_property>
+      <obj_property name="ObjectShortName">quad_pack[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/header_data_1" type="array">
+      <obj_property name="ElementShortName">header_data_1[511:0]</obj_property>
+      <obj_property name="ObjectShortName">header_data_1[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/header_data_2" type="array">
+      <obj_property name="ElementShortName">header_data_2[511:0]</obj_property>
+      <obj_property name="ObjectShortName">header_data_2[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/header_data_3" type="array">
+      <obj_property name="ElementShortName">header_data_3[511:0]</obj_property>
+      <obj_property name="ObjectShortName">header_data_3[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/little_endian_PsrPacket.scale[0]" type="array">
+      <obj_property name="ElementShortName">[0][31:0]</obj_property>
+      <obj_property name="ObjectShortName">[0][31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packet_former/DUT/scale_1" type="array">
+      <obj_property name="ElementShortName">scale_1[31:0]</obj_property>
+      <obj_property name="ObjectShortName">scale_1[31:0]</obj_property>
+   </wvobject>
+</wave_config>

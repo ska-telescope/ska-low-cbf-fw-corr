@@ -1,0 +1,59 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : ct_atomic_cor_out
+hdl_library_description: "Correlator output corner turn"
+
+peripherals:
+  - peripheral_name        : ct_atomic_cor_out
+    peripheral_description : "Control the correlator output corner turn"
+    slave_ports:
+      - slave_name        : StatCtrl
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "Correlator output corner turn"
+        fields:
+          #################################
+          - - field_name        : bufferOverflowError
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write buffer used to transfer filterbank data into the HBM overflowed. Cleared by a reset in the first stage corner turn. Should never happen."
+          #################################
+          - - field_name        : readoutError
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Readout to the correlator did not finish before the readout of the next HBM buffer started. Cleared by a reset passed in from the first stage corner turn. Should never happen."
+          #################################
+          - - field_name        : HBMBuf0PacketCount
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "LFAA packet count for the first packet in HBM buffer 0"
+          #################################
+          - - field_name        : HBMBuf1PacketCount
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "LFAA packet count for the first packet in HBM buffer 1"
+          #################################
+          - - field_name        : readInClocks
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Length of the most recent frame in units of 300 MHz clocks at the input to the corner turn."
+          #################################
+          - - field_name        : readInAllClocks
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Interval between the start of one frame and the start of the next frame in units of 300 MHz clocks at the input to the corner turn."
+          #################################
+          - - field_name        : readOutClocks
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Length of the most recent frame in units of 400 MHz clocks at the output of the corner turn"                     
+                 

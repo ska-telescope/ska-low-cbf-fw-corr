@@ -1,0 +1,19 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : fpga
+
+hdl_library_name  : correlator
+fpga_name         : correlator
+fpga_description  : "Acceleration core for use with Vitis and Alveo"
+
+peripherals:
+  - peripheral_name        : correlator/system
+  - peripheral_name        : correlator/vitis_shared
+  - peripheral_name        : LFAADecode100G/LFAADecode100G
+  - peripheral_name        : ct_atomic_cor_in/ct_atomic_cor_in
+  - peripheral_name        : cor_filterbanks/filterbanks
+  - peripheral_name        : ct_atomic_cor_out/ct_atomic_cor_out
+  - peripheral_name        : cor/config
+  - peripheral_name        : timingControlA/timingControlA  
+  - peripheral_name        : Packetiser/Packetiser
+  - peripheral_name        : DRP/DRP

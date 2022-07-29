@@ -1,0 +1,124 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : LFAADecode100G
+hdl_library_description: "Monitor and Control of decoding of LFAA data from 100GE"
+
+peripherals:
+  - peripheral_name        : LFAADecode100G
+    peripheral_description : "Registers associated with LFAA Decode"
+    slave_ports:
+      - slave_name        : VCStats
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Status for each virtual channel. 8 words per virtual channel. Each group of 8 words has
+                              (1) most recent logical channel in bits(15:0), most recent nof_contributing_antennas in bits(31:16),
+                              (2) Most recent packet number, 
+                              (3) bits(31:28) = 4 bit count of packets with out of order packet numbers (wraps on overflow), bits(27:0) = Time stamp for the most recent packet count (units of 16 ns),
+                              (4) high 32 bits of the timestamp for the most recent packet (units of 2^32 ns). 
+                              (5) most recent SPEAD timestamp bits(31:0),
+                              (6) most recent SPEAD timestamp bits(47:32), 
+                              (7) most recent SPEAD sync time, bits(31:0), 
+                              (8) most recent SPEAD sync time, bits(47:32)."
+        fields            :
+          - - field_name        : data
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 8192
+              interface         : simple
+              reset_value       : 0
+              field_description : "Status for each virtual channel."
+      #################################################################
+      - slave_name        : StatCtrl
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "Registers associated with LFAA Decode"
+        dual_clock        : true
+        fields:
+          - - field_name        : control
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "bit 0 rising edge resets the module."
+          #################################
+          - - field_name        : total_stations
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of different stations to process in this FPGA."
+          #################################
+          - - field_name        : total_coarse
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Total number of coarse channels to process in this FPGA."
+          #################################
+          - - field_name        : total_channels
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse."
+          #################################
+          - - field_name        : SPEAD_packet_count
+              width             : 32
+              access_mode       : CW
+              reset_value       : 0x0
+              field_description : "Count of LFAA SPEAD packets received, 32 bit wrapping, reset on write."
+          #################################
+          - - field_name        : NONSPEAD_packet_count
+              width             : 16
+              access_mode       : CS
+              reset_value       : 0x0
+              field_description : "Count of non-LFAA SPEAD packets received, 32 bit saturating, reset on write."
+          #################################
+          - - field_name        : badEthernetFrames
+              width             : 16
+              access_mode       : CS
+              reset_value       : 0x0
+              field_description : "Count of ethernet packets with errors (e.g. too short, too long, or FCS bad), reset on write."
+          #################################
+          - - field_name        : badIPUDPFrames
+              width             : 16
+              access_mode       : CS
+              reset_value       : 0x0
+              field_description : "Count of ethernet packets with bad IP or UDP checksums, reset on write."
+          #################################
+          - - field_name        : NoVirtualChannelCount
+              width             : 16
+              access_mode       : CS
+              reset_value       : 0x0
+              field_description : "Count of packets that did not match an entry in the virtual channel table, reset on write."
+          ################################# 
+          - - field_name        : VCTable
+              width             : 32
+              access_mode       : RW
+              number_of_fields  : 1024
+              field_description : "Virtual channel table. Each entry has \
+                                    bits(8:0) = frequency_id, \
+                                    bits(12:9) = beam_id, \
+                                    bits(15:13) = substation_id, \
+                                    bits(20:16) = subarray_id, \
+                                    bits(30:21) = station_id, \
+                                    bit(31) = invalid (i.e. set to 1 to indicate this entry is invalid).\
+                                   The maximum number of valid entries in this table is defined by total_channels.\
+                                   Used virtual channels must be packed into the lower end of the addresses in the VCTable.\
+                                   For example, if there are 128 virtual channels, then they must be in entries 0 to 127 of this table.\
+                                   Virtual channels must be sorted first according to station_id, then according to frequency_id. \
+                                   So for example if there are 3 stations with ids (5, 10, 12) and 2 channels with ids (100, 101), 
+                                   then they would be listed in this table as
+                                    0 - station 5, channel 100 \
+                                    1 - station 10, channel 100 \
+                                    2 - station 12, channel 100 \
+                                    3 - station 5, channel 101 \
+                                    4 - station 10, channel 101 \
+                                    5 - station 12, channel 101 \
+                                   Internally, a virtual channel is generated in the range 0 to (total_channels - 1) \
+                                   and a virtual station is generated in the range 0 to (total_stations - 1). "
+          #################################
+
+            
+        
+       
+              
