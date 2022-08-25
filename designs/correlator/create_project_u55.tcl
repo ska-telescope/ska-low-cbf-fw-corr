@@ -269,13 +269,12 @@ source $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packetiser100G.
 
 #############################################################
 # DRP
+#  ?? used to include $ARGS_PATH/DRP/drp/DRP_drp_cmac_data_ram.vhd \ but doesn't look like it is used ?
 add_files -fileset sources_1 [glob \
- $ARGS_PATH/DRP/drp/DRP_drp_cmac_data_ram.vhd \
  $ARGS_PATH/DRP/drp/DRP_drp_reg_pkg.vhd \
  $ARGS_PATH/DRP/drp/DRP_drp_reg.vhd \
 ]
 set_property library DRP_lib [get_files {\
- *build/ARGS/correlator/DRP/drp/DRP_drp_cmac_data_ram.vhd \
  *build/ARGS/correlator/DRP/drp/DRP_drp_reg_pkg.vhd \
  *build/ARGS/correlator/DRP/drp/DRP_drp_reg.vhd \
 }]
@@ -298,48 +297,52 @@ set_property library signal_processing_common [get_files {\
 #source $ARGS_PATH/Packetiser/packetiser/ip_Packetiser_packetiser_param_ram.tcl
 
 #############################################################
-# Input corner turn (between LFAA ingest and filterbanks)
+# 1st corner turn, between LFAA ingest and filterbanks
 
 add_files -fileset sources_1 [glob \
-  $ARGS_PATH/ct_atomic_cor_in/ct_atomic_cor_in/ct_atomic_cor_in_reg_pkg.vhd \
-  $ARGS_PATH/ct_atomic_cor_in/ct_atomic_cor_in/ct_atomic_cor_in_reg.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/ct_atomic_cor_readout.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/cor_readout_32bit.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/ct_valid_memory.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/ct_atomic_cor_in.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/ct_atomic_cor_valid.vhd \
+  $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
+  $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
 ]
 set_property library ct_lib [get_files {\
- *build/ARGS/correlator/ct_atomic_cor_in/ct_atomic_cor_in/ct_atomic_cor_in_reg_pkg.vhd \
- *build/ARGS/correlator/ct_atomic_cor_in/ct_atomic_cor_in/ct_atomic_cor_in_reg.vhd \
- *libraries/signalProcessing/cornerturn1/ct_atomic_cor_readout.vhd \
- *libraries/signalProcessing/cornerturn1/cor_readout_32bit.vhd \
- *libraries/signalProcessing/cornerturn1/ct_valid_memory.vhd \
- *libraries/signalProcessing/cornerturn1/ct_atomic_cor_in.vhd \
- *libraries/signalProcessing/cornerturn1/ct_atomic_cor_valid.vhd \
+ *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
+ *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
 }]
 
-source $RLIBRARIES_PATH/signalProcessing/cornerturn1/ct_atomic_cor.tcl
+source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1.tcl
 
 #############################################################
 # output corner turn (between filterbanks and correlator)
 
 add_files -fileset sources_1 [glob \
-  $ARGS_PATH/ct_atomic_cor_out/ct_atomic_cor_out/ct_atomic_cor_out_reg_pkg.vhd \
-  $ARGS_PATH/ct_atomic_cor_out/ct_atomic_cor_out/ct_atomic_cor_out_reg.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/ct_atomic_cor_wrapper.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/ct_atomic_cor_out_din.vhd \
+  $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
+  $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count6.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count16.vhd \
 ]
 
 set_property library ct_lib [get_files {\
- *build/ARGS/correlator/ct_atomic_cor_out/ct_atomic_cor_out/ct_atomic_cor_out_reg_pkg.vhd \
- *build/ARGS/correlator/ct_atomic_cor_out/ct_atomic_cor_out/ct_atomic_cor_out_reg.vhd \
- *libraries/signalProcessing/cornerturn2/ct_atomic_cor_wrapper.vhd \
- *libraries/signalProcessing/cornerturn2/ct_atomic_cor_out_din.vhd \
+ *build/ARGS/correlator/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
+ *build/ARGS/correlator/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_din.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+ *libraries/signalProcessing/cornerturn2/ones_count6.vhd \
+ *libraries/signalProcessing/cornerturn2/ones_count16.vhd \
 }]
 
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/ct_atomic_cor_out_din.vhd]
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/ct_atomic_cor_wrapper.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd]
 
 
 #############################################################

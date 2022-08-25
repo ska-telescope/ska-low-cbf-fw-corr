@@ -24,23 +24,20 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-use work.misc_tools_pkg.all;            -- maxim, bit_width
-use work.cmac_tdm_pkg.all;              -- t_tdm_cache_wr_bus
+--use work.misc_tools_pkg.all;            -- maxim, bit_width
+--use work.cmac_tdm_pkg.all;              -- t_tdm_cache_wr_bus
 
 package cmac_pkg is
 
     constant c_CMAC_LATENCY  : natural := 5;  -- measure in simulator from rising_edge(i_col.last) to rising_edge(o_readout_vld) in cycles.
 
     type t_cmac_input_bus is record
-        data       : signed(26 downto 0);  --* Encode I and Q phases into a single value using
-                                           --* cmac_pkg.to_6bj6b function.
         vld        : std_logic;            --* data is valid.
         first      : std_logic;            --* First input for this burst. Resets the Accumulator. 
         last       : std_logic;            --* Last input for this burst. Triggers readout and reset in CMAC.
                                            --* Must be externally validated.
         rfi        : std_logic;            --* '0' = valid data, '1' = rfi data.
-        sample_cnt : unsigned(15 downto 0);
-        auto_corr  : std_logic; 
+        sample_cnt : std_logic_vector(7 downto 0);
     end record t_cmac_input_bus;
 
     -- autogen start decl
@@ -51,23 +48,19 @@ package cmac_pkg is
 type t_cmac_input_bus_a is array(natural range <>) of t_cmac_input_bus;
 
 constant T_CMAC_INPUT_BUS_ZERO : t_cmac_input_bus := (
-	data => (others => '0'),
 	vld => '0',
 	first => '0',
 	last => '0',
 	rfi => '0',
-	sample_cnt => (others => '0'),
-	auto_corr => '0'
+	sample_cnt => (others => '0')
 	);
 
 constant T_CMAC_INPUT_BUS_DONT_CARE : t_cmac_input_bus := (
-	data => (others => '-'),
 	vld => '-',
 	first => '-',
 	last => '-',
 	rfi => '-',
-	sample_cnt => (others => '-'),
-	auto_corr => '-'
+	sample_cnt => (others => '-')
 	);
 
 constant T_CMAC_INPUT_BUS_SLV_WIDTH : natural := 48;
@@ -111,10 +104,10 @@ function from_slv (slv : std_logic_vector) return t_cmac_input_bus;
         enable                  : std_logic := '1')
         return t_cmac_input_bus;
 
-    function conjugate (
-        i_bus                   : t_tdm_cache_wr_bus;
-        constant c_SAMPLE_WIDTH : natural)
-        return t_tdm_cache_wr_bus;
+--    function conjugate (
+--        i_bus                   : t_tdm_cache_wr_bus;
+--        constant c_SAMPLE_WIDTH : natural)
+--        return t_tdm_cache_wr_bus;
 
     -- Returns the width of the real and imaginary accumulators in the CMAC
     function f_cmac_accum_width (
@@ -123,48 +116,48 @@ function from_slv (slv : std_logic_vector) return t_cmac_input_bus;
         constant c_MAX_CHANNEL_AVERAGE : natural := 1)
         return natural;
 
-    -- Return the width of the TCI accumulator 
-    function f_cmac_tci_width (
-        constant c_MAX_ACCUM_SAMPLES : natural;
-        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
-        return natural;
+--    -- Return the width of the TCI accumulator 
+--    function f_cmac_tci_width (
+--        constant c_MAX_ACCUM_SAMPLES : natural;
+--        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
+--        return natural;
 
-    function f_cmac_cci_width (
-        constant c_ACCUM_SAMPLES       : natural;
-        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
-        return natural;
+--    function f_cmac_cci_width (
+--        constant c_ACCUM_SAMPLES       : natural;
+--        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
+--        return natural;
     
-    -- Return the width of the Data Valid counter. 
-    function f_cmac_dv_width (
-        constant c_MAX_ACCUM_SAMPLES : natural;
-        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
-        return natural;
+--    -- Return the width of the Data Valid counter. 
+--    function f_cmac_dv_width (
+--        constant c_MAX_ACCUM_SAMPLES : natural;
+--        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
+--        return natural;
     
-    -- Returns the minimum required width of the cmac readout bus.
-    -- Has a 5 cycle 'packet' format out of the cmac_quad of:
-    -- 1) TCI & DV
-    -- 2) PolXX real & imag
-    -- 3) PolXY real & imag
-    -- 4) PolYX real & imag
-    -- 5) PolYY real & imag
-    function f_cmac_readout_width (
-        constant c_SAMPLE_WIDTH : natural;
-        constant c_MAX_ACCUM_SAMPLES : natural)
-        return natural;
+--    -- Returns the minimum required width of the cmac readout bus.
+--    -- Has a 5 cycle 'packet' format out of the cmac_quad of:
+--    -- 1) TCI & DV
+--    -- 2) PolXX real & imag
+--    -- 3) PolXY real & imag
+--    -- 4) PolYX real & imag
+--    -- 5) PolYY real & imag
+--    function f_cmac_readout_width (
+--        constant c_SAMPLE_WIDTH : natural;
+--        constant c_MAX_ACCUM_SAMPLES : natural)
+--        return natural;
 
-    -- Convert a column input to a row when col.auto_corr = '1' else keep the row;
-    function f_turn_column_to_row (
-        col : t_cmac_input_bus;
-        row : t_cmac_input_bus;
-        constant c_SAMPLE_WIDTH : natural)
-        return t_cmac_input_bus;
+--    -- Convert a column input to a row when col.auto_corr = '1' else keep the row;
+--    function f_turn_column_to_row (
+--        col : t_cmac_input_bus;
+--        row : t_cmac_input_bus;
+--        constant c_SAMPLE_WIDTH : natural)
+--        return t_cmac_input_bus;
 
-    -- Convert a row input to a column when col.auto_corr = '1' else keep the column;
-    function f_turn_row_to_column (
-        col : t_cmac_input_bus;
-        row : t_cmac_input_bus;
-        constant c_SAMPLE_WIDTH : natural)        
-        return t_cmac_input_bus;
+--    -- Convert a row input to a column when col.auto_corr = '1' else keep the column;
+--    function f_turn_row_to_column (
+--        col : t_cmac_input_bus;
+--        row : t_cmac_input_bus;
+--        constant c_SAMPLE_WIDTH : natural)        
+--        return t_cmac_input_bus;
                                  
     function f_format_row (
         row : signed;
@@ -188,26 +181,22 @@ package body cmac_pkg is
 function to_slv (rec : t_cmac_input_bus) return t_cmac_input_bus_slv is
     variable slv : std_logic_vector(47 downto 0);
 begin
-    slv(0) := rec.auto_corr;
-    slv(16 downto 1) := std_logic_vector(rec.sample_cnt);
-    slv(17) := rec.rfi;
-    slv(18) := rec.last;
-    slv(19) := rec.first;
-    slv(20) := rec.vld;
-    slv(47 downto 21) := std_logic_vector(rec.data);
+    slv(7 downto 0) := std_logic_vector(rec.sample_cnt);
+    slv(8) := rec.rfi;
+    slv(9) := rec.last;
+    slv(10) := rec.first;
+    slv(11) := rec.vld;
 return slv;
 end function to_slv;
 
 function from_slv (slv : std_logic_vector) return t_cmac_input_bus is
     variable rec : t_cmac_input_bus;
 begin
-    rec.auto_corr := slv(0);
-    rec.sample_cnt := unsigned(slv(16 downto 1));
-    rec.rfi := slv(17);
-    rec.last := slv(18);
-    rec.first := slv(19);
-    rec.vld := slv(20);
-    rec.data := signed(slv(47 downto 21));
+    rec.sample_cnt := slv(7 downto 0);
+    rec.rfi := slv(8);
+    rec.last := slv(9);
+    rec.first := slv(10);
+    rec.vld := slv(11);
 return rec;
 end function from_slv;
 
@@ -290,16 +279,16 @@ end function from_slv;
         return i_bus;
     end function conjugate;
 
-    function conjugate (
-        i_bus                   : t_tdm_cache_wr_bus;
-        constant c_SAMPLE_WIDTH : natural)
-        return t_tdm_cache_wr_bus is
-    begin
-    -- THERE IS NO CONJUGATE HERE!
-    -- The conjugate is implemented as part of the CMAC Xilinx Ultrascale implementation. 
-    -- This function is here to make the Stratix10 and Ultrascale implementations as similar as possible.
-        return i_bus;
-    end function conjugate;
+--    function conjugate (
+--        i_bus                   : t_tdm_cache_wr_bus;
+--        constant c_SAMPLE_WIDTH : natural)
+--        return t_tdm_cache_wr_bus is
+--    begin
+--    -- THERE IS NO CONJUGATE HERE!
+--    -- The conjugate is implemented as part of the CMAC Xilinx Ultrascale implementation. 
+--    -- This function is here to make the Stratix10 and Ultrascale implementations as similar as possible.
+--        return i_bus;
+--    end function conjugate;
 
     function f_cmac_accum_width (
         constant c_SAMPLE_WIDTH      : natural;
@@ -323,115 +312,115 @@ end function from_slv;
         return 0 + 1;    -- plus 1 for sign bit.
     end function f_cmac_accum_width;
     
-    function f_cmac_tci_width (
-        constant c_MAX_ACCUM_SAMPLES : natural;
-        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
-        return natural is
-        variable max_val : natural;        
-    begin
-        max_val := ((c_MAX_ACCUM_SAMPLES+1)*c_MAX_ACCUM_SAMPLES)/2 * c_MAX_CHANNEL_AVERAGE;
-        return bit_width(max_val);
-    end function f_cmac_tci_width;
+--    function f_cmac_tci_width (
+--        constant c_MAX_ACCUM_SAMPLES : natural;
+--        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
+--        return natural is
+--        variable max_val : natural;        
+--    begin
+--        max_val := ((c_MAX_ACCUM_SAMPLES+1)*c_MAX_ACCUM_SAMPLES)/2 * c_MAX_CHANNEL_AVERAGE;
+--        return bit_width(max_val);
+--    end function f_cmac_tci_width;
 
-    function f_cmac_cci_width (
-        constant c_ACCUM_SAMPLES       : natural;
-        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
-        return natural is
-        variable max_value : natural;
-    begin
-        max_value := 0;
-        for idx in 1 to c_MAX_CHANNEL_AVERAGE loop
-            max_value := max_value + idx * c_ACCUM_SAMPLES;
-        end loop;
-        return bit_width(max_value);
-    end function f_cmac_cci_width;
+--    function f_cmac_cci_width (
+--        constant c_ACCUM_SAMPLES       : natural;
+--        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
+--        return natural is
+--        variable max_value : natural;
+--    begin
+--        max_value := 0;
+--        for idx in 1 to c_MAX_CHANNEL_AVERAGE loop
+--            max_value := max_value + idx * c_ACCUM_SAMPLES;
+--        end loop;
+--        return bit_width(max_value);
+--    end function f_cmac_cci_width;
     
-    function f_cmac_dv_width (
-        constant c_MAX_ACCUM_SAMPLES : natural;
-        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
-        return natural is
-    begin
-        return bit_width(c_MAX_ACCUM_SAMPLES * c_MAX_CHANNEL_AVERAGE);
-    end function f_cmac_dv_width;
+--    function f_cmac_dv_width (
+--        constant c_MAX_ACCUM_SAMPLES : natural;
+--        constant c_MAX_CHANNEL_AVERAGE : natural := 1)
+--        return natural is
+--    begin
+--        return bit_width(c_MAX_ACCUM_SAMPLES * c_MAX_CHANNEL_AVERAGE);
+--    end function f_cmac_dv_width;
 
-    function f_cmac_readout_width (
-        constant c_SAMPLE_WIDTH : natural;
-        constant c_MAX_ACCUM_SAMPLES : natural)
-        return natural is
-    begin
-        return maxim(
-            f_cmac_tci_width(c_MAX_ACCUM_SAMPLES) + f_cmac_dv_width(c_MAX_ACCUM_SAMPLES),
-            2*f_cmac_accum_width(c_SAMPLE_WIDTH, c_MAX_ACCUM_SAMPLES)
-            );      
-    end function f_cmac_readout_width;
+--    function f_cmac_readout_width (
+--        constant c_SAMPLE_WIDTH : natural;
+--        constant c_MAX_ACCUM_SAMPLES : natural)
+--        return natural is
+--    begin
+--        return maxim(
+--            f_cmac_tci_width(c_MAX_ACCUM_SAMPLES) + f_cmac_dv_width(c_MAX_ACCUM_SAMPLES),
+--            2*f_cmac_accum_width(c_SAMPLE_WIDTH, c_MAX_ACCUM_SAMPLES)
+--            );      
+--    end function f_cmac_readout_width;
 
-    function f_turn_column_to_row (
-        col : t_cmac_input_bus;
-        row : t_cmac_input_bus;
-        constant c_SAMPLE_WIDTH : natural)
-        return t_cmac_input_bus is
-        variable v_muxed_row : t_cmac_input_bus;
-        variable v_do_conj : std_logic;
-        variable out_row : t_cmac_input_bus;
-    begin
-        if col.auto_corr='1' then
-            v_muxed_row := col;
-            v_do_conj := '1'; -- column to row, so conjugate.
-        else
-            v_muxed_row := row;
-            v_do_conj := '0';
-        end if;        
-        out_row := conjugate(v_muxed_row, c_SAMPLE_WIDTH, v_do_conj);
-        -- Take the control signals from the col so that they can be optimised away on the rows.
-        out_row.vld        := col.vld;
-        out_row.first      := col.first;
-        out_row.last       := col.last;
-        out_row.sample_cnt := col.sample_cnt;
-        out_row.auto_corr  := col.auto_corr;
-        if col.vld /= 'U' then
-            assert to_01(col.vld) = to_01(row.vld)
-                and to_01(col.last) = to_01(row.last)
-                and to_01(col.sample_cnt) = to_01(row.sample_cnt)
-                and to_01(col.auto_corr) = to_01(row.auto_corr)
-                report "Bad assumption, col and row control signals are not the same."
-                severity failure;
-        end if;
-        return out_row;
-    end function f_turn_column_to_row;
+--    function f_turn_column_to_row (
+--        col : t_cmac_input_bus;
+--        row : t_cmac_input_bus;
+--        constant c_SAMPLE_WIDTH : natural)
+--        return t_cmac_input_bus is
+--        variable v_muxed_row : t_cmac_input_bus;
+--        variable v_do_conj : std_logic;
+--        variable out_row : t_cmac_input_bus;
+--    begin
+--        if col.auto_corr='1' then
+--            v_muxed_row := col;
+--            v_do_conj := '1'; -- column to row, so conjugate.
+--        else
+--            v_muxed_row := row;
+--            v_do_conj := '0';
+--        end if;        
+--        out_row := conjugate(v_muxed_row, c_SAMPLE_WIDTH, v_do_conj);
+--        -- Take the control signals from the col so that they can be optimised away on the rows.
+--        out_row.vld        := col.vld;
+--        out_row.first      := col.first;
+--        out_row.last       := col.last;
+--        out_row.sample_cnt := col.sample_cnt;
+--        out_row.auto_corr  := col.auto_corr;
+--        if col.vld /= 'U' then
+--            assert to_01(col.vld) = to_01(row.vld)
+--                and to_01(col.last) = to_01(row.last)
+--                and to_01(col.sample_cnt) = to_01(row.sample_cnt)
+--                and to_01(col.auto_corr) = to_01(row.auto_corr)
+--                report "Bad assumption, col and row control signals are not the same."
+--                severity failure;
+--        end if;
+--        return out_row;
+--    end function f_turn_column_to_row;
 
-    function f_turn_row_to_column (
-        col : t_cmac_input_bus;
-        row : t_cmac_input_bus;
-        constant c_SAMPLE_WIDTH : natural)
-        return t_cmac_input_bus is
-        variable v_muxed_col : t_cmac_input_bus;
-        variable v_do_conj : std_logic;
-        variable out_col : t_cmac_input_bus;
-    begin
-        if col.auto_corr='1' then
-            v_muxed_col := row;
-            v_do_conj := '1'; -- row to column, so conjugate.
-        else
-            v_muxed_col := col;
-            v_do_conj := '0';
-        end if;        
-        out_col := conjugate(v_muxed_col, c_SAMPLE_WIDTH, v_do_conj);
-        -- Take the control signals from the col so that they can be optimised away on the rows.
-        out_col.vld        := col.vld;
-        out_col.first      := col.first;
-        out_col.last       := col.last;
-        out_col.sample_cnt := col.sample_cnt;
-        out_col.auto_corr  := col.auto_corr;
-        if col.vld /= 'U' then
-            assert to_01(col.vld) = to_01(row.vld)
-                and to_01(col.last) = to_01(row.last)
-                and to_01(col.sample_cnt) = to_01(row.sample_cnt)
-                and to_01(col.auto_corr) = to_01(row.auto_corr)
-                report "Bad assumption, col and row control signals are not the same."
-                severity failure;
-        end if;
-        return out_col;
-    end function f_turn_row_to_column;
+--    function f_turn_row_to_column (
+--        col : t_cmac_input_bus;
+--        row : t_cmac_input_bus;
+--        constant c_SAMPLE_WIDTH : natural)
+--        return t_cmac_input_bus is
+--        variable v_muxed_col : t_cmac_input_bus;
+--        variable v_do_conj : std_logic;
+--        variable out_col : t_cmac_input_bus;
+--    begin
+--        if col.auto_corr='1' then
+--            v_muxed_col := row;
+--            v_do_conj := '1'; -- row to column, so conjugate.
+--        else
+--            v_muxed_col := col;
+--            v_do_conj := '0';
+--        end if;        
+--        out_col := conjugate(v_muxed_col, c_SAMPLE_WIDTH, v_do_conj);
+--        -- Take the control signals from the col so that they can be optimised away on the rows.
+--        out_col.vld        := col.vld;
+--        out_col.first      := col.first;
+--        out_col.last       := col.last;
+--        out_col.sample_cnt := col.sample_cnt;
+--        out_col.auto_corr  := col.auto_corr;
+--        if col.vld /= 'U' then
+--            assert to_01(col.vld) = to_01(row.vld)
+--                and to_01(col.last) = to_01(row.last)
+--                and to_01(col.sample_cnt) = to_01(row.sample_cnt)
+--                and to_01(col.auto_corr) = to_01(row.auto_corr)
+--                report "Bad assumption, col and row control signals are not the same."
+--                severity failure;
+--        end if;
+--        return out_col;
+--    end function f_turn_row_to_column;
                           
     function f_format_row (
         row : signed;

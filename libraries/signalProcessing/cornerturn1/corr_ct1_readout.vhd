@@ -106,7 +106,7 @@ USE common_lib.common_pkg.ALL;
 use DSP_top_lib.DSP_top_pkg.ALL;
 use axi4_lib.axi4_full_pkg.ALL;
 
-entity ct_atomic_cor_readout is
+entity corr_ct1_readout is
     generic (
         -- Number of LFAA blocks per frame
         g_LFAA_BLOCKS_PER_FRAME : integer := 128   -- Number of LFAA blocks per frame;
@@ -172,9 +172,9 @@ entity ct_atomic_cor_readout is
         o_Unexpected_rdata : out std_logic; -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
         o_dataMissing : out std_logic       -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
     );
-end ct_atomic_cor_readout;
+end corr_ct1_readout;
 
-architecture Behavioral of ct_atomic_cor_readout is
+architecture Behavioral of corr_ct1_readout is
     
     signal bufRdAddr : std_logic_vector(11 downto 0);
     signal bufDout : std_logic_vector(511 downto 0);
@@ -1653,7 +1653,7 @@ begin
     o_sof <= sof;
     
     outputFifoGen : for i in 0 to 3 generate
-        outfifoInst: entity ct_lib.cor_readout_32bit
+        outfifoInst: entity ct_lib.corr_ct1_readout_32bit
         Port map(
             i_clk => shared_clk,
             i_rst => readOutRst, -- in std_logic;  -- Drive this high for one clock between each virtual channel.

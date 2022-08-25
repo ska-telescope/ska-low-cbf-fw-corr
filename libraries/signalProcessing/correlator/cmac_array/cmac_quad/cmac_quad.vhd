@@ -51,24 +51,34 @@ entity cmac_quad is
         i_clk       : in std_logic;
         i_clk_reset : in std_logic;
 
-        i_row : in t_cmac_input_bus_a(0 to 1);  -- dual polarisations
+        --  data       : signed(26 downto 0);  --* Encode I and Q phases into a single value using
+        --                                     --* cmac_pkg.to_6bj6b function.
+        --  vld        : std_logic;            --* data is valid.
+        --  first      : std_logic;            --* First input for this burst. Resets the Accumulator. 
+        --  last       : std_logic;            --* Last input for this burst. Triggers readout and reset in CMAC.
+        --                                     --* Must be externally validated.
+        --  rfi        : std_logic;            --* '0' = valid data, '1' = rfi data.
+        --  sample_cnt : unsigned(15 downto 0);
+        --  auto_corr  : std_logic;
+        i_row : in t_cmac_input_bus_a(0 to 1);  -- dual polarisations, each has : .data (27 bit), .vld (1 bit), .first (1 bit), .last (1 bit), .rfi (1 bit), .sample_cnt (16 bit), .auto_corr (1 bit).
         i_col : in t_cmac_input_bus_a(0 to 1);  -- dual polarisations
 
+        o_row : out t_cmac_input_bus_a(0 to 1);  -- dual polarisations; pipelined version of i_row
+        o_col : out t_cmac_input_bus_a(0 to 1);  -- dual polarisations; pipelined version of i_col
+
+        -- "scan" ports are not connected to anything ???
         i_scan_polX : in  signed(3*g_SAMPLE_WIDTH-1 downto 0) := (others => '-');
         o_scan_polX : out signed(3*g_SAMPLE_WIDTH-1 downto 0);
         i_scan_polY : in  signed(3*g_SAMPLE_WIDTH-1 downto 0) := (others => '-');
         o_scan_polY : out signed(3*g_SAMPLE_WIDTH-1 downto 0);
-
-        o_row : out t_cmac_input_bus_a(0 to 1);  -- dual polarisations
-        o_col : out t_cmac_input_bus_a(0 to 1);  -- dual polarisations
-
+        
         -- Readout interface. Basically a big sideloaded shift register.
         -- Loaded by i_<col|row>.last
         i_readout_vld  : in  std_logic := '0';
         i_readout_data : in  std_logic_vector;
         o_readout_vld  : out std_logic;
-         o_readout_data : out std_logic_vector);
-
+        o_readout_data : out std_logic_vector
+    );
 end entity cmac_quad;
 
 architecture rtl of cmac_quad is

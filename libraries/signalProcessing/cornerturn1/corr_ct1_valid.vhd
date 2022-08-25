@@ -18,7 +18,7 @@ use IEEE.NUMERIC_STD.ALL;
 Library xpm;
 use xpm.vcomponents.all;
 
-entity ct_atomic_cor_valid is
+entity corr_ct1_valid is
     port (
         i_clk  : in std_logic;
         i_rst  : in std_logic;
@@ -34,9 +34,9 @@ entity ct_atomic_cor_valid is
         i_readAddr : in std_logic_vector(18 downto 0);
         o_readData : out std_logic
     );
-end ct_atomic_cor_valid;
+end corr_ct1_valid;
 
-architecture Behavioral of ct_atomic_cor_valid is
+architecture Behavioral of corr_ct1_valid is
     
     signal wea : std_logic_vector(0 downto 0);
     signal addra : std_logic_vector(18 downto 0);

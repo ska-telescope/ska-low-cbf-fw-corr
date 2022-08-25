@@ -117,6 +117,8 @@ PACKAGE axi4_full_pkg IS
     len    : std_logic_Vector(7 downto 0);
   end record;
 
+  type t_axi4_full_addr_arr is array (integer range <>) of t_axi4_full_addr;
+
   -- write and read data buses
   type t_axi4_full_data is record
     valid : std_logic;
@@ -124,11 +126,15 @@ PACKAGE axi4_full_pkg IS
     last  : std_logic;
     resp  : std_logic_vector(1 downto 0);
   end record;
+  
+  type t_axi4_full_data_arr is array (integer range <>) of t_axi4_full_data;
 
   type t_axi4_full_b is record
     valid : std_logic;
     resp : std_logic_vector(1 downto 0);
   end record;
+
+  type t_axi4_full_b_arr is array (integer range <>) of t_axi4_full_b;
 
   -- Multi port array for MM records
   TYPE t_axi4_full_miso_arr IS ARRAY (INTEGER RANGE <>) OF t_axi4_full_miso;

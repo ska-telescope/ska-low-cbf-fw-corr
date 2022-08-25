@@ -53,18 +53,26 @@ ENTITY correlator IS
         C_M_AXI_ADDR_WIDTH : integer := 64;
         C_M_AXI_DATA_WIDTH : integer := 32;
         C_M_AXI_ID_WIDTH   : integer := 1;
-        -- M01 = first stage corner turn, between LFAA ingest and the filterbanks
+        -- M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
         M01_AXI_ADDR_WIDTH : integer := 64;
         M01_AXI_DATA_WIDTH : integer := 512;
         M01_AXI_ID_WIDTH   : integer := 1;
-        -- M02 = Correlator HBM; buffer between the filterbanks and the correlator
+        -- M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
         M02_AXI_ADDR_WIDTH : integer := 64;
         M02_AXI_DATA_WIDTH : integer := 512; 
         M02_AXI_ID_WIDTH   : integer := 1;
-        -- M03 = Visibilities
+        -- M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
         M03_AXI_ADDR_WIDTH : integer := 64;  
         M03_AXI_DATA_WIDTH : integer := 512;
-        M03_AXI_ID_WIDTH   : integer := 1
+        M03_AXI_ID_WIDTH   : integer := 1;
+        -- M04, 2 Gbytes HBM; Visibilities from first correlator instance
+        M04_AXI_ADDR_WIDTH : integer := 64;  
+        M04_AXI_DATA_WIDTH : integer := 512;
+        M04_AXI_ID_WIDTH   : integer := 1;
+        -- M05, 2 Gbytes HBM; Visibilities from second correlator instance
+        M05_AXI_ADDR_WIDTH : integer := 64;  
+        M05_AXI_DATA_WIDTH : integer := 512;
+        M05_AXI_ID_WIDTH   : integer := 1
     );
     PORT (
         ap_clk : in std_logic;
@@ -198,7 +206,8 @@ ENTITY correlator IS
 
         ---------------------------------------------------------------------------------------
         -- AXI4 master interface; Correlator HBM; buffer between the filterbanks and the correlator
-        -- 6 Gbytes
+        -- First half, for fine channels that go to the first correlator instance.
+        -- 3 Gbytes
         m02_axi_awvalid : out std_logic;
         m02_axi_awready : in std_logic;
         m02_axi_awaddr : out std_logic_vector(M02_AXI_ADDR_WIDTH-1 downto 0);
@@ -239,7 +248,9 @@ ENTITY correlator IS
         m02_axi_rid       : in std_logic_vector(M02_AXI_ID_WIDTH - 1 downto 0);
         m02_axi_rresp     : in std_logic_vector(1 downto 0);        
 
-        -- M03 = Visibilities; 0.5 Gbytes
+        -- AXI4 master interface; Correlator HBM; buffer between the filterbanks and the correlator
+        -- Second half, for fine channels that go to the second correlator instance.
+        -- 3 Gbytes
         m03_axi_awvalid : out std_logic;
         m03_axi_awready : in std_logic;
         m03_axi_awaddr : out std_logic_vector(M03_AXI_ADDR_WIDTH-1 downto 0);
@@ -279,6 +290,88 @@ ENTITY correlator IS
         m03_axi_rlast     : in std_logic;
         m03_axi_rid       : in std_logic_vector(M03_AXI_ID_WIDTH - 1 downto 0);
         m03_axi_rresp     : in std_logic_vector(1 downto 0);   
+        
+        -- M04 = Visibilities from first correlator instance; 2 Gbytes
+        m04_axi_awvalid : out std_logic;
+        m04_axi_awready : in std_logic;
+        m04_axi_awaddr : out std_logic_vector(M04_AXI_ADDR_WIDTH-1 downto 0);
+        m04_axi_awid   : out std_logic_vector(M04_AXI_ID_WIDTH - 1 downto 0);
+        m04_axi_awlen   : out std_logic_vector(7 downto 0);
+        m04_axi_awsize   : out std_logic_vector(2 downto 0);
+        m04_axi_awburst  : out std_logic_vector(1 downto 0);
+        m04_axi_awlock   : out std_logic_vector(1 downto 0);
+        m04_axi_awcache  : out std_logic_vector(3 downto 0);
+        m04_axi_awprot   : out std_logic_vector(2 downto 0);
+        m04_axi_awqos    : out std_logic_vector(3 downto 0);
+        m04_axi_awregion : out std_logic_vector(3 downto 0);
+        m04_axi_wvalid    : out std_logic;
+        m04_axi_wready    : in std_logic;
+        m04_axi_wdata     : out std_logic_vector(M04_AXI_DATA_WIDTH-1 downto 0);
+        m04_axi_wstrb     : out std_logic_vector(M04_AXI_DATA_WIDTH/8-1 downto 0);
+        m04_axi_wlast     : out std_logic;
+        m04_axi_bvalid    : in std_logic;
+        m04_axi_bready    : out std_logic;
+        m04_axi_bresp     : in std_logic_vector(1 downto 0);
+        m04_axi_bid       : in std_logic_vector(M04_AXI_ID_WIDTH - 1 downto 0);
+        m04_axi_arvalid   : out std_logic;
+        m04_axi_arready   : in std_logic;
+        m04_axi_araddr    : out std_logic_vector(M04_AXI_ADDR_WIDTH-1 downto 0);
+        m04_axi_arid      : out std_logic_vector(M04_AXI_ID_WIDTH-1 downto 0);
+        m04_axi_arlen     : out std_logic_vector(7 downto 0);
+        m04_axi_arsize    : out std_logic_vector(2 downto 0);
+        m04_axi_arburst   : out std_logic_vector(1 downto 0);
+        m04_axi_arlock    : out std_logic_vector(1 downto 0);
+        m04_axi_arcache   : out std_logic_vector(3 downto 0);
+        m04_axi_arprot    : out std_logic_Vector(2 downto 0);
+        m04_axi_arqos     : out std_logic_vector(3 downto 0);
+        m04_axi_arregion  : out std_logic_vector(3 downto 0);
+        m04_axi_rvalid    : in std_logic;
+        m04_axi_rready    : out std_logic;
+        m04_axi_rdata     : in std_logic_vector(M04_AXI_DATA_WIDTH-1 downto 0);
+        m04_axi_rlast     : in std_logic;
+        m04_axi_rid       : in std_logic_vector(M04_AXI_ID_WIDTH - 1 downto 0);
+        m04_axi_rresp     : in std_logic_vector(1 downto 0);           
+        
+        -- M05 = Visibilities from second correlator instance; 2 Gbytes
+        m05_axi_awvalid : out std_logic;
+        m05_axi_awready : in std_logic;
+        m05_axi_awaddr : out std_logic_vector(M05_AXI_ADDR_WIDTH-1 downto 0);
+        m05_axi_awid   : out std_logic_vector(M05_AXI_ID_WIDTH - 1 downto 0);
+        m05_axi_awlen   : out std_logic_vector(7 downto 0);
+        m05_axi_awsize   : out std_logic_vector(2 downto 0);
+        m05_axi_awburst  : out std_logic_vector(1 downto 0);
+        m05_axi_awlock   : out std_logic_vector(1 downto 0);
+        m05_axi_awcache  : out std_logic_vector(3 downto 0);
+        m05_axi_awprot   : out std_logic_vector(2 downto 0);
+        m05_axi_awqos    : out std_logic_vector(3 downto 0);
+        m05_axi_awregion : out std_logic_vector(3 downto 0);
+        m05_axi_wvalid    : out std_logic;
+        m05_axi_wready    : in std_logic;
+        m05_axi_wdata     : out std_logic_vector(M05_AXI_DATA_WIDTH-1 downto 0);
+        m05_axi_wstrb     : out std_logic_vector(M05_AXI_DATA_WIDTH/8-1 downto 0);
+        m05_axi_wlast     : out std_logic;
+        m05_axi_bvalid    : in std_logic;
+        m05_axi_bready    : out std_logic;
+        m05_axi_bresp     : in std_logic_vector(1 downto 0);
+        m05_axi_bid       : in std_logic_vector(M05_AXI_ID_WIDTH - 1 downto 0);
+        m05_axi_arvalid   : out std_logic;
+        m05_axi_arready   : in std_logic;
+        m05_axi_araddr    : out std_logic_vector(M05_AXI_ADDR_WIDTH-1 downto 0);
+        m05_axi_arid      : out std_logic_vector(M05_AXI_ID_WIDTH-1 downto 0);
+        m05_axi_arlen     : out std_logic_vector(7 downto 0);
+        m05_axi_arsize    : out std_logic_vector(2 downto 0);
+        m05_axi_arburst   : out std_logic_vector(1 downto 0);
+        m05_axi_arlock    : out std_logic_vector(1 downto 0);
+        m05_axi_arcache   : out std_logic_vector(3 downto 0);
+        m05_axi_arprot    : out std_logic_Vector(2 downto 0);
+        m05_axi_arqos     : out std_logic_vector(3 downto 0);
+        m05_axi_arregion  : out std_logic_vector(3 downto 0);
+        m05_axi_rvalid    : in std_logic;
+        m05_axi_rready    : out std_logic;
+        m05_axi_rdata     : in std_logic_vector(M05_AXI_DATA_WIDTH-1 downto 0);
+        m05_axi_rlast     : in std_logic;
+        m05_axi_rid       : in std_logic_vector(M05_AXI_ID_WIDTH - 1 downto 0);
+        m05_axi_rresp     : in std_logic_vector(1 downto 0);             
         
         -- GT pins
         -- clk_gt_freerun is a 50MHz free running clock, according to the GT kernel Example Design user guide.
@@ -474,7 +567,7 @@ begin
         m01_axi_rresp    =>  m01_axi_rresp,     
 
         ---------------------------------------------------------------------------------------
-        -- AXI4 master interface for storing the output of the filterbanks
+        -- 3 Gbyte HBM for fine channel data for input to the first correlator instance
         m02_axi_awvalid  => m02_axi_awvalid,  
         m02_axi_awready  => m02_axi_awready,   
         m02_axi_awaddr   => m02_axi_awaddr,    
@@ -516,7 +609,7 @@ begin
         m02_axi_rid      => m02_axi_rid,       
         m02_axi_rresp    => m02_axi_rresp,     
         ------------------------------------------------------------------------------------------
-        -- Visibilities HBM
+        -- 3 Gbyte HBM for fine channel data for input to the second correlator instance.
         m03_axi_awvalid  => m03_axi_awvalid,  
         m03_axi_awready  => m03_axi_awready,   
         m03_axi_awaddr   => m03_axi_awaddr,    
@@ -556,6 +649,90 @@ begin
         m03_axi_rlast    => m03_axi_rlast,     
         m03_axi_rid      => m03_axi_rid,       
         m03_axi_rresp    => m03_axi_rresp,   
+
+        ------------------------------------------------------------------------------------------
+        -- Visibilities HBM for first correlator instance
+        m04_axi_awvalid  => m04_axi_awvalid,  
+        m04_axi_awready  => m04_axi_awready,   
+        m04_axi_awaddr   => m04_axi_awaddr,    
+        m04_axi_awid     => m04_axi_awid,      
+        m04_axi_awlen    => m04_axi_awlen,     
+        m04_axi_awsize   => m04_axi_awsize,    
+        m04_axi_awburst  => m04_axi_awburst,   
+        m04_axi_awlock   => m04_axi_awlock,    
+        m04_axi_awcache  => m04_axi_awcache,   
+        m04_axi_awprot   => m04_axi_awprot,    
+        m04_axi_awqos    => m04_axi_awqos,     
+        m04_axi_awregion => m04_axi_awregion,  
+        m04_axi_wvalid   => m04_axi_wvalid,    
+        m04_axi_wready   => m04_axi_wready,    
+        m04_axi_wdata    => m04_axi_wdata,     
+        m04_axi_wstrb    => m04_axi_wstrb,     
+        m04_axi_wlast    => m04_axi_wlast,     
+        m04_axi_bvalid   => m04_axi_bvalid,    
+        m04_axi_bready   => m04_axi_bready,    
+        m04_axi_bresp    => m04_axi_bresp,     
+        m04_axi_bid      => m04_axi_bid,       
+        m04_axi_arvalid  => m04_axi_arvalid,   
+        m04_axi_arready  => m04_axi_arready,   
+        m04_axi_araddr   => m04_axi_araddr,    
+        m04_axi_arid     => m04_axi_arid,      
+        m04_axi_arlen    => m04_axi_arlen,     
+        m04_axi_arsize   => m04_axi_arsize,    
+        m04_axi_arburst  => m04_axi_arburst,   
+        m04_axi_arlock   => m04_axi_arlock,    
+        m04_axi_arcache  => m04_axi_arcache,   
+        m04_axi_arprot   => m04_axi_arprot,    
+        m04_axi_arqos    => m04_axi_arqos,     
+        m04_axi_arregion => m04_axi_arregion,  
+        m04_axi_rvalid   => m04_axi_rvalid,    
+        m04_axi_rready   => m04_axi_rready,    
+        m04_axi_rdata    => m04_axi_rdata,     
+        m04_axi_rlast    => m04_axi_rlast,     
+        m04_axi_rid      => m04_axi_rid,       
+        m04_axi_rresp    => m04_axi_rresp,
+
+        ------------------------------------------------------------------------------------------
+        -- Visibilities HBM for second correlator instance
+        m05_axi_awvalid  => m05_axi_awvalid,  
+        m05_axi_awready  => m05_axi_awready,   
+        m05_axi_awaddr   => m05_axi_awaddr,    
+        m05_axi_awid     => m05_axi_awid,      
+        m05_axi_awlen    => m05_axi_awlen,     
+        m05_axi_awsize   => m05_axi_awsize,    
+        m05_axi_awburst  => m05_axi_awburst,   
+        m05_axi_awlock   => m05_axi_awlock,    
+        m05_axi_awcache  => m05_axi_awcache,   
+        m05_axi_awprot   => m05_axi_awprot,    
+        m05_axi_awqos    => m05_axi_awqos,     
+        m05_axi_awregion => m05_axi_awregion,  
+        m05_axi_wvalid   => m05_axi_wvalid,    
+        m05_axi_wready   => m05_axi_wready,    
+        m05_axi_wdata    => m05_axi_wdata,     
+        m05_axi_wstrb    => m05_axi_wstrb,     
+        m05_axi_wlast    => m05_axi_wlast,     
+        m05_axi_bvalid   => m05_axi_bvalid,    
+        m05_axi_bready   => m05_axi_bready,    
+        m05_axi_bresp    => m05_axi_bresp,     
+        m05_axi_bid      => m05_axi_bid,       
+        m05_axi_arvalid  => m05_axi_arvalid,   
+        m05_axi_arready  => m05_axi_arready,   
+        m05_axi_araddr   => m05_axi_araddr,    
+        m05_axi_arid     => m05_axi_arid,      
+        m05_axi_arlen    => m05_axi_arlen,     
+        m05_axi_arsize   => m05_axi_arsize,    
+        m05_axi_arburst  => m05_axi_arburst,   
+        m05_axi_arlock   => m05_axi_arlock,    
+        m05_axi_arcache  => m05_axi_arcache,   
+        m05_axi_arprot   => m05_axi_arprot,    
+        m05_axi_arqos    => m05_axi_arqos,     
+        m05_axi_arregion => m05_axi_arregion,  
+        m05_axi_rvalid   => m05_axi_rvalid,    
+        m05_axi_rready   => m05_axi_rready,    
+        m05_axi_rdata    => m05_axi_rdata,     
+        m05_axi_rlast    => m05_axi_rlast,     
+        m05_axi_rid      => m05_axi_rid,       
+        m05_axi_rresp    => m05_axi_rresp,
 
         -- GT pins
         -- clk_freerun is a 100MHz free running clock.

@@ -96,7 +96,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 library DSP_top_lib;
 use DSP_top_lib.DSP_top_pkg.all;
-USE ct_lib.ct_atomic_cor_in_reg_pkg.ALL;
+USE ct_lib.corr_ct1_reg_pkg.ALL;
 USE common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
 
@@ -107,7 +107,7 @@ use axi4_lib.axi4_full_pkg.all;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 
-entity ct_atomic_cor_in is
+entity corr_ct1_top is
     generic (
         -- Number of LFAA blocks per frame for the correlator output.
         -- Each LFAA block is 2048 time samples. 
@@ -115,7 +115,11 @@ entity ct_atomic_cor_in is
         -- (128 LFAA packets) x (8192 bytes / LFAA packet) x (1024 virtual channels) = 2^30 bytes = 1 Gbyte per buffer.
         -- We need to have a full set of preload data for the filterbanks in a buffer, i.e. 11*4096 samples. = 22 x 2048
         -- 
-        g_LFAA_BLOCKS_PER_FRAME : integer := 128   -- Number of LFAA blocks per frame; Use 32 for simulation, 128 otherwise.
+        -- Number of LFAA blocks per frame; 
+        --   - Can use 32 for simulation of the LFAA ingest, 1st corner turn and filterbank
+        --     32 is the minimum possible value because otherwise there is insufficient data for the filterbank preload.
+        --   - full build must use 128. The second stage corner turn only supports 128.
+        g_LFAA_BLOCKS_PER_FRAME : integer := 128   
     );
     port (
         -- shared memory interface clock (300 MHz)
@@ -173,9 +177,9 @@ entity ct_atomic_cor_in is
         i_m01_axi_r       : in  t_axi4_full_data;
         o_m01_axi_rready  : out std_logic
     );
-end ct_atomic_cor_in;
+end corr_ct1_top;
 
-architecture Behavioral of ct_atomic_cor_in is
+architecture Behavioral of corr_ct1_top is
     
     -- Bus to communicate HBM addresses to the input buffer (ct_vfc_input_buffer) from the memory allocation module (ct_vfc_malloc)
     signal writePacketCount : std_logic_vector(31 downto 0);  -- Packet count from the packet header
@@ -294,7 +298,7 @@ begin
     -- Note : This relies on the "number_of_slaves" field being set correctly in ct_vfc.peripheral.yaml; it should match g_N_STATIONs
     -- 
     ------------------------------------------------------------------------------------
-    E_TOP_CONFIG : entity ct_lib.ct_atomic_cor_in_reg
+    E_TOP_CONFIG : entity ct_lib.corr_ct1_reg
     port map (
         MM_CLK  => i_shared_clk, -- in std_logic;
         MM_RST  => i_shared_rst, -- in std_logic;
@@ -666,7 +670,7 @@ begin
         end if;
     end process;
     
-    validmemInst : entity ct_lib.ct_atomic_cor_valid
+    validmemInst : entity ct_lib.corr_ct1_valid
     port map (
         i_clk => i_shared_clk,
         i_rst => AWFIFO_rst,
@@ -686,7 +690,7 @@ begin
     -----------------------------------------------------------------------------------------------
     -- readout of a frame
     
-    readout : entity ct_lib.ct_atomic_cor_readout
+    readout : entity ct_lib.corr_ct1_readout
     generic map (
         g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME
     )

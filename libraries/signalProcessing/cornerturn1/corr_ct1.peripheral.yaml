@@ -2,19 +2,19 @@ schema_name   : args
 schema_version: 1.0
 schema_type   : peripheral
 
-hdl_library_name       : ct_atomic_cor_in
-hdl_library_description: "Correlator Corner Turn configuration"
+hdl_library_name       : corr_ct1
+hdl_library_description: "Correlator Corner Turn 1 configuration"
 
 peripherals:
 
-  - peripheral_name        : ct_atomic_cor_in
-    peripheral_description : "Correlator corner turn configuration"
+  - peripheral_name        : corr_ct1
+    peripheral_description : "Correlator corner turn 1 configuration"
 
     slave_ports:
       - slave_name        : config
         slave_type        : reg
         number_of_slaves  : 1
-        slave_description : "Correlator corner turn control"
+        slave_description : "Correlator corner turn 1 control"
         fields:
           - - field_name        : full_reset
               width             : 1

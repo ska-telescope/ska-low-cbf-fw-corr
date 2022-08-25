@@ -13,7 +13,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use xpm.vcomponents.all;
 
-entity cor_readout_32bit is
+entity corr_ct1_readout_32bit is
     Port(
         i_clk : in std_logic;
         i_rst : in std_logic;  -- Drive this high for one clock between each virtual channel.
@@ -37,9 +37,9 @@ entity cor_readout_32bit is
         o_valid : out std_logic;
         i_run : in std_logic -- should go high for a burst of 64 clocks to output a packet.
     );
-end cor_readout_32bit;
+end corr_ct1_readout_32bit;
 
-architecture Behavioral of cor_readout_32bit is
+architecture Behavioral of corr_ct1_readout_32bit is
 
     signal reg512 : std_logic_vector(511 downto 0);
     signal fifoWrDataCount : std_logic_vector(5 downto 0);

@@ -138,11 +138,14 @@ PACKAGE common_pkg IS
   TYPE t_slv_48_arr      IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(47 DOWNTO 0);
   TYPE t_slv_64_arr      IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(63 DOWNTO 0);
   TYPE t_slv_68_arr      IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(67 DOWNTO 0);
+  TYPE t_slv_72_arr      is array (integer range <>) of std_logic_Vector(71 downto 0);
   TYPE t_slv_96_arr      IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(95 DOWNTO 0);
   TYPE t_slv_128_arr     IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(127 DOWNTO 0);
   TYPE t_slv_256_arr     IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(255 DOWNTO 0);
   type t_slv_257_arr     is array (integer range <>) of std_logic_vector(256 downto 0);
+  type t_slv_288_arr     is array (integer range <>) of std_logic_Vector(287 downto 0);
   TYPE t_slv_512_arr     IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(511 DOWNTO 0);
+  type t_slv_513_arr     is array (integer range <>) of std_logic_vector(512 downto 0);
   TYPE t_slv_1024_arr    IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(1023 DOWNTO 0);
 
   CONSTANT c_boolean_arr     : t_boolean_arr     := (TRUE, FALSE);  -- array all possible values that can be iterated over

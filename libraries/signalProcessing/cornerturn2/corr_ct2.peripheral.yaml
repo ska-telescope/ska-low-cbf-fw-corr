@@ -2,11 +2,11 @@ schema_name   : args
 schema_version: 1.0
 schema_type   : peripheral
 
-hdl_library_name       : ct_atomic_cor_out
+hdl_library_name       : corr_ct2
 hdl_library_description: "Correlator output corner turn"
 
 peripherals:
-  - peripheral_name        : ct_atomic_cor_out
+  - peripheral_name        : corr_ct2
     peripheral_description : "Control the correlator output corner turn"
     slave_ports:
       - slave_name        : StatCtrl

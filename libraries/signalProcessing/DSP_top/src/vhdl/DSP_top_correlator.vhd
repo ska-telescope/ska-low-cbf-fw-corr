@@ -96,41 +96,53 @@ entity DSP_top_correlator is
         -----------------------------------------------------------------------
         -- AXI interfaces to shared memory
         -- Uses the same clock as MACE (300MHz)
-        --  Shared memory block for the first corner turn (at the output of the LFAA ingest block)
-        -- Corner Turn between LFAA ingest and the filterbanks
-        -- aw bus - write addresses.
-        o_m01_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m01_axi_awready : in  std_logic;
-        o_m01_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_m01_axi_wready  : in  std_logic;
-        i_m01_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_m01_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m01_axi_arready : in  std_logic;
-        i_m01_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_m01_axi_rready  : out std_logic;
         
-        -- Buffer between filterbanks and correlator - could be up to 6 Gbytes.
-        o_m02_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m02_axi_awready : in  std_logic;
-        o_m02_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_m02_axi_wready  : in  std_logic;
-        i_m02_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_m02_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m02_axi_arready : in  std_logic;
-        i_m02_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_m02_axi_rready  : out std_logic;
+        o_HBM_axi_aw      : out t_axi4_full_addr_arr(4 downto 0); -- => HBM_axi_aw,       -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_awready : in std_logic_vector(4 downto 0);      -- => HBM_axi_awreadyi,  --                     in std_logic_vector(4 downto 0);
+        o_HBM_axi_w       : out t_axi4_full_data_arr(4 downto 0); -- => HBM_axi_w,        -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_wready  : in std_logic_vector(4 downto 0); -- => HBM_axi_wreadyi,  --              in std_logic_vector(4 downto 0);
+        i_HBM_axi_b       : in t_axi4_full_b_arr(4 downto 0); -- => HBM_axi_b,        -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM_axi_ar      : out t_axi4_full_addr_arr(4 downto 0); -- => HBM_axi_ar,       -- read address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_arready : in std_logic_vector(4 downto 0);  --  HBM_axi_arreadyi, --                    in std_logic_vector(4 downto 0);
+        i_HBM_axi_r       : in t_axi4_full_data_arr(4 downto 0); -- => HBM_axi_r,        -- r data bus : in t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_rready  : out std_logic_vector(4 downto 0)     -- => HBM_axi_rreadyi   --              out std_logic_vector(4 downto 0);        
         
-        -- Visibilities buffer
-        -- aw, w, b, ar, and r buses.
-        o_m03_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m03_axi_awready : in  std_logic;
-        o_m03_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_m03_axi_wready  : in  std_logic;
-        i_m03_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_m03_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m03_axi_arready : in  std_logic;
-        i_m03_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_m03_axi_rready  : out std_logic
+        
+--        --  Shared memory block for the first corner turn (at the output of the LFAA ingest block)
+--        -- Corner Turn between LFAA ingest and the filterbanks
+--        -- aw bus - write addresses.
+--        o_m01_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+--        i_m01_axi_awready : in  std_logic;
+--        o_m01_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+--        i_m01_axi_wready  : in  std_logic;
+--        i_m01_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+--        o_m01_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+--        i_m01_axi_arready : in  std_logic;
+--        i_m01_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+--        o_m01_axi_rready  : out std_logic;
+        
+--        -- Buffer between filterbanks and correlator - could be up to 6 Gbytes.
+--        o_m02_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+--        i_m02_axi_awready : in  std_logic;
+--        o_m02_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+--        i_m02_axi_wready  : in  std_logic;
+--        i_m02_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+--        o_m02_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+--        i_m02_axi_arready : in  std_logic;
+--        i_m02_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+--        o_m02_axi_rready  : out std_logic;
+        
+--        -- Visibilities buffer
+--        -- aw, w, b, ar, and r buses.
+--        o_m03_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+--        i_m03_axi_awready : in  std_logic;
+--        o_m03_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+--        i_m03_axi_wready  : in  std_logic;
+--        i_m03_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+--        o_m03_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+--        i_m03_axi_arready : in  std_logic;
+--        i_m03_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+--        o_m03_axi_rready  : out std_logic
     );
 END DSP_top_correlator;
 
@@ -432,12 +444,8 @@ begin
         o_100GE_timing_valid => timingPacketValid, -- out std_logic;
         o_100GE_timing       => timingPacketData,  -- out std_logic_vector(63 downto 0)
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
-        o_axi_w      => o_m01_axi_w,    -- w data bus (.wvalid, .wdata, .wlast)
-        i_axi_wready => i_m01_axi_wready, -- 
-          -- o_axi_wvalid => m01_axi_wvalid, -- out std_logic;
-          -- i_axi_wready => m01_axi_wready, -- in std_logic;
-          -- o_axi_wdata  => m01_axi_wdata,  -- out std_logic_vector(511 downto 0);
-          -- o_axi_wlast  => m01_axi_wlast,  -- out std_logic;
+        o_axi_w      => o_HBM_axi_w(0),    -- w data bus (.wvalid, .wdata, .wlast)
+        i_axi_wready => i_HBM_axi_wready(0), -- 
         -- miscellaneous
         i_my_mac           => mac100G,      -- in std_logic_vector(47 downto 0); -- MAC address for this board; incoming packets from the 40GE interface are filtered using this.
         i_wallTime         => clk322_wallTime,  -- in(63:0); time in nanoseconds.
@@ -483,7 +491,7 @@ begin
     );
     
     
-    LFAA_FB_CT : entity CT_lib.ct_atomic_cor_in
+    LFAA_FB_CT : entity CT_lib.corr_ct1_top
     generic map (
         g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME
     ) port map (
@@ -529,16 +537,16 @@ begin
         -- AXI bus to the shared memory. 
         -- This has the aw, b, ar and r buses (the w bus is on the output of the LFAA decode module)
         -- aw bus - write address
-        o_m01_axi_aw      => o_m01_axi_aw,      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m01_axi_awready => i_m01_axi_awready, -- in std_logic;
+        o_m01_axi_aw      => o_HBM_axi_aw(0),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_m01_axi_awready => i_HBM_axi_awready(0), -- in std_logic;
         -- b bus - write response
-        i_m01_axi_b  => i_m01_axi_b,            -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_m01_axi_b  => i_HBM_axi_b(0),            -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         -- ar bus - read address
-        o_m01_axi_ar => o_m01_axi_ar,           -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
-        i_m01_axi_arready => i_m01_axi_arready, -- in std_logic;
+        o_m01_axi_ar => o_HBM_axi_ar(0),           -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
+        i_m01_axi_arready => i_HBM_axi_arready(0), -- in std_logic;
         -- r bus - read data
-        i_m01_axi_r      => i_m01_axi_r,        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
-        o_m01_axi_rready => o_m01_axi_rready    -- out std_logic;
+        i_m01_axi_r      => i_HBM_axi_r(0),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
+        o_m01_axi_rready => o_HBM_axi_rready(0)    -- out std_logic;
     );
     
     -- Correlator filterbank and fine delay.
@@ -589,7 +597,7 @@ begin
     );
     
     -- Corner turn between filterbanks and correlator
-    ct_cor_out_inst : entity CT_lib.ct_atomic_cor_wrapper
+    ct_cor_out_inst : entity CT_lib.corr_ct2_top
     generic map (
         g_USE_META => g_USE_META   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
     ) port map (
@@ -605,28 +613,36 @@ begin
         i_rst  => '0',  --  in std_logic;
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
-        i_sof            => FB_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 283 ms of data).
-        i_frameCount     => FD_frameCount,     -- in std_logic_vector(36 downto 0); -- frame count is the same for all simultaneous output streams.
-        i_virtualChannel => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the PST data streams.
-        i_HeaderValid    => FD_headerValid,    -- in std_logic_vector(3 downto 0);
-        i_data           => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
-        i_dataValid      => FD_dataValid,      -- in std_logic;
+        i_sof             => FB_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 283 ms of data).
+        i_frameCount      => FD_frameCount,     -- in std_logic_vector(36 downto 0); -- frame count is the same for all simultaneous output streams.
+        i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the PST data streams.
+        i_HeaderValid     => FD_headerValid,    -- in std_logic_vector(3 downto 0);
+        i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
+        i_dataValid       => FD_dataValid,      -- in std_logic;
         -- Data out to the correlator - to be determined.
-        
         
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
-        -- aw bus = write address
         i_axi_clk         => i_MACE_clk,        -- in std_logic;
-        o_m02_axi_aw      => o_m02_axi_aw,      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m02_axi_awready => i_m02_axi_awready, -- in  std_logic;
-        o_m02_axi_w       => o_m02_axi_w,       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_m02_axi_wready  => i_m02_axi_wready,  -- in  std_logic;
-        i_m02_axi_b       => i_m02_axi_b,       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_m02_axi_ar      => o_m02_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m02_axi_arready => i_m02_axi_arready, -- in  std_logic;
-        i_m02_axi_r       => i_m02_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_m02_axi_rready  => o_m02_axi_rready   -- out std_logic
+        o_HBM0_axi_aw      => o_HBM_axi_aw(1),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM0_axi_awready => i_HBM_axi_awready(1), -- in  std_logic;
+        o_HBM0_axi_w       => o_HBM_axi_w(1),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM0_axi_wready  => i_HBM_axi_wready(1),  -- in  std_logic;
+        i_HBM0_axi_b       => i_HBM_axi_b(1),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM0_axi_ar      => o_HBM_axi_ar(1),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM0_axi_arready => i_HBM_axi_arready(1), -- in  std_logic;
+        i_HBM0_axi_r       => i_HBM_axi_r(1),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM0_axi_rready  => o_HBM_axi_rready(1),  -- out std_logic
+        
+        o_HBM1_axi_aw      => o_HBM_axi_aw(2),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM1_axi_awready => i_HBM_axi_awready(2), -- in  std_logic;
+        o_HBM1_axi_w       => o_HBM_axi_w(2),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM1_axi_wready  => i_HBM_axi_wready(2),  -- in  std_logic;
+        i_HBM1_axi_b       => i_HBM_axi_b(2),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM1_axi_ar      => o_HBM_axi_ar(2),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM1_axi_arready => i_HBM_axi_arready(2), -- in  std_logic;
+        i_HBM1_axi_r       => i_HBM_axi_r(2),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM1_axi_rready  => o_HBM_axi_rready(2)   -- out std_logic
     );
     
     -- Correlator
@@ -654,18 +670,27 @@ begin
         o_100GE_valid => open, -- out std_logic;
         
         -- AXI interface to the HBM for storage of visibilities
-        -- aw bus = write address
-        o_m03_axi_aw      => o_m03_axi_aw,      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m03_axi_awready => i_m03_axi_awready, -- in  std_logic;
-        o_m03_axi_w       => o_m03_axi_w,       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_m03_axi_wready  => i_m03_axi_wready,  -- in  std_logic;
-        i_m03_axi_b       => i_m03_axi_b,       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_m03_axi_ar      => o_m03_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m03_axi_arready => i_m03_axi_arready, -- in  std_logic;
-        i_m03_axi_r       => i_m03_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_m03_axi_rready  => o_m03_axi_rready   -- out std_logic
+        o_HBM0_axi_aw      => o_HBM_axi_aw(3),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM0_axi_awready => i_HBM_axi_awready(3), -- in  std_logic;
+        o_HBM0_axi_w       => o_HBM_axi_w(3),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM0_axi_wready  => i_HBM_axi_wready(3),  -- in  std_logic;
+        i_HBM0_axi_b       => i_HBM_axi_b(3),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM0_axi_ar      => o_HBM_axi_ar(3),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM0_axi_arready => i_HBM_axi_arready(3), -- in  std_logic;
+        i_HBM0_axi_r       => i_HBM_axi_r(3),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM0_axi_rready  => o_HBM_axi_rready(3),  -- out std_logic
+        --
+        o_HBM1_axi_aw      => o_HBM_axi_aw(4),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM1_axi_awready => i_HBM_axi_awready(4), -- in  std_logic;
+        o_HBM1_axi_w       => o_HBM_axi_w(4),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM1_axi_wready  => i_HBM_axi_wready(4),  -- in  std_logic;
+        i_HBM1_axi_b       => i_HBM_axi_b(4),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM1_axi_ar      => o_HBM_axi_ar(4),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM1_axi_arready => i_HBM_axi_arready(4), -- in  std_logic;
+        i_HBM1_axi_r       => i_HBM_axi_r(4),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM1_axi_rready  => o_HBM_axi_rready(4)   -- out std_logic
     );
-       
+    
     -----------------------------------------------------------------------------------------------
     -- 100GE output 
     

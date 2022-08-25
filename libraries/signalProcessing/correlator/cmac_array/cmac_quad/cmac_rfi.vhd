@@ -35,8 +35,7 @@ entity cmac_rfi is
         g_MAX_ACCUM_SAMPLES           : natural;
         g_READOUT_ONLY_WHEN_AUTO_MODE : boolean := false;
         g_CMAC_LATENCY                : natural;
-        g_READOUT_DELAY               : natural
-        );
+        g_READOUT_DELAY               : natural);
     port (
         i_clk       : in std_logic;
         i_clk_reset : in std_logic;
@@ -46,11 +45,9 @@ entity cmac_rfi is
 
         -- Readout interface. Basically a big sideloaded shift register.
         -- Loaded by i_<col|row>.last
-        i_readout_vld  : in  std_logic := '0';
-        i_readout_data : in  std_logic_vector;
         o_readout_vld  : out std_logic;
         o_readout_data : out std_logic_vector
-        );
+    );
 
 end entity cmac_rfi;
 
