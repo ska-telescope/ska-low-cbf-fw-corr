@@ -1,0 +1,45 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : cor_filterbanks
+hdl_library_description: "Correlator Filterbanks"
+
+peripherals:
+  - peripheral_name        : filterbanks
+    peripheral_description : "Correlator filterbanks control"
+    slave_ports:
+      - slave_name        : config
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "Correlator filterbank control"
+        fields            :
+          - - field_name        : config
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "bit 0 = reset counters in this module"
+              
+          - - field_name        : status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "something went wrong"
+              
+          - - field_name        : txCount_Eth
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets output on 100GE"
+          
+          - - field_name        : txCount_corner_turn
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets output to the corner turn."
+          
+          - - field_name        : output_disable
+              width             : 32
+              number_of_fields  : 1024
+              access_mode       : RW
+              field_description : "Disable fine channel output on the 100GE, one entry for each virtual channel. Defaults to zero, so all outputs are enabled."

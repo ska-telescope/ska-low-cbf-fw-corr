@@ -1,0 +1,318 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : DRP
+hdl_library_description: "Generation of IPv4 UDP packets from signal processing output"
+
+peripherals:
+  - peripheral_name        : DRP
+    peripheral_description : "Registers associated with Generating IPv4 UDP packets"
+    slave_ports:
+      #########################################################################################                            
+      - slave_name        : CMAC_DRP_Interface
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "Interacting with the DRP will take the IP offline, core is reset, parameters updated and then reset released. You then need to wait for the rx_alignment."
+        dual_clock        : false
+        fields            :
+          - - field_name        : CMAC_DRP_SM_Control_vector
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Definitions below, each action will take several cycles at 100MhZ, don't hammer!!!,
+                                  Bit 0 - Perform Action, set 1, wait for DRP return value to update before de-asserting and setting up next instruction
+                                  Bit 1 - perform read = 0, write = 1 (performing a write will trigger a read to verify)
+                                  "
+         #################################
+          - - field_name        : CMAC_DRP_addr_base
+              width             : 10
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Address to read from"
+         #################################
+          - - field_name        : CMAC_DRP_return_value
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Data from DRP interface"
+         #################################
+          - - field_name        : CMAC_DRP_value_to_write
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Data to write to DRP interface."
+         #################################
+          - - field_name        : GT_DRP_SM_Control_vector
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Definitions below, each action will take several cycles at 100MhZ, don't hammer!!!,
+                                  Bit 0 - Perform Action, set 1, wait for DRP return value to update before de-asserting and setting up next instruction
+                                  Bit 1 - GT lane 0 perform read = 0, write = 1 (performing a write will trigger a read to verify)
+                                  Bit 2 - GT lane 1 perform read = 0, write = 1 (performing a write will trigger a read to verify)
+                                  Bit 3 - GT lane 2 perform read = 0, write = 1 (performing a write will trigger a read to verify)
+                                  Bit 4 - GT lane 3 perform read = 0, write = 1 (performing a write will trigger a read to verify)
+                                  "
+         #################################
+          - - field_name        : GT_DRP_addr_base
+              width             : 10
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Address to read from"
+         #################################
+          - - field_name        : GT_0_DRP_return_value
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Data from DRP interface"
+         #################################
+          - - field_name        : GT_1_DRP_return_value
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Data from DRP interface"
+         #################################
+          - - field_name        : GT_2_DRP_return_value
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Data from DRP interface"
+         #################################
+          - - field_name        : GT_3_DRP_return_value
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Data from DRP interface"
+         #################################
+          - - field_name        : GT_0_DRP_value_to_write
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Data to write to DRP interface."
+         #################################
+          - - field_name        : GT_1_DRP_value_to_write
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Data to write to DRP interface."
+         #################################
+          - - field_name        : GT_2_DRP_value_to_write
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Data to write to DRP interface."
+         #################################
+          - - field_name        : GT_3_DRP_value_to_write
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Data to write to DRP interface."
+         #################################
+          - - field_name        : RX_equaliser_settings
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Bit 0 is used to select between DFE and LPM settings, the next 7 bits can be used for Insertion loss figure."
+         #################################
+          - - field_name        : CMAC_stat_reset
+              width             : 8
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Clears all stat counters."     
+         #################################
+          - - field_name        : CMAC_stat_tx_total_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for total number of packets received."
+         #################################
+          - - field_name        : CMAC_stat_rx_total_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for total number of packets received."
+         #################################
+          - - field_name        : CMAC_stat_rx_total_good_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for total number of good packets, ie no errors."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_bad_fcs
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for packets between 64 and max length that have FCS errors."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_64_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 64 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_65_127_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 65 to 127 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_128_255_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 128 to 255 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_256_511_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 256 to 511 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_512_1023_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 512 to 1023 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_1024_1518_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 1024 to 1518 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_1519_1522_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 1519 to 1522 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_1523_1548_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 1523 to 1548 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_1549_2047_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 1549 to 2047 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_2048_4095_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 2048 to 4095 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_4096_8191_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 4096 to 8191 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_8192_9215_bytes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good and bad packets received that contain 8192 to 9215 bytes."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_small
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for packets less than 64 bytes long."
+         #################################
+          - - field_name        : CMAC_stat_rx_packet_large
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for packets more than 9215 bytes long."
+         #################################
+          - - field_name        : CMAC_stat_rx_unicast
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good unicast packets."
+         #################################
+          - - field_name        : CMAC_stat_rx_multicast
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good multicast packets."
+         #################################
+          - - field_name        : CMAC_stat_rx_broadcast
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for good broadcast packets."
+         #################################
+          - - field_name        : CMAC_stat_rx_oversize
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for packets longer than ctl_rx_max_packet_len with good FCS."
+         #################################
+          - - field_name        : CMAC_stat_rx_toolong
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for packets longer than ctl_rx_max_packet_len with good and bad FCS."
+         #################################
+          - - field_name        : CMAC_stat_rx_undersize
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for packets shorter than min packet length with good FCS."
+         #################################
+          - - field_name        : CMAC_stat_rx_fragment
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for packets shorter than min packet length with bad FCS."
+         #################################
+          - - field_name        : CMAC_stat_rx_bad_code
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment for 64B/66B code violations."
+         #################################
+          - - field_name        : CMAC_stat_rx_bad_sfd
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment bad SFD. Packet received was preceded by a invalid SFD."
+         #################################
+          - - field_name        : CMAC_stat_rx_bad_preamble
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Increment bad preamble. Packet received was preceded by a invalid preamble."                            
+      #################################################################        
+      # - slave_name        : CMAC_Data
+      #   slave_type        : RAM
+      #   number_of_slaves  : 1
+      #   slave_description : "Return DRP data"
+      #   fields            :
+      #     - - field_name        : DRP_Data
+      #         width             : 32
+      #         user_width        : 32
+      #         access_mode       : RW
+      #         number_of_fields  : 4096
+      #         interface         : simple
+      #         reset_value       : 0
+      #         field_description : "This will return DRP read data. That is 16 bits wide so top 16 bits in this interface is zero.
+      #                             0.DRP Data Addr 0 + DRP_addr_base
+      #                             1.DRP Data Addr 1 + DRP_addr_base
+      #                             2.DRP Data Addr 2 + DRP_addr_base
+      #                             3.DRP Data Addr 3 + DRP_addr_base
+      #                             4.DRP Data Addr 4 + DRP_addr_base
+      #                             5.DRP Data Addr 5 + DRP_addr_base
+      #                             6.DRP Data Addr 6 + DRP_addr_base
+      #                             7.DRP Data Addr 7 + DRP_addr_base
+      #                             "
+      #########################################################################################  
+
+
+          
+          

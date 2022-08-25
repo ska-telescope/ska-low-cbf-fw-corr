@@ -1,0 +1,193 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : Packetiser
+hdl_library_description: "Generation of IPv4 UDP packets from signal processing output"
+
+peripherals:
+  - peripheral_name        : Packetiser
+    peripheral_description : "Registers associated with Generating IPv4 UDP packets"
+    slave_ports:
+      - slave_name        : Param
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Data for Ethernet, IPv4, UDP frame, PSR METADATA, Control"
+        fields            :
+          - - field_name        : Parameter_data
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 4096
+              interface         : simple
+              reset_value       : 0
+              field_description : "One address space as per below, with partial fields assume lower bits used.
+                                  0.ethernet_config.dst_mac(31 downto 0)
+                                  1.ethernet_config.dst_mac(47 downto 32)
+                                  2.ethernet_config.src_mac(31 downto 0)
+                                  3.ethernet_config.src_mac(47 downto 32)
+                                  4.ethernet_config.eth_type
+                                  5.ipv4_config.version(31 : 28)          NO LONGER WRABLE, 
+                                    ipv4_config.header_length(27 : 24)    NO LONGER WRABLE, 
+                                    ipv4_config.type_of_service(23 : 16), 
+                                    ipv4_config.total_length(15 : 0)
+                                  6.ipv4_config.id(31 : 16), 
+                                    ipv4_config.ip_flags(15 : 13)         NO LONGER WRABLE, 
+                                    ipv4_config.fragment_off(12 : 0)      NO LONGER WRABLE
+                                  7.ipv4_config.TTL (31 : 24), 
+                                    ipv4_config.protocol (23 : 16), 
+                                    ipv4_config.header_chk_sum (15 : 0)   NO LONGER WRABLE
+                                  8.ipv4_config.src_addr
+                                  9.ipv4_config.dst_addr
+                                  10.udp_config.src_port(31 : 16), udp_config.dst_port(15 : 0)
+                                  11.udp_config.length(31 : 16), udp_config.checksum(15 : 0)
+                                  12.PsrPacket_config.packet_sequence_number(63 downto 32)
+                                  13.PsrPacket_config.packet_sequence_number(31 downto 0)
+                                  14.PsrPacket_config.timestamp_attoseconds(63 downto 32)
+                                  15.PsrPacket_config.timestamp_attoseconds(31 downto 0)
+                                  16.PsrPacket_config.timestamp_seconds
+                                  17.PsrPacket_config.channel_seperation
+                                  18.PsrPacket_config.first_channel_frequency(63 downto 32)   NO LONGER WRABLE
+                                  19.PsrPacket_config.first_channel_frequency(31 downto 0)    NO LONGER WRABLE
+                                  20.PsrPacket_config.scale_1                                 NO LONGER WRABLE
+                                  21.PsrPacket_config.scale_2
+                                  22.PsrPacket_config.scale_3
+                                  23.PsrPacket_config.scale_4
+                                  24.PsrPacket_config.first_channel_number                    NO LONGER WRABLE
+                                  25.PsrPacket_config.channels_per_packet                     NO LONGER WRABLE
+                                  26.PsrPacket_config.valid_channels_per_packet               NO LONGER WRABLE
+                                  27.PsrPacket_config.number_of_time_samples                  NO LONGER WRABLE
+                                  28.PsrPacket_config.beam_number
+                                  29.PsrPacket_config.magic_word
+                                  30.PsrPacket_config.packet_destination
+                                  31.PsrPacket_config.data_precision
+                                  32.PsrPacket_config.number_of_power_samples_averaged
+                                  33.PsrPacket_config.number_of_time_samples_weight
+                                  34.PsrPacket_config.oversampling_ratio_numerator            NO LONGER WRABLE
+                                  35.PsrPacket_config.oversampling_ratio_denominator          NO LONGER WRABLE
+                                  36.PsrPacket_config.beamformer_version                      NO LONGER WRABLE
+                                  37.PsrPacket_config.scan_id(63 downto 32)
+                                  38.PsrPacket_config.scan_id(31 downto 0)
+                                  39.PsrPacket_config.offset_1
+                                  40.PsrPacket_config.offset_2
+                                  41.PsrPacket_config.offset_3
+                                  42.PsrPacket_config.offset_4
+                                  43.Packet generator number of packets to send before stopping when that option set
+                                  44.Packet generator number of cycles between packets,       default = 0x00000200
+                                  45.Packet generator number of beams to produce, ie 0 to 7 then start again.
+                                  ADDRESSES 
+                                  1024-3071 First chan freq redir rams
+                                            2 RAMS by 32 output to give a 64 bit vector for first_channel_freq. 
+                                            This takes in the virtual channel (1024 postisions) and gives the upper part in 2048-3071 and lower in 1024 to 2047
+                                  3072 - 4095 First chan number
+                                            Takes in the virtual channel to return actual channel number
+                                  Repeat this with 4K offsets for Stream 2 and Stream 3
+                                  12-16k unused.
+                                  "
+      #########################################################################################                            
+      - slave_name        : Packetiser_Ctrl
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "Control vector for all stream Statistics for all"
+        dual_clock        : false
+        fields            :
+          - - field_name        : Control_vector
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Stream 1
+                                  Bit 0 - Enable Packetiser - This will load all the variables for Ethernet/UDP/IPv4 etc and Packet Generator (testmode) controls
+                                  Bit 1 - Enable Packet Generator
+                                  Bit 2 - Use Packet Generator number of runs parameter
+                                  Bit 3 - Use default values for parameters
+                                  Bits 4-7 reserved 
+
+                                  Stream 2
+                                  Bit 8   - Enable Packetiser - This will load all the variables for Ethernet/UDP/IPv4 etc and Packet Generator (testmode) controls
+                                  Bit 9   - Enable Packet Generator
+                                  Bit 10  - Use Packet Generator number of runs parameter
+                                  Bit 11  - Use default values for parameters
+                                  Bits 12 -15 reserved 
+
+                                  Stream 3
+                                  Bit 16  - Enable Packetiser - This will load all the variables for Ethernet/UDP/IPv4 etc and Packet Generator (testmode) controls
+                                  Bit 17  - Enable Packet Generator
+                                  Bit 18  - Use Packet Generator number of runs parameter
+                                  Bit 19  - Use default values for parameters
+                                  Bits 20 -23 reserved 
+
+                                  24-31 unused.
+                                  "
+         #################################
+          - - field_name        : Stats_Packets_RX_Sig_Proc_valid
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 1 Received expected number of bytes from Signal Processing Logic / Test Pattern Gen"
+         #################################
+          - - field_name        : Stats_Packets_RX_Sig_Proc_invalid
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 1 Did not receive expected number of bytes from Signal Processing Logic / Test Pattern Gen"
+         #################################
+          - - field_name        : Stats_Packets_RX_SM_off
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 1 Data sent to Packetiser sent while SM not running, effectively lost data"
+         #################################
+          - - field_name        : Stats_Packets_RX_Sig_Proc
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 1 Packets sent to 100G interface" 
+         #################################
+          - - field_name        : Stats_2_Packets_RX_Sig_Proc_valid
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 2 Received expected number of bytes from Signal Processing Logic / Test Pattern Gen"
+         #################################
+          - - field_name        : Stats_2_Packets_RX_Sig_Proc_invalid
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 2 Did not receive expected number of bytes from Signal Processing Logic / Test Pattern Gen"
+         #################################
+          - - field_name        : Stats_2_Packets_RX_SM_off
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 2 Data sent to Packetiser sent while SM not running, effectively lost data"
+         #################################
+          - - field_name        : Stats_2_Packets_RX_Sig_Proc
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 2 Packets sent to 100G interface"
+         #################################
+          - - field_name        : Stats_3_Packets_RX_Sig_Proc_valid
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 3 Received expected number of bytes from Signal Processing Logic / Test Pattern Gen"
+         #################################
+          - - field_name        : Stats_3_Packets_RX_Sig_Proc_invalid
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 3 Did not receive expected number of bytes from Signal Processing Logic / Test Pattern Gen"
+         #################################
+          - - field_name        : Stats_3_Packets_RX_SM_off
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 3 Data sent to Packetiser sent while SM not running, effectively lost data"
+         #################################
+          - - field_name        : Stats_3_Packets_RX_Sig_Proc
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Stream 3 Packets sent to 100G interface"                                                                
+      #################################################################        

@@ -1,0 +1,140 @@
+﻿schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : correlator
+hdl_library_description: "Monitor & Control Registers for vitis acceleration core"
+
+peripherals:
+
+  - peripheral_name        : system
+    peripheral_description : "General control registers for the vcu128 Gemini dsp firmware"
+
+    slave_ports:
+      - slave_name        : system
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "General control registers for the Vitis Acceleration Core firmware"
+        fields:
+          #################################
+          - - field_name        : args_magic_number
+              width             : 32
+              access_mode       : SP
+              reset_value       : 0xF96a7001
+              field_description : "args magic number for address 0"
+          #################################
+          - - field_name        : args_map_build
+              width             : 32
+              access_mode       : SP
+              reset_value       : 0x0 # args will replace this value
+              field_description : "args map build date & hour"
+          #################################
+          - status:
+            - field_name        : clocks_locked
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "All clocks locked"
+          #################################
+          - qsfpGTY:
+            - field_name        : resets
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Reset 100G ethernet interface"
+          #################################
+          - - field_name        : build_date
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Build Date of firmware, Day/Month/Year, readable in HEX, hand coded and not tied to autogeneration currently"
+          #################################
+          - - field_name        : Firmware_Major_Version
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Major version number"
+          #################################
+          - - field_name        : Firmware_Minor_Version
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Minor version number"
+          #################################
+          - - field_name        : Firmware_Patch_Version
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Patch version number"
+          #################################
+          - - field_name        : Firmware_Label
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Firmware Label"
+          #################################
+          - - field_name        : Firmware_Personality
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Firmware function - PST/PSS/ZOOM/CORR"
+          #################################
+          - time:
+            - field_name        : uptime
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of seconds since programming"
+          #################################
+          - - field_name        : eth100G_locked
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "100G ethernet is up"
+          #################################
+          - - field_name        : eth100G_rx_total_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets received on the 100G ethernet since it was reset"
+          #################################
+          - - field_name        : eth100G_rx_bad_fcs
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets received on the 100G ethernet with bad FCS since it was reset"
+          #################################
+          - - field_name        : eth100G_rx_bad_code
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets received on the 100G ethernet with 64B/66B code violations"
+          #################################
+          - - field_name        : eth100G_tx_total_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets sent on the 100G ethernet since it was reset"
+          #################################
+          - - field_name        : eth100G_FEC_enable
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Set to 1 to enable FEC, 0 to disable"
+              
+  - peripheral_name        : vitis_shared
+    peripheral_description : "shared memory page for Vitis register access"
+    slave_ports:
+      - slave_name        : vitis_shared
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "shared memory page for Vitis register access"
+        fields            :
+          - - field_name        : data
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 32768
+              interface         : simple
+              reset_value       : 0
+              field_description : "128 Kbyte page to access the registers. Copy data to/from this memory using the CDMA core."

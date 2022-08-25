@@ -1,0 +1,63 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name        : timingControlA
+hdl_library_description : "Generate wall time for use in the atomic COTs design"
+
+peripherals:
+
+  - peripheral_name        : timingControlA
+    peripheral_description : "Generate internal unix time for the atomic COTS design"
+    slave_ports:
+    
+      - slave_name         : timing
+        slave_type         : reg
+        number_of_slaves   : 1
+        slave_description  : "Generate internal time and lock to a master timing signal either from UDP packets or MACE"
+        dual_clock         : false
+        fields:
+          ################################
+          - - field_name  : track_select
+              width       : 1
+              access_mode : RW
+              reset_value : 0x0
+              field_description : "0 to track time as set by MACE, 1 to track time coming from timing packets on the 100GE interface."
+          - - field_name  : fixed_offset
+              width       : 24
+              access_mode : RW
+              reset_value : 0x10
+              field_description : "Expected offset between the time messages from the timing master and this module due to transmission latency in units of nanoseconds. Unsigned value, with a maximum of 2^24 - 1 = about 16 ms."
+          - - field_name  : frequency_offset
+              width       : 20
+              access_mode : RW
+              reset_value : 0x0
+              field_description : "Frequency offset parameter. This allows for a correction to compensate for the frequency offset in the 300MHz clock used for the local time.\
+                                   Units are parts per billion. Value is signed. Maximum frequency offset is +/- 2^19 per 2^32 clocks = +/- 122 ppm."
+          - - field_name  : MACE_time_low
+              width       : 32
+              access_mode : RW
+              reset_value : 0x0
+              field_description : "Low 32 bits of the 64 bit timestamp set by MACE. Units of nanoseconds. This is used as the timing master when track_select = 0."
+          - - field_name  : MACE_time_high
+              width       : 32
+              access_mode : RW
+              reset_value : 0x0
+              field_description : "High 32 bits of the 64 bit timestamp set by MACE. \
+                                   A Transition on bit(31) indicates that this value should be used to update the internal time, after subtracting off the value in the fixed_offset register."
+          - - field_name  : CUR_time_low
+              width       : 32
+              access_mode : RO
+              reset_value : 0x0
+              field_description : "Low 32 bits of the current 64-bit local time. Units of nanoseconds."
+          - - field_name  : CUR_time_high
+              width       : 32
+              access_mode : RO
+              reset_value : 0x0
+              field_description : "High 32 bits of the current 64-bit local time."
+          - - field_name  : last_time_offset
+              width       : 32
+              access_mode : RO
+              reset_value : 0x0
+              field_description : "Most recent time offset in nanoseconds. Difference between the most recent time from the master and the local time."
+          

@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="tb_packetisertop_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="axi4_full_pkg" />
+            <top_module name="axi4_lite_pkg" />
+            <top_module name="axi4_stream_pkg" />
+            <top_module name="cbfpsrheader_pkg" />
+            <top_module name="common_mem_pkg" />
+            <top_module name="common_pkg" />
+            <top_module name="ethernet_pkg" />
+            <top_module name="glbl" />
+            <top_module name="packetiser_packetiser_reg_pkg" />
+            <top_module name="tb_packetisertop" />
+            <top_module name="tech_mac_100g_pkg" />
+            <top_module name="technology_pkg" />
+            <top_module name="vcomponents" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="1113334fs"></ZoomStartTime>
+      <ZoomEndTime time="2713335fs"></ZoomEndTime>
+      <Cursor1Time time="1380000fs"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="422"></NameColumnWidth>
+      <ValueColumnWidth column_width="157"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="46" />
+   <wvobject fp_name="/tb_packetisertop/clock_300" type="logic">
+      <obj_property name="ElementShortName">clock_300</obj_property>
+      <obj_property name="ObjectShortName">clock_300</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/testCount_300" type="other">
+      <obj_property name="ElementShortName">testCount_300</obj_property>
+      <obj_property name="ObjectShortName">testCount_300</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/clock_300_rst" type="logic">
+      <obj_property name="ElementShortName">clock_300_rst</obj_property>
+      <obj_property name="ObjectShortName">clock_300_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/clock_400" type="logic">
+      <obj_property name="ElementShortName">clock_400</obj_property>
+      <obj_property name="ObjectShortName">clock_400</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/clock_322" type="logic">
+      <obj_property name="ElementShortName">clock_322</obj_property>
+      <obj_property name="ObjectShortName">clock_322</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/testCount" type="other">
+      <obj_property name="ElementShortName">testCount</obj_property>
+      <obj_property name="ObjectShortName">testCount</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/testCount_322" type="other">
+      <obj_property name="ElementShortName">testCount_322</obj_property>
+      <obj_property name="ObjectShortName">testCount_322</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/clock_400_rst" type="logic">
+      <obj_property name="ElementShortName">clock_400_rst</obj_property>
+      <obj_property name="ObjectShortName">clock_400_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/clock_322_rst" type="logic">
+      <obj_property name="ElementShortName">clock_322_rst</obj_property>
+      <obj_property name="ObjectShortName">clock_322_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/i_clk400_rst" type="logic">
+      <obj_property name="ElementShortName">i_clk400_rst</obj_property>
+      <obj_property name="ObjectShortName">i_clk400_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/power_up_rst_clock_400" type="array">
+      <obj_property name="ElementShortName">power_up_rst_clock_400[31:0]</obj_property>
+      <obj_property name="ObjectShortName">power_up_rst_clock_400[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/power_up_rst_clock_300" type="array">
+      <obj_property name="ElementShortName">power_up_rst_clock_300[31:0]</obj_property>
+      <obj_property name="ObjectShortName">power_up_rst_clock_300[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/power_up_rst_clock_322" type="array">
+      <obj_property name="ElementShortName">power_up_rst_clock_322[31:0]</obj_property>
+      <obj_property name="ObjectShortName">power_up_rst_clock_322[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/i_clk400" type="logic">
+      <obj_property name="ElementShortName">i_clk400</obj_property>
+      <obj_property name="ObjectShortName">i_clk400</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/test_count" type="other">
+      <obj_property name="ElementShortName">test_count</obj_property>
+      <obj_property name="ObjectShortName">test_count</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/bytes_to_transmit" type="array">
+      <obj_property name="ElementShortName">bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_to_transmit[13:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/data_to_player" type="array">
+      <obj_property name="ElementShortName">data_to_player[511:0]</obj_property>
+      <obj_property name="ObjectShortName">data_to_player[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/data_to_player_wr" type="logic">
+      <obj_property name="ElementShortName">data_to_player_wr</obj_property>
+      <obj_property name="ObjectShortName">data_to_player_wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/i_data_to_transmit_ctl" type="array">
+      <obj_property name="ElementShortName">i_data_to_transmit_ctl</obj_property>
+      <obj_property name="ObjectShortName">i_data_to_transmit_ctl</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_1/o_bytes_to_transmit" type="array">
+      <obj_property name="ElementShortName">o_bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="ObjectShortName">o_bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_1/o_data_to_player" type="array">
+      <obj_property name="ElementShortName">o_data_to_player[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_player[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_1/o_data_to_player_wr" type="logic">
+      <obj_property name="ElementShortName">o_data_to_player_wr</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_player_wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_player_rdy" type="logic">
+      <obj_property name="ElementShortName">o_data_to_player_rdy</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_player_rdy</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/o_cmac_ready" type="logic">
+      <obj_property name="ElementShortName">o_cmac_ready</obj_property>
+      <obj_property name="ObjectShortName">o_cmac_ready</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_1/test_logic_gen/psr_test_gen/test_mode_sm" type="other">
+      <obj_property name="ElementShortName">test_mode_sm</obj_property>
+      <obj_property name="ObjectShortName">test_mode_sm</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit" type="array">
+      <obj_property name="ElementShortName">o_data_to_transmit</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_transmit</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.data" type="array">
+         <obj_property name="ElementShortName">.data[511:0]</obj_property>
+         <obj_property name="ObjectShortName">.data[511:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.valid" type="array">
+         <obj_property name="ElementShortName">.valid[3:0]</obj_property>
+         <obj_property name="ObjectShortName">.valid[3:0]</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.eop" type="array">
+         <obj_property name="ElementShortName">.eop[3:0]</obj_property>
+         <obj_property name="ObjectShortName">.eop[3:0]</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.sop" type="array">
+         <obj_property name="ElementShortName">.sop[3:0]</obj_property>
+         <obj_property name="ObjectShortName">.sop[3:0]</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.error" type="array">
+         <obj_property name="ElementShortName">.error[3:0]</obj_property>
+         <obj_property name="ObjectShortName">.error[3:0]</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.empty" type="array">
+         <obj_property name="ElementShortName">.empty[3:0][3:0]</obj_property>
+         <obj_property name="ObjectShortName">.empty[3:0][3:0]</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+         <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.empty[3]" type="array">
+            <obj_property name="ElementShortName">[3][3:0]</obj_property>
+            <obj_property name="ObjectShortName">[3][3:0]</obj_property>
+            <obj_property name="isExpanded"></obj_property>
+         </wvobject>
+         <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.empty[2]" type="array">
+            <obj_property name="ElementShortName">[2][3:0]</obj_property>
+            <obj_property name="ObjectShortName">[2][3:0]</obj_property>
+         </wvobject>
+         <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.empty[1]" type="array">
+            <obj_property name="ElementShortName">[1][3:0]</obj_property>
+            <obj_property name="ObjectShortName">[1][3:0]</obj_property>
+            <obj_property name="isExpanded"></obj_property>
+         </wvobject>
+         <wvobject fp_name="/tb_packetisertop/DUT_2/o_data_to_transmit.empty[0]" type="array">
+            <obj_property name="ElementShortName">[0][3:0]</obj_property>
+            <obj_property name="ObjectShortName">[0][3:0]</obj_property>
+         </wvobject>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/mac_streaming_sm" type="other">
+      <obj_property name="ElementShortName">mac_streaming_sm</obj_property>
+      <obj_property name="ObjectShortName">mac_streaming_sm</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/Bytes_to_stream" type="array">
+      <obj_property name="ElementShortName">Bytes_to_stream[13:0]</obj_property>
+      <obj_property name="ObjectShortName">Bytes_to_stream[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/Bytes_modulo_64" type="logic">
+      <obj_property name="ElementShortName">Bytes_modulo_64</obj_property>
+      <obj_property name="ObjectShortName">Bytes_modulo_64</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/end_of_packet_quad" type="array">
+      <obj_property name="ElementShortName">end_of_packet_quad[3:0]</obj_property>
+      <obj_property name="ObjectShortName">end_of_packet_quad[3:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/meta_data_fifo_q" type="array">
+      <obj_property name="ElementShortName">meta_data_fifo_q[13:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_fifo_q[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/ethernet_frame_DC_fifo_data" type="array">
+      <obj_property name="ElementShortName">ethernet_frame_DC_fifo_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">ethernet_frame_DC_fifo_data[511:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/ethernet_frame_DC_fifo_wr" type="logic">
+      <obj_property name="ElementShortName">ethernet_frame_DC_fifo_wr</obj_property>
+      <obj_property name="ObjectShortName">ethernet_frame_DC_fifo_wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/ethernet_frame_DC_fifo_wr_count" type="array">
+      <obj_property name="ElementShortName">ethernet_frame_DC_fifo_wr_count[7:0]</obj_property>
+      <obj_property name="ObjectShortName">ethernet_frame_DC_fifo_wr_count[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/ethernet_frame_DC_fifo_rd" type="logic">
+      <obj_property name="ElementShortName">ethernet_frame_DC_fifo_rd</obj_property>
+      <obj_property name="ObjectShortName">ethernet_frame_DC_fifo_rd</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/ethernet_frame_DC_fifo_empty" type="logic">
+      <obj_property name="ElementShortName">ethernet_frame_DC_fifo_empty</obj_property>
+      <obj_property name="ObjectShortName">ethernet_frame_DC_fifo_empty</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/ethernet_frame_DC_fifo_rd_count" type="array">
+      <obj_property name="ElementShortName">ethernet_frame_DC_fifo_rd_count[7:0]</obj_property>
+      <obj_property name="ObjectShortName">ethernet_frame_DC_fifo_rd_count[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/meta_data_fifo/fifo_wr_count" type="array">
+      <obj_property name="ElementShortName">fifo_wr_count[3:0]</obj_property>
+      <obj_property name="ObjectShortName">fifo_wr_count[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/meta_data_fifo_wr" type="logic">
+      <obj_property name="ElementShortName">meta_data_fifo_wr</obj_property>
+      <obj_property name="ObjectShortName">meta_data_fifo_wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/meta_data_fifo_wr_count" type="array">
+      <obj_property name="ElementShortName">meta_data_fifo_wr_count[3:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_fifo_wr_count[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/meta_data_fifo_q" type="array">
+      <obj_property name="ElementShortName">meta_data_fifo_q[13:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_fifo_q[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/meta_data_fifo_rd" type="logic">
+      <obj_property name="ElementShortName">meta_data_fifo_rd</obj_property>
+      <obj_property name="ObjectShortName">meta_data_fifo_rd</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_2/meta_data_fifo_empty" type="logic">
+      <obj_property name="ElementShortName">meta_data_fifo_empty</obj_property>
+      <obj_property name="ObjectShortName">meta_data_fifo_empty</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_1/enable_test_generator" type="logic">
+      <obj_property name="ElementShortName">enable_test_generator</obj_property>
+      <obj_property name="ObjectShortName">enable_test_generator</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_1/enabe_limited_runs" type="logic">
+      <obj_property name="ElementShortName">enabe_limited_runs</obj_property>
+      <obj_property name="ObjectShortName">enabe_limited_runs</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_packetisertop/DUT_1/enable_packetiser" type="logic">
+      <obj_property name="ElementShortName">enable_packetiser</obj_property>
+      <obj_property name="ObjectShortName">enable_packetiser</obj_property>
+   </wvobject>
+</wave_config>

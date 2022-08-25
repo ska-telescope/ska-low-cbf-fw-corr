@@ -1,0 +1,216 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : corr_ct1
+hdl_library_description: "Correlator Corner Turn 1 configuration"
+
+peripherals:
+
+  - peripheral_name        : corr_ct1
+    peripheral_description : "Correlator corner turn 1 configuration"
+
+    slave_ports:
+      - slave_name        : config
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "Correlator corner turn 1 control"
+        fields:
+          - - field_name        : full_reset
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Start or restart corner turn after (re)configuring it."
+
+          - - field_name        : running
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Is the corner turn running, i.e. are we between starting_packet_count and halt_packet_count?"
+              
+          - - field_name        : halt_packet_count
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "At which packet count shall the corner turn stop? (0 means never)"
+          
+          - - field_name        : maxFutureCount
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0xE0
+              field_description : "Maximum distance into the future that a packet count can be before we drop it as being too far into the future. Units 2.2ms (i.e. one 2048 sample LFAA input packet)"
+
+          - - field_name        : scanStartPacketCount
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Packet count to start the scan at. LFAA data with a packet count less than this value will be dropped."
+
+          - - field_name        : preload
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0xB000
+              field_description : "Number samples for the preload for the correlator output. The correlator filterbank has 12 taps and a 4096 point FFT, so 11 tap preload is required, corresponding to 11*4096 samples."
+
+          - - field_name        : starting_wall_time_seconds
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "When will the first packet output from the corner turn ? (wall time seconds)"
+          
+          - - field_name        : starting_wall_time_nanos
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "When will the first packet output from the corner turn ? (wall time nano seconds)"
+          
+          - - field_name        : output_cycles
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x1004
+              field_description : "Number of clock cycles from the start of one output packet to the start of the next packet.\
+                                   Actual packet length is 4096 clocks. Default is 4100."
+              
+          - - field_name        : untimed_framecount_start
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x1
+              field_description : "Used in untimed mode only.\
+                                   Reading of a buffer will start when a packet count with this offset within a buffer or greater \
+                                   is received for the next buffer." 
+          
+          - - field_name        : frame_count_buffer0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "frame count for the first packet in buffer 0."
+
+          - - field_name        : frame_count_buffer1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "frame count for the first packet in buffer 1."
+
+          - - field_name        : frame_count_buffer2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "frame count for the first packet in buffer 2."
+          
+          - control:
+            - field_name        : use_new_config
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Toggle this bit from 0 to 1 to make the CTC use the parameters above after they have been set. Note new parameters are also loaded at a full reset."
+
+            - field_name        : enable_timed_output
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "New value only applied on reset: use walltime to regulate output.\
+                                   If 0, then buffers are output based on receiving packets for the next buffer.\
+                                   See the untimed_framecount_start register."
+
+          - - field_name        : packet_count
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "The selected coarse delay table changes if the packet count >= this value. Leaving this at 0 will switch ASAP."
+
+          - - field_name        : table_select
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Defines which table should become active when the given packet_count is passed"
+
+          - - field_name        : active_table
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Which table is currently used by the corner turn? Do not change contents of that table unless in reset."        
+        
+          - - field_name        : table0_startPacket
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Packet count that the fine delay values in table_0 are referenced to. \
+                                   The fine delay that is applied to the output of the filterbank is based on \
+                                   the sample count of the first sample used to generate that output. Note that \
+                                   the FIR filter used in the filterbank creates an offset between the time of the \
+                                   first sample that contributes to a filterbank output and the time stamp for the \
+                                   filterbank output, typically equal to half the length of the FIR filter."
+        
+          - - field_name        : table1_startPacket
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Packet count that the fine delay values in table_1 are referenced to. See the description of table0_startPacket."
+        
+          - - field_name        : table_0
+              width             : 32
+              number_of_fields  : 4096
+              access_mode       : RW
+              field_description : "Coarse and fine delay values - Table 0. \
+                                    Each virtual channel C has 4 words, at addresses 4C, 4C+1, 4C+2, 4C+3. \
+                                    Word 0, bits 10:0 = Coarse Delay, bits 31:16 = Hpol DeltaP. \
+                                    Word 1, bits 15:0 = Vpol DeltaP, bits 31:16 = DeltaDelta P (common to both polarisations).\
+                                    Word 2, bits 15:0 = Hpol phase offset for the center frequency, bits(31:16) = Vpol phase offset for the center frequency. \
+                                    Word 3, bits 31:0 = step in the phase offset for the center frequency per output packet. This is common to both polarisations. \
+                                    See confluence documentation for details."
+
+          - - field_name        : table_1
+              width             : 32
+              number_of_fields  : 4096
+              access_mode       : RW
+              field_description : "Coarse delay values - Table 1. As per the definition for table_0."
+
+          - - field_name        : reset
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Reset all monitoring (takes 1024 cycles to complete)."
+
+          - - field_name        : Input_late_count
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of input LFAA blocks which have been dropped as they are too late. Top bit is sticky."
+
+          - - field_name        : Input_too_soon_count
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Count of input LFAA blocks which have been dropped as they are too far into the future. Top bit is sticky."
+
+          - - field_name        : duplicates
+              width             : 8
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Count of duplicate input packets (i.e. input packets with the same timestamp and channel as a previous packet). Top bit is sticky."
+
+          - - field_name        : missing_blocks
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Count of blocks (1 block = 2048 time samples) on the PSS/PST read out with no data; top bit is sticky; low 15 bits wrap."
+
+          - error:
+            - field_name        : input_overflow
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "input buffer has overflowed."
+          
+            - field_name        : ctc_underflow
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Readout was triggered, but the data FIFO does not contain enough data to start output"
+              
+          - - field_name        : correlator_output_count
+              width             : 32
+              number_of_fields  : 1024
+              access_mode       : RO
+              field_description : "Number of valid input blocks read for each channel."
+

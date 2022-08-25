@@ -1,0 +1,7 @@
+create_ip -name floating_point -vendor xilinx.com -library ip -version 7.1 -module_name int_to_fp32
+set_property -dict [list CONFIG.Component_Name {int_to_fp32} CONFIG.Operation_Type {Fixed_to_float} CONFIG.Flow_Control {NonBlocking} CONFIG.Has_RESULT_TREADY {false} CONFIG.A_Precision_Type {Int32} CONFIG.C_A_Exponent_Width {32} CONFIG.C_A_Fraction_Width {0} CONFIG.Result_Precision_Type {Single} CONFIG.C_Result_Exponent_Width {8} CONFIG.C_Result_Fraction_Width {24} CONFIG.C_Accum_Msb {32} CONFIG.C_Accum_Lsb {-31} CONFIG.C_Accum_Input_Msb {32} CONFIG.C_Mult_Usage {No_Usage} CONFIG.C_Latency {6} CONFIG.C_Rate {1}] [get_ips int_to_fp32]
+create_ip_run [get_ips int_to_fp32]
+
+create_ip -name floating_point -vendor xilinx.com -library ip -version 7.1 -module_name mult_fp32
+set_property -dict [list CONFIG.Component_Name {mult_fp32} CONFIG.Operation_Type {Multiply} CONFIG.Flow_Control {NonBlocking} CONFIG.A_Precision_Type {Single} CONFIG.C_A_Exponent_Width {8} CONFIG.C_A_Fraction_Width {24} CONFIG.Result_Precision_Type {Single} CONFIG.C_Result_Exponent_Width {8} CONFIG.C_Result_Fraction_Width {24} CONFIG.C_Mult_Usage {Full_Usage} CONFIG.Has_RESULT_TREADY {false} CONFIG.C_Latency {8} CONFIG.C_Rate {1}] [get_ips mult_fp32]
+create_ip_run [get_ips mult_fp32]
