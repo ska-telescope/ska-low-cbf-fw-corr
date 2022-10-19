@@ -1,12 +1,13 @@
 set time_raw [clock seconds];
 set date_string [clock format $time_raw -format "%y%m%d_%H%M%S"]
 
-set proj_dir "$env(RADIOHDL)/build/alveo/vivado/correlator/correlator_build_$date_string"
+set proj_dir "$env(RADIOHDL)/build/$env(PERSONALITY)/$env(PERSONALITY)_build_$date_string"
 set ARGS_PATH "$env(RADIOHDL)/build/ARGS/correlator"
-set DESIGN_PATH "$env(RADIOHDL)/designs/correlator"
+set DESIGN_PATH "$env(RADIOHDL)/designs/$env(PERSONALITY)"
+set RLIBRARIES_PATH "$env(RADIOHDL)/libraries"
 set DEVICE "xcu55c-fsvh2892-2L-e"
 set BOARD "xilinx.com:au55c:part0:1.0"
-set PERSONALITY "correlator"
+
 
 # Create the new build directory
 puts "Creating build_directory $proj_dir"
@@ -24,7 +25,7 @@ puts $workingDir
 # But cannot be empty because args generates tcl with the directory specified as "$proj_dir/"
 set proj_dir "../correlator_build_$date_string"
 
-create_project correlator -part $DEVICE -force
+create_project $env(PERSONALITY) -part $DEVICE -force
 set_property board_part $BOARD [current_project]
 set_property target_language VHDL [current_project]
 set_property target_simulator XSim [current_project]
@@ -96,7 +97,7 @@ set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbM
 source $DESIGN_PATH/src/ip/vitisAccelCore.tcl
 ############################################################
 # AXI4
-set RLIBRARIES_PATH "../../../../../libraries"
+
 add_files -fileset sources_1 [glob \
 $RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
 $RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_full_pkg.vhd \
