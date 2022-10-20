@@ -5,9 +5,16 @@ set proj_dir "$env(RADIOHDL)/build/$env(PERSONALITY)/$env(PERSONALITY)_build_$da
 set ARGS_PATH "$env(RADIOHDL)/build/ARGS/correlator"
 set DESIGN_PATH "$env(RADIOHDL)/designs/$env(PERSONALITY)"
 set RLIBRARIES_PATH "$env(RADIOHDL)/libraries"
+set COMMON_PATH "$env(RADIOHDL)/common/libraries"
 set DEVICE "xcu55c-fsvh2892-2L-e"
 set BOARD "xilinx.com:au55c:part0:1.0"
 
+puts "RADIOHDL directory:"
+puts $env(RADIOHDL)
+
+puts "Timeslave IP in submodule"
+# RADIOHDL is ENV_VAR for current project REPO. 
+set timeslave_repo "$env(RADIOHDL)/pub-timeslave/hw/cores"
 
 # Create the new build directory
 puts "Creating build_directory $proj_dir"
@@ -68,6 +75,7 @@ $DESIGN_PATH/src/vhdl/correlator_core.vhd \
 $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/mac_100g_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
+$DESIGN_PATH/src/vhdl/version_pkg.vhd \ 
 ]
 
 add_files -fileset sim_1 [glob \
@@ -85,6 +93,7 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/tb_correlatorCore.vhd \
 *correlator/src/vhdl/lbus_packet_receive.vhd \
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
+*correlator/src/vhdl/version_pkg.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]
