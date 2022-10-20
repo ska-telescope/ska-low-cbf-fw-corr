@@ -45,29 +45,17 @@
 # PART OF THIS FILE AT ALL TIMES.
 #
 # *******************************************************************************/
-#if { $::argc != 4 } {
-#    puts "ERROR: Program \"$::argv0\" requires 4 arguments!\n"
-#    puts "Usage: $::argv0 <xoname> <krnl_name> <target> <device>\n"
-#    exit
-#}
 
-#set xoname    [lindex $::argv 0]
-#set krnl_name [lindex $::argv 1]
-#set target    [lindex $::argv 2]
-#set device    [lindex $::argv 3]
+if { $::argc != 3 } {
+   puts "ERROR: Program \"$::argv0\" requires 3 argument!\n"
+   puts "Usage: $::argv0 <xoname> <krnl_name> <target> <device>\n"
+   exit
+}
 
-#set suffix "${krnl_name}_${target}_${device}"
+set xoname    [lindex $::argv 0]
+set krnl_name [lindex $::argv 1]
+set kernel_dir [lindex $::argv 2]
 
-#source -notrace ./scripts/package_kernel.tcl
+puts "$xoname $krnl_name $kernel_dir"
 
-#if {[file exists "${xoname}"]} {
-#    file delete -force "${xoname}"
-#}
-
-#package_xo -xo_path ${xoname} -kernel_name $krnl_name -ip_directory ./packaged_kernel/${suffix} -kernel_xml ./src/kernel.xml
-#exit
-
-# Path to kernel.xml assumes working directory is build/alveo/vivado/correlator/correlator_build_XXXX
-
-package_xo -xo_path ./correlator.xo -kernel_name correlator -kernel_xml ../../../../../boards/alveo/designs/correlator/src/scripts/u55/kernel.xml -ip_directory ./packaged_kernel/
-
+package_xo -xo_path ${xoname} -kernel_name ${krnl_name} -ip_directory ./packaged_kernel/ -kernel_xml ${kernel_dir}/kernel.xml
