@@ -1,7 +1,7 @@
 set time_raw [clock seconds];
 set date_string [clock format $time_raw -format "%y%m%d_%H%M%S"]
 
-set proj_dir "$env(RADIOHDL)/build/$env(PERSONALITY)/$env(PERSONALITY)_build_$date_string"
+set proj_dir "$env(RADIOHDL)/build/$env(PERSONALITY)/$env(PERSONALITY)_$env(TARGET_ALVEO)_build_$date_string"
 set ARGS_PATH "$env(RADIOHDL)/build/ARGS/correlator"
 set DESIGN_PATH "$env(RADIOHDL)/designs/$env(PERSONALITY)"
 set RLIBRARIES_PATH "$env(RADIOHDL)/libraries"
@@ -30,7 +30,7 @@ puts $workingDir
 
 # WARNING - proj_dir must be relative to workingDir.
 # But cannot be empty because args generates tcl with the directory specified as "$proj_dir/"
-set proj_dir "../correlator_build_$date_string"
+set proj_dir "../$env(PERSONALITY)_$env(TARGET_ALVEO)_build_$date_string"
 
 create_project $env(PERSONALITY) -part $DEVICE -force
 set_property board_part $BOARD [current_project]
