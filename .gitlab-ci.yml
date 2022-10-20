@@ -13,9 +13,9 @@ variables:
   GEN_XO_SCRIPT_PATH: "$GEN_XO_DIRECTORY/gen_xo.tcl"
   VPP_SCRIPT_DIR: "designs/${PERSONALITY}/src/scripts/${TARGET_ALVEO}"
   EXTRA_VPP_ARGS: "--user_ip_repo_paths $${BASEDIR}/pub-timeslave/hw/cores"
-  EXTRA_XSIM_DIR: " " #"$${BASEDIR}/sim"  # set to "" downstream if no sim exists
-  EXTRA_MODEL_DIR: " " #"low-cbf-model"  # used as path for artifacts from xsim job
-  EXTRA_MATLAB_MODEL_DIR: " " #"$${BASEDIR}/${EXTRA_MODEL_DIR}/src_atomic"  # set to "" downstream to skip matlab job
+  EXTRA_XSIM_DIR: "" #"$${BASEDIR}/sim"  # set to "" downstream if no sim exists
+  EXTRA_MODEL_DIR: "" #"low-cbf-model"  # used as path for artifacts from xsim job
+  EXTRA_MATLAB_MODEL_DIR: "" #"$${BASEDIR}/${EXTRA_MODEL_DIR}/src_atomic"  # set to "" downstream to skip matlab job
 
 
   
