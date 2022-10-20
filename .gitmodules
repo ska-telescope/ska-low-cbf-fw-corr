@@ -1,3 +1,9 @@
 [submodule "common"]
 	path = common
 	url = https://gitlab.com/ska-telescope/low-cbf/ska-low-cbf-fw-common.git
+[submodule "pub-timeslave"]
+	path = pub-timeslave
+	url = https://github.com/AtomicRulesLLC/pub-timeslave
+[submodule ".make"]
+	path = .make
+	url = https://gitlab.com/ska-telescope/sdi/ska-cicd-makefile.git

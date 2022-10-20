@@ -1,12 +1,20 @@
 set time_raw [clock seconds];
 set date_string [clock format $time_raw -format "%y%m%d_%H%M%S"]
 
-set proj_dir "$env(RADIOHDL)/build/alveo/vivado/correlator/correlator_build_$date_string"
+set proj_dir "$env(RADIOHDL)/build/$env(PERSONALITY)/$env(PERSONALITY)_$env(TARGET_ALVEO)_build_$date_string"
 set ARGS_PATH "$env(RADIOHDL)/build/ARGS/correlator"
-set DESIGN_PATH "$env(RADIOHDL)/designs/correlator"
+set DESIGN_PATH "$env(RADIOHDL)/designs/$env(PERSONALITY)"
+set RLIBRARIES_PATH "$env(RADIOHDL)/libraries"
+set COMMON_PATH "$env(RADIOHDL)/common/libraries"
 set DEVICE "xcu55c-fsvh2892-2L-e"
 set BOARD "xilinx.com:au55c:part0:1.0"
-set PERSONALITY "correlator"
+
+puts "RADIOHDL directory:"
+puts $env(RADIOHDL)
+
+puts "Timeslave IP in submodule"
+# RADIOHDL is ENV_VAR for current project REPO. 
+set timeslave_repo "$env(RADIOHDL)/pub-timeslave/hw/cores"
 
 # Create the new build directory
 puts "Creating build_directory $proj_dir"
@@ -22,9 +30,9 @@ puts $workingDir
 
 # WARNING - proj_dir must be relative to workingDir.
 # But cannot be empty because args generates tcl with the directory specified as "$proj_dir/"
-set proj_dir "../correlator_build_$date_string"
+set proj_dir "../$env(PERSONALITY)_$env(TARGET_ALVEO)_build_$date_string"
 
-create_project correlator -part $DEVICE -force
+create_project $env(PERSONALITY) -part $DEVICE -force
 set_property board_part $BOARD [current_project]
 set_property target_language VHDL [current_project]
 set_property target_simulator XSim [current_project]
@@ -67,6 +75,7 @@ $DESIGN_PATH/src/vhdl/correlator_core.vhd \
 $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/mac_100g_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
+$DESIGN_PATH/src/vhdl/version_pkg.vhd \ 
 ]
 
 add_files -fileset sim_1 [glob \
@@ -84,6 +93,7 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/tb_correlatorCore.vhd \
 *correlator/src/vhdl/lbus_packet_receive.vhd \
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
+*correlator/src/vhdl/version_pkg.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]
@@ -96,7 +106,7 @@ set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbM
 source $DESIGN_PATH/src/ip/vitisAccelCore.tcl
 ############################################################
 # AXI4
-set RLIBRARIES_PATH "../../../../../libraries"
+
 add_files -fileset sources_1 [glob \
 $RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
 $RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_full_pkg.vhd \

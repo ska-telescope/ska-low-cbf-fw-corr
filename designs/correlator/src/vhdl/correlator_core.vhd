@@ -56,7 +56,7 @@ ENTITY correlator_core IS
         C_M_AXI_DATA_WIDTH : integer := 32;
         C_M_AXI_ID_WIDTH   : integer := 1;
         -- 
-        g_HBM_INTERFACES : integer := 5;
+        g_HBM_INTERFACES    : integer := 5;
         g_HBM_AXI_ADDR_WIDTH : integer := 64;
         g_HBM_AXI_DATA_WIDTH : integer := 512;
         g_HBM_AXI_ID_WIDTH   : integer := 1
@@ -73,7 +73,7 @@ ENTITY correlator_core IS
 --        -- M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
 --        M03_AXI_ADDR_WIDTH : integer := 64;  
 --        M03_AXI_DATA_WIDTH : integer := 512;
---        M03_AXI_ID_WIDTH   : integer := 1;
+--        M03_AXI_ID_WIDTH   : integer := 1
 --        -- M04, 2 Gbytes HBM; Visibilities from first correlator instance
 --        M04_AXI_ADDR_WIDTH : integer := 64;  
 --        M04_AXI_DATA_WIDTH : integer := 512;
@@ -935,70 +935,70 @@ begin
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
-    dsp_topi : entity dsp_top_lib.DSP_top_correlator
-    generic map (
-        g_DEBUG_ILA             => g_DEBUG_ILA,
-        g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME, -- nominal value is 128
-        g_USE_META              => g_USE_META
-    ) port map (
-        -- Received data from 100GE
-        i_data_rx_sosi      => eth100_rx_sosi, -- in t_lbus_sosi;
-        -- Data to be transmitted on 100GE
-        o_data_tx_sosi      => eth100_tx_sosi, -- out t_lbus_sosi;
-        i_data_tx_siso      => eth100_tx_siso, -- in t_lbus_siso;
-        i_clk_100GE         => eth100G_clk,      -- in std_logic;
-        i_eth100G_locked    => eth100G_locked,
-        -- Filterbank processing clock, 450 MHz
-        i_clk450 => clk450,  -- in std_logic;
-        i_clk400 => clk400,  -- in std_logic;
-        -----------------------------------------------------------------------
-        -- reset of the valid memory is in progress.
-        o_validMemRstActive => o_validMemRstActive,
-        -----------------------------------------------------------------------
-        -- AXI slave interfaces for modules
-        i_MACE_clk  => ap_clk, -- in std_logic;
-        i_MACE_rst  => ap_rst, -- in std_logic;
-        -- DSP top lite slave
-        --i_dsptopLite_axi_mosi => mc_lite_mosi(c_dsp_top_lite_index), -- in t_axi4_lite_mosi;
-        --o_dsptopLite_axi_miso => mc_lite_miso(c_dsp_top_lite_index), -- out t_axi4_lite_miso;
-        -- LFAADecode, lite + full slave
-        i_LFAALite_axi_mosi => mc_lite_mosi(c_LFAADecode100g_lite_index), -- in t_axi4_lite_mosi; 
-        o_LFAALite_axi_miso => mc_lite_miso(c_LFAADecode100g_lite_index), -- out t_axi4_lite_miso;
-        i_LFAAFull_axi_mosi => mc_full_mosi(c_lfaadecode100g_full_index), -- in  t_axi4_full_mosi;
-        o_LFAAFull_axi_miso => mc_full_miso(c_lfaadecode100g_full_index), -- out t_axi4_full_miso;
-        -- Timing control
-        i_timing_axi_mosi => mc_lite_mosi(c_timingcontrola_lite_index), -- in t_axi4_lite_mosi;
-        o_timing_axi_miso => mc_lite_miso(c_timingcontrola_lite_index), -- out t_axi4_lite_miso;
-        -- Corner Turn between LFAA Ingest and the filterbanks.
-        i_LFAA_CT_axi_mosi => mc_lite_mosi(c_CT_atomic_cor_in_lite_index), -- in  t_axi4_lite_mosi;
-        o_LFAA_CT_axi_miso => mc_lite_miso(c_CT_atomic_cor_in_lite_index), -- out t_axi4_lite_miso;
-        -- Filterbanks
-        i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
-        o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;
-        -- Corner turn between filterbanks and the correlator
-        i_cor_CT_axi_mosi => mc_lite_mosi(c_ct_atomic_cor_out_lite_index), -- in  t_axi4_lite_mosi;
-        o_cor_CT_axi_miso => mc_lite_miso(c_ct_atomic_cor_out_lite_index), -- out t_axi4_lite_miso;
-        -- correlator
-        i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
-        o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
+--    dsp_topi : entity dsp_top_lib.DSP_top_correlator
+--    generic map (
+--        g_DEBUG_ILA             => g_DEBUG_ILA,
+--        g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME, -- nominal value is 128
+--        g_USE_META              => g_USE_META
+--    ) port map (
+--        -- Received data from 100GE
+--        i_data_rx_sosi      => eth100_rx_sosi, -- in t_lbus_sosi;
+--        -- Data to be transmitted on 100GE
+--        o_data_tx_sosi      => eth100_tx_sosi, -- out t_lbus_sosi;
+--        i_data_tx_siso      => eth100_tx_siso, -- in t_lbus_siso;
+--        i_clk_100GE         => eth100G_clk,      -- in std_logic;
+--        i_eth100G_locked    => eth100G_locked,
+--        -- Filterbank processing clock, 450 MHz
+--        i_clk450 => clk450,  -- in std_logic;
+--        i_clk400 => clk400,  -- in std_logic;
+--        -----------------------------------------------------------------------
+--        -- reset of the valid memory is in progress.
+--        o_validMemRstActive => o_validMemRstActive,
+--        -----------------------------------------------------------------------
+--        -- AXI slave interfaces for modules
+--        i_MACE_clk  => ap_clk, -- in std_logic;
+--        i_MACE_rst  => ap_rst, -- in std_logic;
+--        -- DSP top lite slave
+--        --i_dsptopLite_axi_mosi => mc_lite_mosi(c_dsp_top_lite_index), -- in t_axi4_lite_mosi;
+--        --o_dsptopLite_axi_miso => mc_lite_miso(c_dsp_top_lite_index), -- out t_axi4_lite_miso;
+--        -- LFAADecode, lite + full slave
+--        i_LFAALite_axi_mosi => mc_lite_mosi(c_LFAADecode100g_lite_index), -- in t_axi4_lite_mosi; 
+--        o_LFAALite_axi_miso => mc_lite_miso(c_LFAADecode100g_lite_index), -- out t_axi4_lite_miso;
+--        i_LFAAFull_axi_mosi => mc_full_mosi(c_lfaadecode100g_full_index), -- in  t_axi4_full_mosi;
+--        o_LFAAFull_axi_miso => mc_full_miso(c_lfaadecode100g_full_index), -- out t_axi4_full_miso;
+--        -- Timing control
+--        i_timing_axi_mosi => mc_lite_mosi(c_timingcontrola_lite_index), -- in t_axi4_lite_mosi;
+--        o_timing_axi_miso => mc_lite_miso(c_timingcontrola_lite_index), -- out t_axi4_lite_miso;
+--        -- Corner Turn between LFAA Ingest and the filterbanks.
+--        i_LFAA_CT_axi_mosi => mc_lite_mosi(c_CT_atomic_cor_in_lite_index), -- in  t_axi4_lite_mosi;
+--        o_LFAA_CT_axi_miso => mc_lite_miso(c_CT_atomic_cor_in_lite_index), -- out t_axi4_lite_miso;
+--        -- Filterbanks
+--        i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
+--        o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;
+--        -- Corner turn between filterbanks and the correlator
+--        i_cor_CT_axi_mosi => mc_lite_mosi(c_ct_atomic_cor_out_lite_index), -- in  t_axi4_lite_mosi;
+--        o_cor_CT_axi_miso => mc_lite_miso(c_ct_atomic_cor_out_lite_index), -- out t_axi4_lite_miso;
+--        -- correlator
+--        i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
+--        o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
         
-        -- PSR Packetiser interface
-        i_PSR_packetiser_lite_axi_mosi  => mc_lite_mosi(c_packetiser_lite_index),
-        o_PSR_packetiser_lite_axi_miso  => mc_lite_miso(c_packetiser_lite_index),
-        i_PSR_packetiser_full_axi_mosi  => mc_full_mosi(c_packetiser_full_index), 
-        o_PSR_packetiser_full_axi_miso  => mc_full_miso(c_packetiser_full_index), 
-        -----------------------------------------------------------------------
-        -- AXI interfaces to HBM memory
-        o_HBM_axi_aw      => HBM_axi_aw,       -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready => HBM_axi_awreadyi,  --                     in std_logic_vector(4 downto 0);
-        o_HBM_axi_w       => HBM_axi_w,        -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  => HBM_axi_wreadyi,  --              in std_logic_vector(4 downto 0);
-        i_HBM_axi_b       => HBM_axi_b,        -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_HBM_axi_ar      => HBM_axi_ar,       -- read address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_arready => HBM_axi_arreadyi, --                    in std_logic_vector(4 downto 0);
-        i_HBM_axi_r       => HBM_axi_r,        -- r data bus : in t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_rready  => HBM_axi_rreadyi   --              out std_logic_vector(4 downto 0);
-    );
+--        -- PSR Packetiser interface
+--        i_PSR_packetiser_lite_axi_mosi  => mc_lite_mosi(c_packetiser_lite_index),
+--        o_PSR_packetiser_lite_axi_miso  => mc_lite_miso(c_packetiser_lite_index),
+--        i_PSR_packetiser_full_axi_mosi  => mc_full_mosi(c_packetiser_full_index), 
+--        o_PSR_packetiser_full_axi_miso  => mc_full_miso(c_packetiser_full_index), 
+--        -----------------------------------------------------------------------
+--        -- AXI interfaces to HBM memory
+--        o_HBM_axi_aw      => HBM_axi_aw,       -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
+--        i_HBM_axi_awready => HBM_axi_awreadyi,  --                     in std_logic_vector(4 downto 0);
+--        o_HBM_axi_w       => HBM_axi_w,        -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
+--        i_HBM_axi_wready  => HBM_axi_wreadyi,  --              in std_logic_vector(4 downto 0);
+--        i_HBM_axi_b       => HBM_axi_b,        -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+--        o_HBM_axi_ar      => HBM_axi_ar,       -- read address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
+--        i_HBM_axi_arready => HBM_axi_arreadyi, --                    in std_logic_vector(4 downto 0);
+--        i_HBM_axi_r       => HBM_axi_r,        -- r data bus : in t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
+--        o_HBM_axi_rready  => HBM_axi_rreadyi   --              out std_logic_vector(4 downto 0);
+--    );
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
