@@ -4,3 +4,6 @@
 [submodule "pub-timeslave"]
 	path = pub-timeslave
 	url = https://github.com/AtomicRulesLLC/pub-timeslave
+[submodule ".make"]
+	path = .make
+	url = https://gitlab.com/ska-telescope/sdi/ska-cicd-makefile.git
