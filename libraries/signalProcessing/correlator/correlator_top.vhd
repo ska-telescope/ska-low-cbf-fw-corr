@@ -142,7 +142,8 @@ use axi4_lib.axi4_full_pkg.all;
 
 entity correlator_top is
     generic (
-        g_USE_TWO_CORRELATORS : boolean := TRUE
+        g_USE_TWO_CORRELATORS : boolean := TRUE;
+        g_PACKET_SAMPLES_DIV16 : integer := 2
     );
     port (
         -- clock used for all data input and output from this module (300 MHz)
@@ -150,6 +151,7 @@ entity correlator_top is
         i_axi_rst : in std_logic;
         -- Processing clock used for the correlation (>412.5 MHz)
         i_cor_clk : in std_logic;
+        i_cor_rst : in std_logic;
         ---------------------------------------------------------------
         -- Data in to the correlator arrays
         --
@@ -162,15 +164,16 @@ entity correlator_top is
         i_cor0_data  : in std_logic_vector(255 downto 0); 
         -- meta data
         i_cor0_time : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        i_cor0_VC   : in std_logic_vector(11 downto 0); -- first of the 4 virtual channels in o_cor0_data
+        i_cor0_VC   : in std_logic_vector(11 downto 0); -- first of the 4 virtual channels in i_cor0_data
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
-        --   '1' = Rectangle. In this case, the first 256 virtual channels on i_cor0_data go to the column memories, while the next 128 virtual channels go to the row memories.
+        --   '1' = Square. In this case, the first 256 virtual channels on i_cor0_data go to the column memories, while the next 256 virtual channels go to the row memories.
         --            All correlation products for the rectangle are then computed.
         i_cor0_tileType : in std_logic;
         i_cor0_valid : in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
         -- i_cor0_last and i_cor0_final go high after a block of data has been sent.
+        i_cor0_first  : in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
         i_cor0_last  : in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
         i_cor0_final : in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.   
         -- up to 1024 different tiles; each tile is a subset of the correlation for particular subarray and beam.
@@ -181,6 +184,11 @@ entity correlator_top is
         -- Which block of frequency channels is this tile for ?
         -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
         i_cor0_tileChannel : in std_logic_vector(11 downto 0);
+        i_cor0_tileTotalTimes    : in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+        i_cor0_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        i_cor0_rowstations       : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+        i_cor0_colstations       : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256. 
+        
         -- Data out to the HBM
         o_cor0_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_cor0_axi_awready : in  std_logic;
@@ -198,13 +206,18 @@ entity correlator_top is
         o_cor1_ready : out std_logic;
         i_cor1_data  : in std_logic_vector(255 downto 0); 
         i_cor1_time : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        i_cor1_VC   : in std_logic_vector(11 downto 0); -- first of the 4 virtual channels in o_cor0_data
+        i_cor1_VC   : in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in o_cor0_data
         i_cor1_tileType : in std_logic; -- which correlator triangle is this data for ? 0 to 3 for modes that don't use substations.
         i_cor1_valid : in std_logic;
+        i_cor1_first : in std_logic;
         i_cor1_last  : in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
         i_cor1_final : in std_logic;  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.    
         i_cor1_tileCount : in std_logic_vector(9 downto 0);
         i_cor1_tileChannel : in std_logic_vector(11 downto 0);
+        i_cor1_tileTotalTimes    : in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+        i_cor1_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        i_cor1_rowstations       : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+        i_cor1_colstations       : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256. 
         -- Data out to the HBM
         o_cor1_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_cor1_axi_awready : in  std_logic;
@@ -220,12 +233,17 @@ entity correlator_top is
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi : in t_axi4_lite_mosi;
-        o_axi_miso : out t_axi4_lite_miso
+        o_axi_miso : out t_axi4_lite_miso;
         
         ------------------------------------------------------------------
         -- Data output to the packetiser
-        --o_100GE_data : out std_logic_vector(127 downto 0);
-        --o_100GE_valid : out std_logic;
+        o_packet0_dout  : out std_logic_vector(255 downto 0);
+        o_packet0_valid : out std_logic;
+        i_packet0_ready : in std_logic;
+        
+        o_packet1_dout : out std_logic_vector(255 downto 0);
+        o_packet1_valid : out std_logic;
+        i_packet1_ready : in std_logic
         
     );
 end correlator_top;
@@ -235,225 +253,172 @@ architecture Behavioral of correlator_top is
     signal config_rw : t_setup_rw;
     signal config_ro : t_setup_ro;
     
---    signal totalJimbles_BFclk : std_logic_Vector(5 downto 0);
---    signal totalCoarse_BFclk : std_logic_vector(3 downto 0);
---    signal jimblesCoarse_axiClk : std_logic_vector(9 downto 0);
---    signal jimblesCoarse_BFclk : std_logic_vector(9 downto 0);
-    
---    signal axi2BFclk_dest_out : std_logic_vector(193 downto 0);
---    signal config_axiClk : std_logic_vector(113 downto 0);
---    signal calPorts : t_slv_8_arr(3 downto 0);
---    signal calFineChannelsToIntegrate : std_logic_vector(7 downto 0);
---    signal calIntegrationPeriod : std_logic_vector(31 downto 0);
---    signal calFrameStart : std_logic_vector(39 downto 0);
---    signal calCorrelatorEnabled, runCalCorrelatorDel, runCalCorrelator, startCalCorrelator : std_logic;
---    signal firstCoarse, firstFine, firstPort, firstTimeGroup, calStartPacketCount : std_logic;
---    signal calDinFIFO_dout : std_logic_vector(511 downto 0);
-    
---    signal calDinFIFO_empty, calDinFIFO_full, calDinFIFO_rst : std_logic;
---    signal calDinFIFO_RdEn, calDinFIFO_WrEn : std_logic;
-    
---    signal calDoutFIFO_WrEn : std_logic;
---    signal calDoutFIFO_wdata, calDoutFIFO_dout : std_logic_vector(511 downto 0);
---    signal calDoutFIFO_empty, calDoutFIFO_full : std_logic;
-    
---    signal calConfig_axiclk : std_logic_vector(193 downto 0);
---    signal fullConfig_axiclk : std_logic_vector(17 downto 0);
---    signal sendCount : std_logic_vector(5 downto 0) := "000000";
---    signal axi2clk400_dest_out : std_logic_vector(17 downto 0);
---    signal axi2clk400_dest_req : std_logic;
---    signal totalJimbles_clk400 : std_logic_vector(5 downto 0);
---    signal totalCoarse_clk400 : std_logic_vector(3 downto 0);
---    signal fullFineChannelsToIntegrate : std_logic_vector(7 downto 0);
---    signal fullIntegrationPeriod_BFclk : std_logic_vector(31 downto 0);
---    signal fullIntegrationPeriod_clk400 : std_logic_vector(31 downto 0);
---    signal fullFrameStart : std_logic_vector(39 downto 0);
---    signal startFullCorrelator, runFullCorrelator, runFullCorrelatorDel, fullCorrelatorEnabled, fullStartPacketCount : std_logic;
-    
---    signal full_dataRe, full_dataIm : std_logic_vector(15 downto 0);
---    signal full_coarse : std_logic_vector(3 downto 0);
---    signal full_fine : std_logic_vector(6 downto 0);
---    signal full_port : std_logic_vector(7 downto 0);
---    signal full_lastPort, full_firstPort : std_logic;
---    signal full_timeGroup : std_logic_vector(5 downto 0);
---    signal full_valid : std_logic;
-
---    signal full_dataReDel1, full_dataImDel1 : std_logic_vector(15 downto 0);
---    signal full_coarseDel1 : std_logic_vector(3 downto 0);
---    signal full_fineDel1 : std_logic_vector(6 downto 0);
---    signal full_portDel1 : std_logic_vector(7 downto 0);
---    signal full_lastPortDel1, full_firstPortDel1 : std_logic;
---    signal full_timeGroupDel1 : std_logic_vector(5 downto 0);
---    signal full_validDel1 : std_logic;
-    
---    signal fullDoutFIFO_WrEn : std_logic;
---    signal fullDoutFIFO_wdata : std_logic_vector(511 downto 0);
-    
---    signal awFIFO_rst : std_logic;
---    signal awFIFO_wrEn : stD_logic;
---    signal awFIFO_wdata : std_logic_vector(7 downto 0);
---    signal aw_writefUll : std_logic := '0';
---    signal awFIFO_wrDataCount : std_logic_vector(5 downto 0);
---    signal awFIFO_full : std_logic;
---    signal awFIFO_RdEn : std_logic;
---    signal awFIFO_dout : std_logic_Vector(7 downto 0);
---    signal awFIFO_rdDataCount : std_logic_vector(5 downto 0);
---    signal awFIFO_empty : std_logic;
-    
---    signal fullDoutFIFO_RdEn, calDoutFIFO_RdEn, wdata_sel : std_logic := '0';
---    signal wCount : std_logic_vector(5 downto 0);
---    type wdata_fsm_type is (idle, readdata);
---    signal wdata_fsm : wdata_fsm_type := idle;
---    signal fullDoutFIFO_dout : std_logic_Vector(511 downto 0);
---    signal fullDoutFIFO_rdDataCount, calDoutFIFO_rdDataCount : std_logic_vector(9 downto 0);
---    signal fullDoutFIFO_empty : std_logic;
---    type aw_fsm_type is (idle, idle_running, wait_aw_ready, wait_awFIFO_ready, wait_all_writes_done, trigger_ar_fsm);
---    signal aw_fsm : aw_fsm_type := idle;
---    signal m0_axi_awvalid_int, m0_axi_awvalidDel : std_logic := '0';
---    signal fullStartupBuffer : std_logic_vector(1 downto 0);
---    signal fullTimeSamplesMinus1 : std_logic_vector(31 downto 0);
---    signal fullSingleCTonly, calSingleCTonly : std_logic := '0';
---    signal calFinished, fullFinished : std_logic := '0';
---    signal fullWrBuffer : std_logic_vector(1 downto 0);
---    signal calWrBuffer : std_logic_vector(4 downto 0);
---    signal fullWrAddr : std_logic_vector(14 downto 0);
---    signal calWrAddr : std_logic_vector(11 downto 0);
---    signal calBufferSize : std_logic_vector(17 downto 0);
---    signal fullBufferSize : std_logic_vector(20 downto 0);
---    signal axi2clk400_src_send, axi2BFclk_src_send, axi2clk400_src_rcv, axi2BFclk_src_rcv, axi2BFclk_dest_req : std_logic := '0';
---    signal full_lastHBMWrite, cal_lastHBMWrite : std_logic;
---    signal fullDinFIFO_RdEn : std_logic;
---    signal fullDinFIFO_dout : std_logic_vector(127 downto 0);
---    signal fullLastHBMWriteOccurred : std_logic;
---    signal calLastHBMWriteOccurred : std_logic := '0';
---    signal cal_lastHBMWrite_axi_clk, full_lastHBMWrite_axi_clk : std_logic;
---    signal calDoutFIFO_rst, fullDoutFIFO_rst : std_logic := '0';
---    signal fullDinFIFO_rst : std_logic;
---    signal fullDoutFIFO_full_axi_clk_hold, fullDoutFIFO_full_axi_clk, fullDoutFIFO_full : std_logic := '0';
---    signal calDoutFIFO_full_axi_clk, calDoutFIFO_full_axi_clk_hold : std_logic := '0';
---    signal fullDinUnderflow_axi_clk, fullDinUnderflow_axi_clk_hold, calDinUnderflow_axi_clk, calDinUnderflow_axi_clk_hold : std_logic := '0';
---    signal calDinUnderflow, fullDinUnderflow, fullDinFIFO_empty : std_logic := '0';
---    signal fatal_write_done_before_read_done : std_logic := '0';
-    
---    signal calWordsToRead, calWordsToRead_minus1, calWordsToRead_minus64 : std_logic_vector(17 downto 0);
---    signal fullWordsToRead, fullWordsToRead_minus1, fullWordsToRead_minus64 : std_logic_vector(20 downto 0);
---    signal calRdAddr : std_logic_vector(28 downto 0);
---    signal fullRdAddr : std_logic_vector(28 downto 0);
---    type ar_fsm_type is (idle, start_wait, check_cal, wait_cal, check_full, wait_full, check_done, wait_readsPending);
---    signal ar_fsm, ar_fsmDel : ar_fsm_type := idle;
---    signal arFIFO_WrEn : std_logic := '0';
---    signal arFIFO_wdata : std_logic_vector(7 downto 0) := x"00";
---    signal calDinFIFO_wrDataCount, fullDinFIFO_wrDataCount, calDinReadsPending, fullDinReadsPending, calDinUsedOrPending, fullDinUsedOrPending : std_logic_vector(9 downto 0) := "0000000000";
---    signal arFIFO_rst, arFIFO_full : std_logic := '0';
---    signal arFIFO_dout : std_logic_vector(7 downto 0);
---    signal fullDinFIFO_WrEn : std_logic := '0';
---    signal arFIFO_RdEn, arFIFO_underflow_hold : std_logic := '0';
---    signal fullDinFIFO_full : std_logic;
---    signal arFIFO_empty : std_logic;
---    signal calDinFIFO_wrEnDel : std_logic;
---    signal arlen_ext : std_logic_vector(9 downto 0);
---    signal fullDinFIFO_wrEnDel : std_logic;
---    signal startFullCorrelator_axi_clk : std_logic;
---    signal startCalCorrelator_axi_clk : std_logic;
-    
---    function get_full_samples_per_CT return integer is
---    begin
---        if g_CT1_N27BLOCKS_PER_FRAME = 24 then
---            return 32;
---        elsif g_CT1_N27BLOCKS_PER_FRAME = 2 then
---            return 2;
---        else
---            assert FALSE report "Bad corner turn length" severity failure;
---            return 32;
---        end if;
---    end get_full_samples_per_CT;
-    
---    function get_cal_samples_per_CT return integer is
---    begin
---        if g_CT1_N27BLOCKS_PER_FRAME = 24 then
---            return 384;  -- 64 time groups, 6 time samples per group = 384 per corner turn.
---        elsif g_CT1_N27BLOCKS_PER_FRAME = 2 then
---            return 32;  -- 32 time samples per corner turn
---        else
---            assert FALSE report "Bad corner turn length" severity failure;
---            return 384;
---        end if;
---    end get_cal_samples_per_CT;
-    
---    constant g_FULL_TIMESAMPLES_PER_CT : integer := get_full_samples_per_CT;
---    constant g_CAL_TIMESAMPLES_PER_CT : integer := get_cal_samples_per_CT;
---    signal fullTimeSamplesRemaining, calTimeSamplesRemaining : std_logic_vector(31 downto 0) := (others => '0');
---    signal full_flushHBM_axi_clk, full_flushHBM : std_logic := '0';
---    signal cal_running, full_running : std_logic := '0';
---    signal running_BF_clk : std_logic_vector(1 downto 0);
---    signal running_axi_clk : std_logic_vector(1 downto 0);
---    signal wdataTotalReads, awFIFO_dout_len_ext, pendingCalHBMwrites, pendingFullHBMwrites, awlen_plus1  : std_logic_vector(9 downto 0) := "0000000000";
---    signal wdataCalReadDone, wdataFullReadDone : std_logic;
---    signal wrFullWordsRemaining, wrCalWordsRemaining : std_logic_vector(11 downto 0);
---    signal fullDoutFIFO_RdEnDel1, calDoutFIFO_RdEnDel1 : std_logic;
+    signal cor0_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
+    signal cor0_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
+    signal cor0_HBM_cells : std_logic_vector(15 downto 0);
+    signal cor1_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
+    signal cor1_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
+    signal cor1_HBM_cells : std_logic_vector(15 downto 0);
     
 begin
-    o_m03_axi_aw.addr <= (others => '0');
-    o_m03_axi_aw.valid <= '0';
-    o_m03_axi_aw.len <= (others => '0');
-    o_m03_axi_w.data <= (others => '0');
-    o_m03_axi_w.valid <= '0';
-    o_m03_axi_w.last <= '0';
-    o_m03_axi_w.resp <= "00";
-    o_m03_axi_ar.addr <= (others => '0');
-    o_m03_axi_ar.valid <= '0';
-    o_m03_axi_ar.len <= (others => '0');
-    o_m03_axi_rready <= '1';
     
---    fci : entity correlator_lib.full_correlator
---    generic map (
---        g_CT1_N27BLOCKS_PER_FRAME => g_CT1_N27BLOCKS_PER_FRAME -- Number nominal value is 24, corresponding to 24 * 27 = 648 CODIF packets = 21 ms corner turn 
---    ) port map (
---        -- Parameters, must be in the i_clk400 domain.
---        i_totalJimbles => totalJimbles_clk400(4 downto 0), -- in(4:0); -- total jimbles in use
---        -- Number of fine channels to integrate. Valid options are submultiples of 108, the number of fine channels per coarse channel.
---        --  108 = 27*4, so valid options are 1, 2, 3, 4, 6, 9, 12, 18, 27, 36, 54, 108
---        i_fineChannelsToIntegrate => fullFineChannelsToIntegrate(6 downto 0), -- in std_logic_vector(6 downto 0);
---        ----------------------------------------------
---        -- Start integration. Signal in the i_BF_clk domain.
---        -- This should be asserted for 1 clock, prior to the first burst from the first fine channel in a corner turn.
---        i_start => startFullCorrelator, -- in std_logic;
---        i_totalCoarse => totalCoarse_BFclk, -- in std_logic_vector(3 downto 0);  -- Number of coarse channels in use, in the i_BF_clk domain.
---        i_integrationPeriod => fullIntegrationPeriod_BFclk, -- in std_logic_vector(31 downto 0);  -- Number of time samples to integrate.
---        o_running => full_running, -- : out std_logic;  -- indicates the correlator is running.
---        ------------------------------------------------------------------
---        -- 14.8 kHz input data
---        -- ! i_dataRe, i_dataIm is aligned with the meta data, i_fine, i_port etc.
---        -- ! This is different to the input to the beamformers, which get the meta data 12 clocks early.
---        i_BF_clk      => i_BF_clk,    -- in std_logic;
---        i_dataRe      => full_dataReDel1, -- in(15:0)  -- 1 time sample per clock.
---        i_dataIm      => full_dataImDel1, -- in(15:0)
---        i_valid       => full_validDel1,  -- in std_logic;
---        i_coarse      => full_coarseDel1, -- in std_logic_vector(3 downto 0);
---        i_fine        => full_fineDel1,   -- in std_logic_vector(6 downto  0); -- fine runs from 0:107
---        i_port        => full_portDel1,   -- in std_logic_vector(7 downto 0);  -- up to 224 ports
---        i_firstPort   => full_firstPortDel1, -- in std_logic; -- First port (used to trigger a new accumulator cycle in the beamformers).
---        i_timeGroup   => full_timeGroupDel1, -- in std_logic_vector(5 downto 0); -- Sampled when i_firstPort is asserted. Counts through 64 timegroups. Each timegroup is 6 time samples.
---        i_lastPort    => full_lastPortDel1, --  in std_logic;
-        
---        -- 400 MHz Processing clock 
---        i_clk400  => i_clk400, --  in std_logic;
---        -- Interface to the HBM
---        -- State machine in the level above this gets the data from the HBM and returns it to the HBM
---        -- The interface at this level is FIFO-like; just read and write.
---        -- This module assumes that HBM data will be available to read when it is needed,
---        -- since the data input from the corner turn cannot be stalled.
---        --
---        -- Read from HBM : Data is read in the same cycle as o_rdHBM = '1' (i.e. fwft FIFO required)
---        o_rdHBM => fullDinFIFO_RdEn,   -- out std_logic;
---        i_HBMdata => fullDinFIFO_dout, -- in std_logic_vector(127 downto 0);
---        o_flushHBM => full_flushHBM,   -- out std_logic; -- HBM reads are 512 bit words, but it is possible that a full set of integration data is not a multiple of 512 bits. This signal indicates that the last part of the last 512 bits should be dropped.
---        -- Write to HBM : o_HBMdata is valid when o_wrHBM = '1'.
---        o_wrHBM => fullDoutFIFO_WrEn,        -- out std_logic;
---        o_lastHBMWrite => full_lastHBMWrite, -- out std_logic;  -- last word of HBM data for the corner turn.
---        o_HBMdata => fullDoutFIFO_wdata      -- out std_logic_vector(511 downto 0)
---    );
-
+    -- First correlator instance
+    icor1 : entity correlator_lib.single_correlator
+    generic map (
+        g_PIPELINE_STAGES => 2, -- integer
+        g_PACKET_SAMPLES_DIV16  => g_PACKET_SAMPLES_DIV16
+    ) port map (
+        -- clock used for all data input and output from this module (300 MHz)
+        i_axi_clk => i_axi_clk, -- in std_logic;
+        i_axi_rst => i_axi_rst, -- in std_logic;
+        -- Processing clock used for the correlation (>412.5 MHz)
+        i_cor_clk => i_cor_clk, -- in std_logic;
+        i_cor_rst => i_cor_rst, -- in std_logic;    
+        ---------------------------------------------------------------
+        -- Data in to the correlator arrays
+        --
+        -- correlator 0 is ready to receive a new block of data. This will go low once data starts to be received.
+        -- A block of data consists of data for 64 times, and up to 512 virtual channels.
+        o_cor_ready => o_cor0_ready, -- out std_logic;  
+        -- Each 256 bit word : two time samples, 4 consecutive virtual channels
+        -- (31:0) = time 0, virtual channel 0; (63:32) = time 0, virtual channel 1; (95:64) = time 0, virtual channel 2; (127:96) = time 0, virtual channel 3;
+        -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
+        i_cor_data  => i_cor0_data, --  in std_logic_vector(255 downto 0); 
+        -- Counts the virtual channels in i_cor_data, always in steps of 4, where the value is the first of the 4 virtual channels in i_cor_data
+        -- If i_cor_tileType = '0', then up to 256 channels are delivered, with the same channels going to both row and column memories.
+        --                          In this case, i_cor_VC_count will run from 0 to 256 in steps of 4.
+        -- If i_cor_tileType = '1', then up to 512 channels are delivered, with different channels going to the row and column memories.
+        --                          counts 0 to 255 go to the column memories, while counts 256-511 go to the row memories. 
+        i_cor_VC   => i_cor0_VC,    -- in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
+        i_cor_time => i_cor0_time,  -- in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        -- Options for tileType : 
+        --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
+        --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
+        --   '1' = Rectangle. In this case, the first 256 virtual channels on i_cor0_data go to the column memories, while the next 128 virtual channels go to the row memories.
+        --            All correlation products for the rectangle are then computed.
+        i_cor_tileType => i_cor0_tileType, --  in std_logic;
+        i_cor_valid    => i_cor0_valid,    --  in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        -- i_cor0_last and i_cor0_final go high after a block of data has been sent.
+        i_cor_first    => i_cor0_first,    -- in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        i_cor_last     => i_cor0_last,     -- in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        i_cor_final    => i_cor0_final,    -- in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.   
+        -- up to 1024 different tiles; each tile is a subset of the correlation for particular subarray and beam.
+        -- Tiles can be triangles or rectangles from the full correlation.
+        -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 2 rectangles.
+        --      for 4096x4096 stations, there will be 16 triangles, and 240 rectangles.
+        i_cor_tileCount => i_cor0_tileCount, --  in std_logic_vector(9 downto 0);
+        -- Which block of frequency channels is this tile for ?
+        -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
+        i_cor_tileChannel => i_cor0_tileChannel, --  in std_logic_vector(11 downto 0);
+        i_cor_tileTotalTimes    => i_cor0_tileTotalTimes,    -- in (7:0) -- Number of time samples to integrate for this tile.
+        i_cor_tiletotalChannels => i_cor0_tileTotalChannels, -- in (4:0) -- Number of frequency channels to integrate for this tile.
+        i_cor_rowstations       => i_cor0_rowStations,       -- in (8:0); -- number of stations in the row memories to process; up to 256.
+        i_cor_colstations       => i_cor0_colStations,       -- in (8:0); -- number of stations in the col memories to process; up to 256.       
+        ---------------------------------------------------------------
+        -- Data out to the HBM
+        o_HBM_axi_aw      => o_cor0_axi_aw, --  out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_awready => i_cor0_axi_awready, -- in  std_logic;
+        o_HBM_axi_w       => o_cor0_axi_w,      -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_wready  => i_cor0_axi_wready, -- in  std_logic;
+        i_HBM_axi_b       => i_cor0_axi_b,      -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        -- reading from HBM
+        o_HBM_axi_ar      => o_cor0_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_arready => i_cor0_axi_arready, -- in  std_logic;
+        i_HBM_axi_r       => i_cor0_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_rready  => o_cor0_axi_rready,  -- out std_logic;
+        ---------------------------------------------------------------
+        -- data out to the 100GE
+        o_packet_dout     => o_packet0_dout,  --  out std_logic_vector(255 downto 0);
+        o_packet_valid    => o_packet0_valid, --  out std_logic;
+        i_packet_ready    => i_packet0_ready, --  in std_logic;
+        ---------------------------------------------------------------
+        -- Registers
+        o_HBM_start => cor0_HBM_start, -- out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
+        o_HBM_end   => cor0_HBM_end,   -- out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
+        o_HBM_cells => cor0_HBM_cells  -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+    );
+    
+    cor2geni : if g_USE_TWO_CORRELATORS generate
+        icor2 : entity correlator_lib.single_correlator
+        generic map (
+            g_PIPELINE_STAGES => 3, -- integer
+            g_PACKET_SAMPLES_DIV16  => g_PACKET_SAMPLES_DIV16
+        ) port map (
+            -- clock used for all data input and output from this module (300 MHz)
+            i_axi_clk => i_axi_clk, -- in std_logic;
+            i_axi_rst => i_axi_rst, -- in std_logic;
+            -- Processing clock used for the correlation (>412.5 MHz)
+            i_cor_clk => i_cor_clk, -- in std_logic;
+            i_cor_rst => i_cor_rst, -- in std_logic;    
+            ---------------------------------------------------------------
+            -- Data in to the correlator arrays
+            --
+            -- correlator 0 is ready to receive a new block of data. This will go low once data starts to be received.
+            -- A block of data consists of data for 64 times, and up to 512 virtual channels.
+            o_cor_ready => o_cor1_ready, -- out std_logic;  
+            -- Each 256 bit word : two time samples, 4 consecutive virtual channels
+            -- (31:0) = time 0, virtual channel 0; (63:32) = time 0, virtual channel 1; (95:64) = time 0, virtual channel 2; (127:96) = time 0, virtual channel 3;
+            -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
+            i_cor_data     => i_cor1_data, --  in std_logic_vector(255 downto 0); 
+            i_cor_time     => i_cor1_time,  -- in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+            i_cor_VC       => i_cor1_VC,    -- in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
+            i_cor_tileType => i_cor1_tileType, -- in std_logic;
+            i_cor_valid    => i_cor1_valid,    -- in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+            i_cor_first    => i_cor1_first,    -- in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+            i_cor_last     => i_cor1_last,     -- in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+            i_cor_final    => i_cor1_final,    -- in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.   
+            i_cor_tileCount => i_cor1_tileCount, --  in std_logic_vector(9 downto 0);
+            -- Which block of frequency channels is this tile for ?
+            -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
+            i_cor_tileChannel       => i_cor1_tileChannel,       -- in (11:0);
+            i_cor_tileTotalTimes    => i_cor0_tileTotalTimes,    -- in (7:0) -- Number of time samples to integrate for this tile.
+            i_cor_tiletotalChannels => i_cor0_tileTotalChannels, -- in (4:0) -- Number of frequency channels to integrate for this tile.
+            i_cor_rowstations       => i_cor0_rowStations,       -- in (8:0); -- number of stations in the row memories to process; up to 256.
+            i_cor_colstations       => i_cor0_colStations,       -- in (8:0); -- number of stations in the col memories to process; up to 256.  
+            ---------------------------------------------------------------
+            -- Data out to the HBM
+            o_HBM_axi_aw      => o_cor1_axi_aw, --  out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+            i_HBM_axi_awready => i_cor1_axi_awready, -- in  std_logic;
+            o_HBM_axi_w       => o_cor1_axi_w,      -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+            i_HBM_axi_wready  => i_cor1_axi_wready, -- in  std_logic;
+            i_HBM_axi_b       => i_cor1_axi_b,      -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+            -- reading from HBM
+            o_HBM_axi_ar      => o_cor1_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+            i_HBM_axi_arready => i_cor1_axi_arready, -- in  std_logic;
+            i_HBM_axi_r       => i_cor1_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+            o_HBM_axi_rready  => o_cor1_axi_rready,  -- out std_logic;
+            ---------------------------------------------------------------
+            -- data out to the 100GE
+            o_packet_dout     => o_packet1_dout,  --  out std_logic_vector(255 downto 0);
+            o_packet_valid    => o_packet1_valid, --  out std_logic;
+            i_packet_ready    => i_packet1_ready, --  in std_logic;
+            ---------------------------------------------------------------
+            -- Registers
+            o_HBM_start => cor1_HBM_start, -- out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
+            o_HBM_end   => cor1_HBM_end,   -- out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
+            o_HBM_cells => cor1_HBM_cells  -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+        );
+    end generate;
+    
+    nocor2geni : if (not g_USE_TWO_CORRELATORS) generate
+        cor1_HBM_start <= (others => '0');
+        cor1_HBM_end <= (others => '0');
+        cor1_HBM_cells <= (others => '0');
+        o_packet1_dout <= (others => '0');
+        o_packet1_valid <= '0';
+        o_cor1_axi_aw.valid <= '0';
+        o_cor1_axi_aw.addr <= (others => '0');
+        o_cor1_axi_aw.len <= (others => '0');
+        o_cor1_axi_w.valid <= '0';
+        o_cor1_axi_w.data <= (others => '0');
+        o_cor1_axi_w.last <= '0';
+        o_cor1_axi_ar.valid <= '0';
+        o_cor1_axi_ar.addr <= (others => '0');
+        o_cor1_axi_ar.len <= (others => '0');
+        o_cor1_axi_rready <= '0';
+        o_cor1_ready <= '1';
+    end generate;
+    
     ----------------------------------------------------------------
     -- Registers
     --
@@ -468,7 +433,12 @@ begin
         SETUP_FIELDS_RO => config_ro   -- in  t_setup_ro
     );
     
-    config_ro.dummy <= x"FABBFEAD";
-   
+    config_ro.cor0_HBM_start <= cor0_HBM_start;
+    config_ro.cor0_HBM_end <= cor0_HBM_end;
+    config_ro.cor0_HBM_size <= cor0_HBM_cells;
+    
+    config_ro.cor1_HBM_start <= cor1_HBM_start;
+    config_ro.cor1_HBM_end <= cor1_HBM_end;
+    config_ro.cor1_HBM_size <= cor1_HBM_cells;
     
 end Behavioral;

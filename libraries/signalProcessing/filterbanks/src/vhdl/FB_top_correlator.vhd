@@ -36,22 +36,21 @@ entity FB_Top_correlator is
         i_fineDelayDisable : in std_logic;
         i_RFIScale         : in std_logic_vector(4 downto 0);
         -----------------------------------------
-        -- PSS and PST Data input, common valid signal, expects packets of 64 samples. 
+        -- data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
-        -- Due to oversampling, also requires on average 86 clocks between packets - specifically, no more than 3 packets in 258 clocks.
         i_SOF    : in std_logic; 
         i_data0  : in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
         i_data1  : in t_slv_8_arr(1 downto 0);
-        i_meta01 : in t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        i_meta01 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
         i_data2  : in t_slv_8_arr(1 downto 0);
         i_data3  : in t_slv_8_arr(1 downto 0);
-        i_meta23 : in t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        i_meta23 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
         i_data4  : in t_slv_8_arr(1 downto 0);
         i_data5  : in t_slv_8_arr(1 downto 0);
-        i_meta45 : in t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        i_meta45 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
         i_data6  : in t_slv_8_arr(1 downto 0);
         i_data7  : in t_slv_8_arr(1 downto 0);
-        i_meta67 : in t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        i_meta67 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
         i_DataValid : in std_logic;
                 
         -- Correlator filterbank data output
@@ -92,12 +91,11 @@ architecture Behavioral of FB_Top_correlator is
     signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.  
     
     signal FDcorDataValid : std_logic_vector(3 downto 0);
-    --signal FDcorHeaderValid : std_logic_vector(1 downto 0);
     
-    signal corFBHeader : t_atomic_CT_pst_META_out_arr(3 downto 0);
+    signal corFBHeader : t_CT1_META_out_arr(3 downto 0);
     signal corDout_arr : t_FB_output_payload_a(3 downto 0);
     
-    signal FDHeader : t_atomic_CT_pst_META_out_arr(3 downto 0);
+    signal FDHeader : t_CT1_META_out_arr(3 downto 0);
     signal DataValid : std_logic;
     
     signal corFBDout0, corFBDout1, corFBDout2, corFBDout3, corFBDout4, corFBDout5, corFBDout6, corFBDout7, corFBDout8 : t_slv_16_arr(1 downto 0);
@@ -175,7 +173,7 @@ begin
             CorrelatorMetaIn(79+243 downto 64+243) <= i_meta67.virtualChannel;
             CorrelatorMetaIn(80+243) <= i_meta67.valid;
             
-            CorrelatorMetaIn(36+324 downto 0+324) <= i_meta01.frameCount;  -- framecount is the same for all input headers. Total of 37+4*81 = 361 header bits.
+            CorrelatorMetaIn(31+324 downto 0+324) <= i_meta01.frameCount;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
             
             -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
             for i in 0 to 1 loop
@@ -316,7 +314,7 @@ begin
     corFBHeader(0).VOffsetP <= corMetaOut(63 downto 48);
     corFBHeader(0).virtualChannel <= corMetaOut(79 downto 64);
     corFBHeader(0).valid <= corMetaOut(80);
-    corFBHeader(0).frameCount <= corMetaOut(36+324 downto 0+324);
+    corFBHeader(0).frameCount <= corMetaOut(31+324 downto 0+324);
     
     corFBHeader(1).HDeltaP <= corMetaOut(15+81 downto 0+81);
     corFBHeader(1).VDeltaP <= corMetaOut(31+81 downto 16+81);
@@ -324,7 +322,7 @@ begin
     corFBHeader(1).VOffsetP <= corMetaOut(63+81 downto 48+81);
     corFBHeader(1).virtualChannel <= corMetaOut(79+81 downto 64+81);
     corFBHeader(1).valid <= corMetaOut(80+81);
-    corFBHeader(1).frameCount <= corMetaOut(36+324 downto 0+324);
+    corFBHeader(1).frameCount <= corMetaOut(31+324 downto 0+324);
     
     corFBHeader(2).HDeltaP <= corMetaOut(15+162 downto 0+162);
     corFBHeader(2).VDeltaP <= corMetaOut(31+162 downto 16+162);
@@ -332,7 +330,7 @@ begin
     corFBHeader(2).VOffsetP <= corMetaOut(63+162 downto 48+162);
     corFBHeader(2).virtualChannel <= corMetaOut(79+162 downto 64+162);
     corFBHeader(2).valid <= corMetaOut(80+162);
-    corFBHeader(2).frameCount <= corMetaOut(36+324 downto 0+324);
+    corFBHeader(2).frameCount <= corMetaOut(31+324 downto 0+324);
     
     corFBHeader(3).HDeltaP <= corMetaOut(15+243 downto 0+243);
     corFBHeader(3).VDeltaP <= corMetaOut(31+243 downto 16+243);
@@ -340,7 +338,7 @@ begin
     corFBHeader(3).VOffsetP <= corMetaOut(63+243 downto 48+243);
     corFBHeader(3).virtualChannel <= corMetaOut(79+243 downto 64+243);
     corFBHeader(3).valid <= corMetaOut(80+243);
-    corFBHeader(3).frameCount <= corMetaOut(36+324 downto 0+324);
+    corFBHeader(3).frameCount <= corMetaOut(31+324 downto 0+324);
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
@@ -367,7 +365,7 @@ begin
             o_data        => FDdata(i),         -- out t_ctc_output_payload;   -- 8 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
             o_dataValid   => FDcorDataValid(i), -- out std_logic;
             o_header      => FDHeader(i),       -- out t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
-            o_headerValid => headerValid(i),  -- out std_logic;
+            o_headerValid => headerValid(i),    -- out std_logic;
     
             -------------------------------------------
             -- control and monitoring

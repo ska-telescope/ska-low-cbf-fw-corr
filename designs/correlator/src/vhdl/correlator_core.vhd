@@ -20,9 +20,6 @@ USE axi4_lib.axi4_full_pkg.ALL;
 USE technology_lib.tech_mac_100g_pkg.ALL;
 USE technology_lib.technology_pkg.ALL;
 USE technology_lib.technology_select_pkg.all;
---USE vcu128_board_lib.ip_pkg.ALL;
---USE vcu128_board_lib.board_pkg.ALL;
---USE tech_mac_100g_lib.tech_mac_100g_pkg.ALL;
 
 USE work.correlator_bus_pkg.ALL;
 USE work.correlator_system_reg_pkg.ALL;
@@ -970,14 +967,14 @@ begin
         i_timing_axi_mosi => mc_lite_mosi(c_timingcontrola_lite_index), -- in t_axi4_lite_mosi;
         o_timing_axi_miso => mc_lite_miso(c_timingcontrola_lite_index), -- out t_axi4_lite_miso;
         -- Corner Turn between LFAA Ingest and the filterbanks.
-        i_LFAA_CT_axi_mosi => mc_lite_mosi(c_CT_atomic_cor_in_lite_index), -- in  t_axi4_lite_mosi;
-        o_LFAA_CT_axi_miso => mc_lite_miso(c_CT_atomic_cor_in_lite_index), -- out t_axi4_lite_miso;
+        i_LFAA_CT_axi_mosi => mc_lite_mosi(c_corr_ct1_lite_index), -- in  t_axi4_lite_mosi;
+        o_LFAA_CT_axi_miso => mc_lite_miso(c_corr_ct1_lite_index), -- out t_axi4_lite_miso;
         -- Filterbanks
         i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
         o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;
         -- Corner turn between filterbanks and the correlator
-        i_cor_CT_axi_mosi => mc_lite_mosi(c_ct_atomic_cor_out_lite_index), -- in  t_axi4_lite_mosi;
-        o_cor_CT_axi_miso => mc_lite_miso(c_ct_atomic_cor_out_lite_index), -- out t_axi4_lite_miso;
+        i_cor_CT_axi_mosi => mc_lite_mosi(c_corr_ct2_lite_index), -- in  t_axi4_lite_mosi;
+        o_cor_CT_axi_miso => mc_lite_miso(c_corr_ct2_lite_index), -- out t_axi4_lite_miso;
         -- correlator
         i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
         o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;

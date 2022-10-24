@@ -23,11 +23,39 @@ peripherals:
               reset_value       : 0x0
               field_description : "Start or restart COR."
 
-          - - field_name        : dummy
+          - - field_name        : cor0_HBM_start
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Without this, MACE fails to create the required VHDL files"
+              field_description : "start address in HBM for correlator 0 output buffer"
               
-
+          - - field_name        : cor0_HBM_end
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "end address in HBM for correlator 0 output buffer"
+          
+          - - field_name        : cor0_HBM_size
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of correlator cells (i.e. blocks of 8192 bytes) in the HBM buffer"
+              
+          - - field_name        : cor1_HBM_start
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "start address in HBM for correlator 0 output buffer"
+              
+          - - field_name        : cor1_HBM_end
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "end address in HBM for correlator 0 output buffer"
+          
+          - - field_name        : cor1_HBM_size
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of correlator cells (i.e. blocks of 8192 bytes) in the HBM buffer"
 

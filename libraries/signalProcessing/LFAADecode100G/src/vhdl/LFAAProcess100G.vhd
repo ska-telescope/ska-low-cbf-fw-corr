@@ -85,7 +85,7 @@ entity LFAAProcess100G is
         i_reg_rw           : in t_statctrl_rw;
         o_reg_count        : out t_statctrl_count;
         -- Virtual channel table memory in the registers
-        o_searchAddr       : out std_logic_vector(9 downto 0); -- read address to the VCTable_ram in the registers.
+        o_searchAddr       : out std_logic_vector(11 downto 0); -- read address to the VCTable_ram in the registers.
         i_VCTable_rd_data  : in std_logic_vector(31 downto 0); -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
         -- Virtual channel stats in the registers.
         o_statsWrData      : out std_logic_vector(31 downto 0);
@@ -196,7 +196,6 @@ architecture Behavioral of LFAAProcess100G is
     constant c_timestamp_low : natural := 18;   -- 2 low bytes
     constant c_sync_time : natural := 15; -- sync time, 6 bytes.
     
-    --signal expectedValues : t_field_values;  -- some expected values are constants drawn from c_fieldmatch_loc.expected, others are set via MACE.
     signal actualValues : t_field_values;
     signal fieldMatch : std_logic_vector(29 downto 0) := (others => '1');
     signal allFieldsMatch : std_logic := '0';
@@ -205,7 +204,6 @@ architecture Behavioral of LFAAProcess100G is
     signal dataSeg1Del : std_logic_vector(63 downto 0);
     signal dataAligned : std_logic_vector(511 downto 0);
     signal dataAlignedValid : std_logic;
-    --signal dataAlignedmty : std_logic_vector(3 downto 0) := "0000";
     signal dataAlignedEOP : std_logic := '0';
     
     signal rxActive : std_logic := '0';  -- we are receiving a frame.
@@ -248,7 +246,7 @@ architecture Behavioral of LFAAProcess100G is
     signal searchAddr, searchAddrDel1, searchAddrDel2 : std_logic_vector(15 downto 0);
     signal searchRunning, searchRunningDel1, searchRunningDel2, searchRunningDel3 : std_logic;
     
-    signal VirtualChannel : std_logic_vector(9 downto 0);
+    signal VirtualChannel : std_logic_vector(10 downto 0);
     signal searchDone : std_logic;
     signal NoMatch : std_logic;
     signal VirtualSearch : std_logic_vector(31 downto 0);
@@ -277,16 +275,11 @@ architecture Behavioral of LFAAProcess100G is
     signal bufDin_LE : std_logic_vector(511 downto 0);
 
     signal dataDel : t_lbus_sosi;
-    signal VCTableStationID : std_logic_vector(9 downto 0);
-    signal VCTableFrequencyID : std_logic_vector(8 downto 0);
     signal searchMax, searchMin, searchInterval : std_logic_vector(15 downto 0);
     signal upperIntervalCenter, lowerIntervalCenter : std_logic_vector(15 downto 0);
-    type lookup_fsm_type is (search_failure, search_success, check_rd_data, wait_rd3, wait_rd2, wait_rd1, start, idle);
+    type lookup_fsm_type is (search_failure, search_success, wait_rd_VC1, wait_rd_VC2, wait_rd_VC3, check_rd_data, wait_rd3, wait_rd2, wait_rd1, start, idle);
     signal lookup_fsm : lookup_fsm_type;
     signal VCTableMatch : std_logic;
-    signal stationID_gt_table, stationID_eq_table, frequencyID_gt_table : std_logic;
-    signal packetStationID : std_logic_vector(9 downto 0);
-    signal packetFrequencyID : std_logic_vector(8 downto 0);
     signal wdFIFO_empty : std_logic;
     signal wdFIFO_full : std_logic;
     signal wdFIFO_wrRst : std_logic;
@@ -307,9 +300,10 @@ architecture Behavioral of LFAAProcess100G is
     signal hdrCDC_src_in : std_logic_vector(47 downto 0) := (others => '0');
     signal hdrCDC_src_rcv : std_logic := '0';
     signal totalVirtualChannels : std_logic_vector(15 downto 0);
-    signal frequencyID_eq_table : std_logic := '0';
+    signal packet_gt_table : std_logic := '0';
     
     signal eth100_rx_sosi   : t_lbus_sosi;
+    signal tableSelect : std_logic := '0';
     
     component ila_beamData
     port (
@@ -649,6 +643,8 @@ begin
                         else
                             lookup_fsm <= idle;
                         end if;
+                        -- update in the idle state so the table is consistent while searching it.
+                        tableSelect <= i_reg_rw.table_select;
                         searchRunning <= '0';
                     
                     when start =>
@@ -661,23 +657,33 @@ begin
                         searchAddr <= "000000" & totalVirtualChannels(10 downto 1);
                         lookup_fsm <= wait_rd1;
      
-                    when wait_rd1 =>
+                    when wait_rd1 =>  -- "seachAddr", the address to the virtual channel table in the registers, is valid in this state.
                         searchInterval <= std_logic_vector(unsigned(searchMax) - unsigned(searchMin));
                         lookup_fsm <= wait_rd2;
                     
-                    when wait_rd2 =>
+                    when wait_rd2 => -- vc table data arrives in this state
                         lookup_fsm <= wait_rd3;
                     
-                    when wait_rd3 => -- vc table data arrives in this state
+                    when wait_rd3 => -- vctable_rd_data_del1 valid
                         lookup_fsm <= check_rd_data;
                         
-                    when check_rd_data =>
+                    when check_rd_data => -- packet_gt_table is valid in this state.
                         if (VCTableMatch = '1') then  -- found a matching entry
                             lookup_fsm <= search_success;
                         elsif (unsigned(searchInterval) = 0) then
                             lookup_fsm <= search_failure; -- search interval is size 0, but no match, so there is no matching entry in the table.
                         else
-                            -- virtual channels are sorted by station and frequency, e.g.
+                            -- virtual channels are sorted according to the values in the table;
+                            -- The values in the table are made up of :                       
+                            --
+                            -- bits 2:0   = substation_id
+                            -- bits 12:3  = station_id,
+                            -- bits 16:13 = beam_id,
+                            -- bits 25:17 = frequency_id
+                            -- bits 30:26 = subarray_id
+                            -- bit  31    = set to '1' to indicate this entry is invalid
+                            --
+                            -- The values in the table must be sorted by the table contents, so e.g :
                             -- for two frequencies of 100 and 101, and 3 stations of 5,10 and 12, the order will be
                             --  0 - station 5, channel 100 \
                             --  1 - station 10, channel 100 \
@@ -685,10 +691,11 @@ begin
                             --  3 - station 5, channel 101 \
                             --  4 - station 10, channel 101 \
                             --  5 - station 12, channel 101 \ 
-                            -- So when searching, we need to first check the frequency ID, and then if that is the same, check the station.  
-                            --
-                            if (frequencyID_gt_table = '1') or (frequencyID_eq_table = '1' and stationID_gt_table = '1') then
-                            --if (stationID_gt_table = '1') or (stationID_eq_table = '1' and frequencyID_gt_table = '1') then
+                            -- 
+                            -- Searching the table works by binary search, i.e. halving the search interval at each step,    
+                            -- using the fact that the table is sorted.
+                            -- 
+                            if packet_gt_table = '1' then
                                 -- try the upper half of the current interval
                                 searchMin <= std_logic_vector(unsigned(searchAddr) + 1);
                                 searchMax <= searchMax;
@@ -703,7 +710,17 @@ begin
                         end if;
                     
                     when search_success =>
-                        virtualChannel <= searchAddr(9 downto 0);
+                        lookup_fsm <= wait_rd_VC1;
+                        
+                    when wait_rd_VC1 =>
+                        lookup_fsm <= wait_rd_VC2;
+                        
+                    when wait_rd_VC2 =>
+                        lookup_fsm <= wait_rd_VC3;
+                        
+                    when wait_rd_VC3 =>
+                        -- The virtual channel to be assigned to this packet is read from the second word in the virtual channel table.
+                        virtualChannel <= i_VCTable_rd_data(9 downto 0); 
                         searchDone <= '1';
                         NoMatch <= '0';
                         lookup_fsm <= idle;
@@ -717,40 +734,20 @@ begin
                         lookup_fsm <= idle;
                 end case;
             end if;
-             
-            if (i_VCTable_rd_data = VirtualSearch) then
+            
+            VCTable_rd_data_del1 <= i_VCTable_rd_data;
+            
+            if (VCTable_rd_data_del1 = VirtualSearch) then
                 VCTableMatch <= '1';
             else
                 VCTableMatch <= '0';
             end if;
-             
-            packetStationID <= actualValues(c_station_id_index)(9 downto 0);
-            packetFrequencyID <= actualValues(c_frequency_id_index)(8 downto 0);
-            if (unsigned(packetStationID) > unsigned(VCTableStationID)) then
-                stationID_gt_table <= '1';
-            else
-                stationID_gt_table <= '0';
-            end if;
-            if (unsigned(packetStationID) = unsigned(VCTableStationID)) then
-                stationID_eq_table <= '1';
-            else
-                stationID_eq_table <= '0';
-            end if;            
             
-            if (unsigned(packetFrequencyID) > unsigned(VCTableFrequencyID)) then
-                frequencyID_gt_table <= '1';
+            if (unsigned(VirtualSearch) > unsigned(VCTable_rd_data_del1)) then
+                packet_gt_table <= '1';  -- current packet being examined is further on in the table than the table value just read.
             else
-                frequencyID_gt_table <= '0';
+                packet_gt_table <= '0';
             end if;
-            if (unsigned(packetFrequencyID) = unsigned(VCTableFrequencyID)) then
-                frequencyID_eq_table <= '1';
-            else
-                frequencyID_eq_table <= '0';
-            end if;
-    
-            VCTableStationID <= i_VCTable_rd_data(30 downto 21);
-            VCTableFrequencyID <= i_VCTable_rd_data(8 downto 0);
-            VCTable_rd_data_del1 <= i_VCTable_rd_data;
             
             ------------------------------------------------------------------------------------------------
             -- Packet Ingest FSM
@@ -1191,13 +1188,21 @@ begin
     upperIntervalCenter <= std_logic_vector(unsigned(searchAddr) + unsigned(searchMax) + 1);
     lowerIntervalCenter <= std_logic_vector(unsigned(searchAddr) + unsigned(searchMin) - 1);
     
-    VirtualSearch(8 downto 0) <= actualValues(c_frequency_id_index)(8 downto 0);
-    VirtualSearch(12 downto 9) <= actualValues(c_beam_id_index)(3 downto 0);
-    VirtualSearch(15 downto 13) <= actualValues(c_substation_id_index)(2 downto 0);
-    VirtualSearch(20 downto 16) <= actualValues(c_subarray_id_index)(4 downto 0);
-    VirtualSearch(30 downto 21) <= actualValues(c_station_id_index)(9 downto 0);
+    -- From the registers yaml file : 
+    --  bits 2:0   = substation_id, 
+    --  bits 12:3  = station_id,    
+    --  bits 16:13 = beam_id, 
+    --  bits 25:17 = frequency_id  
+    --  bits 30:26 = subarray_id 
+    --  bit  31    = set to '1' to indicate this entry is invalid 
+    VirtualSearch(2 downto 0) <= actualValues(c_substation_id_index)(2 downto 0);
+    VirtualSearch(12 downto 3) <= actualValues(c_station_id_index)(9 downto 0);
+    VirtualSearch(16 downto 13) <= actualValues(c_beam_id_index)(3 downto 0);
+    VirtualSearch(25 downto 17) <= actualValues(c_frequency_id_index)(8 downto 0);
+    VirtualSearch(30 downto 26) <= actualValues(c_subarray_id_index)(4 downto 0);
     VirtualSearch(31) <= '0';
-    virtualChannelx8 <= virtualChannel & "000";
+    
+    virtualChannelx8 <= virtualChannel(9 downto 0) & "000";
     
     bufWrAddr <= wrBufSel & bufWrCount(6 downto 0); -- Buffer is 512 deep x 64 bytes wide, one packet is 128 deep x 64 wide = 8192 bytes.
     bufRdAddr <= rdBufSel & txCount(6 downto 0);
@@ -1208,7 +1213,11 @@ begin
     o_reg_count.badipudpframes <= badIPUDPPacket;
     o_reg_count.novirtualchannelcount <= noVirtualChannel;
     
-    o_searchAddr <= searchAddr(9 downto 0);
+    -- Search address : 
+    --   bit 0 selects either table data or the virtual channel that this table entry will use.
+    --   Top bit selects which version of the table to use.
+    o_searchAddr(11 downto 1) <= tableSelect & searchAddr(9 downto 0); 
+    o_searchAddr(0) <= '1' when lookup_fsm = search_success else '0'; -- Odd indexed words in the virtual channel table are the virtual channel; get the virtual channel after finding a match in the table.
     o_statsAddr <= statsAddr;
     o_statsWE <= statsWE;
     o_statsWrData <= statsWrData;

@@ -8,6 +8,26 @@
 --  Readout to the correlator.
 -- 
 -- Readout Pattern:
+--  For subarray = 1:total_subarrays    -- This is handled in the level above; Each new subarray is a read from the subarray-beam table. Once all are done, i_SB_done goes high.
+--      For channel_base = 0:channels_to_integrate:total_channels
+--          - channels_to_integrate : comes from i_fineIntegrations (from SB table)
+--          - total_channels        : comes from i_N_fine (from SB table), the total number of fine channels to use.
+--          For time_base = 0:integrations_per_849ms
+--              - integrations_per_849ms : comes from i_timeIntegrations (from SB table), "00" = 64 time samples = 3 integrations per 849ms; "01" = 192 time samples = 1 integration per 849 ms
+--              For tile_row = 0:total_tile_rows
+--                  - total_tile_rows will be determined from i_stations (from SB table).
+--                  - total_tile_rows = ceil(i_stations/256). 256 stations per tile.
+--                  For tile_col = 0:total_tile_rows   -- Note : number of tile columns = number of tile rows.
+--                      For time = 0:times_per_integration/64
+--                          - times_per_integration = 64 when i_timeIntegrations = "00", or 192 when i_timeIntegrations = "01". 
+--                          For channel = channel_base:(channel_base+channels_to_integrate)
+--                              - Read 2 HBM blocks with 32 time samples each, for the set of stations loaded as a function of the tile.
+--                              - channel base for row = tile_row*256     
+--                          For channel = channel_base:(channel_base+channels_to_integrate)
+--                              - channel base for col = tile_col * 256
+--
+--
+--
 --
 -- For tile = 0:3   � Can stop before 3, e.g. only one tile if there is <= 256 virtual channels.
 --     For fine_base = 0 : integration_channels : 3456
@@ -22,16 +42,8 @@
 --                -Tile 3 : get virtual channels = 0:511
 --
 -- HBM addressing:
--- 32 bit address needed to address 3 Gbytes:
---      - bits 8:0 = address within a  512 byte data block written in a single burst to the HBM
---      - bits 15:9 = 128 different groups of virtual channels (4 virtual channels in each HBM write)
---          *!! Using these address bits is critical, since it allows the readout to read multiple 512-byte blocks at a time.
---           !! Readout can thus read at the full HBM rate, close to 100Gb/sec.
---           !! Write data rate is 25.6Gb/sec, so this means the readout can read the data 3 or 4 times.
---           !! Multiple reads of the same data reduces the buffer memory required in the correlator long term accumulator.
---      - bits 27:16 = 3456 different fine channels
---      - bits 31:28 = 12 blocks of 32 times (2 buffers) * (192 times per buffer) / (32 times per 512 byte HBM write) 
---          - So bits 31:28 run from 0 to 11, for 3 Gbytes of memory, with 0 to 5 being the first 192 time samples, and 6-11 being the second 192 time samples.
+--  32 bit address needed to address 3 Gbytes:
+--  The address of 512-byte blocks of data is calculated by the "get_ct2_HBM_addr" module, which is common to the data input side of the corner turn.
 ----------------------------------------------------------------------------------
 
 library IEEE, ct_lib, DSP_top_lib, common_lib, axi4_lib;
@@ -47,8 +59,19 @@ entity corr_ct2_dout is
         i_axi_clk   : in std_logic;
         i_start     : in std_logic; -- start reading out data to the correlators
         i_buffer    : in std_logic; -- which of the double buffers to read out ?
-        i_virtualChannels : in std_logic_vector(11 downto 0); -- How many virtual channels are there in this buffer ? (NOTE this buffer, not both buffers).
-        i_fineIntegrations : in std_logic_vector(4 downto 0); -- Number of fine channels to integrate, max 24.
+        
+        -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
+        o_SB_req    : out std_logic;    -- Rising edge gets the parameters for the next subarray-beam to read out.
+        i_SB_valid  : in  std_logic;    -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
+        i_SB_done   : in std_logic;     -- Indicates that all the subarray beams for this correlator core has been processed.
+        i_stations  : in std_logic_vector(15 downto 0);    -- The number of (sub)stations in this subarray-beam
+        i_coarseStart : in std_logic_vector(15 downto 0);  -- The first coarse channel in this subarray-beam
+        i_fineStart   : in std_logic_vector(15 downto 0);  -- The first fine channel in this subarray-beam
+        i_n_fine      : in std_logic_vector(23 downto 0);  -- The number of fine channels in this subarray-beam
+        i_fineIntegrations : in std_logic_vector(5 downto 0);  -- Number of fine channels to integrate
+        i_timeIntegrations : in std_logic_vector(1 downto 0);  -- Number of time samples per integration.
+        i_HBM_base_addr    : in std_logic_vector(31 downto 0); -- Base address in HBM for this subarray-beam.        
+        
         ---------------------------------------------------------------
         -- Data out to the correlator arrays
         --
@@ -62,11 +85,31 @@ entity corr_ct2_dout is
         -- meta data
         o_cor_time : out std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
         o_cor_VC   : out std_logic_vector(11 downto 0); -- first of the 4 virtual channels in o_cor0_data
-        o_cor_FC   : out std_logic_vector(11 downto 0); -- which 226 Hz fine channel is this ? 0 to 3455.
-        o_cor_triangle : out std_logic_vector(3 downto 0); -- which correlator triangle is this data for ? 0 to 3 for modes that don't use substations.
-        o_cor_valid : out std_logic;
-        o_cor_last  : out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
-        o_cor_final : out std_logic;  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.
+        
+        -- Options for tileType : 
+        --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
+        --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
+        --   '1' = Square. In this case, the first 256 virtual channels on i_cor0_data go to the column memories, while the next 256 virtual channels go to the row memories.
+        --            All correlation products for the rectangle are then computed.
+        o_cor_tileType : out std_logic;
+        o_cor_valid    : out std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        -- i_cor0_last and i_cor0_final go high after a block of data has been sent.
+        o_cor_first    : out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        o_cor_last     : out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        o_cor_final    : out std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. o_cor_tileCount and o_cor_tileChannel are valid when this is high.   
+        -- up to 1024 different tiles; each tile is a subset of the correlation for particular subarray and beam.
+        -- Tiles can be triangles or rectangles from the full correlation.
+        -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 2 rectangles.
+        --      for 4096x4096 stations, there will be 16 triangles, and 240 rectangles.
+        o_cor_tileCount : out std_logic_vector(9 downto 0);
+        -- Which block of frequency channels is this tile for ?
+        -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
+        o_cor_tileChannel       : out std_logic_vector(11 downto 0);
+        o_cor_tileTotalTimes    : out std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+        o_cor_tiletotalChannels : out std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        o_cor_rowstations       : out std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+        o_cor_colstations       : out std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256. 
+        
         ----------------------------------------------------------------
         -- read interfaces for the HBM
         o_HBM_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -86,7 +129,8 @@ architecture Behavioral of corr_ct2_dout is
     signal fineIntegrationsMinus1, curFineChannelOffset : std_logic_vector(4 downto 0);
     signal lastFineChannelBase, curFineChannelBase, curFineChannel : std_logic_vector(11 downto 0);
     signal curVirtualChannelx16 : std_logic_vector(4 downto 0);
-    signal curTriangle : std_logic_vector(1 downto 0);
+    signal curTile : std_logic_vector(9 downto 0);
+    signal curTileType : std_logic := '0';
     signal curTimeGroup : std_logic_vector(3 downto 0);
     type readout_fsm_type is (idle, wait_data, send_data, signal_correlator, wait_correlator_ready);
     signal readout_fsm : readout_fsm_type := idle;
@@ -103,7 +147,17 @@ architecture Behavioral of corr_ct2_dout is
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
     signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
     signal dataFIFO_wrCount : std_logic_vector(9 downto 0);
- 
+    
+    
+    --
+    signal SB_stations : std_logic_vector(15 downto 0); -- 16 bits, the number of (sub)stations in this subarray-beam
+    signal SB_coarseStart : std_logic_vector(15 downto 0);  -- The first coarse channel in this subarray-beam
+    signal SB_fineStart : std_logic_vector(15 downto 0);    -- The first fine channel in this subarray-beam
+    signal SB_n_fine : std_logic_vector(23 downto 0);       -- The number of fine channels in this subarray-beam
+    signal SB_fineIntegrations : std_logic_vector(5 downto 0);  -- number of fine channels to integrate
+    signal SB_timeIntegrations : std_logic_vector(1 downto 0);  -- 2 bits, number of time samples per integration.
+    signal SB_base_addr : std_logic_vector(31 downto 0);        -- 32 bits,
+    
 begin
     
     -- Always read blocks of 2048 bytes = 32 x (512 bit) words.
@@ -126,10 +180,33 @@ begin
                 curFineChannelOffset <= (others => '0'); -- number of fine channels within the current integration, typically 0 to 23
                 curFineChannelBase <= (others => '0');   -- the fine channel being used is curFineChannelBase + curFineChannelOffset
                 curVirtualChannelx16 <= (others => '0');  -- reads are groups of 16 virtual channels.
-                curTriangle <= "00";   -- a "triangle" is a set of 256x256 stations that the correlator array is being tiled across.
+                curTile <= "0000000000";   -- a tile is a set of up to 256x256 stations that the correlator array is being applied to.
                 curTimeGroup <= "0000"; -- steps through "000", "001", "010", "011", "100", "101" for the 6 groups of 32 times, since data in HBM is written in 512 byte blocks with 32 times. 
+                curTileType <= '0';     -- '0' = tile is a triangle, '1' = tile is a rectangle (or square)
+                curTileRowStations <= ;
+                curTileColStations <= ;
             else
                 case ar_fsm is
+                
+                    when get_SB_data =>
+                        o_SB_req <= '1';
+                        ar_fsm <= wait_SB_data;
+                    
+                    when wait_SB_data =>
+                        o_SB_req <= '0';
+                        if i_SB_done = '1' then
+                            ar_fsm <= done;
+                        elsif i_SB_valid = '1' then
+                            SB_stations <= i_stations; -- 16 bits, the number of (sub)stations in this subarray-beam
+                            SB_coarseStart <= i_coarseStart; -- 16 bits, the first coarse channel in this subarray-beam
+                            SB_fineStart <= i_fineStart;     -- 16 bits, the first fine channel in this subarray-beam
+                            SB_n_fine <= i_n_fine;           -- 24 bits, the number of fine channels in this subarray-beam
+                            SB_fineIntegrations <= i_fineIntegrations; -- 6 bits, number of fine channels to integrate
+                            SB_timeIntegrations <= i_timeIntegrations; -- 2 bits, number of time samples per integration.
+                            SB_base_addr <= i_HBM_base_addr; -- 32 bits, base address in HBM for this subarray-beam.        
+                            ar_fsm <= check_arFIFO;
+                        end if;
+                
                     when check_arFIFO =>
                         -- check there is space in the ar FIFO
                         if (arFIFO_full = '0') then
@@ -173,8 +250,8 @@ begin
                             ar_fsm <= check_arFIFO;
                         else
                             curTimeGroup(0) <= '0';
-                            if curTriangle = "00" then 
-                                -- Reading virtual channels 0 -> 255
+                            if curTile = "0000000000" then 
+                                -- First tile : Reading virtual channels 0 -> 255
                                 -- So at 15, we have just done the last read for 256 channels (15*16 = 240 = last group of 16 virtual channels).
                                 if ((unsigned(curVirtualChannelx16) = 15) or 
                                     ((curVirtualChannelx16(4 downto 0) = totalVirtualChannels(8 downto 4)) and (totalVirtualChannels(11 downto 9) = "000"))) then
@@ -229,22 +306,20 @@ begin
                         if (unsigned(totalVirtualChannels) < 256) then
                             ar_fsm <= done;
                         else
-                            case curTriangle is
-                                when "00" =>
-                                    curTriangle <= "01";
-                                    curVirtualChannelx16 <= "10000";  -- 16x16 i.e. 256; triangle 1 reads stations 256 to 511.
-                                    ar_fsm <= check_arFIFO;
-                                when "01" =>
-                                    curTriangle <= "10";
-                                    curVirtualChannelx16 <= "00000";  -- triangles 2 and 3 need all 512 stations (half for correlator row memories, half for the col memories)
-                                    ar_fsm <= check_arFIFO;
-                                when "10" =>
-                                    curTriangle <= "11";
-                                    curVirtualChannelx16 <= "00000";  -- triangles 2 and 3 need all 512 stations (half for correlator row memories, half for the col memories)
-                                    ar_fsm <= check_arFIFO;
-                                when others =>
-                                    ar_fsm <= done;
-                            end case;
+                            if curTile = "0000000000" then
+                                curTile <= "0000000001";
+                                curVirtualChannelx16 <= "00000";  -- tile 1 correlates stations 0-255 with stations 256-511, so it has to read stations 0 to 511.
+                                curTileType <= '1';  -- The tile is a rectangle/square
+                                ar_fsm <= check_arFIFO;
+                            elsif curTile = "0000000001" then
+                                curTile <= "0000000010";
+                                curVirtualChannelx16 <= "10000";  -- tile 2 correlates stations 256-511 with 256-511, so it reads stations 256 to 511.
+                                curTileType <= '0'; -- The tile is a triangle
+                                ar_fsm <= check_arFIFO;
+                            else
+                                ar_fsm <= done;
+                            end if;
+                            
                         end if;
                     when done =>
                         ar_fsm <= done; -- Wait until we get i_start again.
@@ -256,11 +331,13 @@ begin
             -- FIFO to keep meta data associated with each HBM ar request.
             if ar_fsm = set_ar then
                 arFIFO_wrEn <= '1';
-                arFIFO_din(1 downto 0) <= curTriangle; -- 2 bits
-                arFIFO_din(13 downto 2) <= curFineChannel; -- 12 bits
-                arFIFO_din(17 downto 14) <= curTimeGroup;  -- 4 bits
-                arFIFO_din(22 downto 18) <= curVirtualChannelx16; -- 5 bits.
-                arFIFO_din(24 downto 23) <= "00"; -- Indicates a block of 2048 bytes from the HBM
+                arFIFO_din(0) <= curTileType; -- 1 bit
+                arFIFO_din(12 downto 1) <= curFineChannel; -- 12 bits
+                arFIFO_din(16 downto 13) <= curTimeGroup;  -- 4 bits
+                arFIFO_din(21 downto 17) <= curVirtualChannelx16; -- 5 bits.
+                arFIFO_din(23 downto 22) <= "00"; -- Indicates a block of 2048 bytes from the HBM
+                arFIFO_din(33 downto 24) <= curTile;
+                
             elsif ar_fsm_del1 = next_fine then
                 arFIFO_wrEn <= '1';
                 arFIFO_din(23) <= '1';    -- Indicates that a full block of data has been delivered to the correlator, and the correlator has to be run.
@@ -276,6 +353,31 @@ begin
             
         end if;
     end process;
+    
+    
+    hbm_addri : entity ct_lib.get_ct2_HBM_addr
+    port map(
+        i_axi_clk => i_axi_clk, --  in std_logic;
+        -- Values from the Subarray-beam table
+        i_SB_HBM_base_Addr => copy_SB_HBM_base_addr, -- in std_logic_vector(31 downto 0); -- Base address in HBM for this subarray-beam
+        i_SB_coarseStart   => copy_SB_coarseStart, -- in std_logic_vector(8 downto 0);  -- First coarse channel for this subarray-beam, x781.25 kHz to get the actual sky frequency 
+        i_SB_fineStart     => copy_SB_fineStart, -- in std_logic_vector(11 downto 0); -- First fine channel for this subarray-beam, runs from 0 to 3455
+        i_SB_stations      => copy_SB_stations, -- in std_logic_vector(15 downto 0); -- Total number of stations in this subarray-beam
+        i_SB_N_fine        => copy_SB_N_fine, -- in std_logic_vector(23 downto 0); -- Total number of fine channels to store for this subarray-beam
+        -- Values for this particular block of 512 bytes. Each block of 512 bytes is 4 stations, 32 time samples ((4stations)*(32timesamples)*(2pol)*(1byte)(2(complex)) = 512 bytes)
+        i_coarse_channel   => copy_skyFrequency, -- in std_logic_vector(8 downto 0);  -- coarse channel for this block, x781.25kHz to get the actual sky frequency (so is comparable to i_SB_coarseStart
+        i_fine_channel     => copy_fineChannel, -- in std_logic_vector(11 downto 0); -- fine channel for this block, runs from 0 to 3455
+        i_station          => copy_station, -- in std_logic_vector(11 downto 0); -- Index of this station within the subarray
+        i_time_block       => copy_time,    -- in std_logic_vector(2 downto 0);  -- Which time block this is for; 0 to 5. Each time block is 32 time samples.
+        i_buffer           => copy_buffer,  -- in std_logic; -- Which half of the buffer to calculate for (each half is 1.5 Gbytes)
+        -- All above data is valid, do the calculation.
+        i_valid            => get_addr, -- in std_logic;
+        -- Resulting address in the HBM, after 8 cycles latency.
+        o_HBM_addr         => HBM_addr, -- out std_logic_vector(31 downto 0);
+        o_out_of_range     => HBM_addr_bad,   -- out std_logic; -- indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
+        o_fine_high        => HBM_fine_high,  -- out std_logic; -- indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
+        o_valid            => HBM_addr_valid  -- out std_logic -- some fixed number of clock cycles after i_valid.
+    );
     
     
     -- arFIFO is read when data is read out of the dataFIFO in this module, so the number of entries in the 
@@ -447,7 +549,7 @@ begin
             sendCountDel1 <= sendCount;
             o_cor_time <= readoutTimeGroup(2 downto 0) & sendCountDel1(3 downto 0) & '0'; -- out std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
             o_cor_VC   <= "000" & readoutVCx16 & sendCountDel1(5 downto 4) & "00";        -- out std_logic_vector(11 downto 0); -- first of the 4 virtual channels in o_cor_data
-            o_cor_FC   <= readoutFineChannel; --  out std_logic_vector(11 downto 0); -- which 226 Hz fine channel is this ? 0 to 3455.
+            o_cor_tileChannel   <= readoutFineChannel; --  out std_logic_vector(11 downto 0); -- which 226 Hz fine channel is this ? 0 to 3455.
             o_cor_triangle <= "00" & readoutTriangle; --  out std_logic_vector(3 downto 0); -- which correlator triangle is this data for ? 0 to 3 for modes that don't use substations.
             if readout_fsm = signal_correlator and readoutKey(0) = '1' then
                 o_cor_last <= '1'; --  out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.

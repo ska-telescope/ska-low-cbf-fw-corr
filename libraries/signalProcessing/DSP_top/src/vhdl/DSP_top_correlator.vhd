@@ -44,7 +44,10 @@ entity DSP_top_correlator is
         g_DEBUG_ILA              : boolean := false;
         g_BEAM_ILA               : boolean := false;
         g_LFAA_BLOCKS_PER_FRAME  : integer := 9;  -- Number of LFAA blocks per frame divided by 3; minimum value is 1, i.e. 3 LFAA blocks per frame.
-        g_USE_META               : boolean := FALSE  -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
+        g_USE_META               : boolean := FALSE;  -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
+        -- There are 34 bytes per sample : 4 x 8 byte visibilites, + 1 byte TCI + 1 byte DV
+        g_PACKET_SAMPLES_DIV16   : integer := 64;  -- Actual number of samples in a correlator SPEAD packet is this value x 16; each sample is 34 bytes; default value => 64*34 = 2176 bytes of data per packet.
+        g_USE_TWO_CORRELATORS    : boolean := TRUE
     );
     port (
         -----------------------------------------------------------------------
@@ -151,14 +154,8 @@ ARCHITECTURE structure OF DSP_top_correlator IS
 
     ---------------------------------------------------------------------------
     -- SIGNAL DECLARATIONS  --
-    --------------------------------------------------------------------------- 
-    
-    signal dbg_timer_expire : std_logic;
-    signal dbg_timer  :  std_logic_vector(15 downto 0);    
+    ---------------------------------------------------------------------------   
     signal LFAADecode_dbg : std_logic_vector(13 downto 0);
-    signal LFAA_tx_fsm, LFAA_stats_fsm, LFAA_rx_fsm : std_logic_vector(3 downto 0);
-    signal LFAA_goodpacket, LFAA_nonSPEAD : std_logic;
-    
     signal gnd : std_logic_vector(199 downto 0);
     
     signal timingPacketData : std_logic_vector(63 downto 0);
@@ -166,93 +163,9 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     signal clk_LFAA40GE_wallTime : t_wall_time;
     signal clk_HBM_wallTime : t_wall_time;
-    --signal clk_wall_wallTime : t_wall_time;
-    
-    signal CTCDataIn : std_logic_vector(63 downto 0);
-    signal CTCValidIn : std_logic;
-    signal CTCSOPIn   : std_logic;
-    
-  
-    signal CTFCorDataIn : std_logic_vector(63 downto 0);
-    signal CTFCorSOPIn  : std_logic;
-    signal CTFCorValid  : std_logic;
     
     signal MACE_clk_vec : std_logic_vector(0 downto 0);
     signal MACE_clk_rst : std_logic_vector(0 downto 0);
-    
-    --signal dsp_top_rw  : t_statctrl_rw;
-    
-    signal CTC_CorSof : std_logic; -- single cycle pulse: this cycle is the first of 204*4096
-    --signal CTC_CorHeader : t_ctc_output_header_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);    -- meta data belonging to the data coming out
-    signal CTC_CorHeaderValid : std_logic;                                            -- new meta data (every output packet, aka 4096 cycles) 
-    --signal CTC_CorData : t_ctc_output_data_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);      -- the actual output data
-    signal CTC_CorDataValid : std_logic;
-
-    signal CTC_CorSof_del1 : std_logic; -- single cycle pulse: this cycle is the first of 204*4096
-    --signal CTC_CorHeader_del1 : t_ctc_output_header_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);    -- meta data belonging to the data coming out
-    signal CTC_CorHeaderValid_del1 : std_logic;                                            -- new meta data (every output packet, aka 4096 cycles) 
-    --signal CTC_CorData_del1 : t_ctc_output_data_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);      -- the actual output data
-    signal CTC_CorDataValid_del1 : std_logic;
-
-    signal CTC_CorSof_del2 : std_logic; -- single cycle pulse: this cycle is the first of 204*4096
-    --signal CTC_CorHeader_del2  : t_ctc_output_header_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);    -- meta data belonging to the data coming out
-    signal CTC_CorHeaderValid_del2  : std_logic;                                            -- new meta data (every output packet, aka 4096 cycles) 
-    --signal CTC_CorData_del2  : t_ctc_output_data_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);      -- the actual output data
-    signal CTC_CorDataValid_del2  : std_logic;
-
-    signal CTC_CorSof_del3  : std_logic; -- single cycle pulse: this cycle is the first of 204*4096
-    --signal CTC_CorHeader_del3 : t_ctc_output_header_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);    -- meta data belonging to the data coming out
-    signal CTC_CorHeaderValid_del3 : std_logic;                                            -- new meta data (every output packet, aka 4096 cycles) 
-    --signal CTC_CorData_del3 : t_ctc_output_data_a(pc_CTC_OUTPUT_NUMBER-1 downto 0);      -- the actual output data
-    signal CTC_CorDataValid_del3 : std_logic;
-
-    signal CTC_PSSPSTSof : std_logic; 
-    --signal CTC_PSSPSTData : t_ctc_output_data_a(2 downto 0);  -- 3 different streams, each 32 bits (8 bits each for VpolRe, VpolIm, HpolRe, HpolIm)
-    signal CTC_PSSPSTDataValid : std_logic;
-    --signal CTC_PSSPSTHeader : t_ctc_output_header_a(2 downto 0); -- one header per stream
-    signal CTC_PSSPSTHeaderValid : std_logic;
-
-    signal CTC_PSSPSTSof_del1 : std_logic; 
-    --signal CTC_PSSPSTData_del1 : t_ctc_output_data_a(2 downto 0);  -- 3 different streams, each 32 bits (8 bits each for VpolRe, VpolIm, HpolRe, HpolIm)
-    signal CTC_PSSPSTDataValid_del1 : std_logic;
-    --signal CTC_PSSPSTHeader_del1 : t_ctc_output_header_a(2 downto 0); -- one header per stream
-    signal CTC_PSSPSTHeaderValid_del1 : std_logic;
-    
-    signal CTC_PSSPSTSof_del2 : std_logic; 
-    --signal CTC_PSSPSTData_del2 : t_ctc_output_data_a(2 downto 0);  -- 3 different streams, each 32 bits (8 bits each for VpolRe, VpolIm, HpolRe, HpolIm)
-    signal CTC_PSSPSTDataValid_del2 : std_logic;
-    --signal CTC_PSSPSTHeader_del2 : t_ctc_output_header_a(2 downto 0); -- one header per stream
-    signal CTC_PSSPSTHeaderValid_del2 : std_logic;
-    
-    signal CTC_PSSPSTSof_del3 : std_logic; 
-    --signal CTC_PSSPSTData_del3 : t_ctc_output_data_a(2 downto 0);  -- 3 different streams, each 32 bits (8 bits each for VpolRe, VpolIm, HpolRe, HpolIm)
-    signal CTC_PSSPSTDataValid_del3 : std_logic;
-    --signal CTC_PSSPSTHeader_del3 : t_ctc_output_header_a(2 downto 0); -- one header per stream
-    signal CTC_PSSPSTHeaderValid_del3 : std_logic;    
-        
-    
-    signal CTC_HBM_clk_rst : std_logic;          -- reset going to the HBM core
-    signal CTC_HBM_mosi : t_axi4_full_mosi;   -- data going to the HBM core
-    signal CTC_HBM_miso : t_axi4_full_miso;   -- data coming from the HBM core
-    signal CTC_HBM_ready : std_logic;
-    
-    --signal FB_PSSHeader      : t_ctc_output_header_a(2 downto 0);
-    signal FB_PSSHeaderValid : std_logic;
-    --signal FB_PSSData        : t_ctc_output_data_a(2 downto 0);
-    signal FB_PSSDataValid   : std_logic;
-    -- PST filterbank data output
-    --signal FB_PSTHeader      : t_ctc_output_header_a(2 downto 0);
-    signal FB_PSTHeaderValid : std_logic;
-    --signal FB_PSTData        : t_ctc_output_data_a(2 downto 0);
-    signal FB_PSTDataValid   : std_logic;
-    signal HBMPage : std_logic_vector(9 downto 0);
-    signal hbm_width_rst : std_logic := '0';
-    
-    signal MACE_HBM_mosi : t_axi4_full_mosi;
-    signal MACE_HBM_miso : t_axi4_full_miso;
-    
-    signal hbm_axi_rst, hbm_axi_rst_del1, hbm_axi_rst_del2, hbm_axi_rst_del3 : std_logic := '0';
-    signal IC_rst, IC_rst_del1, IC_rst_del2, IC_rst_del3 : std_logic_vector(31 downto 0);
     
     signal fineDelayDisable : std_logic;
     signal RFIScale : std_logic_vector(4 downto 0);
@@ -286,16 +199,16 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     signal FB_data0 : t_slv_8_arr(1 downto 0);
     signal FB_data1 : t_slv_8_arr(1 downto 0);
-    signal FB_meta01 : t_atomic_CT_pst_META_out; 
+    signal FB_meta01 : t_CT1_META_out; 
     signal FB_data2 : t_slv_8_arr(1 downto 0);
     signal FB_data3 : t_slv_8_arr(1 downto 0);
-    signal FB_meta23 : t_atomic_CT_pst_META_out;
+    signal FB_meta23 : t_CT1_META_out;
     signal FB_data4 : t_slv_8_arr(1 downto 0);
     signal FB_data5 : t_slv_8_arr(1 downto 0);
-    signal FB_meta45 : t_atomic_CT_pst_META_out;
+    signal FB_meta45 : t_CT1_META_out;
     signal FB_data6 : t_slv_8_arr(1 downto 0);
     signal FB_data7 : t_slv_8_arr(1 downto 0);
-    signal FB_meta67 : t_atomic_CT_pst_META_out;    
+    signal FB_meta67 : t_CT1_META_out;    
     
     signal FB_valid : std_logic;
     
@@ -310,88 +223,10 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal FD_data : t_ctc_output_payload_arr(3 downto 0);
     signal FD_dataValid : std_logic;
     
-    signal totalStations : std_logic_vector(11 downto 0);
-    signal totalCoarse   : std_logic_vector(11 downto 0);
-    signal totalChannels : std_logic_vector(11 downto 0); 
-    
-    signal BFdataIn : std_logic_vector(95 downto 0); -- 3 consecutive fine channels delivered every clock.
-    signal BFflagged : std_logic_vector(2 downto 0);
-    signal BFFine : std_logic_vector(7 downto 0);  -- fine channel / 3, so the actual fine channel for the first of the 3 fine channels in o_data is (o_fine*3)
-    signal BFCoarse : std_logic_vector(9 downto 0); -- coarse channel.
-    signal BFPacketCount : std_logic_vector(36 downto 0); -- The packet count for this packet, based on the original packet count from LFAA.
-    signal BFValidIn : std_logic;
-    signal BFBeamsEnabled : std_logic_vector(7 downto 0);
     signal ct_rst : std_logic;
     signal ct_sof : std_logic;
     signal CT_sofCount : std_logic_vector(11 downto 0) := (others => '0');
     signal CT_sofFinal : std_logic := '0';
-    
-    signal BFFirstStation : std_logic;
-    signal BFLastStation : std_logic;
-    signal BFtimeStep : std_logic_vector(4 downto 0);
-    signal BFVirtualChannel : std_logic_vector(9 downto 0);
-    
-    signal BFJonesBuffer : std_logic;
-    signal BFPhaseBuffer : std_logic;
-    
-    signal beamData : std_logic_vector(63 downto 0);
-    signal beamPacketCount : std_logic_vector(36 downto 0);
-    signal beamBeam : std_logic_vector(7 downto 0);
-    signal beamFreqIndex : std_logic_vector(10 downto 0);
-    signal beamValid : std_logic;
-    
-    -- copy of the beam bus with breakout of some signals so names are easier to see in the ILA core.
-    signal bDataReal0, bDataImag0, bDataReal1, bDataImag1 : std_logic_vector(15 downto 0);
-    signal bVirtualChannel : std_logic_vector(9 downto 0);  -- 10 bits
-    signal bBeam : std_logic_vector(7 downto 0);  -- 8 bits
-    signal bPacketCount : std_logic_vector(36 downto 0); -- 37 bits
-    signal bValid : std_logic;
-    
-    signal m02_axi_awvalid_dbg : std_logic;
-    signal m02_axi_awready_dbg : std_logic;
-    signal m02_axi_awaddr_dbg  : std_logic_vector(27 downto 0);
-    signal m02_axi_awlen_dbg   : std_logic_vector(3 downto 0);
-    -- w bus - write data
-    signal m02_axi_wvalid_dbg  : std_logic;
-    signal m02_axi_wready_dbg  : std_logic;
-    signal m02_axi_wdata_dbg   : std_logic_vector(255 downto 0);
-    signal m02_axi_wlast_dbg   : std_logic;
-    -- b bus - write response
-    signal m02_axi_bvalid_dbg  : std_logic;
-    signal m02_axi_bresp_dbg   : std_logic_vector(1 downto 0);
-    -- ar bus - read address
-    signal m02_axi_arvalid_dbg  : std_logic;
-    signal m02_axi_arready_dbg  : std_logic;
-    signal m02_axi_araddr_dbg   : std_logic_vector(27 downto 0);
-    signal m02_axi_arlen_dbg    : std_logic_vector(3 downto 0);
-    -- r bus - read data
-    signal m02_axi_rvalid_dbg   : std_logic;
-    signal m02_axi_rready_dbg   : std_logic;
-    signal m02_axi_rdata_dbg    : std_logic_vector(255 downto 0);
-    signal m02_axi_rlast_dbg    : std_logic;
-    signal m02_axi_rresp_dbg    : std_logic_vector(1 downto 0);
-
-
-    signal m03_axi_awvalid_dbg : std_logic;
-    signal m03_axi_awready_dbg : std_logic;
-    signal m03_axi_awaddr_dbg  : std_logic_vector(27 downto 0);
-    signal m03_axi_awlen_dbg   : std_logic_vector(3 downto 0);
-    -- w bus - write data
-    signal m03_axi_wvalid_dbg  : std_logic;
-    signal m03_axi_wready_dbg  : std_logic;
-    signal m03_axi_wdata_dbg   : std_logic_vector(255 downto 0);
-    signal m03_axi_wlast_dbg   : std_logic;
-    -- ar bus - read address
-    signal m03_axi_arvalid_dbg  : std_logic;
-    signal m03_axi_arready_dbg  : std_logic;
-    signal m03_axi_araddr_dbg   : std_logic_vector(27 downto 0);
-    signal m03_axi_arlen_dbg    : std_logic_vector(3 downto 0);
-    -- r bus - read data
-    signal m03_axi_rvalid_dbg   : std_logic;
-    signal m03_axi_rready_dbg   : std_logic;
-    signal m03_axi_rdata_dbg    : std_logic_vector(255 downto 0);
-    signal m03_axi_rlast_dbg    : std_logic;
-    signal m03_axi_rresp_dbg    : std_logic_vector(1 downto 0);
     
     signal dbg_ILA_trigger, bdbg_ILA_triggerDel1, bdbg_ILA_trigger, bdbg_ILA_triggerDel2 : std_logic;
     signal dataMismatch_dbg, dataMismatch, datamismatchBFclk : std_logic;
@@ -412,6 +247,21 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal FB_to_100G_valid : std_logic;
     signal FB_to_100G_ready : std_logic;
     signal packet_stream_out : t_packetiser_stream_out(2 downto 0);
+    signal cor0_ready, cor1_ready, cor0_valid, cor1_valid, cor0_last, cor1_last, cor0_final, cor1_final : std_logic;
+    signal cor0_tileType, cor1_tileType, cor0_first, cor1_first : std_logic;
+    signal cor0_data, cor1_data : std_logic_vector(255 downto 0);
+    signal cor0_time, cor1_time : std_logic_vector(7 downto 0);
+    signal cor0_VC, cor1_VC : std_logic_vector(8 downto 0);
+    
+    signal cor0_tileCount, cor1_tileCount : std_logic_vector(9 downto 0);
+    signal cor0_tileChannel, cor1_tileChannel : std_logic_vector(11 downto 0);
+    signal cor0_tileTotalTimes, cor1_tileTotalTimes : std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+    signal cor0_timeTotalChannels, cor1_timeTotalChannels : std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+    signal cor0_rowStations, cor1_rowStations, cor0_colStations, cor1_colStations : std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256. 
+    
+    signal cor_packet0_data, cor_packet1_data : std_logic_vector(255 downto 0);
+    signal cor_packet0_valid, cor_packet1_valid : std_logic;
+    signal totalChannels : std_logic_vector(11 downto 0);
     
 begin
     
@@ -458,9 +308,7 @@ begin
         i_vcstats_MM_IN    => i_LFAAFull_axi_mosi, -- in  t_axi4_full_mosi; At the top level use mc_full_mosi(c_LFAAdecode_full_index),
         o_vcstats_MM_OUT   => o_LFAAFull_axi_miso, -- out t_axi4_full_miso;
         -- Output from the registers that are used elsewhere (on i_s_axi_clk)
-        o_totalStations => totalStations, -- out std_logic_vector(11 downto 0);
-        o_totalCoarse   => totalCoarse,   -- out std_logic_vector(11 downto 0);
-        o_totalChannels => totalChannels, -- out std_logic_vector(11 downto 0);
+        o_totalChannels    => totalChannels,       -- out (11:0); Total number of virtual channels defined.
         -- debug
         o_dbg              => LFAADecode_dbg
     );
@@ -576,8 +424,8 @@ begin
         i_data7  => FB_data7, -- in t_slv_8_arr(1 downto 0);
         i_meta67 => FB_meta67,
         i_dataValid => FB_valid, -- in std_logic;
-        -- Data out; bursts of 216 clocks for each channel.
-        -- PST filterbank data output
+        -- Data out; bursts of 3456 clocks for each channel.
+        -- Correlator filterbank data output
         o_frameCount     => FD_frameCount,     -- out std_logic_vector(36 downto 0); -- frame count is the same for all simultaneous output streams.
         o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
         o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
@@ -599,12 +447,9 @@ begin
     -- Corner turn between filterbanks and correlator
     ct_cor_out_inst : entity CT_lib.corr_ct2_top
     generic map (
-        g_USE_META => g_USE_META   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
+        g_USE_META => g_USE_META,   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
+        g_USE_TWO_CORRELATORS => g_USE_TWO_CORRELATORS --  boolean := TRUE
     ) port map (
-        -- Parameters, in the i_axi_clk domain.
-        i_stations => totalStations(10 downto 0), -- in std_logic_vector(10 downto 0); -- up to 1024 stations
-        i_coarse   => totalCoarse(9 downto 0),   -- in std_logic_vector(9 downto 0);  -- Number of coarse channels.
-        i_virtualChannels => totalChannels(10 downto 0), --  in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi  => i_cor_CT_axi_mosi, -- in t_axi4_lite_mosi;
         o_axi_miso  => o_cor_CT_axi_miso, -- out t_axi4_lite_miso;
@@ -619,7 +464,40 @@ begin
         i_HeaderValid     => FD_headerValid,    -- in std_logic_vector(3 downto 0);
         i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
         i_dataValid       => FD_dataValid,      -- in std_logic;
-        -- Data out to the correlator - to be determined.
+        --------------------------------------------------------------------------
+        -- Data out to the correlators
+
+        i_cor0_ready             => cor0_ready, --  out std_logic; 
+        o_cor0_data              => cor0_data,  --  in (255:0); 
+        o_cor0_time              => cor0_time,  --  in (7:0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        o_cor0_VC                => cor0_VC,    --  in (8:0); -- first of the 4 virtual channels in i_cor0_data
+        o_cor0_tileType          => cor0_tileType, --  in std_logic;
+        o_cor0_valid             => cor0_valid,    --  in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        o_cor0_first             => cor0_first,    -- in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        o_cor0_last              => cor0_last,     -- in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        o_cor0_final             => cor0_final,    -- in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
+        o_cor0_tileCount         => cor0_tileCount, --  in (9:0);
+        o_cor0_tileChannel       => cor0_tileChannel,       --  in std_logic_vector(11 downto 0);
+        o_cor0_tileTotalTimes    => cor0_tileTotalTimes,    --  in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+        o_cor0_tiletotalChannels => cor0_timeTotalChannels, --  in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        o_cor0_rowstations       => cor0_rowStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+        o_cor0_colstations       => cor0_colStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.   
+        -- second correlator
+        i_cor1_ready             => cor1_ready, --  out std_logic; 
+        o_cor1_data              => cor1_data,  --  in (255:0); 
+        o_cor1_time              => cor1_time,  --  in (7:0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        o_cor1_VC                => cor1_VC,    --  in (8:0); -- first of the 4 virtual channels in i_cor0_data
+        o_cor1_tileType          => cor1_tileType, --  in std_logic;
+        o_cor1_valid             => cor1_valid,    --  in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        o_cor1_first             => cor1_first,    -- in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        o_cor1_last              => cor1_last,     -- in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        o_cor1_final             => cor1_final,    -- in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
+        o_cor1_tileCount         => cor1_tileCount, --  in (9:0);
+        o_cor1_tileChannel       => cor1_tileChannel,       --  in std_logic_vector(11 downto 0);
+        o_cor1_tileTotalTimes    => cor1_tileTotalTimes,    --  in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+        o_cor1_tiletotalChannels => cor1_timeTotalChannels, --  in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        o_cor1_rowstations       => cor1_rowStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+        o_cor1_colstations       => cor1_colStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256. 
         
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
@@ -633,7 +511,7 @@ begin
         i_HBM0_axi_arready => i_HBM_axi_arready(1), -- in  std_logic;
         i_HBM0_axi_r       => i_HBM_axi_r(1),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
         o_HBM0_axi_rready  => o_HBM_axi_rready(1),  -- out std_logic
-        
+        --
         o_HBM1_axi_aw      => o_HBM_axi_aw(2),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_HBM1_axi_awready => i_HBM_axi_awready(2), -- in  std_logic;
         o_HBM1_axi_w       => o_HBM_axi_w(2),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
@@ -649,47 +527,111 @@ begin
     
     correlator_inst : entity correlator_lib.correlator_top
     generic map (
-        g_SOME_GENERIC => 0
+        g_USE_TWO_CORRELATORS  => g_USE_TWO_CORRELATORS, -- boolean := TRUE;
+        -- Actual number of samples in a correlator SPEAD packet is this value x 16.
+        -- There are 34 bytes per sample : 4 x 8 byte visibilites, + 1 byte TCI + 1 byte DV
+        g_PACKET_SAMPLES_DIV16 => g_PACKET_SAMPLES_DIV16 -- integer;
     ) port map (
-        -- Output from the registers that are defined elsewhere (on i_axi_clk)
-        i_totalStations => totalStations, -- in std_logic_vector(11 downto 0);
-        i_totalCoarse   => totalCoarse,   -- in std_logic_vector(11 downto 0);
-        i_totalChannels => totalChannels, -- in std_logic_vector(11 downto 0);
+        -- clock used for all data input and output from this module (300 MHz)
+        i_axi_clk => i_MACE_clk, -- in std_logic;
+        i_axi_rst => i_MACE_rst, -- in std_logic;
+        -- Processing clock used for the correlation (>412.5 MHz)
+        i_cor_clk => i_clk450,   -- in std_logic;
+        i_cor_rst => '0',        -- in std_logic;    
+        
+
+        ------------------------------------------------------------------------------------
+        -- data input for the first correlator instance
+        o_cor0_ready => cor0_ready, --  out std_logic;  
+        -- Each 256 bit word : two time samples, 4 consecutive virtual channels
+        -- (31:0) = time 0, virtual channel 0; (63:32) = time 0, virtual channel 1; (95:64) = time 0, virtual channel 2; (127:96) = time 0, virtual channel 3;
+        -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
+        i_cor0_data  => cor0_data,  --  in std_logic_vector(255 downto 0); 
+        -- meta data
+        i_cor0_time  => cor0_time, --  in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        i_cor0_VC    => cor0_VC,   --  in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
+        -- Options for tileType : 
+        --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
+        --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
+        --   '1' = Rectangle. In this case, the first 256 virtual channels on i_cor0_data go to the column memories, while the next 128 virtual channels go to the row memories.
+        --            All correlation products for the rectangle are then computed.
+        i_cor0_tileType => cor0_tileType, --  in std_logic;
+        i_cor0_valid    => cor0_valid,    --  in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        -- i_cor0_last and i_cor0_final go high after a block of data has been sent.
+        i_cor0_first    => cor0_first,    --  in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        i_cor0_last     => cor0_last,     --  in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        i_cor0_final    => cor0_final,    -- in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.   
+        -- up to 1024 different tiles; each tile is a subset of the correlation for particular subarray and beam.
+        -- Tiles can be triangles or rectangles from the full correlation.
+        -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 2 rectangles.
+        --      for 4096x4096 stations, there will be 16 triangles, and 240 rectangles.
+        i_cor0_tileCount => cor0_tileCount, --  in std_logic_vector(9 downto 0);
+        -- Which block of frequency channels is this tile for ?
+        -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
+        i_cor0_tileChannel       => cor0_tileChannel,       --  in std_logic_vector(11 downto 0);
+        i_cor0_tileTotalTimes    => cor0_tileTotalTimes,    --  in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+        i_cor0_tiletotalChannels => cor0_timeTotalChannels, --  in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        i_cor0_rowstations       => cor0_rowStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+        i_cor0_colstations       => cor0_colStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.         
+        
+        ------------------------------------------------------------------------------------
+        -- Data input for the second correlator instance
+        o_cor1_ready    => cor1_ready, --  out std_logic; 
+        i_cor1_data     => cor1_data,  --  in (255:0); 
+        i_cor1_time     => cor1_time,  --  in (7:0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        i_cor1_VC       => cor1_VC,    --  in (8:0); -- first of the 4 virtual channels in i_cor0_data
+        i_cor1_tileType => cor1_tileType, --  in std_logic;
+        i_cor1_valid    => cor1_valid,    --  in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        i_cor1_first    => cor1_first,    -- in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        i_cor1_last     => cor1_last,     -- in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        i_cor1_final    => cor1_final,    -- in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
+        i_cor1_tileCount => cor1_tileCount, --  in (9:0);
+        i_cor1_tileChannel       => cor1_tileChannel,       --  in std_logic_vector(11 downto 0);
+        i_cor1_tileTotalTimes    => cor1_tileTotalTimes,    --  in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
+        i_cor1_tiletotalChannels => cor1_timeTotalChannels, --  in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        i_cor1_rowstations       => cor1_rowStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+        i_cor1_colstations       => cor1_colStations,       --  in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.           
+        
+        -- AXI interface to the HBM for storage of visibilities
+        o_cor0_axi_aw      => o_HBM_axi_aw(3),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_cor0_axi_awready => i_HBM_axi_awready(3), -- in  std_logic;
+        o_cor0_axi_w       => o_HBM_axi_w(3),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_cor0_axi_wready  => i_HBM_axi_wready(3),  -- in  std_logic;
+        i_cor0_axi_b       => i_HBM_axi_b(3),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_cor0_axi_ar      => o_HBM_axi_ar(3),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_cor0_axi_arready => i_HBM_axi_arready(3), -- in  std_logic;
+        i_cor0_axi_r       => i_HBM_axi_r(3),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_cor0_axi_rready  => o_HBM_axi_rready(3),  -- out std_logic
+        
+        
+        -- axi interface to the HBM for the second correlator instance.
+        o_cor1_axi_aw      => o_HBM_axi_aw(4),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_cor1_axi_awready => i_HBM_axi_awready(4), -- in  std_logic;
+        o_cor1_axi_w       => o_HBM_axi_w(4),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_cor1_axi_wready  => i_HBM_axi_wready(4),  -- in  std_logic;
+        i_cor1_axi_b       => i_HBM_axi_b(4),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_cor1_axi_ar      => o_HBM_axi_ar(4),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_cor1_axi_arready => i_HBM_axi_arready(4), -- in  std_logic;
+        i_cor1_axi_r       => i_HBM_axi_r(4),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_cor1_axi_rready  => o_HBM_axi_rready(4),   -- out std_logic
+        
+        ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi => i_cor_axi_mosi, -- in t_axi4_lite_mosi;
         o_axi_miso => o_cor_axi_miso, -- out t_axi4_lite_miso;
-        i_axi_clk  => i_MACE_clk,     -- in std_logic;
-        i_axi_rst  => i_MACE_rst,     -- in std_logic;        
-        -- Data input from the corner turn
-        i_din       => (others => '0'), --  in std_logic_vector(511 downto 0); -- full width bus from the corner turn HBM readout.
-        i_din_valid => '0', --  in std_logic;
-        -- clock used for the correlator
-        i_din_clk     => i_clk400, --  in std_logic;
-        -- Data output to the packetiser
-        o_100GE_data  => open, -- out std_logic_vector(127 downto 0);
-        o_100GE_valid => open, -- out std_logic;
         
-        -- AXI interface to the HBM for storage of visibilities
-        o_HBM0_axi_aw      => o_HBM_axi_aw(3),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM0_axi_awready => i_HBM_axi_awready(3), -- in  std_logic;
-        o_HBM0_axi_w       => o_HBM_axi_w(3),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM0_axi_wready  => i_HBM_axi_wready(3),  -- in  std_logic;
-        i_HBM0_axi_b       => i_HBM_axi_b(3),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_HBM0_axi_ar      => o_HBM_axi_ar(3),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM0_axi_arready => i_HBM_axi_arready(3), -- in  std_logic;
-        i_HBM0_axi_r       => i_HBM_axi_r(3),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM0_axi_rready  => o_HBM_axi_rready(3),  -- out std_logic
-        --
-        o_HBM1_axi_aw      => o_HBM_axi_aw(4),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM1_axi_awready => i_HBM_axi_awready(4), -- in  std_logic;
-        o_HBM1_axi_w       => o_HBM_axi_w(4),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM1_axi_wready  => i_HBM_axi_wready(4),  -- in  std_logic;
-        i_HBM1_axi_b       => i_HBM_axi_b(4),       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_HBM1_axi_ar      => o_HBM_axi_ar(4),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM1_axi_arready => i_HBM_axi_arready(4), -- in  std_logic;
-        i_HBM1_axi_r       => i_HBM_axi_r(4),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM1_axi_rready  => o_HBM_axi_rready(4)   -- out std_logic
+        ------------------------------------------------------------------
+        -- Data output to the packetiser
+        o_packet0_dout  => cor_packet0_data,  --  out std_logic_vector(255 downto 0);
+        o_packet0_valid => cor_packet0_valid, --  out std_logic;
+        i_packet0_ready => '1',               --  in std_logic
+        
+        o_packet1_dout  => cor_packet1_data,  --  out std_logic_vector(255 downto 0);
+        o_packet1_valid => cor_packet1_valid, --  out std_logic;
+        i_packet1_ready => '1'                --  in std_logic
+        
     );
+    
     
     -----------------------------------------------------------------------------------------------
     -- 100GE output 

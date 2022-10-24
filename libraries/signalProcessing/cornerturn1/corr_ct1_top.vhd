@@ -69,7 +69,7 @@
 -- Correlator filterbank output:
 --   Output is in 4096 sample blocks. 
 --
---   For g_LFAA_BLOCKS_PER_FRAME = 32 LFAA blocks:
+--   For g_LFAA_BLOCKS_PER_FRAME = 32 LFAA blocks:    <-- This case requires a higher clock rate due to the higher filterbank preload overhead.
 --     32 LFAA blocks = 32 * 2.2ms = 70.4 ms
 --     32 LFAA blocks = 16 output blocks
 --     Preload samples = 4096 * 11 = 11 output blocks
@@ -132,7 +132,7 @@ entity corr_ct1_top is
         i_shared_clk_wall_time : in std_logic_vector(63 downto 0); --wall time in input_clk domain           
         i_FB_clk_wall_time     : in std_logic_vector(63 downto 0); --wall time in output_clk domain
         -- other config (comes from LFAA ingest module).
-        i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
+        i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         o_rst               : out std_logic;  -- reset from the register module, copied out to be used downstream.
         o_validMemRstActive : out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         -- Headers for each valid packet received by the LFAA ingest.
@@ -151,16 +151,16 @@ entity corr_ct1_top is
         o_sofFull : out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
         o_data0  : out t_slv_8_arr(1 downto 0);
         o_data1  : out t_slv_8_arr(1 downto 0);
-        o_meta01 : out t_atomic_CT_pst_META_out; --   - .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        o_meta01 : out t_CT1_META_out; --   - .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
         o_data2  : out t_slv_8_arr(1 downto 0);
         o_data3  : out t_slv_8_arr(1 downto 0);
-        o_meta23 : out t_atomic_CT_pst_META_out;
+        o_meta23 : out t_CT1_META_out;
         o_data4  : out t_slv_8_arr(1 downto 0);
         o_data5  : out t_slv_8_arr(1 downto 0);
-        o_meta45 : out t_atomic_CT_pst_META_out;
+        o_meta45 : out t_CT1_META_out;
         o_data6  : out t_slv_8_arr(1 downto 0);
         o_data7  : out t_slv_8_arr(1 downto 0);
-        o_meta67 : out t_atomic_CT_pst_META_out;
+        o_meta67 : out t_CT1_META_out;
         o_valid : out std_logic;
         -------------------------------------------------------------
         -- AXI bus to the shared memory. 
@@ -271,7 +271,7 @@ architecture Behavioral of corr_ct1_top is
     signal outputCountWrEn : std_logic;
     type validBlocks_fsm_type is (idle, clear_all_start, clear_all_run, readChan0, readChan0Wait0, readChan0Wait1, readChan0Wait2, writeChan0, readChan1, readChan1Wait0, readChan1Wait1, readChan1Wait2, writeChan1, readChan2, readChan2Wait0, readChan2Wait1, readChan2Wait2, writeChan2);
     signal validBlocks_fsm : validBlocks_fsm_type := idle;
-    signal meta01, meta23, meta45, meta67 : t_atomic_CT_pst_META_out;
+    signal meta01, meta23, meta45, meta67 : t_CT1_META_out;
     signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_8_arr(1 downto 0);
     signal FBClk_rst : std_logic;
     signal haltPacketCountEqZero : std_logic;
@@ -503,7 +503,6 @@ begin
             end if;
             
             if resetDel1 = '1' and resetDel2 = '0' then
-                --NChannels <= config_rw.totalchannels(11 downto 0);
                 NChannels <= '0' & i_virtualChannels;
                 clocksPerPacket <= config_rw.output_cycles;
             end if;
@@ -721,20 +720,20 @@ begin
         o_sof   => o_sof,   -- out std_logic; start of frame.
         o_sofFull => o_sofFull, -- out std_logic; -- start of a full frame, i.e. 60ms of data.
         
-        o_HPol0 => data0, -- out t_slv_8_arr(1 downto 0);
-        o_VPol0 => data1, -- out t_slv_8_arr(1 downto 0);
-        o_meta0 => meta01, -- out t_atomic_CT_pst_META_out;
+        o_HPol0 => data0,  -- out t_slv_8_arr(1 downto 0);
+        o_VPol0 => data1,  -- out t_slv_8_arr(1 downto 0);
+        o_meta0 => meta01, -- out t_CT1_META_out;
         
-        o_HPol1 => data2, -- out t_slv_8_arr(1 downto 0);
-        o_VPol1 => data3, -- out t_slv_8_arr(1 downto 0);
-        o_meta1 => meta23, -- out t_atomic_CT_pst_META_out;
+        o_HPol1 => data2,  -- out t_slv_8_arr(1 downto 0);
+        o_VPol1 => data3,  -- out t_slv_8_arr(1 downto 0);
+        o_meta1 => meta23, -- out t_CT1_META_out;
         
-        o_HPol2 => data4, -- out t_slv_8_arr(1 downto 0);
-        o_VPol2 => data5, -- out t_slv_8_arr(1 downto 0);
-        o_meta2 => meta45, -- out t_atomic_CT_pst_META_out;
+        o_HPol2 => data4,  -- out t_slv_8_arr(1 downto 0);
+        o_VPol2 => data5,  -- out t_slv_8_arr(1 downto 0);
+        o_meta2 => meta45, -- out t_CT1_META_out;
         
-        o_HPol3 => data6, -- 
-        o_Vpol3 => data7, --
+        o_HPol3 => data6,  -- 
+        o_Vpol3 => data7,  --
         o_meta3 => meta67, --
         
         o_valid => validOut, -- out std_logic;
@@ -776,25 +775,6 @@ begin
             FBClk_rst <= AWFIFO_rst_del1 and (not AWFIFO_rst_del2);
         end if;
     end process;
-    
---    xpm_cdc_pulse_inst : xpm_cdc_pulse
---    generic map (
---        DEST_SYNC_FF => 3,   -- DECIMAL; range: 2-10
---        INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
---        REG_OUTPUT => 1,     -- DECIMAL; 0=disable registered output, 1=enable registered output
---        RST_USED => 0,       -- DECIMAL; 0=no reset, 1=implement reset
---        SIM_ASSERT_CHK => 0  -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
---    ) port map (
---        dest_pulse => FBClk_rst,  -- 1-bit output: Outputs a pulse the size of one dest_clk period when a pulse transfer is correctly initiated on src_pulse input.
---        dest_clk => FB_clk,       -- 1-bit input: Destination clock.
---        dest_rst => '0',          -- 1-bit input: optional; required when RST_USED = 1
---        src_clk => i_shared_clk,  -- 1-bit input: Source clock.
---        src_pulse => AWFIFO_rst,  -- 1-bit input: Rising edge of this signal initiates a pulse transfer to the destination clock domain.
---        src_rst => '0'            -- 1-bit input: optional; required when RST_USED = 1
---    );
-    
-    
-    
     
     -- Count valid blocks output to the filterbanks for each channel
     process(i_shared_clk)

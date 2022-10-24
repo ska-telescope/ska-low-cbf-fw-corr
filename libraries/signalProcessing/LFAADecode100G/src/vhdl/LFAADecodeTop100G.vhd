@@ -79,9 +79,7 @@ entity LFAADecodeTop100G is
         i_vcstats_MM_IN  : in  t_axi4_full_mosi;
         o_vcstats_MM_OUT : out t_axi4_full_miso;
         -- Output from the registers that are used elsewhere (on i_s_axi_clk)
-        o_totalStations : out std_logic_vector(11 downto 0);
-        o_totalCoarse   : out std_logic_vector(11 downto 0);
-        o_totalChannels : out std_logic_vector(11 downto 0);
+        o_totalChannels  : out std_logic_vector(11 downto 0);
         -- debug ports
         o_dbg            : out std_logic_vector(13 downto 0)
    );
@@ -124,11 +122,9 @@ architecture Behavioral of LFAADecodeTop100G is
     signal stationSel_out, testStationSel_out : std_logic;
     signal cdcSendCount : std_logic_vector(3 downto 0) := "0000";
     signal cdcSend : std_logic := '0';
-    signal cdcSrcIn, cdcDestOut : std_logic_vector(35 downto 0);
+    signal cdcSrcIn, cdcDestOut : std_logic_vector(11 downto 0);
     signal cdcDestReq, cdcRcv : std_logic;
-    signal AXI_totalStations : std_logic_vector(11 downto 0);
     signal AXI_totalChannels : std_logic_vector(11 downto 0);
-    signal AXI_totalCoarse : std_logic_vector(11 downto 0);
     
 begin
     
@@ -161,8 +157,8 @@ begin
         i_reg_rw          => reg_rw,         -- in t_statctrl_rw;
         o_reg_count       => LFAAreg_count,  -- out t_statctrl_count;
         -- Virtual channel table memory in the registers
-        o_searchAddr      => LFAAVCTable_addr,       -- out(9:0); -- read address to the VCTable_ram in the registers.
-        i_VCTable_rd_data => VCTable_ram_out.rd_dat, -- in(31:0); -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
+        o_searchAddr      => LFAAVCTable_addr,       -- out(11:0); -- read address to the VCTable_ram in the registers.
+        i_VCTable_rd_data => VCTable_ram_out.rd_dat, -- in(31:0);  -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
         -- Virtual channel stats in the registers.
         o_statsWrData     => VCStats_ram_in_wr_dat,  -- out(31:0);
         o_statsWE         => VCStats_ram_in_wr_en,   -- out std_logic;
@@ -172,16 +168,12 @@ begin
         o_dbg             => o_dbg
     );
     
-    ---------------------------------------------------------------------------------------------------
-    -- Mux the LFAA and test to the registers, depending on the mode we are in.
-    data_clk_vec(0) <= i_data_clk;
-    
     -- VCTable memory inputs
     VCTable_ram_in.rd_en <= '1';
     VCTable_ram_in.clk <= i_data_clk;
     VCTable_ram_in.wr_dat <= (others => '0'); -- STD_LOGIC_VECTOR(31 downto 0); -- never write to the virtual channel table.
     VCTable_ram_in.wr_en <= '0';
-    VCTable_ram_in.adr <= LFAAVCTable_addr; -- STD_LOGIC_VECTOR(9 downto 0);
+    VCTable_ram_in.adr <= LFAAVCTable_addr; -- STD_LOGIC_VECTOR(11 downto 0);
     VCTable_ram_in.rst <= '0';
     
     reg_count <= LFAAreg_count;
@@ -203,7 +195,6 @@ begin
         statctrl_VCTable_in  => VCTable_ram_in, -- in t_statctrl_vctable_ram_in;
         statctrl_VCTable_out => VCTable_ram_out -- OUT t_statctrl_vctable_ram_out;
     );
-    
     
     data_clk_vec(0) <= i_data_clk; 
 
@@ -235,9 +226,7 @@ begin
             elsif cdcRcv = '1' then
                 cdcSend <= '0';
             end if;
-            cdcSrcIn(11 downto 0) <= reg_rw.total_stations(11 downto 0);
-            cdcSrcIn(23 downto 12) <= reg_rw.total_channels(11 downto 0);
-            cdcSrcIn(35 downto 24) <= reg_rw.total_coarse(11 downto 0);
+            cdcSrcIn(11 downto 0) <= reg_rw.total_channels(11 downto 0);
         end if;
     end process;  
     
@@ -248,28 +237,17 @@ begin
         INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
         SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         SRC_SYNC_FF => 3,    -- DECIMAL; range: 2-10
-        WIDTH => 36          -- DECIMAL; range: 1-1024
+        WIDTH => 12          -- DECIMAL; range: 1-1024
     )
     port map (
         dest_out => cdcDestOut, -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain.
-        dest_req => cdcDestReq, -- 1-bit output: Assertion of this signal indicates that new dest_out data has been
-                            -- received and is ready to be used or captured by the destination logic. When
-                            -- DEST_EXT_HSK = 1, this signal will deassert once the source handshake
-                            -- acknowledges that the destination clock domain has received the transferred
-                            -- data. When DEST_EXT_HSK = 0, this signal asserts for one clock period when
-                            -- dest_out bus is valid. This output is registered.
-        src_rcv => cdcRcv,   -- 1-bit output: Acknowledgement from destination logic that src_in has been
-                              -- received. This signal will be deasserted once destination handshake has fully
-                              -- completed, thus completing a full data transfer. This output is registered.
-        dest_ack => '1', -- 1-bit input: optional; required when DEST_EXT_HSK = 1
+        dest_req => cdcDestReq, -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic. 
+        src_rcv => cdcRcv,   -- 1-bit output: Acknowledgement from destination logic that src_in has been received. This signal will be deasserted once destination handshake has fully completed
+        dest_ack => '1',         -- 1-bit input: optional; required when DEST_EXT_HSK = 1
         dest_clk => i_s_axi_clk, -- 1-bit input: Destination clock.
         src_clk => i_data_clk,   -- 1-bit input: Source clock.
-        src_in => cdcSrcIn,     -- WIDTH-bit input: Input bus that will be synchronized to the destination clock domain.
-        src_send => cdcSend  -- 1-bit input: Assertion of this signal allows the src_in bus to be synchronized
-                            -- to the destination clock domain. This signal should only be asserted when
-                            -- src_rcv is deasserted, indicating that the previous data transfer is complete.
-                            -- This signal should only be deasserted once src_rcv is asserted, acknowledging
-                            -- that the src_in has been received by the destination logic.
+        src_in => cdcSrcIn,      -- WIDTH-bit input: Input bus that will be synchronized to the destination clock domain.
+        src_send => cdcSend      -- 1-bit input: Assertion of this signal allows the src_in bus to be synchronized to the destination clock domain. 
     );
     
     
@@ -277,16 +255,9 @@ begin
     begin
         if rising_edge(i_s_axi_clk) then
             if cdcDestReq = '1' then
-                AXI_totalStations <= cdcDestOut(11 downto 0);
-                AXI_totalChannels <= cdcDestOut(23 downto 12);
-                AXI_totalCoarse <= cdcDestOut(35 downto 24);
+                AXI_totalChannels <= cdcDestOut(11 downto 0);
             end if;
-            
-            o_totalStations <= AXI_totalStations;
             o_totalChannels <= AXI_totalChannels;
-            o_totalCoarse <= AXI_totalCoarse;
-            
-            
         end if;
     end process;
     

@@ -19,22 +19,6 @@ use IEEE.MATH_REAL.ALL;
 
 package DSP_top_pkg is
     
-    -- Number of FPGAs on the Z connect in the system
-    -- = number of FPGAs the corner turner takes data from
-    function get_FPGA_Zcount(arrayRelease : integer) return integer;
-    -- Number of coarse channels processed by the corner turner
-    function get_coarse_channels(arrayRelease : integer) return integer;
-    -- Number of blocks in the output (=204 for all except for arrayRelease = -2, where it is smaller to speed up simulation)
-    function get_output_time_count(arrayRelease : integer) return integer;
-    -- how many packet counts wide are the AUX buffers? (PISA = 24)
-    function get_aux_width(arrayRelease : integer) return integer;
-    
-    function get_output_preload(arrayRelease : integer) return integer; -- PISA : 11
-    function get_coarse_delay_offset(arrayRelease : integer) return integer; -- PISA : 2
-    -- map negative values of ARRAYRELEASE to 0 for use in the interconnect module, since it doesn't do anything special for the simulation only case.
-    function get_IC_array_release(arrayRelease : integer) return integer;
-    
-    function get_maximum_drift(arrayRelease : integer) return integer;
 
     constant pc_WALL_TIME_LEN    : natural := 32+30;
     type t_wall_time is record
@@ -47,12 +31,16 @@ package DSP_top_pkg is
     function "<=" (i1, i2: t_wall_time) return boolean;
     function ">=" (i1, i2: t_wall_time) return boolean;
 
-
+    -------------------------------------------------------------------------------------------------------------------
+    -- Stuff that is probably not used anywhere, kept just in case; Can safely delete once the project has been built.
+    --
     constant pc_CTC_DATA_WIDTH    : natural := 16;         --re+im
     constant pc_CTC_META_WIDTH    : natural := 9+9+1+32+3; --coarse+station+pol+ts+in_port
     constant pc_CTC_HEADER_WIDTH  : natural := 128;
     constant pc_CTC_INPUT_TS_NUM  : natural := 2;          --how many timestamps per cycle on the input port?
     constant pc_CTC_INPUT_WIDTH   : natural := pc_CTC_DATA_WIDTH*2*pc_CTC_INPUT_TS_NUM;  --dual polarisation x pc_CTC_INPUT_TS_NUM timestamps, to get 64 bit wide data input
+    
+    -------------------------------------------------------------------------------------------------------------------
     
     type t_complex_Int8 is record  -- real and imaginary components at the input and output of the corner turn are 8 bit real, 8 bit imaginary.    
         re       : std_logic_vector(7 downto 0);
@@ -137,16 +125,27 @@ package DSP_top_pkg is
         vpol_phase_shift  : std_logic_vector(15 downto 0);  
     end record;
     
-    type t_atomic_CT_pst_META_out is record
+    type t_CT1_META_out is record
         HDeltaP        : std_logic_vector(15 downto 0);
         VDeltaP        : std_logic_vector(15 downto 0);
         HOffsetP       : std_logic_vector(15 downto 0);
         VOffsetP       : std_logic_vector(15 downto 0);
-        frameCount     : std_logic_vector(36 downto 0); -- high 32 bits is the LFAA frame count, low 5 bits is the 64 sample block within the frame. 
+        frameCount     : std_logic_vector(31 downto 0); --  packet count at the output of the first stage corner turn, i.e. in units of 4096 sample packets.
         virtualChannel : std_logic_vector(15 downto 0); --  Virtual channels are processed in order, so this just counts.
-        valid          : std_logic; 
+        valid          : std_logic;
     end record;
-    type t_atomic_CT_pst_META_out_arr is array (integer range <>) of t_atomic_CT_pst_META_out;
+    type t_CT1_META_out_arr is array (integer range <>) of t_CT1_META_out;
+    
+--    type t_atomic_CT_pst_META_out is record
+--        HDeltaP        : std_logic_vector(15 downto 0);
+--        VDeltaP        : std_logic_vector(15 downto 0);
+--        HOffsetP       : std_logic_vector(15 downto 0);
+--        VOffsetP       : std_logic_vector(15 downto 0);
+--        frameCount     : std_logic_vector(36 downto 0); -- high 32 bits is the LFAA frame count, low 5 bits is the 64 sample block within the frame. 
+--        virtualChannel : std_logic_vector(15 downto 0); --  Virtual channels are processed in order, so this just counts.
+--        valid          : std_logic; 
+--    end record;
+--    type t_atomic_CT_pst_META_out_arr is array (integer range <>) of t_atomic_CT_pst_META_out;
     
     
     constant pc_CTC_OUTPUT_HEADER_ZERO : t_ctc_output_header := (
@@ -230,132 +229,8 @@ package body DSP_top_pkg is
     begin
         if s then return a; else return b; end if;
     end function;
-
-
-    -- Note : Array Releases are :
-    -- -2 = single FPGA, cut down numbers of channels and shorter frames for simulation only.
-    -- -1 = single FPGA
-    -- 0 = PISA,    FPGA array dimensions (z,x,y) = (3,1,1)
-    -- 1 = AA1,     FPGA array dimensions (z,x,y) = (2,1,6)
-    -- 2 = AA2,     FPGA array dimensions (z,x,y) = (2,6,3)
-    -- 3 = AA3-ITF, FPGA array dimensions (z,x,y) = (4,6,2)
-    -- 4 = AA3-CPF, FPGA array dimensions (z,x,y) = (8,6,3)
-    -- 5 = AA4,     FPGA array dimensions (z,x,y) = (8,6,6)
     
-    -- Number of FPGAs on the Z connect in the system
-    -- = number of FPGAs the corner turner takes data from
-    function get_FPGA_Zcount(arrayRelease : integer) return integer is
-    begin
-        if arrayRelease = -3 then
-            return 1;
-        elsif arrayRelease = -2 then
-            return 1;
-        elsif arrayRelease = -1 then
-            return 1;
-        elsif arrayRelease = 0 then -- PISA
-            return 3;
-        elsif arrayRelease = 1 then
-            return 2;
-        elsif arrayRelease = 2 then
-            return 2;
-        elsif arrayRelease = 3 then
-            return 4;
-        elsif arrayRelease = 4 then
-            return 8;
-        elsif arrayRelease = 5 then
-            return 8;
-        else
-            return 8; -- report "bad array release value" severity failure;
-        end if;
-    end;
-
-    function get_coarse_channels(arrayRelease : integer) return integer is
-    begin
-        if arrayRelease = -3 then
-            return 4;
-        elsif arrayRelease = -2 then
-            return 16;
-        elsif arrayRelease = -1 then
-            return 128;
-        elsif arrayRelease = 0 then -- PISA
-            return 128;
-        elsif arrayRelease = 1 then  
-            return 192;
-        elsif arrayRelease = 2 then
-            return 192;
-        elsif arrayRelease = 3 then
-            return 96;
-        elsif arrayRelease = 4 then
-            return 48;
-        elsif arrayRelease = 5 then
-            return 48;
-        else
-            report "bad array release value" severity failure;
-        end if;
-    end;
     
-    function get_output_time_count(arrayRelease : integer) return integer is
-    begin
-        if arrayRelease = -3 then
-            return 12;
-        elsif arrayRelease = -2 then
-            return 16;
-        else
-            return 204;
-        end if;
-    end;
-
-    function get_aux_width(arrayRelease : integer) return integer is
-    begin
-        if arrayRelease = -3 then
-            return 12;
-        elsif arrayRelease = -2 then
-            return 24;
-        else
-            return 24;
-        end if;
-    end;
-    
-    function get_output_preload(arrayRelease : integer) return integer is
-    begin
-        if arrayRelease = -3 then
-            return 1;
-        elsif arrayRelease = -2 then
-            return 11;
-        else
-            return 11;
-        end if;
-    end; -- PISA : 11
-    
-    function get_coarse_delay_offset(arrayRelease : integer) return integer is
-    begin
-        if arrayRelease = -3 then
-            return 1;
-        elsif arrayRelease = -2 then
-            return 1;
-        else
-            return 2;
-        end if;
-    end; -- PISA : 2
-    
-    function get_IC_array_release(arrayRelease : integer) return integer is
-    begin
-        if (arrayRelease < 0) then
-            return 0;
-        else
-            return arrayRelease;
-        end if;
-    end;
-    
-    function get_maximum_drift(arrayRelease : integer) return integer is
-    begin
-        if (arrayRelease < 0) then
-            return 2;
-        else
-            return 20;
-        end if;
-    end;
-
     --------------------------------------------------
     -- WALL TIME
     --------------------------------------------------

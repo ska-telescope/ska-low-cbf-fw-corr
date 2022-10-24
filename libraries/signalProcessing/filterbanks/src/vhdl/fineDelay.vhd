@@ -55,14 +55,12 @@ entity fineDelay is
         -- data and header in
         i_data        : in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
         i_dataValid   : in std_logic;
-        i_header      : in t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
-        --i_header      : in t_ctc_output_header;  -- .timestamp, .coarse_delay, .virtual_channel, .station_id, .hpol_phase_shift, .vpol_phase_shift
+        i_header      : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
         i_headerValid : in std_logic;  -- Must be a 1 clock pulse on the first clock of the packet.
         -- Data and Header out
         o_data        : out t_ctc_output_payload;   -- 8 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
         o_dataValid   : out std_logic;
-        o_header      : out t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
-        --o_header      : out t_ctc_output_header; -- As per the input header.
+        o_header      : out t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
         o_headerValid : out std_logic;
         -------------------------------------------
         -- control and monitoring
@@ -97,8 +95,8 @@ architecture Behavioral of fineDelay is
     signal fineDelayDisable : std_logic;
     signal RFIScale : std_logic_vector(4 downto 0);
     
-    signal headerDel1, headerDel2, headerDel3, headerDel4, headerDel5, headerDel6, headerDel7, headerDel8, headerDel9 : t_atomic_CT_pst_META_out;
-    signal headerDel10, headerDel11, headerDel12, headerDel13, headerDel14, headerDel15, headerDel16, headerDel17, headerDel18 : t_atomic_CT_pst_META_out;
+    signal headerDel1, headerDel2, headerDel3, headerDel4, headerDel5, headerDel6, headerDel7, headerDel8, headerDel9 : t_CT1_META_out;
+    signal headerDel10, headerDel11, headerDel12, headerDel13, headerDel14, headerDel15, headerDel16, headerDel17, headerDel18 : t_CT1_META_out;
     signal validDel1, validDel2, validDel3, validDel4, validDel5, validDel6, validDel7, validDel8, validDel9 : std_logic;
     signal validDel10, validDel11, validDel12, validDel13, validDel14, validDel15, validDel16, validDel17, validDel18 : std_logic;
     signal hpol_phase_shift_ext : std_logic_vector(27 downto 0);

@@ -52,8 +52,11 @@ entity LTA_top is
         -- Data output 
         -- 256 bit bus on 300 MHz clock.
         i_axi_clk : in std_logic;
-        -- o_data is a burst of 16*16*4*8 = 8192 bytes = 256 clocks with 256 bits per clock, for one cell of visibilities, when o_dtype = '0'
-        -- When o_dtype = '1', centroid data is being sent as a block of 16*16*2 = 512 bytes = 16 clocks with 256 bits per clock.
+        -- o_data is a burst with 1 cell of data - o_visValid = '1' : 
+        --   = (16 stations)*(16 stations)*(8 bytes/value (4+4 complex))* (4 correlations (i.e. 2 pol x 2 stations) e.g. (pol 0 station A) x (pol 0 station B)) = 8192 bytes 
+        --   = 256 clocks with 256 bits per clock, for one cell of visibilities.
+        -- Then centroid data for that cell - o_TCIvalid = '1' : 
+        --   = (16 stations) * (16 stations) * (2 bytes) = 512 bytes = 16 clocks with 256 bits per clock.
         o_data    : out std_logic_vector(255 downto 0);
         o_visValid : out std_logic;                   -- o_data is valid visibility data
         o_TCIvalid : out std_logic;                   -- o_data is valid TCI & DV data

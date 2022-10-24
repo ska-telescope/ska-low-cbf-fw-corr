@@ -43,23 +43,17 @@ peripherals:
               reset_value       : 0x0
               field_description : "bit 0 rising edge resets the module."
           #################################
-          - - field_name        : total_stations
-              width             : 16
+          - - field_name        : table_select
+              width             : 1
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Number of different stations to process in this FPGA."
-          #################################
-          - - field_name        : total_coarse
-              width             : 16
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Total number of coarse channels to process in this FPGA."
+              field_description : "Select which virtual channel table to use; 0 for first half (table addresses 0-1023), 1 for second half (table addresses 1024-2047)"
           #################################
           - - field_name        : total_channels
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse."
+              field_description : "Total number of virtual channels to process in this FPGA. This includes virtual channels that have been skipped in order to ensure all groups of 4 virtual channels are for the same subarray and beam."
           #################################
           - - field_name        : SPEAD_packet_count
               width             : 32
@@ -94,14 +88,18 @@ peripherals:
           - - field_name        : VCTable
               width             : 32
               access_mode       : RW
-              number_of_fields  : 1024
-              field_description : "Virtual channel table. Each entry has \
-                                    bits(8:0) = frequency_id, \
-                                    bits(12:9) = beam_id, \
-                                    bits(15:13) = substation_id, \
-                                    bits(20:16) = subarray_id, \
-                                    bits(30:21) = station_id, \
-                                    bit(31) = invalid (i.e. set to 1 to indicate this entry is invalid).\
+              number_of_fields  : 4096
+              field_description : "Virtual channel table. Two copies in addresses 0-2047 and 2048-4095. The one used is determined by bit 1 of the control register.
+                                   Each entry has 2 words :\
+                                    First word : \
+                                      bits 2:0   = substation_id, \
+                                      bits 12:3  = station_id,    \
+                                      bits 16:13 = beam_id, \
+                                      bits 25:17 = frequency_id  \
+                                      bits 30:26 = subarray_id \
+                                      bit  31    = set to '1' to indicate this entry is invalid \
+                                    Second Word : \
+                                      bits (9:0) =  Virtual channel.  \
                                    The maximum number of valid entries in this table is defined by total_channels.\
                                    Used virtual channels must be packed into the lower end of the addresses in the VCTable.\
                                    For example, if there are 128 virtual channels, then they must be in entries 0 to 127 of this table.\
@@ -114,11 +112,6 @@ peripherals:
                                     3 - station 5, channel 101 \
                                     4 - station 10, channel 101 \
                                     5 - station 12, channel 101 \
-                                   Internally, a virtual channel is generated in the range 0 to (total_channels - 1) \
-                                   and a virtual station is generated in the range 0 to (total_stations - 1). "
-          #################################
-
-            
+                                    "
         
-       
               

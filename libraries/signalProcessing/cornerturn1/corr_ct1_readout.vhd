@@ -3,9 +3,9 @@
 -- Engineer: David Humphrey (dave.humphrey@csiro.au)
 -- 
 -- Create Date: 13.09.2020 23:55:03
--- Module Name: ct_atomic_pst_readout - Behavioral
+-- Module Name: corr_ct1_readout - Behavioral
 -- Description: 
---  Readout data for PST processing from the first stage corner turn.
+--  Readout data for correlator processing from the first stage corner turn.
 -- 
 --  -----------------------------------------------------------------------------
 --  Flow chart:
@@ -16,9 +16,9 @@
 --        |
 --    Generate Read addresses on the AXI bus to shared memory ------------>>>----------------
 --     (Read from 4 different virtual channels at a time)                                   |
---        |                                                                         Generate start of frame signal to 
---    Data from shared memory goes into buffer                                      cross the clock domain to the read side.
---     (write side of buffer is 512 deep x 512 bits wide)                           Also send the packet count to the read side for the first packet in the frame.
+--        |                                                                         Generate start of frame signal for the read side. 
+--    Data from shared memory goes into buffer                                      Also send the packet count to the read side for the first packet in the frame.
+--     (write side of buffer is 512 deep x 512 bits wide)                                   |
 --        |                                                                                 |
 --    Read data from BRAM buffer into 128 bit registers ------------------<<<----------------
 --     (Read side of the buffer is 2048 deep x 128 bits wide)
@@ -115,17 +115,17 @@ entity corr_ct1_readout is
         shared_clk : in std_logic; -- Shared memory clock
         i_rst      : in std_logic; -- module reset, on shared_clk.
         -- input signals to trigger reading of a buffer, on shared_clk
-        i_currentBuffer : in std_logic_vector(1 downto 0);
-        i_previousBuffer : in std_logic_vector(1 downto 0); -- because of the initialisation data, we need some data from the end of this buffer also.
-        i_readStart  : in std_logic; -- Pulse to start readout from readBuffer
-        i_packetCount  : in std_logic_vector(31 downto 0); -- Packet Count for the first packet in i_currentBuffer
-        i_Nchannels  : in std_logic_vector(11 downto 0); -- Total number of virtual channels to read out,
-        i_clocksPerPacket : in std_logic_vector(15 downto 0); -- Number of clocks per output, connect to register "output_cycles"
+        i_currentBuffer   : in std_logic_vector(1 downto 0);
+        i_previousBuffer  : in std_logic_vector(1 downto 0);   -- Because of the initialisation data, we need some data from the end of this buffer also.
+        i_readStart       : in std_logic;                      -- Pulse to start readout from readBuffer
+        i_packetCount     : in std_logic_vector(31 downto 0);  -- Packet Count for the first packet in i_currentBuffer
+        i_Nchannels       : in std_logic_vector(11 downto 0);  -- Total number of virtual channels to read out,
+        i_clocksPerPacket : in std_logic_vector(15 downto 0);  -- Number of clocks per output, connect to register "output_cycles"
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
-        o_delayTableAddr : out std_logic_vector(11 downto 0); -- 4 addresses per virtual channel, up to 1024 virtual channels
-        i_delayTableData : in std_logic_vector(31 downto 0); -- Data from the delay table with 3 cycle latency. 
-        i_startPacket : in std_logic_vector(31 downto 0); -- LFAA Packet count that the fine delays in the delay table are relative to. Fine delays are based on the first LFAA sample that contributes to a given filterbank output
+        o_delayTableAddr : out std_logic_vector(11 downto 0);  -- 4 addresses per virtual channel, up to 1024 virtual channels
+        i_delayTableData : in std_logic_vector(31 downto 0);   -- Data from the delay table with 3 cycle latency. 
+        i_startPacket    : in std_logic_vector(31 downto 0);   -- LFAA Packet count that the fine delays in the delay table are relative to. Fine delays are based on the first LFAA sample that contributes to a given filterbank output
         -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
         o_validMemReadAddr : out std_logic_vector(18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
         i_validMemReadData : in std_logic;  -- read data returned 3 clocks later.
@@ -142,19 +142,19 @@ entity corr_ct1_readout is
         o_sofFull : out std_logic; -- start of a full frame, i.e. 60ms of data.
         o_HPol0 : out t_slv_8_arr(1 downto 0);
         o_VPol0 : out t_slv_8_arr(1 downto 0);
-        o_meta0 : out t_atomic_CT_pst_META_out;
+        o_meta0 : out t_CT1_META_out;  -- defined in DSP_top_pkg.vhd; 
         
         o_HPol1 : out t_slv_8_arr(1 downto 0);
         o_VPol1 : out t_slv_8_arr(1 downto 0);
-        o_meta1 : out t_atomic_CT_pst_META_out;
+        o_meta1 : out t_CT1_META_out;
         
         o_HPol2 : out t_slv_8_arr(1 downto 0);
         o_VPol2 : out t_slv_8_arr(1 downto 0);
-        o_meta2 : out t_atomic_CT_pst_META_out;
+        o_meta2 : out t_CT1_META_out;
         
         o_HPol3 : out t_slv_8_arr(1 downto 0);
         o_VPol3 : out t_slv_8_arr(1 downto 0);
-        o_meta3 : out t_atomic_CT_pst_META_out;
+        o_meta3 : out t_CT1_META_out;
         
         o_valid : out std_logic;
         -- AXI read address and data input buses
@@ -179,7 +179,7 @@ architecture Behavioral of corr_ct1_readout is
     signal bufRdAddr : std_logic_vector(11 downto 0);
     signal bufDout : std_logic_vector(511 downto 0);
     
-    signal FBpacketCount : std_logic_vector(36 downto 0);
+    signal FBpacketCount : std_logic_vector(31 downto 0);
     signal cdc_dataOut : std_logic_vector(63 downto 0);
     signal cdc_dataIn : std_logic_vector(63 downto 0);
     signal shared_to_FB_valid, shared_to_FB_valid_del1 : std_logic;
@@ -314,7 +314,7 @@ architecture Behavioral of corr_ct1_readout is
     signal clockCount : std_logic_vector(15 downto 0);
     signal packetsRemaining : std_logic_vector(15 downto 0);
     signal validOut : std_logic_vector(3 downto 0);
-    signal packetCount : std_logic_vector(36 downto 0);
+    signal packetCount : std_logic_vector(31 downto 0);
     signal meta0VirtualChannel, meta1VirtualChannel, meta2VirtualChannel, meta3VirtualChannel : std_logic_vector(15 downto 0);
     signal sofFull, sof : std_logic := '0';
     signal axi_rdataDel1 : std_logic_vector(511 downto 0);
@@ -1191,7 +1191,7 @@ begin
     );
     
     --------------------------------------------------------------------------------------------
-    -- Signals that cross the clock domain from shared_clk to FB_clk
+    -- Signals that control readout to the filterbank:
     --   - Via buffer (dual port memory) 
     --               - sample data
     --   - Via FIFOs (one word for every word in the buffer)
@@ -1252,30 +1252,7 @@ begin
     end process;
     shared_to_FB_rcv <= '1';
     
---    xpm_cdc_handshake_inst : xpm_cdc_handshake
---    generic map (
---        DEST_EXT_HSK => 0,   -- DECIMAL; 0=internal handshake, 1=external handshake
---        DEST_SYNC_FF => 4,   -- DECIMAL; range: 2-10
---        INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
---        SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
---        SRC_SYNC_FF => 4,    -- DECIMAL; range: 2-10
---        WIDTH => 64         -- DECIMAL; range: 1-1024
---    )
---    port map (
---        dest_out => cdc_dataOut, -- WIDTH-bit output. Input bus (src_in) synchronized to destination clock domain. Registered output.
---        dest_req => shared_to_FB_valid, -- 1-bit output. Indicates dest_out is valid.
---        dest_ack => '1',      -- 1-bit input: optional; required when DEST_EXT_HSK = 1
---        dest_clk => FB_clk, -- 1-bit input: Destination clock.
---        --        
---        src_rcv => shared_to_FB_rcv,   -- 1-bit output: Acknowledgement from destination logic that src_in has been received. 
---                              -- This signal will be deasserted once destination handshake has fully completed.
---        src_clk => shared_clk,   -- 1-bit input: Source clock.
---        src_in => cdc_dataIn,     -- WIDTH-bit input: Input bus that will be synchronized to the destination clock domain.
---        src_send => shared_to_FB_send  -- 1-bit input: Only assert when src_rcv is deasserted, Deassert once src_rcv is asserted,
---    );
-
     --------------------------------------------------------------------------
-    
     
     -- Memory readout 
     process(shared_clk)
@@ -1283,7 +1260,7 @@ begin
         if rising_edge(shared_clk) then
             if shared_to_FB_send_del1 = '1' then
                 -- Packet count in cdc_dataOut is 2048 sample LFAA packets, but packet count going to the filterbanks is 4096 sample packets, so divide by 2 (i.e. downto 33)
-                FBpacketCount <= "000000" & cdc_dataOut(63 downto 33);  -- Packet count at the start of the frame, output as meta data.
+                FBpacketCount <= '0' & cdc_dataOut(63 downto 33);  -- Packet count at the start of the frame, output as meta data.
                 FBClocksPerPacket <= cdc_dataOut(31 downto 16);         -- Number of FB clock cycles per output packet
                 FBNChannels <= cdc_dataOut(15 downto 0);                -- Number of virtual channels to read for the frame
             end if;
@@ -1590,6 +1567,7 @@ begin
             end if;
             
             if readoutStartDel(15) = '1' then
+                -- Packets are 4096 samples; Number of packets in a burst is 11 preload packets plus half the number of LFAA blocks per frame, since LFAA blocks are 2048 samples.
                 packetsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME /2 + 11,16));
                 packetCount <= FBpacketCount;  -- packet count output in the meta data
                 clockCount <= (others => '0');
@@ -1689,7 +1667,7 @@ begin
     o_meta0.VDeltaP <= readoutVDeltaP(0);
     o_meta0.HoffsetP <= readoutHoffsetP(0);
     o_meta0.VoffsetP <= readoutVoffsetP(0);
-    o_meta0.frameCount <= packetCount;         -- frameCount(36:0), = high 32 bits is the LFAA frame count, low 5 bits is the 64 sample block within the frame. 
+    o_meta0.frameCount <= packetCount;         -- = LFAA frame count/2, since there are 2 LFAA packets per 4096 sample packet going to the correlator filterbank.
     o_meta0.virtualChannel <= meta0VirtualChannel;     -- virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
     
     o_HPol1(0) <= readoutData(1)(7 downto 0);  -- 8 bit real part
