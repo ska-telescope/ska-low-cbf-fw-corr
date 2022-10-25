@@ -42,6 +42,40 @@ set_property target_simulator XSim [current_project]
 ############################################################
 
 ############################################################
+# Timeslave files
+############################################################
+set_property  ip_repo_paths  $timeslave_repo [current_project]
+update_ip_catalog
+
+# only generate this if u55.
+
+# generate_ref design - Instance 1 - U55C TOP PORT.
+source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
+
+make_wrapper -files [get_files $workingDir/$env(PERSONALITY).srcs/sources_1/bd/ts/ts.bd] -top
+add_files -norecurse $workingDir/$env(PERSONALITY).gen/sources_1/bd/ts/hdl/ts_wrapper.vhd
+
+add_files -fileset sources_1 [glob \
+ $COMMON_PATH/ptp/src/CMAC_100G_wrap_w_timeslave.vhd \
+]
+set_property library Timeslave_CMAC_lib [get_files {\
+ */src/CMAC_100G_wrap_w_timeslave.vhd \
+}]
+
+add_files -fileset sources_1 [glob \
+ $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
+ $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg.vhd \
+ $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
+ $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg.vhd \
+]
+set_property library Timeslave_CMAC_lib [get_files {\
+ *CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
+ *CMAC/cmac/CMAC_cmac_reg.vhd \
+ */Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
+ */Timeslave/timeslave/Timeslave_timeslave_reg.vhd \ 
+}]
+
+############################################################
 # ARGS generated files
 ############################################################
 
@@ -295,12 +329,12 @@ set_property library DRP_lib [get_files {\
 #############################################################
 # Signal_processing_common
 add_files -fileset sources_1 [glob \
- $RLIBRARIES_PATH/signalProcessing/common/src/vhdl/sync.vhd \
- $RLIBRARIES_PATH/signalProcessing/common/src/vhdl/sync_vector.vhd \
+ $COMMON_PATH/common/src/vhdl/sync.vhd \
+ $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
 ]
 set_property library signal_processing_common [get_files {\
- *libraries/signalProcessing/common/src/vhdl/sync.vhd \
- *libraries/signalProcessing/common/src/vhdl/sync_vector.vhd \
+ */common/src/vhdl/sync.vhd \
+ */common/src/vhdl/sync_vector.vhd \
 }]
 
 ## tcl scripts for ip generation

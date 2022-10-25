@@ -17,3 +17,5 @@ peripherals:
   - peripheral_name        : timingControlA/timingControlA  
   - peripheral_name        : Packetiser/Packetiser
   - peripheral_name        : DRP/DRP
+  - peripheral_name        : CMAC/CMAC
+  - peripheral_name        : Timeslave/Timeslave  

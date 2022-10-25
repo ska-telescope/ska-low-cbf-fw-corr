@@ -8,7 +8,7 @@
 --
 -------------------------------------------------------------------------------
 
-LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib;
+LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib, PSR_Packetiser_lib, Timeslave_CMAC_lib;
 library LFAADecode_lib, timingcontrol_lib, capture128bit_lib;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -20,9 +20,7 @@ USE axi4_lib.axi4_full_pkg.ALL;
 USE technology_lib.tech_mac_100g_pkg.ALL;
 USE technology_lib.technology_pkg.ALL;
 USE technology_lib.technology_select_pkg.all;
---USE vcu128_board_lib.ip_pkg.ALL;
---USE vcu128_board_lib.board_pkg.ALL;
---USE tech_mac_100g_lib.tech_mac_100g_pkg.ALL;
+use PSR_Packetiser_lib.ethernet_pkg.ALL;
 
 USE work.correlator_bus_pkg.ALL;
 USE work.correlator_system_reg_pkg.ALL;
@@ -341,46 +339,35 @@ ARCHITECTURE structure OF correlator_core IS
     signal fec_enable_reset_count   : integer := 0;
     signal fec_enable_reset         : std_logic := '0';
     
+    -- PTP Data
+    signal PTP_time_CMAC_clk       : std_logic_vector(79 downto 0);
+    signal PTP_pps_CMAC_clk        : std_logic;
+        
+    signal PTP_time_ARGs_clk       : std_logic_vector(79 downto 0);
+    signal PTP_pps_ARGs_clk        : std_logic;
     
---    signal m01_axi_awreadyi  : std_logic;
---    signal m01_axi_awidi     : std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
---    signal m01_axi_awsizei   : std_logic_vector(2 downto 0);
---    signal m01_axi_awbursti  : std_logic_vector(1 downto 0);
---    signal m01_axi_wreadyi   : std_logic;
---    signal m01_axi_wstrbi    : std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
---    signal m01_axi_breadyi   : std_logic;
---    signal m01_axi_arreadyi  : std_logic;
---    signal m01_axi_aridi     : std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
---    signal m01_axi_arsizei   : std_logic_vector(2 downto 0);
---    signal m01_axi_arbursti  : std_logic_vector(1 downto 0);
---    signal m01_axi_rreadyi   : std_logic;
+    -- streaming AXI to CMAC, Pre_timeslave
+    signal CMAC_rx_axis_tdata       : STD_LOGIC_VECTOR ( 511 downto 0 );
+    signal CMAC_rx_axis_tkeep       : STD_LOGIC_VECTOR ( 63 downto 0 );
+    signal CMAC_rx_axis_tlast       : STD_LOGIC;
+    signal CMAC_rx_axis_tuser       : STD_LOGIC;
+    signal CMAC_rx_axis_tvalid      : STD_LOGIC;
 
---    signal m02_axi_awreadyi  : std_logic;
---    signal m02_axi_awidi     : std_logic_vector(M02_AXI_ID_WIDTH - 1 downto 0);
---    signal m02_axi_awsizei   : std_logic_vector(2 downto 0);
---    signal m02_axi_awbursti  : std_logic_vector(1 downto 0);
---    signal m02_axi_wreadyi   : std_logic;
---    signal m02_axi_wstrbi    : std_logic_vector(M02_AXI_DATA_WIDTH/8-1 downto 0);
---    signal m02_axi_breadyi   : std_logic;
---    signal m02_axi_arreadyi  : std_logic;
---    signal m02_axi_aridi     : std_logic_vector(M02_AXI_ID_WIDTH-1 downto 0);
---    signal m02_axi_arsizei   : std_logic_vector(2 downto 0);
---    signal m02_axi_arbursti  : std_logic_vector(1 downto 0);
---    signal m02_axi_rreadyi   : std_logic;
+    signal tx_axis_tdata            : STD_LOGIC_VECTOR(511 downto 0);
+    signal tx_axis_tkeep            : STD_LOGIC_VECTOR(63 downto 0);
+    signal tx_axis_tvalid           : STD_LOGIC;
+    signal tx_axis_tlast            : STD_LOGIC;
+    signal tx_axis_tuser            : STD_LOGIC;
+    signal tx_axis_tready           : STD_LOGIC;
+        
+    signal rx_axis_tdata            : STD_LOGIC_VECTOR ( 511 downto 0 );
+    signal rx_axis_tkeep            : STD_LOGIC_VECTOR ( 63 downto 0 );
+    signal rx_axis_tlast            : STD_LOGIC;
+    signal rx_axis_tready           : STD_LOGIC;
+    signal rx_axis_tuser            : STD_LOGIC_VECTOR ( 79 downto 0 );
+    signal rx_axis_tvalid           : STD_LOGIC;
     
---    signal m03_axi_awreadyi  : std_logic;
---    signal m03_axi_awidi     : std_logic_vector(M03_AXI_ID_WIDTH - 1 downto 0);
---    signal m03_axi_awsizei   : std_logic_vector(2 downto 0);
---    signal m03_axi_awbursti  : std_logic_vector(1 downto 0);
---    signal m03_axi_wreadyi   : std_logic;
---    signal m03_axi_wstrbi    : std_logic_vector(M03_AXI_DATA_WIDTH/8-1 downto 0);
---    signal m03_axi_breadyi   : std_logic;
---    signal m03_axi_arreadyi  : std_logic;
---    signal m03_axi_aridi     : std_logic_vector(M03_AXI_ID_WIDTH-1 downto 0);
---    signal m03_axi_arsizei   : std_logic_vector(2 downto 0);
---    signal m03_axi_arbursti  : std_logic_vector(1 downto 0);
---    signal m03_axi_rreadyi   : std_logic;
-    
+
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
 --    signal m01_axi_ar, m01_axi_aw : t_axi4_full_addr;
 --    signal m01_axi_b              : t_axi4_full_b;
@@ -690,7 +677,7 @@ begin
     system_fields_ro.firmware_patch_version	<= g_FIRMWARE_PATCH_VERSION;
     system_fields_ro.firmware_label			<= g_FIRMWARE_LABEL;
     system_fields_ro.firmware_personality	<= g_FIRMWARE_PERSONALITY;
-    system_fields_ro.build_date             <= g_FIRMWARE_BUILD_DATE;
+    system_fields_ro.build_date             <= x"66666666";             -- Now under CI/CD, rely on the ARGs generation
     
    
     -- Uptime counter
@@ -755,56 +742,29 @@ begin
         src_in => system_fields_rw.eth100g_fec_enable     -- 1-bit input: Input signal to be synchronized to dest_clk domain.
     );
     
-    --  From eth100G_clk -> ap_clk
-    --    eth100G_locked, eth100G_rx_total_packets, eth100G_rx_bad_fcs, eth100G_rx_bad_code, eth100G_tx_total_packets
-    xpm_cdc_handshake_inst : xpm_cdc_handshake
+    --------------------------------------------------------------------------------------------------
+    -- 100G PORT A or Upper for U55C
+    locked_100G_port_a : xpm_cdc_single
     generic map (
-        DEST_EXT_HSK => 0,   -- DECIMAL; 0=internal handshake, 1=external handshake
-        DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
-        INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
-        SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
-        SRC_SYNC_FF => 2,    -- DECIMAL; range: 2-10
-        WIDTH => 129         -- DECIMAL; range: 1-1024
+        DEST_SYNC_FF    => 2,   
+        INIT_SYNC_FF    => 0,   
+        SIM_ASSERT_CHK  => 0, 
+        SRC_INPUT_REG   => 1   
     )
     port map (
-        dest_out => eth100G_status_ap_clk, -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
-        dest_req => dest_req, -- 1-bit output: '1' indicates that new dest_out data is valid, will pulse high if DEST_EXT_HSK = 0 
-        src_rcv => eth100G_rcv,   -- 1-bit output: Acknowledgement from destination logic that src_in has been received. This signal will be deasserted once destination handshake has fully completed
-        dest_ack => '1', -- 1-bit input: optional; required when DEST_EXT_HSK = 1
-        dest_clk => ap_clk,     -- 1-bit input: Destination clock.
-        src_clk  => eth100G_clk, -- 1-bit input: Source clock.
-        src_in => eth100G_status_eth_clk,     -- WIDTH-bit input: Input bus that will be synchronized to the destination clock domain.
-        src_send => eth100G_send  -- 1-bit input: Assertion of this signal allows the src_in bus to be synchronized to the destination clock domain. 
+        dest_out    => system_fields_ro.eth100G_locked,
+        dest_clk    => ap_clk,
+        src_clk     => eth100G_clk,   
+        src_in      => eth100G_locked 
     );
 
-    process(ap_clk)
-    begin
-        if rising_edge(ap_clk) then
-            if dest_req = '1' then
-                system_fields_ro.eth100G_locked <= eth100G_status_ap_clk(128);
-                system_fields_ro.eth100G_rx_total_packets <= eth100G_status_ap_clk(127 downto 96);
-                system_fields_ro.eth100G_rx_bad_fcs <= eth100G_status_ap_clk(95 downto 64);  
-                system_fields_ro.eth100G_rx_bad_code <= eth100G_status_ap_clk(63 downto 32);
-                system_fields_ro.eth100G_tx_total_packets <= eth100G_status_ap_clk(31 downto 0);
-            end if;
-        end if;
-    end process;
-    
-    process(eth100G_clk)
-    begin
-        if rising_edge(eth100G_clk) then
-            eth100G_status_eth_clk(128) <= eth100G_locked;
-            eth100G_status_eth_clk(127 downto 96) <= eth100G_rx_total_packets;
-            eth100G_status_eth_clk(95 downto 64) <= eth100G_rx_bad_fcs;
-            eth100G_status_eth_clk(63 downto 32) <= eth100G_rx_bad_code;
-            eth100G_status_eth_clk(31 downto 0) <= eth100G_tx_total_packets;
-            if eth100G_rcv = '0' then
-                eth100G_send <= '1'; -- just send across the clock domain whenever the clock crossing module is ready.
-            else
-                eth100G_send <= '0';
-            end if;
-        end if;
-    end process;
+    system_fields_ro.eth100G_rx_total_packets       <= eth100G_rx_total_packets;
+    system_fields_ro.eth100G_rx_bad_fcs             <= eth100G_rx_bad_fcs;
+    system_fields_ro.eth100G_rx_bad_code            <= eth100G_rx_bad_code;
+    system_fields_ro.eth100G_tx_total_packets       <= eth100G_tx_total_packets;
+    system_fields_ro.eth100g_ptp_nano_seconds       <= PTP_time_ARGs_clk(31 downto 0);
+    system_fields_ro.eth100g_ptp_lower_seconds      <= PTP_time_ARGs_clk(63 downto 32);
+    system_fields_ro.eth100g_ptp_upper_seconds      <= zero_word & PTP_time_ARGs_clk(79 downto 64);
     
     -------------------------------------------------------------------------------------------
     -- 100G ethernet
@@ -831,52 +791,83 @@ begin
     end generate;
     
     u100Gen : if (not g_SIMULATION) generate
-        u_100G : entity correlator_lib.mac_100g_wrapper
-        Port map(
-            gt_rxp_in   => gt_rxp_in, -- in(3:0);
-            gt_rxn_in   => gt_rxn_in, -- in(3:0);
-            gt_txp_out  => gt_txp_out, -- out(3:0);
-            gt_txn_out  => gt_txn_out, -- out(3:0);
-            gt_refclk_p => gt_refclk_p, -- IN STD_LOGIC;
-            gt_refclk_n => gt_refclk_n, -- IN STD_LOGIC;
-            sys_reset   => eth100_reset_final,   -- IN STD_LOGIC;   -- sys_reset, clocked by dclk.
-            i_dclk_100  => clk_gt_freerun_use, --  IN STD_LOGIC;   -- stable clock for the core; The frequency is specified in the wizard. See comments above about the actual frequency supplied by the Alveo platform.        
-            -- loopback for the GTYs
-            -- "000" = normal operation, "001" = near-end PCS loopback, "010" = near-end PMA loopback
-            -- "100" = far-end PMA loopback, "110" = far-end PCS loopback.
-            -- See GTY user guid (Xilinx doc UG578) for details.
-            loopback  => "000", -- in(2:0);  
-            tx_enable => '1',   -- in std_logic;
-            rx_enable => '1',   -- in std_logic;
-            i_fec_enable    => fec_enable_322m,
-            -- All remaining signals are clocked on tx_clk_out
-            tx_clk_out => eth100G_clk, -- out std_logic; This is the clock used by the data in and out of the core. 322 MHz.
-            
-            -- User Interface Signals
-            rx_locked  => eth100G_locked, -- out std_logic; 
     
-            user_rx_reset => eth100G_rx_reset, -- out std_logic;
-            user_tx_reset => eth100G_tx_reset, -- out std_logic;
+    -- temp driving
+    rx_axis_tready  <= '1';
     
-            -- Statistics Interface, on eth100_clk
-            rx_total_packets => eth100G_rx_total_packets, -- out(31:0);
-            rx_bad_fcs       => eth100G_rx_bad_fcs,       -- out(31:0);
-            rx_bad_code      => eth100G_rx_bad_code,      -- out(31:0);
-            tx_total_packets => eth100G_tx_total_packets, -- out(31:0);
-            
-            -- Received data from optics
-            data_rx_sosi => eth100_rx_sosi, -- out t_lbus_sosi;
-    
-            -- Data to be transmitted to optics
-            data_tx_sosi => eth100_tx_sosi, -- IN t_lbus_sosi;
-            data_tx_siso => eth100_tx_siso,  -- OUT t_lbus_siso
-            
-            -- ARGs Interface
-            i_MACE_clk  => ap_clk, -- in std_logic;
-            i_MACE_rst  => ap_rst, -- in std_logic;
-            i_DRP_Lite_axi_mosi => mc_lite_mosi(c_drp_lite_index),
-            o_DRP_Lite_axi_miso => mc_lite_miso(c_drp_lite_index)
-        );
+    u_100G_port_a : entity Timeslave_CMAC_lib.CMAC_100G_wrap_w_timeslave
+    Generic map (
+        U55_TOP_QSFP        => TRUE,
+        U55_BOTTOM_QSFP     => FALSE         -- THIS CONFIG IS VALID FOR U50 as well.
+    )
+    Port map(
+        gt_rxp_in   => gt_rxp_in, -- in(3:0);
+        gt_rxn_in   => gt_rxn_in, -- in(3:0);
+        gt_txp_out  => gt_txp_out, -- out(3:0);
+        gt_txn_out  => gt_txn_out, -- out(3:0);
+        gt_refclk_p => gt_refclk_p, -- IN STD_LOGIC;
+        gt_refclk_n => gt_refclk_n, -- IN STD_LOGIC;
+        sys_reset   => eth100_reset_final,   -- IN STD_LOGIC;   -- sys_reset, clocked by dclk.
+        i_dclk_100  => clk_freerun,     --  100MHz supplied by the Alveo platform.       
+        
+        i_fec_enable    => fec_enable_322m,
+        -- All remaining signals are clocked on tx_clk_out
+        tx_clk_out                  => eth100G_clk, -- out std_logic; This is the clock used by the data in and out of the core. 322 MHz.
+        
+        -- User Interface Signals
+        rx_locked                   => eth100G_locked, -- out std_logic; 
+
+        user_rx_reset               => open,
+        user_tx_reset               => open,
+
+        -- Statistics Interface, on eth100_clk
+        rx_total_packets            => eth100G_rx_total_packets, -- out(31:0);
+        rx_bad_fcs                  => eth100G_rx_bad_fcs,       -- out(31:0);
+        rx_bad_code                 => eth100G_rx_bad_code,      -- out(31:0);
+        tx_total_packets            => eth100G_tx_total_packets, -- out(31:0);
+        
+        -----------------------------------------------------------------------
+        -- streaming AXI to CMAC
+        i_tx_axis_tdata     => tx_axis_tdata,
+        i_tx_axis_tkeep     => tx_axis_tkeep,
+        i_tx_axis_tvalid    => tx_axis_tvalid,
+        i_tx_axis_tlast     => tx_axis_tlast,
+        i_tx_axis_tuser     => tx_axis_tuser,
+        o_tx_axis_tready    => tx_axis_tready,
+        
+        -- RX
+        o_rx_axis_tdata     => rx_axis_tdata,
+        o_rx_axis_tkeep     => rx_axis_tkeep,
+        o_rx_axis_tlast     => rx_axis_tlast,
+        i_rx_axis_tready    => rx_axis_tready,
+        o_rx_axis_tuser     => rx_axis_tuser,
+        o_rx_axis_tvalid    => rx_axis_tvalid,
+        
+        -- streaming AXI to CMAC, Pre_timeslave
+        CMAC_rx_axis_tdata  => CMAC_rx_axis_tdata,
+        CMAC_rx_axis_tkeep  => CMAC_rx_axis_tkeep,
+        CMAC_rx_axis_tlast  => CMAC_rx_axis_tlast,
+        CMAC_rx_axis_tuser  => CMAC_rx_axis_tuser,
+        CMAC_rx_axis_tvalid => CMAC_rx_axis_tvalid, 
+        -----------------------------------------------------------------------
+        
+        -- PTP Data
+        PTP_time_CMAC_clk           => PTP_time_CMAC_clk,
+        PTP_pps_CMAC_clk            => PTP_pps_CMAC_clk,
+        
+        PTP_time_ARGs_clk           => PTP_time_ARGs_clk,
+        PTP_pps_ARGs_clk            => PTP_pps_ARGs_clk,
+        
+        -- ARGs Interface
+        i_ARGs_clk                  => ap_clk, -- in std_logic;
+        i_ARGs_rst                  => ap_rst, -- in std_logic;
+        
+        i_CMAC_Lite_axi_mosi        => mc_lite_mosi(c_cmac_lite_index),
+        o_CMAC_Lite_axi_miso        => mc_lite_miso(c_cmac_lite_index),
+        
+        i_Timeslave_Full_axi_mosi   => mc_full_mosi(c_timeslave_full_index),
+        o_Timeslave_Full_axi_miso   => mc_full_miso(c_timeslave_full_index)
+    );
     end generate;
 
     process(clk_gt_freerun_use)
