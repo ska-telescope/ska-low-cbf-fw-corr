@@ -11,60 +11,27 @@ set_max_delay -datapath_only -from [get_clocks -of_objects [get_cells -hierarchi
 #add_cells_to_pblock pblock_dynamic_SLR0 [get_cells [list level0_i/ulp/perentie0/inst/vcore/dsp_topi/BFCT]]
 #add_cells_to_pblock pblock_dynamic_SLR0 [get_cells [list level0_i/ulp/perentie0/inst/vcore/dsp_topi/BFCT/aximux]]
 
-#create_pblock pblock_hbmslr
-#resize_pblock pblock_hbmslr -add SLR0:SLR0
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[0].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[1].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[2].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[3].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[4].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[5].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[6].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[7].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[8].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[9].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[10].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[11].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[12].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[13].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[14].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[15].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[16].bfinst]
-#add_cells_to_pblock pblock_hbmslr [get_cells -hierarchical *beamGen[17].bfinst]
+########################################################################################################################
+## Time constraints if there is only 1 x 100G with TS on the top QSFP port.
+## Timeslave IP constraints.. derived from reference design
 
-#create_pblock pblock_otherslr
-#resize_pblock pblock_otherslr -add SLR1:SLR1
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[18].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[19].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[20].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[21].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[22].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[23].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[24].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[25].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[26].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[27].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[28].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[29].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[30].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[31].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[32].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[33].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[34].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[35].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[36].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[37].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[38].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[39].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[40].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[41].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[42].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[43].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[44].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[45].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[46].bfinst]
-#add_cells_to_pblock pblock_otherslr [get_cells -hierarchical *beamGen[47].bfinst]
+set_max_delay 10.0 -datapath_only -from [get_clocks enet_refclk_p[0]] -to [get_clocks sysclk100] 
+set_max_delay 3.0 -datapath_only -from [get_clocks enet_refclk_p[0]] -to [get_clocks txoutclk_out[0]] 
+ 
+set_max_delay 3.0 -datapath_only -from [get_clocks rxoutclk_out[0]] -to [get_clocks enet_refclk_p[0]] 
+set_max_delay 3.0 -datapath_only -from [get_clocks rxoutclk_out[0]] -to [get_clocks txoutclk_out[0]] 
+set_max_delay 3.0 -datapath_only -from [get_clocks sysclk100] -to [get_clocks enet_refclk_p[0]] 
+set_max_delay 3.0 -datapath_only -from [get_clocks sysclk100] -to [get_clocks txoutclk_out[0]] 
+ 
+set_max_delay 3.0 -datapath_only -from [get_clocks txoutclk_out[0]] -to [get_clocks rxoutclk_out[0]]
 
-#level0_i/ulp/perentie0/inst/vcore/dsp_topi/BFi/beamGen[0].bfinst
-#get_cells -hierarchical *beamGen[0].bfinst
-# ? or [get_cells [list level0_i/ulp/perentie0/inst/vcore/dsp_topi/BFCT]]
+## ts - 1st instantiation of 100G and Timeslave. ... these seem to cover CDC of PTP and PPS.
+set_max_delay 3.0 -datapath_only -from [get_clocks clk_300_ts_clk_wiz_0_0] -to [get_clocks rxoutclk_out[0]] 
+set_max_delay 3.0 -datapath_only -from [get_clocks clk_300_ts_clk_wiz_0_0] -to [get_clocks txoutclk_out[0]] 
+
+set_max_delay 3.0 -datapath_only -from [get_clocks rxoutclk_out[0]] -to [get_clocks clk_300_ts_clk_wiz_0_0] 
+set_max_delay 3.0 -datapath_only -from [get_clocks txoutclk_out[0]] -to [get_clocks clk_300_ts_clk_wiz_0_0]
+
+## PTP ARGs clock
+#set_max_delay 3.0 -datapath_only -from [get_clocks clk_300_ts_clk_wiz_0_0] -to [get_clocks clk_kernel_unbuffered]
+#set_max_delay 3.0 -datapath_only -from [get_clocks clk_kernel_unbuffered] -to [get_clocks clk_300_ts_clk_wiz_0_0]
