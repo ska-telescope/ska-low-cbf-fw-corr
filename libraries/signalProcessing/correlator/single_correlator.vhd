@@ -45,8 +45,8 @@ entity single_correlator is
         -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
         i_cor_data  : in std_logic_vector(255 downto 0); 
         -- meta data
-        i_cor_time : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        i_cor_VC   : in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
+        i_cor_time    : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        i_cor_station : in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
@@ -140,7 +140,7 @@ begin
         --                          In this case, i_cor_VC_count will run from 0 to 256 in steps of 4.
         -- If i_cor_tileType = '1', then up to 512 channels are delivered, with different channels going to the row and column memories.
         --                          counts 0 to 255 go to the column memories, while counts 256-511 go to the row memories. 
-        i_cor_VC_count => i_cor_VC, --  in std_logic_vector(8 downto 0); 
+        i_cor_station => i_cor_station, --  in std_logic_vector(8 downto 0); 
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --         The number of 16x16 correlation cells computed will be 

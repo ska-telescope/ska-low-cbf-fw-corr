@@ -1,13 +1,9 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
+-- Company: CSIRO
+-- Engineer: David Humphrey (dave.humphrey@csiro.au)
 -- 
 -- Create Date: 08/11/2022 12:19:06 PM
--- Design Name: 
 -- Module Name: row_col_dataIn - Behavioral
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
 -- Description: 
 --  Data input pipeline for the row and column memories for the correlator.
 --  Input signals come from the corner turn, output signals go to the row and col memories.
@@ -33,7 +29,7 @@ entity row_col_dataIn is
         --                          In this case, i_cor_VC_count will run from 0 to 256 in steps of 4.
         -- If i_cor_tileType = '1', then up to 512 channels are delivered, with different channels going to the row and column memories.
         --                          counts 0 to 255 go to the column memories, while counts 256-511 go to the row memories. 
-        i_cor_VC_count : in std_logic_vector(8 downto 0); 
+        i_cor_station : in std_logic_vector(8 downto 0); 
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
@@ -62,7 +58,7 @@ architecture Behavioral of row_col_dataIn is
     signal cor_data_del1 : std_logic_vector(255 downto 0);
     signal cor_data_del1_neg : std_logic_vector(255 downto 0);
     signal cor_time_del1 : std_logic_vector(7 downto 0);
-    signal cor_VC_del1, cor_VC_del2, cor_VC_del3, cor_VC_del4 : std_logic_vector(8 downto 0);
+    signal cor_station_del1, cor_station_del2, cor_station_del3, cor_station_del4 : std_logic_vector(8 downto 0);
     signal cor_valid_del1, cor_valid_del2, cor_valid_del3, cor_valid_del4 : std_logic;
     
     signal colwrDataDel : t_slv_64_arr(15 downto 0);
@@ -103,20 +99,20 @@ begin
             
             cor_data_del1 <= i_cor_data;
             cor_time_del1 <= i_cor_time;
-            cor_VC_del1 <= i_cor_VC_count;
+            cor_station_del1 <= i_cor_station;
             cor_valid_del1 <= i_cor_valid;
             cor_tileType_del1 <= i_cor_tileType;
             wrBufferDel1 <= i_wrBuffer;
             
-            cor_VC_del2 <= cor_VC_del1;
+            cor_station_del2 <= cor_station_del1;
             cor_valid_del2 <= cor_valid_del1;
             cor_tileType_del2 <= cor_tileType_del1;
             
-            cor_VC_del3 <= cor_VC_del2;
+            cor_station_del3 <= cor_station_del2;
             cor_valid_del3 <= cor_valid_del2;
             cor_tileType_del3 <= cor_tileType_del2;
             
-            cor_VC_del4 <= cor_VC_del3;
+            cor_station_del4 <= cor_station_del3;
             cor_valid_del4 <= cor_valid_del3;
             cor_tileType_del4 <= cor_tileType_del3;
             
@@ -156,31 +152,31 @@ begin
             colWrDataDel(15) <= colWrDataDel(11);
             
             colWrAddrDel0(4 downto 0) <= cor_time_del1(5 downto 1);
-            colWrAddrDel0(8 downto 5) <= cor_VC_del1(7 downto 4);
+            colWrAddrDel0(8 downto 5) <= cor_station_del1(7 downto 4);
             colWrAddrDel0(9) <= wrBufferDel1;
             
             colWrAddrDel1 <= colWrAddrDel0;
             colWrAddrDel2 <= colWrAddrDel1;
             colWrAddrDel3 <= colWrAddrDel2;
-            if cor_VC_del1(3 downto 2) = "00" and cor_valid_del1 = '1' and cor_VC_del1(8) = '0' then  -- VC(1:0) should always be 0, since 4 virtual channels are delivered per data word.
+            if cor_station_del1(3 downto 2) = "00" and cor_valid_del1 = '1' and cor_station_del1(8) = '0' then  -- VC(1:0) should always be 0, since 4 virtual channels are delivered per data word.
                 col_wren0_3 <= '1';
             else
                 col_wren0_3 <= '0';
             end if;
             
-            if cor_VC_del2(3 downto 2) = "01" and cor_valid_del2 = '1' and cor_VC_del2(8) = '0' then  -- del2 to match the pipeline delay on the data.
+            if cor_station_del2(3 downto 2) = "01" and cor_valid_del2 = '1' and cor_station_del2(8) = '0' then  -- del2 to match the pipeline delay on the data.
                 col_wren4_7 <= '1';
             else
                 col_wren4_7 <= '0';
             end if;
             
-            if cor_VC_del3(3 downto 2) = "10" and cor_valid_del3 = '1' and cor_VC_del3(8) = '0' then
+            if cor_station_del3(3 downto 2) = "10" and cor_valid_del3 = '1' and cor_station_del3(8) = '0' then
                 col_wren8_11 <= '1';
             else
                 col_wren8_11 <= '0';
             end if;
             
-            if cor_VC_del4(3 downto 2) = "11" and cor_valid_del4 = '1' and cor_VC_del4(8) = '0' then
+            if cor_station_del4(3 downto 2) = "11" and cor_valid_del4 = '1' and cor_station_del4(8) = '0' then
                 col_wren12_15 <= '1';
             else
                 col_wren12_15 <= '0';
@@ -205,28 +201,28 @@ begin
             rowWrDataDel(15) <= rowWrDataDel(11);
             
             rowWrAddrDel0(4 downto 0) <= cor_time_del1(5 downto 1);
-            rowWrAddrDel0(8 downto 5) <= cor_VC_del1(7 downto 4);
+            rowWrAddrDel0(8 downto 5) <= cor_station_del1(7 downto 4);
             rowWrAddrDel0(9) <= wrBufferDel1;
             rowWrAddrDel1 <= rowWrAddrDel0;
             rowWrAddrDel2 <= rowWrAddrDel1;
             rowWrAddrDel3 <= rowWrAddrDel2;
             
-            if cor_VC_del1(3 downto 2) = "00" and cor_valid_del1 = '1' and (cor_VC_del1(8) = '1' or cor_tileType_del1 = '0') then
+            if cor_station_del1(3 downto 2) = "00" and cor_valid_del1 = '1' and (cor_station_del1(8) = '1' or cor_tileType_del1 = '0') then
                 row_wren0_3 <= '1';
             else
                 row_wrEn0_3 <= '0';
             end if;
-            if cor_VC_del2(3 downto 2) = "01" and cor_valid_del2 = '1' and (cor_VC_del2(8) = '1' or cor_tileType_del2 = '0') then
+            if cor_station_del2(3 downto 2) = "01" and cor_valid_del2 = '1' and (cor_station_del2(8) = '1' or cor_tileType_del2 = '0') then
                 row_wren4_7 <= '1';
             else
                 row_wrEn4_7 <= '0';
             end if;           
-            if cor_VC_del3(3 downto 2) = "10" and cor_valid_del3 = '1' and (cor_VC_del3(8) = '1' or cor_tileType_del3 = '0') then
+            if cor_station_del3(3 downto 2) = "10" and cor_valid_del3 = '1' and (cor_station_del3(8) = '1' or cor_tileType_del3 = '0') then
                 row_wren8_11 <= '1';
             else
                 row_wrEn8_11 <= '0';
             end if;
-            if cor_VC_del4(3 downto 2) = "11" and cor_valid_del4 = '1' and (cor_VC_del4(8) = '1' or cor_tileType_del4 = '0') then
+            if cor_station_del4(3 downto 2) = "11" and cor_valid_del4 = '1' and (cor_station_del4(8) = '1' or cor_tileType_del4 = '0') then
                 row_wren12_15 <= '1';
             else
                 row_wrEn12_15 <= '0';

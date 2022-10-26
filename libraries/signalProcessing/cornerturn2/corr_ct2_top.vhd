@@ -121,14 +121,13 @@ entity corr_ct2_top is
         -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
         o_cor_data   : out t_slv_256_arr(g_MAX_CORRELATORS-1 downto 0); 
         -- meta data
-        o_cor_time  : out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        o_cor_VC    : out t_slv_12_arr(g_MAX_CORRELATORS-1 downto 0); -- first of the 4 virtual channels in o_cor0_data
-        o_cor_FC    : out t_slv_12_arr(g_MAX_CORRELATORS-1 downto 0); -- which 226 Hz fine channel is this ? 0 to 3455.
-        o_cor_valid : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
-        o_cor_last  : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.        
-        o_cor_final : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.
+        o_cor_time    : out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        o_cor_station : out t_slv_12_arr(g_MAX_CORRELATORS-1 downto 0); -- first of the 4 stations in o_cor0_data
+        o_cor_FC      : out t_slv_12_arr(g_MAX_CORRELATORS-1 downto 0); -- which 226 Hz fine channel is this ? 0 to 3455.
+        o_cor_valid   : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+        o_cor_last    : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.        
+        o_cor_final   : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.
         
-        -- !!! still to connect up...
         o_cor_tileType    : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
         o_cor_first       : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
         o_cor_tileCount   : out t_slv_10_arr(g_MAX_CORRELATORS-1 downto 0);
@@ -326,12 +325,19 @@ begin
             o_cor_data  => o_cor_data(i), --  out std_logic_vector(255 downto 0); 
             -- meta data
             o_cor_time => o_cor_time(i), -- out std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-            o_cor_VC   => o_cor_VC(i),   -- out std_logic_vector(11 downto 0); -- first of the 4 virtual channels in o_cor0_data
+            o_cor_station => o_cor_station(i),   -- out std_logic_vector(11 downto 0); -- first of the 4 virtual channels in o_cor0_data
             o_cor_FC   => o_cor_FC(i),   -- out std_logic_vector(11 downto 0); -- which 226 Hz fine channel is this ? 0 to 3455.
-            o_cor_triangle => o_cor_triangle(i), -- out std_logic_vector(3 downto 0); -- which correlator triangle is this data for ? 0 to 3 for modes that don't use substations.
             o_cor_valid => o_cor_valid(i), -- out std_logic;
             o_cor_last  => o_cor_last(i),  -- out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
-            o_cor_final => o_cor_final((i), -- out std_logic;  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.
+            o_cor_final => o_cor_final(i), -- out std_logic;  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.
+            o_cor_tileType => o_cor_tileType(i), -- out std_logic;
+            o_cor_first    => o_cor_first(i),    -- out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+            o_cor_tileCount => o_cor_tileCount(i), -- out std_logic_vector(9 downto 0);
+            o_cor_tileChannel => o_cor_tileChannel(i), -- out std_logic_vector(11 downto 0);
+            o_cor_tileTotalTimes => o_cor_tileTotalTimes(i), -- out std_logic_vector(7 downto 0);  -- Number of time samples to integrate for this tile.
+            o_cor_tiletotalChannels => o_cor_tileTotalChannels(i), -- out std_logic_vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+            o_cor_rowstations       => o_cor_rowStations(i), -- out std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
+            o_cor_colstations       => o_cor_colStations(i), -- out std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.
             ----------------------------------------------------------------
             -- read interfaces for the HBM
             o_HBM_axi_ar      => o_HBM_axi_ar(i),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))

@@ -108,12 +108,12 @@ entity full_correlator is
         i_cor_data  : in std_logic_vector(255 downto 0); 
         -- meta data
         i_cor_time     : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        -- Counts the virtual channels in i_cor_data, always in steps of 4, where the value is the first of the 4 virtual channels in i_cor_data
-        -- If i_cor_tileType = '0', then up to 256 channels are delivered, with the same channels going to both row and column memories.
+        -- Counts the stations in i_cor_data, always in steps of 4, where the value is the first of the 4 stations in i_cor_data
+        -- If i_cor_tileType = '0', then up to 256 stations are delivered, with the same channels going to both row and column memories.
         --                          In this case, i_cor_VC_count will run from 0 to 256 in steps of 4.
         -- If i_cor_tileType = '1', then up to 512 channels are delivered, with different channels going to the row and column memories.
         --                          counts 0 to 255 go to the column memories, while counts 256-511 go to the row memories. 
-        i_cor_VC_count : in std_logic_vector(8 downto 0); 
+        i_cor_station : in std_logic_vector(8 downto 0); 
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --         The number of 16x16 correlation cells computed will be 
@@ -262,7 +262,7 @@ begin
         --                          In this case, i_cor_VC_count will run from 0 to 256 in steps of 4.
         -- If i_cor_tileType = '1', then up to 512 channels are delivered, with different channels going to the row and column memories.
         --                          counts 0 to 255 go to the column memories, while counts 256-511 go to the row memories. 
-        i_cor_VC_count => i_cor_VC_count, -- in std_logic_vector(8 downto 0); 
+        i_cor_station => i_cor_station, -- in std_logic_vector(8 downto 0); 
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
@@ -324,13 +324,13 @@ begin
             WRITE_DATA_WIDTH_A => 64,        -- DECIMAL
             WRITE_MODE_B => "read_first"     -- String
         ) port map (
-            dbiterrb => open,                    -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port A.
+            dbiterrb => open,                -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port A.
             doutb => colDoutDel(0)(col_ram), -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations.
-            sbiterrb => open,                    -- 1-bit output: Status signal to indicate single bit error occurrence on the data output of port B.
+            sbiterrb => open,                -- 1-bit output: Status signal to indicate single bit error occurrence on the data output of port B.
             addra => colWrAddrDel(col_ram),  -- ADDR_WIDTH_A-bit input: Address for port A write and read operations.
             addrb => colRdAddrDel(col_ram),  -- ADDR_WIDTH_B-bit input: Address for port B write and read operations.
-            clka => i_axi_clk,                   -- 1-bit input: Clock signal for port A. Also clocks port B when parameter CLOCKING_MODE is "common_clock".
-            clkb => i_cor_clk,                   -- Unused when parameter CLOCKING_MODE is "common_clock".
+            clka => i_axi_clk,               -- 1-bit input: Clock signal for port A. Also clocks port B when parameter CLOCKING_MODE is "common_clock".
+            clkb => i_cor_clk,               -- Unused when parameter CLOCKING_MODE is "common_clock".
             dina => colWrDatadel(col_ram),   -- WRITE_DATA_WIDTH_A-bit input: Data input for port A write operations.
             ena => '1',                 -- 1-bit input: Memory enable signal for port A.
             enb => '1',                 -- 1-bit input: Memory enable signal for port B.

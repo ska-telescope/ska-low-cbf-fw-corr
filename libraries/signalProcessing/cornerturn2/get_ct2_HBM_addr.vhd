@@ -35,7 +35,7 @@ entity get_ct2_HBM_addr is
         i_SB_N_fine        : in std_logic_vector(23 downto 0); -- Total number of fine channels to store for this subarray-beam
         -- Values for this particular block of 512 bytes. Each block of 512 bytes is 4 stations, 32 time samples ((4stations)*(32timesamples)*(2pol)*(1byte)(2(complex)) = 512 bytes)
         i_coarse_channel   : in std_logic_vector(8 downto 0);  -- coarse channel for this block, x781.25kHz to get the actual sky frequency (so is comparable to i_SB_coarseStart
-        i_fine_channel     : in std_logic_vector(11 downto 0); -- fine channel for this block, runs from 0 to 3455
+        i_fine_channel     : in std_logic_vector(23 downto 0); -- fine channel for this block; Actual channel referred to is i_coarse_channel*3456 + i_fine_channel, so it is ok for this to be more than 3455.
         i_station          : in std_logic_vector(11 downto 0); -- Index of this station within the subarray
         i_time_block       : in std_logic_vector(2 downto 0);  -- Which time block this is for; 0 to 5. Each time block is 32 time samples.
         i_buffer           : in std_logic; -- Which half of the buffer to calculate for (each half is 1.5 Gbytes)

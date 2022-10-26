@@ -14,21 +14,26 @@
 --  The following is for a single 32x32 matrix correlator :
 --
 --  Flow :
---   - Get data for all 1024 ports for 64 time samples.
+--   - Get data for up to 512 stations and 64 time samples.
 --      - i.e. all the data for 1 fine channel for about 1/3 of a second (= minimum integration time).
---      - Each sample is 16 bits, so the memory required for this is
---        (1024 ports) * (64 times) * (2 bytes) = 128 kBytes
+--             256 stations in each of the row and col memories, can be the same 256 stations, or different 256 stations.
+--      - Each sample is 16+16 = 32 bits, (dual-pol stations, 8+8 bit complex per polarisation), so the memory required for this is :
+--        (256 stations) * (64 times) * (4 bytes) = 65536 kBytes
 --      - The actual memory required is 4x this : 
 --         - x2 for double buffering, so data can be loaded as it is being used.
 --         - x2 since data is stored in row and column memories to feed to the matrix correlator.
---      - So there is 256 kBytes in the row memories (and column memories)
---         - 256 kBytes = 64 BRAMs  (So total memory in row + col rams is 128 BRAMs)
---         - Split into 16 pieces = 4 BRAMs per piece
---            - Each row or column memory is (32 bits wide) x (4096 deep)
---                - 32 bits wide = sufficient for dual pol complex 8+8 bit samples.
---                - 4096 deep = (2 double buffered) * (32 stations) * (64 times)
+--      - So there is 128 kBytes in the row memories (and another 128 kbytes in the column memories)
+--         - 128 kBytes = 32 BRAMs  (So total memory in row + col rams is 64 BRAMs)
+--         - 32 BRAMs split into 16 pieces = 2 BRAMs per piece
+--            - The write side of each row or column memory is (64 bits wide) x (1024 deep)
+--                - 64 bits wide = sufficient for 2 time samples, each dual pol complex 8+8 bit.
+--                - 1024 deep = (2 double buffered) * (16 stations) * (32 lots of 2 times)
+--                  (note 16 stations per BRAM block, 16 BRAM blocks per make up all column memories, so 16x16=256 stations stored in the memories) 
+--            - The read side is (32 bits wide) x (2048 deep)
+--                - 32 bits = 1 dual-pol time sample
+--                - 2048 deep = (2 double buffered) * (16 stations) * (64 times)
 --      - Loading data :
---         - For the full correlation, Number of clocks to use the data in the memory is :
+--         - For the full correlation, the number of clocks to use the data in the memory is :
 --            - (64 times) x (Number of correlation cells)
 --            - Each correlation cell is a (32 port)x(32 port) block from the full correlation.
 --            - For 1024 ports, there are 32*33/2 = 528 correlation cells.
@@ -142,7 +147,7 @@ use axi4_lib.axi4_full_pkg.all;
 
 entity correlator_top is
     generic (
-        g_USE_TWO_CORRELATORS : boolean := TRUE;
+        g_CORRELATORS : integer := 2;
         g_PACKET_SAMPLES_DIV16 : integer := 2
     );
     port (
@@ -164,7 +169,7 @@ entity correlator_top is
         i_cor0_data  : in std_logic_vector(255 downto 0); 
         -- meta data
         i_cor0_time : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        i_cor0_VC   : in std_logic_vector(11 downto 0); -- first of the 4 virtual channels in i_cor0_data
+        i_cor0_station : in std_logic_vector(11 downto 0); -- first of the 4 virtual channels in i_cor0_data
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
@@ -205,8 +210,8 @@ entity correlator_top is
         -- second correlator. See comments above for first correlator for information about the signals.
         o_cor1_ready : out std_logic;
         i_cor1_data  : in std_logic_vector(255 downto 0); 
-        i_cor1_time : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        i_cor1_VC   : in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in o_cor0_data
+        i_cor1_time    : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        i_cor1_station : in std_logic_vector(8 downto 0); -- first of the 4 stations in o_cor0_data
         i_cor1_tileType : in std_logic; -- which correlator triangle is this data for ? 0 to 3 for modes that don't use substations.
         i_cor1_valid : in std_logic;
         i_cor1_first : in std_logic;
@@ -289,8 +294,8 @@ begin
         --                          In this case, i_cor_VC_count will run from 0 to 256 in steps of 4.
         -- If i_cor_tileType = '1', then up to 512 channels are delivered, with different channels going to the row and column memories.
         --                          counts 0 to 255 go to the column memories, while counts 256-511 go to the row memories. 
-        i_cor_VC   => i_cor0_VC,    -- in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
-        i_cor_time => i_cor0_time,  -- in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        i_cor_station => i_cor0_station, -- in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
+        i_cor_time    => i_cor0_time,    -- in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
@@ -338,7 +343,7 @@ begin
         o_HBM_cells => cor0_HBM_cells  -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
     );
     
-    cor2geni : if g_USE_TWO_CORRELATORS generate
+    cor2geni : if (g_CORRELATORS > 1) generate
         icor2 : entity correlator_lib.single_correlator
         generic map (
             g_PIPELINE_STAGES => 3, -- integer
@@ -361,7 +366,7 @@ begin
             -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
             i_cor_data     => i_cor1_data, --  in std_logic_vector(255 downto 0); 
             i_cor_time     => i_cor1_time,  -- in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-            i_cor_VC       => i_cor1_VC,    -- in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
+            i_cor_station  => i_cor1_station,  -- in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
             i_cor_tileType => i_cor1_tileType, -- in std_logic;
             i_cor_valid    => i_cor1_valid,    -- in std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
             i_cor_first    => i_cor1_first,    -- in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
