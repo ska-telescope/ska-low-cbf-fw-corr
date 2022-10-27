@@ -135,6 +135,9 @@ set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/correlator_
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
 #add_files -fileset constrs_1 [ glob $DESIGN_PATH/vivado/vcu128_gemini_dsp.xdc ]
 
+# top level testbench
+set_property top tb_correlatorCore [get_filesets sim_1]
+
 # vivado_xci_files: Importing IP to the project
 # tcl scripts for ip generation
 source $DESIGN_PATH/src/ip/vitisAccelCore.tcl
@@ -331,14 +334,15 @@ set_property library DRP_lib [get_files {\
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/common/src/vhdl/sync.vhd \
  $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
+ $COMMON_PATH/common/src/vhdl/s_axi_to_lbus.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
  */common/src/vhdl/sync_vector.vhd \
+ */common/src/vhdl/s_axi_to_lbus.vhd \
 }]
 
-## tcl scripts for ip generation
-#source $ARGS_PATH/Packetiser/packetiser/ip_Packetiser_packetiser_param_ram.tcl
+set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/common/src/vhdl/s_axi_to_lbus.vhd]
 
 #############################################################
 # 1st corner turn, between LFAA ingest and filterbanks
