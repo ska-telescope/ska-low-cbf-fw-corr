@@ -576,7 +576,7 @@ begin
 
         report "number of tx packets all received";
 
-        wait for 100 us;
+        wait for 5 us;
         report "simulation successfully finished";
         finish;
     end process;
@@ -593,22 +593,45 @@ begin
     --   .sop(3:0)
     --   .empty(3:0)(3:0)
     
-    -- lbusRX : entity correlator_lib.lbus_packet_receive
-    -- Generic map (
-    --     log_file_name => "lbus_out.txt"
-    -- )
-    -- Port map ( 
-    --     clk      => eth100G_clk, -- in  std_logic;     -- clock
-    --     i_rst    => '0', -- in  std_logic;     -- reset input
-    --     i_din    => eth100_tx_sosi.data, -- in  std_logic_vector(511 downto 0);  -- actual data out.
-    --     i_valid  => eth100_tx_sosi.valid, -- in  std_logic_vector(3 downto 0);     -- data out valid (high for duration of the packet)
-    --     i_eop    => eth100_tx_sosi.eop,   -- in  std_logic_vector(3 downto 0);
-    --     i_sop    => eth100_tx_sosi.sop,   -- in  std_logic_vector(3 downto 0);
-    --     i_empty0 => eth100_tx_sosi.empty(0), --  in std_logic_vector(3 downto 0);
-    --     i_empty1 => eth100_tx_sosi.empty(1), -- in std_logic_vector(3 downto 0);
-    --     i_empty2 => eth100_tx_sosi.empty(2), -- in std_logic_vector(3 downto 0);
-    --     i_empty3 => eth100_tx_sosi.empty(3)  -- in std_logic_vector(3 downto 0)
-    -- );
+     lbusRX : entity correlator_lib.lbus_packet_receive
+     Generic map (
+         log_file_name => "lbus_out.txt"
+     )
+     Port map ( 
+         clk      => eth100G_clk, -- in  std_logic;     -- clock
+         i_rst    => '0', -- in  std_logic;     -- reset input
+         i_din    => eth100_tx_sosi.data, -- in  std_logic_vector(511 downto 0);  -- actual data out.
+         i_valid  => eth100_tx_sosi.valid, -- in  std_logic_vector(3 downto 0);     -- data out valid (high for duration of the packet)
+         i_eop    => eth100_tx_sosi.eop,   -- in  std_logic_vector(3 downto 0);
+         i_sop    => eth100_tx_sosi.sop,   -- in  std_logic_vector(3 downto 0);
+         i_empty0 => eth100_tx_sosi.empty(0), --  in std_logic_vector(3 downto 0);
+         i_empty1 => eth100_tx_sosi.empty(1), -- in std_logic_vector(3 downto 0);
+         i_empty2 => eth100_tx_sosi.empty(2), -- in std_logic_vector(3 downto 0);
+         i_empty3 => eth100_tx_sosi.empty(3)  -- in std_logic_vector(3 downto 0)
+     );
+    
+-- temp lbus out stimulus
+lbus_out_proc : process(eth100G_clk)
+begin
+    if rising_edge(eth100G_clk) then
+        eth100_tx_sosi.data(511 downto 384)     <= x"0123456789ABCDEF2222222222222222";
+        eth100_tx_sosi.data(383 downto 256)     <= x"1888888889ABCDEF4444444444444444";
+        eth100_tx_sosi.data(255 downto 128)     <= x"2DEADBEEF9ABCDEF6666666666666666";
+        eth100_tx_sosi.data(127 downto 0)       <= x"300000000000CDEF8888888888888888";
+        
+        
+        eth100_tx_sosi.valid                    <= x"A";
+        
+        
+        eth100_tx_sosi.eop                      <= x"A";
+        eth100_tx_sosi.sop                      <= x"A";
+        eth100_tx_sosi.empty(0)                 <= x"0";
+        eth100_tx_sosi.empty(1)                 <= x"0";
+        eth100_tx_sosi.empty(2)                 <= x"A";
+        eth100_tx_sosi.empty(3)                 <= x"0";
+
+    end if;
+end process;
     
     
 --    dut : entity correlator_lib.correlator_core
