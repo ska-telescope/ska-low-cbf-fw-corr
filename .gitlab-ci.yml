@@ -27,10 +27,10 @@ include:
   # This may not match the copy in our 'common' submodule!
   - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
     file: 'gitlab/build.yml'
-    ref: 'a28ab7b5a7e8201d9a49251ab7d948c31c6d0ef9'
+    ref: 'a4e348bafb146809bda9b6769d222eab8ccd9320'
   - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
     file: 'gitlab/simulate.yml'
-    ref: 'a28ab7b5a7e8201d9a49251ab7d948c31c6d0ef9'
+    ref: 'a4e348bafb146809bda9b6769d222eab8ccd9320'
 
 
   # SKA standard includes
