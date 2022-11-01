@@ -18,7 +18,7 @@
 -- 
 ----------------------------------------------------------------------------------
 library IEEE;
-library LFAADecode_lib, common_lib, correlator_lib;
+library LFAADecode100G_lib, common_lib, correlator_lib;
 library axi4_lib;
 library xpm;
 use xpm.vcomponents.all;
