@@ -142,20 +142,6 @@ set_property top tb_correlatorCore [get_filesets sim_1]
 # tcl scripts for ip generation
 source $DESIGN_PATH/src/ip/vitisAccelCore.tcl
 ############################################################
-# AXI4
-
-add_files -fileset sources_1 [glob \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_full_pkg.vhd \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
-]
-set_property library axi4_lib [get_files {\
-*libraries/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
-*libraries/base/axi4/src/vhdl/axi4_full_pkg.vhd \
-*libraries/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
-*libraries/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
-}]
 
 # Technology select package
 add_files -fileset sources_1 [glob \
@@ -169,27 +155,28 @@ set_property library technology_lib [get_files {\
  *libraries/technology/mac_100g/tech_mac_100g_pkg.vhd \
 }]
 #############################################################
+## IN THE COMMON FILES REPO
 # Common
 
 add_files -fileset sources_1 [glob \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_reg_r_w.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_reg_r_w_dc.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_str_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_mem_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_field_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_lfsr_sequences_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_interface_layers_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_network_layers_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_network_total_header_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_components_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_spulse.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_switch.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_delay.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_ram_crw_crw.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_pipeline.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_count_saturate.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_accumulate.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_reg_r_w.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_reg_r_w_dc.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_str_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_mem_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_field_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_lfsr_sequences_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_interface_layers_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_network_layers_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_network_total_header_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_components_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_spulse.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_switch.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_delay.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_ram_crw_crw.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_pipeline.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_count_saturate.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_accumulate.vhd \
 ]
 set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_reg_r_w.vhd \
@@ -211,6 +198,22 @@ set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_count_saturate.vhd \
  *libraries/base/common/src/vhdl/common_accumulate.vhd \
 }]
+
+# AXI4
+
+add_files -fileset sources_1 [glob \
+$COMMON_PATH/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
+$COMMON_PATH/base/axi4/src/vhdl/axi4_full_pkg.vhd \
+$COMMON_PATH/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
+$COMMON_PATH/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
+]
+set_property library axi4_lib [get_files {\
+*libraries/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
+*libraries/base/axi4/src/vhdl/axi4_full_pkg.vhd \
+*libraries/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
+*libraries/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
+}]
+
 
 #############################################################
 # tech memory
