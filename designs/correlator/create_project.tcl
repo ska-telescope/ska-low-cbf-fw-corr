@@ -42,6 +42,40 @@ set_property target_simulator XSim [current_project]
 ############################################################
 
 ############################################################
+# Timeslave files
+############################################################
+set_property  ip_repo_paths  $timeslave_repo [current_project]
+update_ip_catalog
+
+# only generate this if u55.
+
+# generate_ref design - Instance 1 - U55C TOP PORT.
+source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
+
+make_wrapper -files [get_files $workingDir/$env(PERSONALITY).srcs/sources_1/bd/ts/ts.bd] -top
+add_files -norecurse $workingDir/$env(PERSONALITY).gen/sources_1/bd/ts/hdl/ts_wrapper.vhd
+
+add_files -fileset sources_1 [glob \
+ $COMMON_PATH/ptp/src/CMAC_100G_wrap_w_timeslave.vhd \
+]
+set_property library Timeslave_CMAC_lib [get_files {\
+ */src/CMAC_100G_wrap_w_timeslave.vhd \
+}]
+
+add_files -fileset sources_1 [glob \
+ $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
+ $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg.vhd \
+ $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
+ $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg.vhd \
+]
+set_property library Timeslave_CMAC_lib [get_files {\
+ *CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
+ *CMAC/cmac/CMAC_cmac_reg.vhd \
+ */Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
+ */Timeslave/timeslave/Timeslave_timeslave_reg.vhd \ 
+}]
+
+############################################################
 # ARGS generated files
 ############################################################
 
@@ -101,24 +135,13 @@ set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/correlator_
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
 #add_files -fileset constrs_1 [ glob $DESIGN_PATH/vivado/vcu128_gemini_dsp.xdc ]
 
+# top level testbench
+set_property top tb_correlatorCore [get_filesets sim_1]
+
 # vivado_xci_files: Importing IP to the project
 # tcl scripts for ip generation
 source $DESIGN_PATH/src/ip/vitisAccelCore.tcl
 ############################################################
-# AXI4
-
-add_files -fileset sources_1 [glob \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_full_pkg.vhd \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
-$RLIBRARIES_PATH/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
-]
-set_property library axi4_lib [get_files {\
-*libraries/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
-*libraries/base/axi4/src/vhdl/axi4_full_pkg.vhd \
-*libraries/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
-*libraries/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
-}]
 
 # Technology select package
 add_files -fileset sources_1 [glob \
@@ -132,27 +155,28 @@ set_property library technology_lib [get_files {\
  *libraries/technology/mac_100g/tech_mac_100g_pkg.vhd \
 }]
 #############################################################
+## IN THE COMMON FILES REPO
 # Common
 
 add_files -fileset sources_1 [glob \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_reg_r_w.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_reg_r_w_dc.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_str_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_mem_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_field_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_lfsr_sequences_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_interface_layers_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_network_layers_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_network_total_header_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_components_pkg.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_spulse.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_switch.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_delay.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_ram_crw_crw.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_pipeline.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_count_saturate.vhd \
- $RLIBRARIES_PATH/base/common/src/vhdl/common_accumulate.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_reg_r_w.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_reg_r_w_dc.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_str_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_mem_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_field_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_lfsr_sequences_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_interface_layers_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_network_layers_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_network_total_header_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_components_pkg.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_spulse.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_switch.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_delay.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_ram_crw_crw.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_pipeline.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_count_saturate.vhd \
+ $COMMON_PATH/base/common/src/vhdl/common_accumulate.vhd \
 ]
 set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_reg_r_w.vhd \
@@ -174,6 +198,22 @@ set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_count_saturate.vhd \
  *libraries/base/common/src/vhdl/common_accumulate.vhd \
 }]
+
+# AXI4
+
+add_files -fileset sources_1 [glob \
+$COMMON_PATH/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
+$COMMON_PATH/base/axi4/src/vhdl/axi4_full_pkg.vhd \
+$COMMON_PATH/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
+$COMMON_PATH/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
+]
+set_property library axi4_lib [get_files {\
+*libraries/base/axi4/src/vhdl/axi4_lite_pkg.vhd \
+*libraries/base/axi4/src/vhdl/axi4_full_pkg.vhd \
+*libraries/base/axi4/src/vhdl/axi4_stream_pkg.vhd \
+*libraries/base/axi4/src/vhdl/mem_to_axi4_lite.vhd \
+}]
+
 
 #############################################################
 # tech memory
@@ -295,16 +335,17 @@ set_property library DRP_lib [get_files {\
 #############################################################
 # Signal_processing_common
 add_files -fileset sources_1 [glob \
- $RLIBRARIES_PATH/signalProcessing/common/src/vhdl/sync.vhd \
- $RLIBRARIES_PATH/signalProcessing/common/src/vhdl/sync_vector.vhd \
+ $COMMON_PATH/common/src/vhdl/sync.vhd \
+ $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
+ $COMMON_PATH/common/src/vhdl/s_axi_to_lbus.vhd \
 ]
 set_property library signal_processing_common [get_files {\
- *libraries/signalProcessing/common/src/vhdl/sync.vhd \
- *libraries/signalProcessing/common/src/vhdl/sync_vector.vhd \
+ */common/src/vhdl/sync.vhd \
+ */common/src/vhdl/sync_vector.vhd \
+ */common/src/vhdl/s_axi_to_lbus.vhd \
 }]
 
-## tcl scripts for ip generation
-#source $ARGS_PATH/Packetiser/packetiser/ip_Packetiser_packetiser_param_ram.tcl
+set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/common/src/vhdl/s_axi_to_lbus.vhd]
 
 #############################################################
 # 1st corner turn, between LFAA ingest and filterbanks
