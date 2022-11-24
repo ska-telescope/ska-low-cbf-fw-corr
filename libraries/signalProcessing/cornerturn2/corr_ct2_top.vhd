@@ -105,8 +105,8 @@ entity corr_ct2_top is
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
-        i_frameCount   : in std_logic_vector(36 downto 0);       -- LFAA frame count
-        i_virtualChannel : in t_slv_16_arr(3 downto 0);          -- 4 virtual channels, one for each of the data streams.
+        i_frameCount   : in std_logic_vector(31 downto 0); -- intra-frame count; Each count here is a block of 4096 LFAA samples = 1 time sample at the filterbank output.
+        i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
         i_HeaderValid : in std_logic_vector(3 downto 0);
         i_data        : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
         i_dataValid   : in std_logic;
@@ -157,6 +157,7 @@ architecture Behavioral of corr_ct2_top is
     signal statctrl_ro : t_statctrl_ro;
     signal statctrl_rw : t_statctrl_rw;
     signal frameCount_mod3 : std_logic_vector(1 downto 0) := "00";
+    signal frameCount_849ms : std_logic_vector(31 downto 0);
     signal frameCount_startup : std_logic := '1';
     signal previous_framecount : std_logic_vector(11 downto 0) := "000000000000";
     signal buf0_fineIntegrations, buf1_fineIntegrations : std_logic_vector(4 downto 0);
@@ -205,7 +206,8 @@ architecture Behavioral of corr_ct2_top is
     signal vc_demap_fw_start     : std_logic_vector(11 downto 0);  -- first fine channel to forward as a packet to the 100GE
     signal vc_demap_fw_end       : std_logic_vector(11 downto 0); -- Last fine channel to forward as a packet to the 100GE
     signal vc_demap_fw_dest      : std_logic_vector(7 downto 0);  -- Tag for the packet.
-    signal vc_demap_req_del1, vc_demap_req_del2 : std_logic;    
+    signal vc_demap_req_del1, vc_demap_req_del2 : std_logic;
+    signal readout_buffer : std_logic := '0';
     
 begin
     
@@ -214,15 +216,22 @@ begin
         if rising_edge(i_axi_clk) then
             if i_rst = '1' then
                 frameCount_mod3 <= "00";
+                frameCount_849ms <= (others => '0');
                 frameCount_startup <= '1';
             elsif (i_sof = '1') then
+                -- This picks up the framecount for the first packet in the frame = 283ms of data.
+                -- If the framecount is the same as the framecount for the first frame from the previous i_sof,
+                -- then we are just going to the next virtual channel; if different, then we have moved on to the next 283ms block.
+                -- Maybe we could also just check that i_virtualChannel(0) = 0 ?
                 previous_framecount <= i_frameCount(11 downto 0);  -- just 12 bits, since we don't need to check every bit of framecount to see if it has changed.
                 frameCount_startup <= '0';
                 if (previous_frameCount /= i_frameCount(11 downto 0)) and frameCount_Startup = '0' then
                     case frameCount_mod3 is
                         when "00" => frameCount_mod3 <= "01";
                         when "01" => frameCount_mod3 <= "10";
-                        when others => frameCount_mod3 <= "00";
+                        when others => 
+                            frameCount_mod3 <= "00";
+                            frameCount_849ms <= std_logic_vector(unsigned(frameCount_849ms) + 1);
                     end case;
                 end if;
             end if;
@@ -235,6 +244,7 @@ begin
             
             if (frameCount_mod3 = "10" and (unsigned(recent_virtualChannel) = unsigned(last_channel)) and (lastTime = '1')) then
                 readout_start <= '1';
+                readout_buffer <= frameCount_849ms(0);
             else
                 readout_start <= '0';
             end if;
@@ -248,15 +258,15 @@ begin
     ) port map (
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
-        i_sof             => i_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 60ms of data).
-        i_tableSelect     => statctrl_rw.table_select, -- in std_logic;
-        i_frameCount_mod3 => frameCount_mod3,  -- in(1:0)
-        i_frameCount      => i_frameCount,     -- in (31:0)
-        i_virtualChannel  => i_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the data streams.
-        i_HeaderValid     => i_headerValid,    -- in std_logic_vector(3 downto 0);
-        i_data            => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
-        i_dataValid       => i_dataValid,      -- in std_logic;
-        o_lastTime        => lastTime,         -- out std_logic; last time sample for a particular virtual channel received.
+        i_sof              => i_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 60ms of data).
+        i_tableSelect      => statctrl_rw.table_select, -- in std_logic;
+        i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
+        i_frameCount_849ms => frameCount_849ms, -- in (31:0)
+        i_virtualChannel   => i_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the data streams.
+        i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
+        i_data             => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
+        i_dataValid        => i_dataValid,      -- in std_logic;
+        o_lastTime         => lastTime,         -- out std_logic; last time sample for a particular virtual channel received.
         
         -- interface to the demap table
         o_vc_demap_rd_addr   => vc_demap_rd_Addr,    -- out (7:0);  address into the demap table, 0-255 = floor(virtual_channel / 4)
@@ -425,13 +435,12 @@ begin
                 vc_demap_fw_start <= vc_demap_out.rd_dat(11 downto 0);  -- first fine channel to forward as a packet to the 100GE
                 vc_demap_fw_end   <= vc_demap_out.rd_dat(23 downto 12); -- Last fine channel to forward as a packet to the 100GE
                 vc_demap_fw_dest  <= vc_demap_out.rd_dat(31 downto 24); -- Tag for the packet.    
-            end if;    
-            
+            end if;
             
             ----------------------------------------------------------------------------------------
             -- Logic for reading the subarray-beam table
             --
-            if i_sof = '1' then
+            if i_sof = '1' and frameCount_mod3 = "00" then
                 -- Set the subarray-beam table that is used for writing data into the HBM.
                 -- Set at the start of data input for the frame, so it is fixed through the frame.
                 din_tableSelect <= statctrl_rw.table_select; 
@@ -514,7 +523,7 @@ begin
                     end if;
                 
                 when get_din_rd1 =>
-                    SB_addr(10) <= din_SB_sel;
+                    SB_addr(10) <= din_tableSelect;
                     SB_addr(9 downto 2) <= din_SB_addr; -- 8 bits
                     SB_addr(1 downto 0) <= "00";
                     SB_rd_fsm <= get_din_rd2;

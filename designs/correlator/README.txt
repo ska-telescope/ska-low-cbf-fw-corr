@@ -14,8 +14,9 @@ python3 $SVN/tools/radiohdl/base/vivado_config.py -l correlator -a
 
 # 5. Generate the c config file for use by the fpga viewer application :
 # Result will be in build/ARGS/correlator
-# This is also done automatically when running args?
-python3 $SVN/tools/args/gen_c_config.py -f vitisAccelCore
+# ccfg file (a more readable version of the register map) will be in build/ARGS/correlator/correlator.ccfg 
+# Can also regenerate the ccfg file only by running : 
+python3 $SVN/tools/args/gen_c_config.py -f correlator
 
 # Note that the fpga map file (python structures with register names and addresses) will be in build/ARGS/py/correlator/fpgamap_???.py
 

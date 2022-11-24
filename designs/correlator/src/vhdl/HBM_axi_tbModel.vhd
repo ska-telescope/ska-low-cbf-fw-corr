@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
+-- Company: CSIRO
+-- Engineer: David Humphrey (dave.humphrey@csiro.au)
 -- 
 -- Create Date: 15.03.2021 15:00:34
 -- Design Name: 
@@ -13,6 +13,8 @@
 --  Includes a high read latency, to mimic the real HBM.
 --  The memory is up to 4GBytes in size.
 --  Memory is allocated on the fly in blocks of 4 Kbytes when it is written.
+--
+--  
 ----------------------------------------------------------------------------------
 
 library IEEE;
@@ -21,6 +23,10 @@ use IEEE.NUMERIC_STD.ALL;
 use IEEE.math_real.all ;
 library xpm;
 use xpm.vcomponents.all;
+use std.textio.all;
+use IEEE.std_logic_textio.all;
+library xil_defaultlib;
+use xil_defaultlib.ALL;
 
 entity HBM_axi_tbModel is
     generic (
@@ -79,7 +85,15 @@ entity HBM_axi_tbModel is
         axi_rresp    : out std_logic_vector(1 downto 0);
         -- protocol checker outputs
         pc_status   : out std_logic_vector(159 downto 0);
-        pc_asserted : out std_logic
+        pc_asserted : out std_logic;
+        -- control dump to disk.
+        i_write_to_disk : in std_logic;
+        i_write_to_disk_addr : in integer; -- address to start the memory dump at.
+        i_write_to_disk_size : in integer; -- size in bytes
+        i_fname : in string;
+        -- Initialisation of the memory
+        i_init_mem   : in std_logic;
+        i_init_fname : in string
     );
 end HBM_axi_tbModel;
 
@@ -224,6 +238,13 @@ architecture Behavioral of HBM_axi_tbModel is
             Addr  : in  std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
             Data  : out std_logic_vector(AXI_DATA_WIDTH-1 downto 0));
         
+        procedure MemDump (
+            Addr  : in integer;
+            dumpSize : in integer;
+            fname : in string);
+        
+        procedure MemInit (fname : in string);
+        
         impure function MemRead(Addr : std_logic_vector) return std_logic_vector;
         
 
@@ -304,8 +325,79 @@ architecture Behavioral of HBM_axi_tbModel is
                 Data((32*n + 31) downto 32*n) := std_logic_vector(to_signed(memArray(BlockAddr)(WordAddr+n), 32));
             end loop;
             
-        end procedure MemRead ; 
-    
+        end procedure MemRead;
+        
+        procedure MemDump (Addr : in integer;  -- byte address
+                           dumpSize : in integer; -- number of bytes to write out
+                           fname : in string) is   -- filename to write to.
+            file logfile: TEXT;
+            variable line_out : Line;
+            variable fullAddr : std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+            variable BlockAddr, WordAddr  : integer;
+            variable thisData : std_logic_vector(31 downto 0);
+        begin
+            FILE_OPEN(logfile,fname,WRITE_MODE);
+            --baseAddr := to_integer(unsigned(Addr));
+            for n in 0 to ((dumpSize/4)-1) loop
+                fullAddr := std_logic_vector(to_unsigned(Addr,AXI_ADDR_WIDTH) + 4*n);
+                -- Slice out upper address to form block address
+                BlockAddr :=  to_integer(unsigned(fullAddr((AXI_ADDR_WIDTH-1) downto BLOCK_WIDTH)));
+                WordAddr := to_integer(unsigned(fullAddr(BLOCK_WIDTH-1 downto 2)));
+                if (memArray(BlockAddr) = NULL) then
+                    thisData := x"feedcafe";
+                else
+                    thisData := std_logic_vector(to_signed(memArray(BlockAddr)(WordAddr),32));
+                end if;
+                hwrite(line_out,thisData,RIGHT,8);
+                writeline(logfile,line_out);
+            end loop;
+            
+            file_close(logfile);
+        end procedure MemDump;
+        
+        -- Initialise the memory with data from a file.
+        -- File format is hexadecimal text, with each line consisting of 1025 hex values, with each value being a 32-bit integer in hex format, no prefix (e.g. CAFE8888, not 0xCAFE8888)
+        -- First value in each line is the address to write the data to, in units of 4 bytes, the remaining values are up to 4 kbytes of data.
+        procedure MemInit (fname : in string) is
+            file dinFile : TEXT;
+            variable line_in : Line;
+            variable good : boolean;
+            variable memAddr : std_logic_vector(31 downto 0);
+            variable memData : std_logic_vector(31 downto 0);
+            variable memAddrInt4096 : integer;
+            variable wordCount : integer;
+            variable lineBase : integer;
+        begin
+            FILE_OPEN(dinFile,fname,READ_MODE);
+            while (not endfile(dinfile)) loop 
+                readline(dinfile, line_in);
+                
+                hread(line_in,memAddr,good);
+                
+                -- Where we start within a 4 kByte block.
+                lineBase := to_integer(unsigned(memAddr(9 downto 0)));
+                -- Which 4 kByte block.
+                memAddrInt4096 := to_integer(unsigned(memAddr(31 downto 10)));
+                
+                if (memArray(memAddrInt4096) = NULL) then 
+                    memArray(memAddrInt4096) := new MemBlockType;
+                end if;
+                
+                good := True;
+                wordCount := 0;
+                while good loop
+                    hread(line_in,memData,good);
+                    if (good) then
+                        assert ((lineBase+wordCount) < 4096) report "Single line in the initialisation file cannot cross a 4096 byte boundary" severity failure;
+                        memArray(memAddrInt4096)(lineBase + wordCount) := to_integer(signed(memData));
+                        wordCount := wordCount + 1;
+                    end if;
+                end loop;
+                
+            end loop;
+        end procedure MemInit;
+        
+        
         ------------------------------------------------------------
         impure function MemRead(Addr  : std_logic_vector) return std_logic_vector is
             --variable BlockAddr, WordAddr  : integer;
@@ -548,6 +640,16 @@ begin
                     
                 end case;
             
+            end if;
+            
+            -----------------------------------------------------------------------------
+            -- dump memory contents to disk
+            if i_write_to_disk = '1' then
+                hbm_memory.memDump(i_write_to_disk_addr, i_write_to_disk_size, i_fname);
+            end if; 
+            
+            if i_init_mem = '1' then
+                hbm_memory.MemInit(i_init_fname);
             end if;
             
         end if;

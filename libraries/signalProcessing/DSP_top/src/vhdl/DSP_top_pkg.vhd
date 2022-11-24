@@ -192,7 +192,7 @@ package DSP_top_pkg is
     function header_to_slv(i: t_ctc_output_header) return std_logic_vector;
     function header_to_slv(i: t_FD_output_header) return std_logic_vector;
     
-    function header_to_slv(i: t_atomic_CT_pst_META_out) return std_logic_vector;
+    --function header_to_slv(i: t_atomic_CT_pst_META_out) return std_logic_vector;
     
     --------------------------------------------------
     -- CTC OUTPUT DATA, also used in the filterbanks.
@@ -415,15 +415,15 @@ package body DSP_top_pkg is
     end function;
 
 
-    function header_to_slv(i: t_atomic_CT_pst_META_out) return std_logic_vector is
-        variable o: std_logic_vector(85 downto 0);
-    begin
-        o(15 downto 0) := i.HDeltaP;
-        o(31 downto 16) := i.VDeltaP;
-        o(47 downto 32) := i.virtualChannel;
-        o(84 downto 48) := i.frameCount;
-        o(85) := i.valid;
-        return o;
-    end function;
+   -- function header_to_slv(i: t_atomic_CT_pst_META_out) return std_logic_vector is
+   --     variable o: std_logic_vector(85 downto 0);
+   -- begin
+   --     o(15 downto 0) := i.HDeltaP;
+   --     o(31 downto 16) := i.VDeltaP;
+   --     o(47 downto 32) := i.virtualChannel;
+   --     o(84 downto 48) := i.frameCount;
+   --     o(85) := i.valid;
+   --     return o;
+   -- end function;
 
 end DSP_top_pkg;

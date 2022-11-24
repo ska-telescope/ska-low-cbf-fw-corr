@@ -103,7 +103,7 @@ peripherals:
                                    The maximum number of valid entries in this table is defined by total_channels.\
                                    Used virtual channels must be packed into the lower end of the addresses in the VCTable.\
                                    For example, if there are 128 virtual channels, then they must be in entries 0 to 127 of this table.\
-                                   Virtual channels must be sorted first according to station_id, then according to frequency_id. \
+                                   Virtual channels must be sorted according to the value in the first word in each entry. \
                                    So for example if there are 3 stations with ids (5, 10, 12) and 2 channels with ids (100, 101), 
                                    then they would be listed in this table as
                                     0 - station 5, channel 100 \

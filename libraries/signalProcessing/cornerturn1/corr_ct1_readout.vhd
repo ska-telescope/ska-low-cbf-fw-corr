@@ -76,7 +76,7 @@
 --  Output frames & coarse Delay
 --   The coarse delay is up to 2047 LFAA samples.
 --   The last sample output to the correlator filterbanks for a frame is <last sample in frame> - 2048 + coarse_delay
---   This means that the first sample output to the PST filterbanks will be 
+--   This means that the first sample output to the correlator filterbanks will be 
 --       <last sample in the previous frame> - 2048 + coarse_delay - <preload> 
 --     =  <last sample in the previous frame> - 2048 + coarse_delay - 11 * 4096
 --     =  <last sample in the previous frame> - 47104 + coarse_delay

@@ -52,35 +52,19 @@ ENTITY correlator_core IS
         C_M_AXI_ADDR_WIDTH : integer := 64;
         C_M_AXI_DATA_WIDTH : integer := 32;
         C_M_AXI_ID_WIDTH   : integer := 1;
-        -- 
+        -- All the HBM interfaces are the same width;
+        -- Actual interfaces used are : 
+        --  M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
+        --  M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
+        --  M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
+        --  M04, 512 Mbytes HBM; visibilities from first correlator instance
+        --  M05, 512 Mbytes HBM; visibilities from second correlator instance
         g_HBM_INTERFACES : integer := 5;
         g_HBM_AXI_ADDR_WIDTH : integer := 64;
         g_HBM_AXI_DATA_WIDTH : integer := 512;
         g_HBM_AXI_ID_WIDTH   : integer := 1
-        
-        
---        -- M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
---        M01_AXI_ADDR_WIDTH : integer := 64;
---        M01_AXI_DATA_WIDTH : integer := 512;
---        M01_AXI_ID_WIDTH   : integer := 1;
---        -- M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
---        M02_AXI_ADDR_WIDTH : integer := 64;
---        M02_AXI_DATA_WIDTH : integer := 512; 
---        M02_AXI_ID_WIDTH   : integer := 1;
---        -- M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
---        M03_AXI_ADDR_WIDTH : integer := 64;  
---        M03_AXI_DATA_WIDTH : integer := 512;
---        M03_AXI_ID_WIDTH   : integer := 1;
---        -- M04, 2 Gbytes HBM; Visibilities from first correlator instance
---        M04_AXI_ADDR_WIDTH : integer := 64;  
---        M04_AXI_DATA_WIDTH : integer := 512;
---        M04_AXI_ID_WIDTH   : integer := 1;
---        -- M05, 2 Gbytes HBM; Visibilities from second correlator instance
---        M05_AXI_ADDR_WIDTH : integer := 64;  
---        M05_AXI_DATA_WIDTH : integer := 512;
---        M05_AXI_ID_WIDTH   : integer := 1
     );
-    PORT (
+    port (
         ap_clk : in std_logic;
         ap_rst_n : in std_logic;
         
@@ -185,8 +169,8 @@ ENTITY correlator_core IS
         --     First half, for fine channels that go to the first correlator instance.
         -- 2 = 3 Gbytes, buffer between the filterbanks and the correlator
         --     second half, for fine channels that go to the second correlator instance.
-        -- 3 = 2 Gbytes, Visibilities from First correlator instance;
-        -- 4 = 2 Gbytes, Visibilities from Second correlator instance;
+        -- 3 = 0.5 Gbytes, Visibilities from First correlator instance;
+        -- 4 = 0.5 Gbytes, Visibilities from Second correlator instance;
         HBM_axi_awvalid  : out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_awready  : in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_awaddr   : out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);

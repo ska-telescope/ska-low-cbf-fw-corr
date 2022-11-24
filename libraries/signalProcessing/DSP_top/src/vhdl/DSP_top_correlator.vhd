@@ -181,7 +181,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal clk450_walltime : std_logic_vector(63 downto 0); -- out(63:0); -- wall time in the clk450 domain, in nanoseconds
     signal clk322_walltime : std_logic_vector(63 downto 0); -- 
     
-    signal FD_frameCount :  std_logic_vector(36 downto 0); -- frame count is the same for all simultaneous output streams.
+    signal FD_frameCount :  std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
     signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
     signal FD_headerValid : std_logic_vector(3 downto 0);
     signal FD_data : t_ctc_output_payload_arr(3 downto 0);
@@ -390,7 +390,7 @@ begin
         i_dataValid => FB_valid, -- in std_logic;
         -- Data out; bursts of 3456 clocks for each channel.
         -- Correlator filterbank data output
-        o_frameCount     => FD_frameCount,     -- out std_logic_vector(36 downto 0); -- frame count is the same for all simultaneous output streams.
+        o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
         o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
         o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
@@ -426,9 +426,9 @@ begin
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
         i_sof             => FB_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 283 ms of data).
-        i_frameCount      => FD_frameCount,     -- in std_logic_vector(36 downto 0); -- frame count is the same for all simultaneous output streams.
+        i_frameCount      => FD_frameCount,     -- in (31:0); -- frame count is the same for all simultaneous output streams.
         i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the PST data streams.
-        i_HeaderValid     => FD_headerValid,    -- in std_logic_vector(3 downto 0);
+        i_HeaderValid     => FD_headerValid,    -- in (3:0);
         i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
         i_dataValid       => FD_dataValid,      -- in std_logic;
         --------------------------------------------------------------------------
@@ -444,11 +444,11 @@ begin
         o_cor_last              => cor_last,      -- out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
         o_cor_final             => cor_final,     -- out std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
         o_cor_tileCount         => cor_tileCount, -- out (9:0);
-        o_cor_tileChannel       => cor_tileChannel,       --  out std_logic_vector(11 downto 0);
-        o_cor_tileTotalTimes    => cor_tileTotalTimes,    --  out std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
-        o_cor_tiletotalChannels => cor_timeTotalChannels, --  out std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
-        o_cor_rowstations       => cor_rowStations,       --  out std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
-        o_cor_colstations       => cor_colStations,       --  out std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.   
+        o_cor_tileChannel       => cor_tileChannel,       --  out (11:0);
+        o_cor_tileTotalTimes    => cor_tileTotalTimes,    --  out (7:0); -- Number of time samples to integrate for this tile.
+        o_cor_tiletotalChannels => cor_timeTotalChannels, --  out (4:0); -- Number of frequency channels to integrate for this tile.
+        o_cor_rowstations       => cor_rowStations,       --  out (8:0); -- number of stations in the row memories to process; up to 256.
+        o_cor_colstations       => cor_colStations,       --  out (8:0); -- number of stations in the col memories to process; up to 256.   
         
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator

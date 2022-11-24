@@ -1,20 +1,12 @@
 ----------------------------------------------------------------------------------
--- Company: 
--- Engineer: 
+-- Company: CSIRO
+-- Engineer: David Humphrey (dave.humphrey@csiro.au)
 -- 
 -- Create Date: 20.08.2020 21:59:42
 -- Design Name: 
 -- Module Name: tb_vitisAccelCore - Behavioral
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
 -- Description: 
--- 
--- Dependencies: 
--- 
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
+--  Testbench for the correlator
 -- 
 ----------------------------------------------------------------------------------
 library IEEE;
@@ -153,126 +145,46 @@ architecture Behavioral of tb_correlatorCore is
     signal m00_wrData : std_logic_vector(31 downto 0);
     signal m00_rdData : std_logic_vector(31 downto 0);
     
-
-    signal m01_awvalid : std_logic;
-    signal m01_awready : std_logic;
-    signal m01_awaddr : std_logic_vector(63 downto 0);
-    signal m01_awid : std_logic_vector(0 downto 0);
-    signal m01_awlen : std_logic_vector(7 downto 0);
-    signal m01_awsize : std_logic_vector(2 downto 0);
-    signal m01_awburst : std_logic_vector(1 downto 0);
-    signal m01_awlock :  std_logic_vector(1 downto 0);
-    signal m01_awcache :  std_logic_vector(3 downto 0);
-    signal m01_awprot :  std_logic_vector(2 downto 0);
-    signal m01_awqos :  std_logic_vector(3 downto 0);
-    signal m01_awregion :  std_logic_vector(3 downto 0);
-    signal m01_wvalid :  std_logic;
-    signal m01_wready :  std_logic;
-    signal m01_wdata :  std_logic_vector(511 downto 0);
-    signal m01_wstrb :  std_logic_vector(63 downto 0);
-    signal m01_wlast :  std_logic;
-    signal m01_bvalid : std_logic;
-    signal m01_bready :  std_logic;
-    signal m01_bresp :  std_logic_vector(1 downto 0);
-    signal m01_bid :  std_logic_vector(0 downto 0);
-    signal m01_arvalid :  std_logic;
-    signal m01_arready :  std_logic;
-    signal m01_araddr :  std_logic_vector(63 downto 0);
-    signal m01_arid :  std_logic_vector(0 downto 0);
-    signal m01_arlen :  std_logic_vector(7 downto 0);
-    signal m01_arsize :  std_logic_vector(2 downto 0);
-    signal m01_arburst : std_logic_vector(1 downto 0);
-    signal m01_arlock :  std_logic_vector(1 downto 0);
-    signal m01_arcache :  std_logic_vector(3 downto 0);
-    signal m01_arprot :  std_logic_Vector(2 downto 0);
-    signal m01_arqos :  std_logic_vector(3 downto 0);
-    signal m01_arregion :  std_logic_vector(3 downto 0);
-    signal m01_rvalid :  std_logic;
-    signal m01_rready :  std_logic;
-    signal m01_rdata :  std_logic_vector(511 downto 0);
-    signal m01_rlast :  std_logic;
-    signal m01_rid :  std_logic_vector(0 downto 0);
-    signal m01_rresp :  std_logic_vector(1 downto 0);
-    
-    signal m02_awvalid : std_logic;
-    signal m02_awready : std_logic;
-    signal m02_awaddr : std_logic_vector(63 downto 0);
-    signal m02_awid : std_logic_vector(0 downto 0);
-    signal m02_awlen : std_logic_vector(7 downto 0);
-    signal m02_awsize : std_logic_vector(2 downto 0);
-    signal m02_awburst : std_logic_vector(1 downto 0);
-    signal m02_awlock :  std_logic_vector(1 downto 0);
-    signal m02_awcache :  std_logic_vector(3 downto 0);
-    signal m02_awprot :  std_logic_vector(2 downto 0);
-    signal m02_awqos :  std_logic_vector(3 downto 0);
-    signal m02_awregion :  std_logic_vector(3 downto 0);
-    signal m02_wvalid :  std_logic;
-    signal m02_wready :  std_logic;
-    signal m02_wdata :  std_logic_vector(511 downto 0);
-    signal m02_wstrb :  std_logic_vector(63 downto 0);
-    signal m02_wlast :  std_logic;
-    signal m02_bvalid : std_logic;
-    signal m02_bready :  std_logic;
-    signal m02_bresp :  std_logic_vector(1 downto 0);
-    signal m02_bid :  std_logic_vector(0 downto 0);
-    signal m02_arvalid :  std_logic;
-    signal m02_arready :  std_logic;
-    signal m02_araddr :  std_logic_vector(63 downto 0);
-    signal m02_arid :  std_logic_vector(0 downto 0);
-    signal m02_arlen :  std_logic_vector(7 downto 0);
-    signal m02_arsize :  std_logic_vector(2 downto 0);
-    signal m02_arburst : std_logic_vector(1 downto 0);
-    signal m02_arlock :  std_logic_vector(1 downto 0);
-    signal m02_arcache :  std_logic_vector(3 downto 0);
-    signal m02_arprot :  std_logic_Vector(2 downto 0);
-    signal m02_arqos :  std_logic_vector(3 downto 0);
-    signal m02_arregion :  std_logic_vector(3 downto 0);
-    signal m02_rvalid :  std_logic;
-    signal m02_rready :  std_logic;
-    signal m02_rdata :  std_logic_vector(511 downto 0);
-    signal m02_rlast :  std_logic;
-    signal m02_rid :  std_logic_vector(0 downto 0);
-    signal m02_rresp :  std_logic_vector(1 downto 0);
-
-    signal m03_awvalid : std_logic;
-    signal m03_awready : std_logic;
-    signal m03_awaddr : std_logic_vector(63 downto 0);
-    signal m03_awid : std_logic_vector(0 downto 0);
-    signal m03_awlen : std_logic_vector(7 downto 0);
-    signal m03_awsize : std_logic_vector(2 downto 0);
-    signal m03_awburst : std_logic_vector(1 downto 0);
-    signal m03_awlock :  std_logic_vector(1 downto 0);
-    signal m03_awcache :  std_logic_vector(3 downto 0);
-    signal m03_awprot :  std_logic_vector(2 downto 0);
-    signal m03_awqos :  std_logic_vector(3 downto 0);
-    signal m03_awregion :  std_logic_vector(3 downto 0);
-    signal m03_wvalid :  std_logic;
-    signal m03_wready :  std_logic;
-    signal m03_wdata :  std_logic_vector(511 downto 0);
-    signal m03_wstrb :  std_logic_vector(63 downto 0);
-    signal m03_wlast :  std_logic;
-    signal m03_bvalid : std_logic;
-    signal m03_bready :  std_logic;
-    signal m03_bresp :  std_logic_vector(1 downto 0);
-    signal m03_bid :  std_logic_vector(0 downto 0);
-    signal m03_arvalid :  std_logic;
-    signal m03_arready :  std_logic;
-    signal m03_araddr :  std_logic_vector(63 downto 0);
-    signal m03_arid :  std_logic_vector(0 downto 0);
-    signal m03_arlen :  std_logic_vector(7 downto 0);
-    signal m03_arsize :  std_logic_vector(2 downto 0);
-    signal m03_arburst : std_logic_vector(1 downto 0);
-    signal m03_arlock :  std_logic_vector(1 downto 0);
-    signal m03_arcache :  std_logic_vector(3 downto 0);
-    signal m03_arprot :  std_logic_Vector(2 downto 0);
-    signal m03_arqos :  std_logic_vector(3 downto 0);
-    signal m03_arregion :  std_logic_vector(3 downto 0);
-    signal m03_rvalid :  std_logic;
-    signal m03_rready :  std_logic;
-    signal m03_rdata :  std_logic_vector(511 downto 0);
-    signal m03_rlast :  std_logic;
-    signal m03_rid :  std_logic_vector(0 downto 0);
-    signal m03_rresp :  std_logic_vector(1 downto 0);
+    constant g_HBM_INTERFACES : integer := 5;
+    signal HBM_axi_awvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awaddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
+    signal HBM_axi_awid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+    signal HBM_axi_awlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(7 downto 0);
+    signal HBM_axi_awsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
+    signal HBM_axi_awburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
+    signal HBM_axi_awlock   : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
+    signal HBM_axi_awcache  : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+    signal HBM_axi_awprot   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
+    signal HBM_axi_awqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- out std_logic_vector(3 downto 0);
+    signal HBM_axi_awregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+    signal HBM_axi_wvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+    signal HBM_axi_wstrb    : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
+    signal HBM_axi_wlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_bvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_bready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_bresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    signal HBM_axi_bid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+    signal HBM_axi_arvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_araddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
+    signal HBM_axi_arid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
+    signal HBM_axi_arlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(7 downto 0);
+    signal HBM_axi_arsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(2 downto 0);
+    signal HBM_axi_arburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    signal HBM_axi_arlock   : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    signal HBM_axi_arcache  : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+    signal HBM_axi_arprot   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_Vector(2 downto 0);
+    signal HBM_axi_arqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+    signal HBM_axi_arregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+    signal HBM_axi_rvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_rready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_rdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+    signal HBM_axi_rlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_rid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+    signal HBM_axi_rresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
 
     signal eth100_rx_sosi : t_lbus_sosi;
     signal eth100_tx_sosi : t_lbus_sosi;
@@ -658,27 +570,24 @@ begin
         g_SIMULATION => TRUE, -- BOOLEAN;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
         g_USE_META => FALSE,   -- BOOLEAN;  -- puts meta data in place of the filterbank data in the corner turn, to help debug the corner turn.
         -- GLOBAL GENERICS for PERENTIE LOGIC
-        g_DEBUG_ILA              => FALSE, --  BOOLEAN
-        g_LFAA_BLOCKS_PER_FRAME  => 32,    --  allowed values are 32, 64 or 128. 32 and 64 are for simulation. For real system, use 128.
-        
-        
-        C_S_AXI_CONTROL_ADDR_WIDTH   => 8,  -- integer := 7;
-        C_S_AXI_CONTROL_DATA_WIDTH   => 32, -- integer := 32;
-        C_M_AXI_ADDR_WIDTH => 64,         -- integer := 64;
-        C_M_AXI_DATA_WIDTH => 32,         -- integer := 32;
+        g_DEBUG_ILA                => FALSE, --  BOOLEAN
+        g_LFAA_BLOCKS_PER_FRAME    => 128,   --  allowed values are 32, 64 or 128. 32 and 64 are for simulation. For real system, use 128.
+        C_S_AXI_CONTROL_ADDR_WIDTH => 8,   -- integer := 7;
+        C_S_AXI_CONTROL_DATA_WIDTH => 32,  -- integer := 32;
+        C_M_AXI_ADDR_WIDTH => 64,          -- integer := 64;
+        C_M_AXI_DATA_WIDTH => 32,          -- integer := 32;
         C_M_AXI_ID_WIDTH => 1,             -- integer := 1
-        -- M01 = first stage corner turn, between LFAA ingest and the filterbanks
-        M01_AXI_ADDR_WIDTH => 64,
-        M01_AXI_DATA_WIDTH => 512,
-        M01_AXI_ID_WIDTH   => 1,
-        -- M02 = Correlator HBM; buffer between the filterbanks and the correlator
-        M02_AXI_ADDR_WIDTH => 64,
-        M02_AXI_DATA_WIDTH => 512, 
-        M02_AXI_ID_WIDTH   => 1,
-        -- M03 = Visibilities
-        M03_AXI_ADDR_WIDTH => 64, 
-        M03_AXI_DATA_WIDTH => 512,  
-        M03_AXI_ID_WIDTH   => 1
+        -- All the HBM interfaces are the same width;
+        -- Actual interfaces used are : 
+        --  M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
+        --  M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
+        --  M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
+        --  M04, 512 Mbytes HBM; visibilities from first correlator instance
+        --  M05, 512 Mbytes HBM; visibilities from second correlator instance
+        g_HBM_INTERFACES     => g_HBM_INTERFACES,   -- integer := 5;
+        g_HBM_AXI_ADDR_WIDTH => 64,  -- integer := 64;
+        g_HBM_AXI_DATA_WIDTH => 512, -- integer := 512;
+        g_HBM_AXI_ID_WIDTH   => 1    -- integer := 1
     ) port map (
         ap_clk   => ap_clk, --  in std_logic;
         ap_rst_n => ap_rst_n, -- in std_logic;
@@ -775,131 +684,54 @@ begin
         m00_axi_rid      => "0", -- s_axi_rid,      -- in std_logic_vector(C_M_AXI_ID_WIDTH - 1 downto 0);
         m00_axi_rresp    => m00_rresp,    -- in std_logic_vector(1 downto 0);
 
-
         ---------------------------------------------------------------------------------------
-        -- AXI4 master interface for accessing HBM for the LFAA ingest corner turn : m01_axi
-        m01_axi_awvalid => m01_awvalid,   -- out std_logic;
-        m01_axi_awready => m01_awready,   -- in std_logic;
-        m01_axi_awaddr  => m01_awaddr,    -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        m01_axi_awid    => m01_awid,      -- out std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m01_axi_awlen   => m01_awlen,     -- out std_logic_vector(7 downto 0);
-        m01_axi_awsize  => m01_awsize,    -- out std_logic_vector(2 downto 0);
-        m01_axi_awburst => m01_awburst,   -- out std_logic_vector(1 downto 0);
-        m01_axi_awlock  => m01_awlock,    -- out std_logic_vector(1 downto 0);
-        m01_axi_awcache => m01_awcache,   -- out std_logic_vector(3 downto 0);
-        m01_axi_awprot  => m01_awprot,    -- out std_logic_vector(2 downto 0);
-        m01_axi_awqos    => m01_awqos,    -- out std_logic_vector(3 downto 0);
-        m01_axi_awregion => m01_awregion, -- out std_logic_vector(3 downto 0);
-        m01_axi_wvalid   => m01_wvalid,   -- out std_logic;
-        m01_axi_wready   => m01_wready,   -- in std_logic;
-        m01_axi_wdata    => m01_wdata,    -- out std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        m01_axi_wstrb    => m01_wstrb,    -- out std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
-        m01_axi_wlast    => m01_wlast,    -- out std_logic;
-        m01_axi_bvalid   => m01_bvalid,   -- in std_logic;
-        m01_axi_bready   => m01_bready,   -- out std_logic;
-        m01_axi_bresp    => m01_bresp,    -- in std_logic_vector(1 downto 0);
-        m01_axi_bid      => m01_bid,      -- in std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m01_axi_arvalid  => m01_arvalid,  -- out std_logic;
-        m01_axi_arready  => m01_arready,  -- in std_logic;
-        m01_axi_araddr   => m01_araddr,   -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        m01_axi_arid     => m01_arid,     -- out std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
-        m01_axi_arlen    => m01_arlen,    -- out std_logic_vector(7 downto 0);
-        m01_axi_arsize   => m01_arsize,   -- out std_logic_vector(2 downto 0);
-        m01_axi_arburst  => m01_arburst,  -- out std_logic_vector(1 downto 0);
-        m01_axi_arlock   => m01_arlock,   -- out std_logic_vector(1 downto 0);
-        m01_axi_arcache  => m01_arcache,  -- out std_logic_vector(3 downto 0);
-        m01_axi_arprot   => m01_arprot,   -- out std_logic_Vector(2 downto 0);
-        m01_axi_arqos    => m01_arqos,    -- out std_logic_vector(3 downto 0);
-        m01_axi_arregion => m01_arregion, -- out std_logic_vector(3 downto 0);
-        m01_axi_rvalid   => m01_rvalid,   -- in std_logic;
-        m01_axi_rready   => m01_rready,   -- out std_logic;
-        m01_axi_rdata    => m01_rdata,    -- in std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        m01_axi_rlast    => m01_rlast,    -- in std_logic;
-        m01_axi_rid      => m01_rid,      -- in std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m01_axi_rresp    => m01_rresp,    -- in std_logic_vector(1 downto 0);
-        ---------------------------------------------------------------------------------------
-        -- AXI4 master interface for accessing HBM for the Filterbank corner turn : m02_axi
-        m02_axi_awvalid => m02_awvalid,   -- out std_logic;
-        m02_axi_awready => m02_awready,   -- in std_logic;
-        m02_axi_awaddr  => m02_awaddr,    -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        m02_axi_awid    => m02_awid,      -- out std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m02_axi_awlen   => m02_awlen,     -- out std_logic_vector(7 downto 0);
-        m02_axi_awsize  => m02_awsize,    -- out std_logic_vector(2 downto 0);
-        m02_axi_awburst => m02_awburst,   -- out std_logic_vector(1 downto 0);
-        m02_axi_awlock  => m02_awlock,    -- out std_logic_vector(1 downto 0);
-        m02_axi_awcache => m02_awcache,   -- out std_logic_vector(3 downto 0);
-        m02_axi_awprot  => m02_awprot,    -- out std_logic_vector(2 downto 0);
-        m02_axi_awqos    => m02_awqos,    -- out std_logic_vector(3 downto 0);
-        m02_axi_awregion => m02_awregion, -- out std_logic_vector(3 downto 0);
-        m02_axi_wvalid   => m02_wvalid,   -- out std_logic;
-        m02_axi_wready   => m02_wready,   -- in std_logic;
-        m02_axi_wdata    => m02_wdata,    -- out std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        m02_axi_wstrb    => m02_wstrb,    -- out std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
-        m02_axi_wlast    => m02_wlast,    -- out std_logic;
-        m02_axi_bvalid   => m02_bvalid,   -- in std_logic;
-        m02_axi_bready   => m02_bready,   -- out std_logic;
-        m02_axi_bresp    => m02_bresp,    -- in std_logic_vector(1 downto 0);
-        m02_axi_bid      => m02_bid,      -- in std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m02_axi_arvalid  => m02_arvalid,  -- out std_logic;
-        m02_axi_arready  => m02_arready,  -- in std_logic;
-        m02_axi_araddr   => m02_araddr,   -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        m02_axi_arid     => m02_arid,     -- out std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
-        m02_axi_arlen    => m02_arlen,    -- out std_logic_vector(7 downto 0);
-        m02_axi_arsize   => m02_arsize,   -- out std_logic_vector(2 downto 0);
-        m02_axi_arburst  => m02_arburst,  -- out std_logic_vector(1 downto 0);
-        m02_axi_arlock   => m02_arlock,   -- out std_logic_vector(1 downto 0);
-        m02_axi_arcache  => m02_arcache,  -- out std_logic_vector(3 downto 0);
-        m02_axi_arprot   => m02_arprot,   -- out std_logic_Vector(2 downto 0);
-        m02_axi_arqos    => m02_arqos,    -- out std_logic_vector(3 downto 0);
-        m02_axi_arregion => m02_arregion, -- out std_logic_vector(3 downto 0);
-        m02_axi_rvalid   => m02_rvalid,   -- in std_logic;
-        m02_axi_rready   => m02_rready,   -- out std_logic;
-        m02_axi_rdata    => m02_rdata,    -- in std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        m02_axi_rlast    => m02_rlast,    -- in std_logic;
-        m02_axi_rid      => m02_rid,      -- in std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m02_axi_rresp    => m02_rresp,    -- in std_logic_vector(1 downto 0);
-        
-        --
-        m03_axi_awvalid => m03_awvalid,   -- out std_logic;
-        m03_axi_awready => m03_awready,   -- in std_logic;
-        m03_axi_awaddr  => m03_awaddr,    -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        m03_axi_awid    => m03_awid,      -- out std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m03_axi_awlen   => m03_awlen,     -- out std_logic_vector(7 downto 0);
-        m03_axi_awsize  => m03_awsize,    -- out std_logic_vector(2 downto 0);
-        m03_axi_awburst => m03_awburst,   -- out std_logic_vector(1 downto 0);
-        m03_axi_awlock  => m03_awlock,    -- out std_logic_vector(1 downto 0);
-        m03_axi_awcache => m03_awcache,   -- out std_logic_vector(3 downto 0);
-        m03_axi_awprot  => m03_awprot,    -- out std_logic_vector(2 downto 0);
-        m03_axi_awqos    => m03_awqos,    -- out std_logic_vector(3 downto 0);
-        m03_axi_awregion => m03_awregion, -- out std_logic_vector(3 downto 0);
-        m03_axi_wvalid   => m03_wvalid,   -- out std_logic;
-        m03_axi_wready   => m03_wready,   -- in std_logic;
-        m03_axi_wdata    => m03_wdata,    -- out std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        m03_axi_wstrb    => m03_wstrb,    -- out std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
-        m03_axi_wlast    => m03_wlast,    -- out std_logic;
-        m03_axi_bvalid   => m03_bvalid,   -- in std_logic;
-        m03_axi_bready   => m03_bready,   -- out std_logic;
-        m03_axi_bresp    => m03_bresp,    -- in std_logic_vector(1 downto 0);
-        m03_axi_bid      => m03_bid,      -- in std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m03_axi_arvalid  => m03_arvalid,  -- out std_logic;
-        m03_axi_arready  => m03_arready,  -- in std_logic;
-        m03_axi_araddr   => m03_araddr,   -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        m03_axi_arid     => m03_arid,     -- out std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
-        m03_axi_arlen    => m03_arlen,    -- out std_logic_vector(7 downto 0);
-        m03_axi_arsize   => m03_arsize,   -- out std_logic_vector(2 downto 0);
-        m03_axi_arburst  => m03_arburst,  -- out std_logic_vector(1 downto 0);
-        m03_axi_arlock   => m03_arlock,   -- out std_logic_vector(1 downto 0);
-        m03_axi_arcache  => m03_arcache,  -- out std_logic_vector(3 downto 0);
-        m03_axi_arprot   => m03_arprot,   -- out std_logic_Vector(2 downto 0);
-        m03_axi_arqos    => m03_arqos,    -- out std_logic_vector(3 downto 0);
-        m03_axi_arregion => m03_arregion, -- out std_logic_vector(3 downto 0);
-        m03_axi_rvalid   => m03_rvalid,   -- in std_logic;
-        m03_axi_rready   => m03_rready,   -- out std_logic;
-        m03_axi_rdata    => m03_rdata,    -- in std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        m03_axi_rlast    => m03_rlast,    -- in std_logic;
-        m03_axi_rid      => m03_rid,      -- in std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        m03_axi_rresp    => m03_rresp,    -- in std_logic_vector(1 downto 0);
-        
+        -- AXI4 interfaces for accessing HBM
+        -- 0 = 3 Gbytes for LFAA ingest corner turn 
+        -- 1 = 3 Gbytes, buffer between the filterbanks and the correlator
+        --     First half, for fine channels that go to the first correlator instance.
+        -- 2 = 3 Gbytes, buffer between the filterbanks and the correlator
+        --     second half, for fine channels that go to the second correlator instance.
+        -- 3 = 0.5 Gbytes, Visibilities from First correlator instance;
+        -- 4 = 0.5 Gbytes, Visibilities from Second correlator instance;
+        HBM_axi_awvalid  => HBM_axi_awvalid, -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awready  => HBM_axi_awready, -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awaddr   => HBM_axi_awaddr,  -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
+        HBM_axi_awid     => HBM_axi_awid,    -- out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+        HBM_axi_awlen    => HBM_axi_awlen,   -- out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(7 downto 0);
+        HBM_axi_awsize   => HBM_axi_awsize,  -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
+        HBM_axi_awburst  => HBM_axi_awburst, -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
+        HBM_axi_awlock   => HBM_axi_awlock,  -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
+        HBM_axi_awcache  => HBM_axi_awcache, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+        HBM_axi_awprot   => HBM_axi_awprot,  -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
+        HBM_axi_awqos    => HBM_axi_awqos,   -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- out std_logic_vector(3 downto 0);
+        HBM_axi_awregion => HBM_axi_awregion, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+        HBM_axi_wvalid   => HBM_axi_wvalid,   -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_wready   => HBM_axi_wready,   -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_wdata    => HBM_axi_wdata,    -- out t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+        HBM_axi_wstrb    => HBM_axi_wstrb,    -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
+        HBM_axi_wlast    => HBM_axi_wlast,    -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_bvalid   => HBM_axi_bvalid,   -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_bready   => HBM_axi_bready,   -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_bresp    => HBM_axi_bresp,    -- in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+        HBM_axi_bid      => HBM_axi_bid,      -- in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+        HBM_axi_arvalid  => HBM_axi_arvalid,  -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arready  => HBM_axi_arready,  -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_araddr   => HBM_axi_araddr,   -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
+        HBM_axi_arid     => HBM_axi_arid,     -- out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
+        HBM_axi_arlen    => HBM_axi_arlen,    -- out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(7 downto 0);
+        HBM_axi_arsize   => HBM_axi_arsize,   -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(2 downto 0);
+        HBM_axi_arburst  => HBM_axi_arburst,  -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+        HBM_axi_arlock   => HBM_axi_arlock,   -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+        HBM_axi_arcache  => HBM_axi_arcache,  -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+        HBM_axi_arprot   => HBM_axi_arprot,   -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_Vector(2 downto 0);
+        HBM_axi_arqos    => HBM_axi_arqos,    -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+        HBM_axi_arregion => HBM_axi_arregion, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+        HBM_axi_rvalid   => HBM_axi_rvalid,   -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_rready   => HBM_axi_rready,   -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_rdata    => HBM_axi_rdata,    -- in t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+        HBM_axi_rlast    => HBM_axi_rlast,    -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_rid      => HBM_axi_rid,      -- in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+        HBM_axi_rresp    => HBM_axi_rresp,    -- in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
         --
         -- GT pins
         -- clk_gt_freerun is a 50MHz free running clock, according to the GT kernel Example Design user guide.
@@ -912,11 +744,11 @@ begin
         gt_refclk_p    => '0', -- in std_logic;
         gt_refclk_n    => '1'  -- in std_logic
     );
-
-
+    
+    
     -- Emulate HBM
     -- 3 Gbyte of memory for the first corner turn.
-    HBM1G_1 : entity correlator_lib.HBM_axi_tbModel
+    HBM3G_1 : entity correlator_lib.HBM_axi_tbModel
     generic map (
         AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
         AXI_ID_WIDTH => 1, -- integer := 1;
@@ -930,50 +762,57 @@ begin
     ) Port map (
         i_clk => ap_clk,
         i_rst_n => ap_rst_n,
-        axi_awaddr => m01_awaddr(31 downto 0),
-        axi_awid   =>  m01_awid, -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_awlen => m01_awlen,
-        axi_awsize => m01_awsize,
-        axi_awburst => m01_awburst,
-        axi_awlock => m01_awlock,
-        axi_awcache => m01_awcache,
-        axi_awprot => m01_awprot,
-        axi_awqos  => m01_awqos, -- in(3:0)
-        axi_awregion => m01_awregion, -- in(3:0)
-        axi_awvalid => m01_awvalid,
-        axi_awready => m01_awready,
-        axi_wdata => m01_wdata,
-        axi_wstrb => m01_wstrb,
-        axi_wlast => m01_wlast,
-        axi_wvalid => m01_wvalid,
-        axi_wready => m01_wready,
-        axi_bresp => m01_bresp,
-        axi_bvalid => m01_bvalid,
-        axi_bready => m01_bready,
-        axi_bid => m01_bid, -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_araddr => m01_araddr(31 downto 0),
-        axi_arlen => m01_arlen,
-        axi_arsize => m01_arsize,
-        axi_arburst => m01_arburst,
-        axi_arlock => m01_arlock,
-        axi_arcache => m01_arcache,
-        axi_arprot => m01_arprot,
-        axi_arvalid => m01_arvalid,
-        axi_arready => m01_arready,
-        axi_arqos => m01_arqos,
-        axi_arid  => m01_arid,
-        axi_arregion => m01_arregion,
-        axi_rdata => m01_rdata,
-        axi_rresp => m01_rresp,
-        axi_rlast => m01_rlast,
-        axi_rvalid => m01_rvalid,
-        axi_rready => m01_rready
+        axi_awaddr   => HBM_axi_awaddr(0)(31 downto 0),
+        axi_awid     => HBM_axi_awid(0), -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_awlen    => HBM_axi_awlen(0),
+        axi_awsize   => HBM_axi_awsize(0),
+        axi_awburst  => HBM_axi_awburst(0),
+        axi_awlock   => HBM_axi_awlock(0),
+        axi_awcache  => HBM_axi_awcache(0),
+        axi_awprot   => HBM_axi_awprot(0),
+        axi_awqos    => HBM_axi_awqos(0), -- in(3:0)
+        axi_awregion => HBM_axi_awregion(0), -- in(3:0)
+        axi_awvalid  => HBM_axi_awvalid(0),
+        axi_awready  => HBM_axi_awready(0),
+        axi_wdata    => HBM_axi_wdata(0),
+        axi_wstrb    => HBM_axi_wstrb(0),
+        axi_wlast    => HBM_axi_wlast(0),
+        axi_wvalid   => HBM_axi_wvalid(0),
+        axi_wready   => HBM_axi_wready(0),
+        axi_bresp    => HBM_axi_bresp(0),
+        axi_bvalid   => HBM_axi_bvalid(0),
+        axi_bready   => HBM_axi_bready(0),
+        axi_bid      => HBM_axi_bid(0), -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_araddr   => HBM_axi_araddr(0)(31 downto 0),
+        axi_arlen    => HBM_axi_arlen(0),
+        axi_arsize   => HBM_axi_arsize(0),
+        axi_arburst  => HBM_axi_arburst(0),
+        axi_arlock   => HBM_axi_arlock(0),
+        axi_arcache  => HBM_axi_arcache(0),
+        axi_arprot   => HBM_axi_arprot(0),
+        axi_arvalid  => HBM_axi_arvalid(0),
+        axi_arready  => HBM_axi_arready(0),
+        axi_arqos    => HBM_axi_arqos(0),
+        axi_arid     => HBM_axi_arid(0),
+        axi_arregion => HBM_axi_arregion(0),
+        axi_rdata    => HBM_axi_rdata(0),
+        axi_rresp    => HBM_axi_rresp(0),
+        axi_rlast    => HBM_axi_rlast(0),
+        axi_rvalid   => HBM_axi_rvalid(0),
+        axi_rready   => HBM_axi_rready(0),
+        i_write_to_disk => '0', -- : in std_logic;
+        i_fname => "", -- : in string
+        i_write_to_disk_addr => 0, -- in integer; -- address to start the memory dump at.
+        i_write_to_disk_size => 0, -- in integer; -- size in bytes
+        -- Initialisation of the memory
+        i_init_mem   => '0',   -- in std_logic;
+        i_init_fname => ""  -- in string
     );
-
-    -- 6 GBytes second stage corner turn.
-    HBM6G : entity correlator_lib.HBM_axi_tbModel
+    
+    -- 3 GBytes second stage corner turn, first correlator cell
+    HBM3G_2 : entity correlator_lib.HBM_axi_tbModel
     generic map (
-        AXI_ADDR_WIDTH => 33, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
+        AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
         AXI_ID_WIDTH => 1, -- integer := 1;
         AXI_DATA_WIDTH => 512, -- integer := 256;  -- Must be a multiple of 32 bits.
         READ_QUEUE_SIZE => 16, --  integer := 16;
@@ -985,50 +824,57 @@ begin
     ) Port map (
         i_clk => ap_clk,
         i_rst_n => ap_rst_n,
-        axi_awaddr  => m02_awaddr(32 downto 0),
-        axi_awid    => m02_awid, -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_awlen   => m02_awlen,
-        axi_awsize  => m02_awsize,
-        axi_awburst => m02_awburst,
-        axi_awlock  => m02_awlock,
-        axi_awcache => m02_awcache,
-        axi_awprot  => m02_awprot,
-        axi_awqos   => m02_awqos, -- in(3:0)
-        axi_awregion => m02_awregion, -- in(3:0)
-        axi_awvalid  => m02_awvalid,
-        axi_awready  => m02_awready,
-        axi_wdata    => m02_wdata,
-        axi_wstrb    => m02_wstrb,
-        axi_wlast    => m02_wlast,
-        axi_wvalid   => m02_wvalid,
-        axi_wready   => m02_wready,
-        axi_bresp    => m02_bresp,
-        axi_bvalid   => m02_bvalid,
-        axi_bready   => m02_bready,
-        axi_bid      => m02_bid, -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_araddr   => m02_araddr(32 downto 0),
-        axi_arlen    => m02_arlen,
-        axi_arsize   => m02_arsize,
-        axi_arburst  => m02_arburst,
-        axi_arlock   => m02_arlock,
-        axi_arcache  => m02_arcache,
-        axi_arprot   => m02_arprot,
-        axi_arvalid  => m02_arvalid,
-        axi_arready  => m02_arready,
-        axi_arqos    => m02_arqos,
-        axi_arid     => m02_arid,
-        axi_arregion => m02_arregion,
-        axi_rdata    => m02_rdata,
-        axi_rresp    => m02_rresp,
-        axi_rlast    => m02_rlast,
-        axi_rvalid   => m02_rvalid,
-        axi_rready   => m02_rready
+        axi_awaddr   => HBM_axi_awaddr(1)(31 downto 0),
+        axi_awid     => HBM_axi_awid(1), -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_awlen    => HBM_axi_awlen(1),
+        axi_awsize   => HBM_axi_awsize(1),
+        axi_awburst  => HBM_axi_awburst(1),
+        axi_awlock   => HBM_axi_awlock(1),
+        axi_awcache  => HBM_axi_awcache(1),
+        axi_awprot   => HBM_axi_awprot(1),
+        axi_awqos    => HBM_axi_awqos(1), -- in(3:0)
+        axi_awregion => HBM_axi_awregion(1), -- in(3:0)
+        axi_awvalid  => HBM_axi_awvalid(1),
+        axi_awready  => HBM_axi_awready(1),
+        axi_wdata    => HBM_axi_wdata(1),
+        axi_wstrb    => HBM_axi_wstrb(1),
+        axi_wlast    => HBM_axi_wlast(1),
+        axi_wvalid   => HBM_axi_wvalid(1),
+        axi_wready   => HBM_axi_wready(1),
+        axi_bresp    => HBM_axi_bresp(1),
+        axi_bvalid   => HBM_axi_bvalid(1),
+        axi_bready   => HBM_axi_bready(1),
+        axi_bid      => HBM_axi_bid(1), -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_araddr   => HBM_axi_araddr(1)(31 downto 0),
+        axi_arlen    => HBM_axi_arlen(1),
+        axi_arsize   => HBM_axi_arsize(1),
+        axi_arburst  => HBM_axi_arburst(1),
+        axi_arlock   => HBM_axi_arlock(1),
+        axi_arcache  => HBM_axi_arcache(1),
+        axi_arprot   => HBM_axi_arprot(1),
+        axi_arvalid  => HBM_axi_arvalid(1),
+        axi_arready  => HBM_axi_arready(1),
+        axi_arqos    => HBM_axi_arqos(1),
+        axi_arid     => HBM_axi_arid(1),
+        axi_arregion => HBM_axi_arregion(1),
+        axi_rdata    => HBM_axi_rdata(1),
+        axi_rresp    => HBM_axi_rresp(1),
+        axi_rlast    => HBM_axi_rlast(1),
+        axi_rvalid   => HBM_axi_rvalid(1),
+        axi_rready   => HBM_axi_rready(1),
+        i_write_to_disk => '0', -- : in std_logic;
+        i_fname         => "", -- : in string
+        i_write_to_disk_addr => 0, -- : in integer; -- address to start the memory dump at.
+        i_write_to_disk_size => 0, -- : in integer; -- size in bytes
+        -- Initialisation of the memory
+        i_init_mem   => '0',   -- in std_logic;
+        i_init_fname => ""  -- in string
     );
- 
-    -- 512 MByte visibilities buffer
-    HBM512M : entity correlator_lib.HBM_axi_tbModel
+    
+    -- 3 GBytes second stage corner turn, second correlator cell
+    HBM3G_3 : entity correlator_lib.HBM_axi_tbModel
     generic map (
-        AXI_ADDR_WIDTH => 29, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
+        AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
         AXI_ID_WIDTH => 1, -- integer := 1;
         AXI_DATA_WIDTH => 512, -- integer := 256;  -- Must be a multiple of 32 bits.
         READ_QUEUE_SIZE => 16, --  integer := 16;
@@ -1040,44 +886,177 @@ begin
     ) Port map (
         i_clk => ap_clk,
         i_rst_n => ap_rst_n,
-        axi_awaddr  => m03_awaddr(28 downto 0),
-        axi_awid    => m03_awid, -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_awlen   => m03_awlen,
-        axi_awsize  => m03_awsize,
-        axi_awburst => m03_awburst,
-        axi_awlock  => m03_awlock,
-        axi_awcache => m03_awcache,
-        axi_awprot  => m03_awprot,
-        axi_awqos   => m03_awqos, -- in(3:0)
-        axi_awregion => m03_awregion, -- in(3:0)
-        axi_awvalid  => m03_awvalid,
-        axi_awready  => m03_awready,
-        axi_wdata    => m03_wdata,
-        axi_wstrb    => m03_wstrb,
-        axi_wlast    => m03_wlast,
-        axi_wvalid   => m03_wvalid,
-        axi_wready   => m03_wready,
-        axi_bresp    => m03_bresp,
-        axi_bvalid   => m03_bvalid,
-        axi_bready   => m03_bready,
-        axi_bid      => m03_bid, -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_araddr   => m03_araddr(28 downto 0),
-        axi_arlen    => m03_arlen,
-        axi_arsize   => m03_arsize,
-        axi_arburst  => m03_arburst,
-        axi_arlock   => m03_arlock,
-        axi_arcache  => m03_arcache,
-        axi_arprot   => m03_arprot,
-        axi_arvalid  => m03_arvalid,
-        axi_arready  => m03_arready,
-        axi_arqos    => m03_arqos,
-        axi_arid     => m03_arid,
-        axi_arregion => m03_arregion,
-        axi_rdata    => m03_rdata,
-        axi_rresp    => m03_rresp,
-        axi_rlast    => m03_rlast,
-        axi_rvalid   => m03_rvalid,
-        axi_rready   => m03_rready
+        axi_awaddr   => HBM_axi_awaddr(2)(31 downto 0),
+        axi_awid     => HBM_axi_awid(2), -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_awlen    => HBM_axi_awlen(2),
+        axi_awsize   => HBM_axi_awsize(2),
+        axi_awburst  => HBM_axi_awburst(2),
+        axi_awlock   => HBM_axi_awlock(2),
+        axi_awcache  => HBM_axi_awcache(2),
+        axi_awprot   => HBM_axi_awprot(2),
+        axi_awqos    => HBM_axi_awqos(2), -- in(3:0)
+        axi_awregion => HBM_axi_awregion(2), -- in(3:0)
+        axi_awvalid  => HBM_axi_awvalid(2),
+        axi_awready  => HBM_axi_awready(2),
+        axi_wdata    => HBM_axi_wdata(2),
+        axi_wstrb    => HBM_axi_wstrb(2),
+        axi_wlast    => HBM_axi_wlast(2),
+        axi_wvalid   => HBM_axi_wvalid(2),
+        axi_wready   => HBM_axi_wready(2),
+        axi_bresp    => HBM_axi_bresp(2),
+        axi_bvalid   => HBM_axi_bvalid(2),
+        axi_bready   => HBM_axi_bready(2),
+        axi_bid      => HBM_axi_bid(2), -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_araddr   => HBM_axi_araddr(2)(31 downto 0),
+        axi_arlen    => HBM_axi_arlen(2),
+        axi_arsize   => HBM_axi_arsize(2),
+        axi_arburst  => HBM_axi_arburst(2),
+        axi_arlock   => HBM_axi_arlock(2),
+        axi_arcache  => HBM_axi_arcache(2),
+        axi_arprot   => HBM_axi_arprot(2),
+        axi_arvalid  => HBM_axi_arvalid(2),
+        axi_arready  => HBM_axi_arready(2),
+        axi_arqos    => HBM_axi_arqos(2),
+        axi_arid     => HBM_axi_arid(2),
+        axi_arregion => HBM_axi_arregion(2),
+        axi_rdata    => HBM_axi_rdata(2),
+        axi_rresp    => HBM_axi_rresp(2),
+        axi_rlast    => HBM_axi_rlast(2),
+        axi_rvalid   => HBM_axi_rvalid(2),
+        axi_rready   => HBM_axi_rready(2),
+        i_write_to_disk => '0', -- : in std_logic;
+        i_fname => "", -- : in string
+        i_write_to_disk_addr => 0, --  in integer; -- address to start the memory dump at.
+        i_write_to_disk_size => 0, --  in integer; -- size in bytes
+        -- Initialisation of the memory
+        i_init_mem   => '0',   -- in std_logic;
+        i_init_fname => ""  -- in string
     );
-
+    
+    
+    -- 512 MBytes visibilities output buffer for first correlator cell.
+    HBM512M_1 : entity correlator_lib.HBM_axi_tbModel
+    generic map (
+        AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
+        AXI_ID_WIDTH => 1, -- integer := 1;
+        AXI_DATA_WIDTH => 512, -- integer := 256;  -- Must be a multiple of 32 bits.
+        READ_QUEUE_SIZE => 16, --  integer := 16;
+        MIN_LAG => 60,  -- integer := 80   
+        INCLUDE_PROTOCOL_CHECKER => TRUE,
+        RANDSEED => 43526, -- : natural := 12345;
+        LATENCY_LOW_PROBABILITY => 95, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+        LATENCY_ZERO_PROBABILITY => 80 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
+    ) Port map (
+        i_clk => ap_clk,
+        i_rst_n => ap_rst_n,
+        axi_awaddr   => HBM_axi_awaddr(3)(31 downto 0),
+        axi_awid     => HBM_axi_awid(3), -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_awlen    => HBM_axi_awlen(3),
+        axi_awsize   => HBM_axi_awsize(3),
+        axi_awburst  => HBM_axi_awburst(3),
+        axi_awlock   => HBM_axi_awlock(3),
+        axi_awcache  => HBM_axi_awcache(3),
+        axi_awprot   => HBM_axi_awprot(3),
+        axi_awqos    => HBM_axi_awqos(3), -- in(3:0)
+        axi_awregion => HBM_axi_awregion(3), -- in(3:0)
+        axi_awvalid  => HBM_axi_awvalid(3),
+        axi_awready  => HBM_axi_awready(3),
+        axi_wdata    => HBM_axi_wdata(3),
+        axi_wstrb    => HBM_axi_wstrb(3),
+        axi_wlast    => HBM_axi_wlast(3),
+        axi_wvalid   => HBM_axi_wvalid(3),
+        axi_wready   => HBM_axi_wready(3),
+        axi_bresp    => HBM_axi_bresp(3),
+        axi_bvalid   => HBM_axi_bvalid(3),
+        axi_bready   => HBM_axi_bready(3),
+        axi_bid      => HBM_axi_bid(3), -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_araddr   => HBM_axi_araddr(3)(31 downto 0),
+        axi_arlen    => HBM_axi_arlen(3),
+        axi_arsize   => HBM_axi_arsize(3),
+        axi_arburst  => HBM_axi_arburst(3),
+        axi_arlock   => HBM_axi_arlock(3),
+        axi_arcache  => HBM_axi_arcache(3),
+        axi_arprot   => HBM_axi_arprot(3),
+        axi_arvalid  => HBM_axi_arvalid(3),
+        axi_arready  => HBM_axi_arready(3),
+        axi_arqos    => HBM_axi_arqos(3),
+        axi_arid     => HBM_axi_arid(3),
+        axi_arregion => HBM_axi_arregion(3),
+        axi_rdata    => HBM_axi_rdata(3),
+        axi_rresp    => HBM_axi_rresp(3),
+        axi_rlast    => HBM_axi_rlast(3),
+        axi_rvalid   => HBM_axi_rvalid(3),
+        axi_rready   => HBM_axi_rready(3),
+        i_write_to_disk => '0', -- : in std_logic;
+        i_fname => "", -- : in string
+        i_write_to_disk_addr => 0, -- : in integer; -- address to start the memory dump at.
+        i_write_to_disk_size => 0, -- : in integer; -- size in bytes
+        -- Initialisation of the memory
+        i_init_mem   => '0',   -- in std_logic;
+        i_init_fname => ""  -- in string
+    );
+    
+    -- 512 MBytes visibilities output buffer for the second correlator cell.
+    HBM512M_2 : entity correlator_lib.HBM_axi_tbModel
+    generic map (
+        AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
+        AXI_ID_WIDTH => 1, -- integer := 1;
+        AXI_DATA_WIDTH => 512, -- integer := 256;  -- Must be a multiple of 32 bits.
+        READ_QUEUE_SIZE => 16, --  integer := 16;
+        MIN_LAG => 60,  -- integer := 80   
+        INCLUDE_PROTOCOL_CHECKER => TRUE,
+        RANDSEED => 43526, -- : natural := 12345;
+        LATENCY_LOW_PROBABILITY => 95, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+        LATENCY_ZERO_PROBABILITY => 80 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
+    ) Port map (
+        i_clk => ap_clk,
+        i_rst_n => ap_rst_n,
+        axi_awaddr   => HBM_axi_awaddr(4)(31 downto 0),
+        axi_awid     => HBM_axi_awid(4), -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_awlen    => HBM_axi_awlen(4),
+        axi_awsize   => HBM_axi_awsize(4),
+        axi_awburst  => HBM_axi_awburst(4),
+        axi_awlock   => HBM_axi_awlock(4),
+        axi_awcache  => HBM_axi_awcache(4),
+        axi_awprot   => HBM_axi_awprot(4),
+        axi_awqos    => HBM_axi_awqos(4), -- in(3:0)
+        axi_awregion => HBM_axi_awregion(4), -- in(3:0)
+        axi_awvalid  => HBM_axi_awvalid(4),
+        axi_awready  => HBM_axi_awready(4),
+        axi_wdata    => HBM_axi_wdata(4),
+        axi_wstrb    => HBM_axi_wstrb(4),
+        axi_wlast    => HBM_axi_wlast(4),
+        axi_wvalid   => HBM_axi_wvalid(4),
+        axi_wready   => HBM_axi_wready(4),
+        axi_bresp    => HBM_axi_bresp(4),
+        axi_bvalid   => HBM_axi_bvalid(4),
+        axi_bready   => HBM_axi_bready(4),
+        axi_bid      => HBM_axi_bid(4), -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_araddr   => HBM_axi_araddr(4)(31 downto 0),
+        axi_arlen    => HBM_axi_arlen(4),
+        axi_arsize   => HBM_axi_arsize(4),
+        axi_arburst  => HBM_axi_arburst(4),
+        axi_arlock   => HBM_axi_arlock(4),
+        axi_arcache  => HBM_axi_arcache(4),
+        axi_arprot   => HBM_axi_arprot(4),
+        axi_arvalid  => HBM_axi_arvalid(4),
+        axi_arready  => HBM_axi_arready(4),
+        axi_arqos    => HBM_axi_arqos(4),
+        axi_arid     => HBM_axi_arid(4),
+        axi_arregion => HBM_axi_arregion(4),
+        axi_rdata    => HBM_axi_rdata(4),
+        axi_rresp    => HBM_axi_rresp(4),
+        axi_rlast    => HBM_axi_rlast(4),
+        axi_rvalid   => HBM_axi_rvalid(4),
+        axi_rready   => HBM_axi_rready(4),
+        i_write_to_disk => '0', -- : in std_logic;
+        i_fname => "", -- : in string
+        i_write_to_disk_addr => 0, -- : in integer; -- address to start the memory dump at.
+        i_write_to_disk_size => 0, -- : in integer; -- size in bytes
+        -- Initialisation of the memory
+        i_init_mem   => '0',   -- in std_logic;
+        i_init_fname => ""  -- in string
+    );
+    
+    
 end Behavioral;

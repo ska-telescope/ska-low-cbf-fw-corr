@@ -54,7 +54,7 @@ entity FB_Top_correlator is
         i_DataValid : in std_logic;
                 
         -- Correlator filterbank data output
-        o_frameCount     : out std_logic_vector(36 downto 0); -- frame count is the same for all simultaneous output streams.
+        o_frameCount     : out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         o_virtualChannel : out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
         o_HeaderValid : out std_logic_vector(3 downto 0);
         o_Data        : out t_ctc_output_payload_arr(3 downto 0);

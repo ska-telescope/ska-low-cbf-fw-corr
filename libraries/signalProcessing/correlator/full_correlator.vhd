@@ -189,8 +189,8 @@ architecture Behavioral of full_correlator is
     signal rowRdAddrDel, colRdAddrDel : t_slv_11_arr(15 downto 0);
     
     type t_slv_17x17_arr32 is array(16 downto 0) of t_slv_32_arr(16 downto 0);
-    signal colDoutDel : t_slv_17x17_arr32;
-    signal rowDoutDel : t_slv_17x17_arr32;
+    signal colDataDel : t_slv_17x17_arr32;
+    signal rowDataDel : t_slv_17x17_arr32;
     
     type rd_fsm_type is (idle, running, done);
     signal rd_fsm, rd_fsm_del1, rd_fsm_del2, rd_fsm_Del3, rd_fsm_del4 : rd_fsm_type := idle;
@@ -202,9 +202,9 @@ architecture Behavioral of full_correlator is
     signal buf0_tiletotalChannels, buf1_tiletotalChannels : std_logic_vector(4 downto 0);
     
     signal cor_buf0_used, cor_buf1_used : std_logic;
-    signal cur_tileCount, tileDel1, tileDel2, tileDel3 : std_logic_Vector(9 downto 0);
+    signal cur_tileCount, tileDel1, tileDel2, tileDel3, tileDel4 : std_logic_Vector(9 downto 0);
     signal tileDel : t_slv_10_arr(21 downto 0);
-    signal cur_tileChannel, channelDel1, channelDel2, channelDel3 : std_logic_vector(11 downto 0);
+    signal cur_tileChannel, channelDel1, channelDel2, channelDel3, channelDel4 : std_logic_vector(11 downto 0);
     signal channelDel : t_slv_12_arr(21 downto 0);
     signal cur_rowStations_minus1 : std_logic_vector(8 downto 0);
     signal cur_colStations_minus1 : std_logic_Vector(8 downto 0);
@@ -215,9 +215,9 @@ architecture Behavioral of full_correlator is
     signal cur_totalTimes : std_logic_vector(7 downto 0);
     signal cur_totalChannels : std_logic_vector(4 downto 0);
     
-    signal RdTime, rdTimeDel1, rdTimeDel2, rdTimeDel3 : std_logic_vector(5 downto 0) := "000000";
+    signal RdTime, rdTimeDel1, rdTimeDel2, rdTimeDel3, rdTimeDel4 : std_logic_vector(5 downto 0) := "000000";
     signal tileTime, cur_tileTime, buf0_tileTime, buf1_tileTime : std_logic_vector(1 downto 0) := "00";
-    signal tileTimeDel1, tileTimeDel2, tileTimeDel3 : std_logic_vector(1 downto 0) := "00";
+    signal tileTimeDel1, tileTimeDel2, tileTimeDel3, tileTimeDel4 : std_logic_vector(1 downto 0) := "00";
     signal colRdVC, rowRdVC : std_logic_vector(3 downto 0) := "0000";
     
     type t_metaDel is array(16 downto 0) of t_cmac_input_bus_a(16 downto 0);
@@ -232,19 +232,21 @@ architecture Behavioral of full_correlator is
     signal cell_visOutput : t_slv_48_arr(15 downto 0);
     signal cell_centroidOutput : t_slv_24_arr(15 downto 0);
     signal buf0_tileFirst, buf0_tileFinal, buf1_tileFirst, buf1_tileFinal : std_logic;
-    signal tileFirstDel1, lastCellDel1, tileFirstDel2, lastCellDel2, tileFirstDel3, lastCellDel3 : std_logic;
-    signal tileFirstDel : std_logic_Vector(15 downto 0);
-    signal lastCellDel : std_logic_vector(15 downto 0);
-    signal cellCount, cellCountDel1, cellCountDel2, cellCountDel3 : std_logic_vector(7 downto 0);
-    signal cellDel : t_slv_8_arr(15 downto 0);   
-    signal cellStartDel1, cellStartDel2, cellStartDel3 : std_logic;
+    signal tileFirstDel1, lastCellDel1, tileFirstDel2, lastCellDel2, tileFirstDel3, lastCellDel3, tileFirstDel4, lastCellDel4 : std_logic;
+    signal tileFirstDel : std_logic_vector(21 downto 0);
+    signal lastCellDel : std_logic_vector(21 downto 0);
+    signal cellCount, cellCountDel1, cellCountDel2, cellCountDel3, cellCountDel4 : std_logic_vector(7 downto 0);
+    signal cellDel : t_slv_8_arr(21 downto 0);   
+    signal cellStartDel1, cellStartDel2, cellStartDel3, cellStartDel4 : std_logic;
     signal cellStartDel : std_logic_vector(21 downto 0);
     
-    signal totalTimesDel1, totalTimesDel2, totalTimesDel3 : std_logic_vector(7 downto 0);
-    signal totalChannelsDel1, totalChannelsDel2, totalChannelsDel3 : std_logic_vector(4 downto 0);
+    signal totalTimesDel1, totalTimesDel2, totalTimesDel3, totalTimesDel4 : std_logic_vector(7 downto 0);
+    signal totalChannelsDel1, totalChannelsDel2, totalChannelsDel3, totalChannelsDel4 : std_logic_vector(4 downto 0);
     signal totalTimesDel : t_slv_8_arr(21 downto 0);
     signal totalChannelsDel : t_slv_5_arr(21 downto 0); 
     signal LTA_ready, LTA_ready_axi_clk, LTA_ready_hold : std_logic;
+    
+    signal colBRAMDout, rowBRAMDout : t_slv_32_arr(15 downto 0);
     
 begin
     
@@ -325,7 +327,7 @@ begin
             WRITE_MODE_B => "read_first"     -- String
         ) port map (
             dbiterrb => open,                -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port A.
-            doutb => colDoutDel(0)(col_ram), -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations.
+            doutb => colBRAMDout(col_ram),   -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations.
             sbiterrb => open,                -- 1-bit output: Status signal to indicate single bit error occurrence on the data output of port B.
             addra => colWrAddrDel(col_ram),  -- ADDR_WIDTH_A-bit input: Address for port A write and read operations.
             addrb => colRdAddrDel(col_ram),  -- ADDR_WIDTH_B-bit input: Address for port B write and read operations.
@@ -373,7 +375,7 @@ begin
             WRITE_MODE_B => "read_first"     -- String
         ) port map (
             dbiterrb => open,                    -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port A.
-            doutb => rowDoutDel(row_ram)(0), -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations.
+            doutb => rowBRAMDout(row_ram), -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations.
             sbiterrb => open,                    -- 1-bit output: Status signal to indicate single bit error occurrence on the data output of port B.
             addra => rowWrAddrDel(row_ram),  -- ADDR_WIDTH_A-bit input: Address for port A write and read operations.
             addrb => rowRdAddrDel(row_ram),  -- ADDR_WIDTH_B-bit input: Address for port B write and read operations.
@@ -711,8 +713,23 @@ begin
             totalChannelsDel3 <= totalChannelsDel2;
             
             --
-            rd_fsm_del4 <= rd_fsm_del3;  -- rd_fsm_del4 aligns with the data output from the first row and col memories, i.e. colDoutDel(0), rowDoutDel(0), since 3 cycle read latency for the memories.            
-            if (rd_fsm_del3 = running) then
+            -- rd_fsm_del4 aligns with the data output from the first row and col memories, 
+            -- i.e. colBRAMDout, rowBRAMDout(0), since there is a 3 cycle read latency for the memories.
+            rd_fsm_del4 <= rd_fsm_del3;
+            rdTimeDel4 <= rdTimeDel3;
+            tileTimeDel4 <= tileTimeDel3;
+            tileFirstDel4 <= tileFirstDel3;
+            lastCellDel4 <= lastCellDel3;
+            cellCountDel4 <= cellCountDel3;
+            cellStartDel4 <= cellStartDel3;
+            tileDel4 <= tileDel3;
+            channelDel4 <= channelDel3;
+            totalTimesDel4 <= totalTimesDel3;
+            totalChannelsDel4 <= totalChannelsDel3;
+            
+            
+            --
+            if (rd_fsm_del4 = running) then
                 colMetaDel(0)(0).vld <= '1';
                 rowMetaDel(0)(0).vld <= '1';
             else
@@ -720,7 +737,7 @@ begin
                 rowMetaDel(0)(0).vld <= '0';
             end if;
             
-            if rdTimeDel3 = "000000" then
+            if rdTimeDel4 = "000000" then
                 colMetaDel(0)(0).first <= '1';
                 rowMetaDel(0)(0).first <= '1';
             else
@@ -728,34 +745,34 @@ begin
                 rowMetaDel(0)(0).first <= '0';
             end if;
             
-            if rdTimeDel3 = "111111" then
+            if rdTimeDel4 = "111111" then
                 colMetaDel(0)(0).last <= '1';
                 rowMetaDel(0)(0).last <= '1';
                 shiftOutAdv(0) <= '1';
                 -- These control signals only get updated at the end of the 64 time samples being sent into the correlator cell.
-                tileFirstDel(0) <= tileFirstDel3;
-                lastCellDel(0) <= lastCellDel3;
+                tileFirstDel(0) <= tileFirstDel4;
+                lastCellDel(0) <= lastCellDel4;
                 cellDel(0) <= cellCountDel3;
             else
                 colMetaDel(0)(0).last <= '0';
                 rowMetaDel(0)(0).last <= '0';
                 shiftOutAdv(0) <= '0';
             end if;
-            cellStartDel(0) <= cellStartDel3;  -- cellStartDel(0) aligns with the data going into the first cmac;
-            tileDel(0) <= tileDel3;
-            channelDel(0) <= channelDel3;
-            totalTimesDel(0) <= totalTimesDel3;
-            totalChannelsDel(0) <= totalChannelsDel3;
+            cellStartDel(0) <= cellStartDel4;  -- cellStartDel(0) aligns with the data going into the first cmac;
+            tileDel(0) <= tileDel4;
+            channelDel(0) <= channelDel4;
+            totalTimesDel(0) <= totalTimesDel4;
+            totalChannelsDel(0) <= totalChannelsDel4;
            
             --
-            totalTimesDel(21 downto 1) <= totalTImesDel(20 downto 0);
+            totalTimesDel(21 downto 1) <= totalTimesDel(20 downto 0);
             totalChannelsDel(21 downto 1) <= totalChannelsDel(20 downto 0);
             tileDel(21 downto 1) <= tileDel(20 downto 0);
             channelDel(21 downto 1) <= channelDel(20 downto 0);
             cellStartDel(21 downto 1) <= cellStartDel(20 downto 0); -- data going to the LTA will be about 16 + 4 clocks later 
-            tileFirstDel(15 downto 1) <= tileFirstDel(14 downto 0);
-            lastCellDel(15 downto 1) <= lastCellDel(14 downto 0);
-            cellDel(15 downto 1) <= cellDel(14 downto 0);
+            tileFirstDel(21 downto 1) <= tileFirstDel(20 downto 0);
+            lastCellDel(21 downto 1) <= lastCellDel(20 downto 0);
+            cellDel(21 downto 1) <= cellDel(20 downto 0);
             
             rowMetaDel(0)(0).sample_cnt(5 downto 0) <= rdTimeDel3;
             rowMetaDel(0)(0).sample_cnt(7 downto 6) <= tileTimeDel3;
@@ -781,15 +798,39 @@ begin
                 colMetaDel(0)(col).last <= colMetaDel(0)(col - 1).last;
                 colMetaDel(0)(col).sample_cnt <= colMetaDel(0)(col - 1).sample_cnt;
             end loop;
-                        
+            
+            
+            -- Convert flagged samples (i.e. values of -128) to zeros so they don't contribute
+            -- to the integration, and mark them as flagged in the meta data.
+            for row_or_col in 0 to 15 loop
+                if (colBRAMDout(row_or_col)(7 downto 0) = "10000000" or
+                    colBRAMDout(row_or_col)(15 downto 8) = "10000000" or 
+                    colBRAMDout(row_or_col)(23 downto 16) = "10000000" or 
+                    colBRAMDout(row_or_col)(31 downto 24) = "10000000") then
+                    -- If real or imaginary in either polarisation is flagged, then the sample is bad.
+                    colDataDel(row_or_col)(0) <= (others => '0');
+                    colMetaDel(row_or_col)(0).rfi <= '1';
+                else
+                    colDataDel(row_or_col)(0) <= colBRAMDout(row_or_col);
+                    colMetaDel(row_or_col)(0).rfi <= '0';
+                end if;
+                
+                if (rowBRAMDout(row_or_col)(7 downto 0) = "10000000" or
+                    rowBRAMDout(row_or_col)(15 downto 8) = "10000000" or 
+                    rowBRAMDout(row_or_col)(23 downto 16) = "10000000" or 
+                    rowBRAMDout(row_or_col)(31 downto 24) = "10000000") then
+                    -- If real or imaginary in either polarisation is flagged, then the sample is bad.
+                    rowDataDel(0)(row_or_col) <= (others => '0');
+                    rowMetaDel(0)(row_or_col).rfi <= '1';
+                else
+                    rowDataDel(0)(row_or_col) <= rowBRAMDout(row_or_col);
+                    rowMetaDel(0)(row_or_col).rfi <= '0';
+                end if;
+            end loop;        
+            
         end if;
     end process;
     
-    
-    rfi_gen : for row_or_col in 0 to 15 generate
-        colMetaDel(row_or_col)(0).rfi <= '1' when colDoutDel(row_or_col)(0) = "10000000" else '0';
-        rowMetaDel(0)(row_or_col).rfi <= '1' when rowDoutDel(0)(row_or_col) = "10000000" else '0';
-    end generate;
     
     -- The multiplier array:
     row_mult_gen : for row_mult in 0 to 15 generate
@@ -801,15 +842,15 @@ begin
                 -- Source data : Referring to the diagram in the comments at the top of this file:
                 --   column data comes from the column memory, and propagates downward - i.e. to the next row.
                 --   row data propagates to the right, i.e. to the next column
-                i_col_data => colDoutDel(row_mult)(col_mult), -- in std_logic_vector(31 downto 0); -- (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
-                i_col_meta => colMetaDel(row_mult)(col_mult), -- in t_cmac_input_bus;              -- .valid, .first, .last, .rfi, .sample_cnt
-                i_row_data => rowDoutDel(row_mult)(col_mult), -- in std_logic_vector(31 downto 0); -- (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
-                i_row_meta => rowMetaDel(row_mult)(col_mult), -- in t_cmac_input_bus;              -- .valid, .first, .last, .rfi, .sample_cnt
+                i_col_data => colDataDel(row_mult)(col_mult), -- in (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
+                i_col_meta => colMetaDel(row_mult)(col_mult), -- in t_cmac_input_bus; .valid, .first, .last, .rfi, .sample_cnt
+                i_row_data => rowDataDel(row_mult)(col_mult), -- in (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
+                i_row_meta => rowMetaDel(row_mult)(col_mult), -- in t_cmac_input_bus; .valid, .first, .last, .rfi, .sample_cnt
                 -- pipelined source data
-                o_col_data => colDoutDel(row_mult + 1)(col_mult),  -- out std_logic_vector(31 downto 0); -- (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
-                o_col_meta => colMetaDel(row_mult + 1)(col_mult), -- out t_cmac_input_bus;              -- .valid, .first, .last, .rfi, .sample_cnt
-                o_row_data => rowDoutDel(row_mult)(col_mult + 1), -- out std_logic_vector(31 downto 0); -- (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
-                o_row_meta => rowMetaDel(row_mult)(col_mult + 1), -- out t_cmac_input_bus;              -- .valid, .first, .last, .rfi, .sample_cnt
+                o_col_data => colDataDel(row_mult + 1)(col_mult), -- out (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
+                o_col_meta => colMetaDel(row_mult + 1)(col_mult), -- out t_cmac_input_bus;  .valid, .first, .last, .rfi, .sample_cnt
+                o_row_data => rowDataDel(row_mult)(col_mult + 1), -- out (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
+                o_row_meta => rowMetaDel(row_mult)(col_mult + 1), -- out t_cmac_input_bus; .valid, .first, .last, .rfi, .sample_cnt
                 -- Output data
                 -- Output is a burst of 4 clocks, with (1) Col pol0 - row pol0, (2) col pol0 - row pol1, (3) col pol1 - row pol 0, (4) col pol 1 - row pol 1
                 -- Centroid data is valid in the first output clock.
@@ -841,28 +882,26 @@ begin
     port map ( 
         i_clk => i_cor_clk,
         i_rst => i_cor_rst, -- in std_logic;  -- resets selection of read and write buffers, should not be needed unless something goes very wrong.
-        -- Which buffer is used for read + write ?
-        --  i_bufSelect : in std_logic;
         ----------------------------------------------------------------------------------------
         -- Write side interface : 
-        i_cell    => cellDel(20), -- in std_logic_vector(7 downto 0); -- 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
+        i_cell    => cellDel(21),    -- in (7:0); 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
         -- i_valid can be high continuously, i_cellStart indicates the start of the burst of 64 clocks for a particular cell.
-        i_cellStart => cellStartDel(20), -- in std_logic; 
-        i_tile    => tileDel(20), -- in std_logic_vector(9 downto 0); -- tile index, passed to the output.
-        i_channel => channelDel(20), -- in std_logic_vector(15 downto 0); -- first fine channel index for this correlation
+        i_cellStart => cellStartDel(21), -- in std_logic; 
+        i_tile    => tileDel(21),    -- in (9:0);  tile index, passed to the output.
+        i_channel => channelDel(21), -- in (15:0); first fine channel index for this correlation
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
-        i_first   => tileFirstDel(20), -- in std_logic; 
-        i_last    => lastCellDel(20), -- in std_logic; -- This is the last integration for the last cell; after this, the buffers switch and the completed cells are read out.
-        i_totalTimes => totalTimesDel(20), -- in std_logic_vector(7 downto 0);    -- Total time samples being integrated, e.g. 192. 
-        i_totalChannels => totalChannelsDel(20), --  in std_logic_vector(4 downto 0); -- Number of channels integrated, typically 24.
+        i_first   => tileFirstDel(21), -- in std_logic; 
+        i_last    => lastCellDel(21),  -- in std_logic;  This is the last integration for the last cell; after this, the buffers switch and the completed cells are read out.
+        i_totalTimes => totalTimesDel(21), -- in (7:0);  Total time samples being integrated, e.g. 192. 
+        i_totalChannels => totalChannelsDel(21), -- in (4:0);  Number of channels integrated, typically 24.
         -- valid goes high for a burst of 64 clocks, to get all the data from the correlation array.
         i_valid     => rowMetaDel(0)(15).vld, -- in std_logic; -- indicates valid data, 4 clocks in advance of i_data. Needed since there is a long latency on the ultraRAM reads.
         -- 16 parrallel data streams with 3+3 byte visibilities from the correlation array. 
         -- i_data_del4(0) has a 4 cycle latency from the other write input control signals
         -- i_data_del4(k) has a 4+k cycle latency;
-        i_data_del4 => cell_visOutput, -- in t_slv_48_arr(15 downto 0);
-        i_centroid_del4 => cell_centroidOutput, -- in t_slv_24_arr(15 downto 0); -- bits 7:0 = samples accumulated, bis 23:8 = time sample sum.
+        i_data_del4 => cell_visOutput, -- in t_slv_48_arr(15:0);
+        i_centroid_del4 => cell_centroidOutput, -- in t_slv_24_arr(15:0);  bits 7:0 = samples accumulated, bis 23:8 = time sample sum.
         o_ready => LTA_ready, -- out std_logic; -- if low, don't start a new tile.
         ----------------------------------------------------------------------------------------
         -- Data output 

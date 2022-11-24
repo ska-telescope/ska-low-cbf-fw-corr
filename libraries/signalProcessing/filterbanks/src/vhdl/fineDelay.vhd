@@ -55,7 +55,7 @@ entity fineDelay is
         -- data and header in
         i_data        : in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
         i_dataValid   : in std_logic;
-        i_header      : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        i_header      : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .HOffsetP, .VOffsetP, .frameCount(36:0), virtualChannel(15:0), .valid
         i_headerValid : in std_logic;  -- Must be a 1 clock pulse on the first clock of the packet.
         -- Data and Header out
         o_data        : out t_ctc_output_payload;   -- 8 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 

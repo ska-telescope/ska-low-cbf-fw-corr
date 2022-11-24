@@ -99,10 +99,10 @@ begin  -- architecture rtl
     ) PORT MAP (
         i_clk   => i_clk,
         i_vld   => '1',
-        i_a_re  => i_row_real, -- i_row.data(g_SAMPLE_WIDTH*1-1 downto g_SAMPLE_WIDTH*0), 
-        i_a_im  => i_row_imag, -- i_row.data(g_SAMPLE_WIDTH*3-1 downto g_SAMPLE_WIDTH*2),
-        i_b_re  => i_col_real, -- i_col.data(g_SAMPLE_WIDTH*1-1 downto g_SAMPLE_WIDTH*0),
-        i_b_im  => i_col_imag, -- i_col.data(g_SAMPLE_WIDTH*3-1 downto g_SAMPLE_WIDTH*2),
+        i_a_re  => signed(i_row_real), -- i_row.data(g_SAMPLE_WIDTH*1-1 downto g_SAMPLE_WIDTH*0), 
+        i_a_im  => signed(i_row_imag), -- i_row.data(g_SAMPLE_WIDTH*3-1 downto g_SAMPLE_WIDTH*2),
+        i_b_re  => signed(i_col_real), -- i_col.data(g_SAMPLE_WIDTH*1-1 downto g_SAMPLE_WIDTH*0),
+        i_b_im  => signed(i_col_imag), -- i_col.data(g_SAMPLE_WIDTH*3-1 downto g_SAMPLE_WIDTH*2),
         o_p_vld => open,
         o_p_re  => c5_prod_real,
         o_p_im  => c5_prod_imag

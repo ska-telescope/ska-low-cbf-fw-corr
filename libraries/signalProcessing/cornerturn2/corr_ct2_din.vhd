@@ -69,7 +69,7 @@ entity corr_ct2_din is
         -- frame count is the same for all simultaneous output streams.
         -- frameCount is the count of 1st corner turn frames, i.e. 283 ms pieces of data.
         i_frameCount_mod3 : in std_logic_vector(1 downto 0);  -- which of the three first corner turn frames is this, out of the 3 that make up a 849 ms integration. "00", "01", or "10".
-        i_frameCount      : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
+        i_frameCount_849ms : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
         i_virtualChannel  : in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the filterbank data streams.
         i_HeaderValid     : in std_logic_vector(3 downto 0);
         i_data            : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
@@ -135,7 +135,7 @@ architecture Behavioral of corr_ct2_din is
     signal fineChannel : std_logic_vector(11 downto 0);
     signal virtualChannel : std_logic_vector(15 downto 0);
     signal frameCount_mod3 : std_logic_vector(1 downto 0);
-    signal frameCount : std_logic_vector(31 downto 0);
+    signal frameCount_849ms : std_logic_vector(31 downto 0);
     
     signal dataFIFO_valid : std_logic_vector(1 downto 0);
     signal dataFIFO_dout : t_slv_513_arr(1 downto 0);
@@ -201,7 +201,7 @@ begin
                 timeStep <= (others => '0');
                 virtualChannel <= i_virtualChannel(0); -- Just use the first filterbanks virtual channel, this module assumes that i_virtualChannel(0), (1), (2), and (3) are consecutive values.
                 frameCount_mod3 <= i_frameCount_mod3;
-                frameCount <= i_frameCount;
+                frameCount_849ms <= i_frameCount_849ms;
                 lastTime <= '0';
             elsif dataValidDel1 = '0' and dataValidDel2 = '1' then
                 timeStep <= std_logic_vector(unsigned(timeStep) + 1);
@@ -290,9 +290,7 @@ begin
             
             if i_dataValid = '0' and dataValidDel1 = '1' and timeStep(4 downto 0) = "11111" then
                 copyToHBM <= '1';
-                copyToHBM_buffer <= frameCount(0); -- every 849 ms, alternate 3 Gbyte HBM buffers.
-              --  copyToHBM_channelGroup <= virtualChannel(9 downto 2); -- up to 256 groups of 4 channels
-                
+                copyToHBM_buffer <= frameCount_849ms(0); -- every 849 ms, alternate halfs within each 3 Gbyte HBM buffer.
                 -- Parameters for this block of data :
                 copyToHBM_time(0) <= timeStep(5); -- first or second half of the 64 time samples per first corner turn frame.
                 copyToHBM_time(2 downto 1) <= frameCount_mod3;
@@ -409,7 +407,7 @@ begin
             -- fsm to generate write addresses
             if copyToHBM = '1' then
                 copy_fsm <= start;
-                copy_buffer <= copyToHBM_buffer;   -- Which 3Gbyte (= 849ms) buffer to write to in the HBM.
+                copy_buffer <= copyToHBM_buffer;   -- Which half of each 3Gbyte buffer to write to in the HBM. 1.5 Gbytes of data = 849 ms of data for (typically, up to) 512 stations.
                 copy_fine <= (others => '0');
                 --copy_channelGroup <= copyToHBM_channelGroup; -- Up to 256 groups of 4 channels
                 copy_time <= copyToHBM_time;           -- Which group of times within the corner turn (6 possible value, 0 to 5, corresponding to times of (0-31, 32-63, 64-95, 96-127, 128-159, 160-191))
