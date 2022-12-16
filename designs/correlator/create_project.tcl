@@ -50,7 +50,13 @@ update_ip_catalog
 # only generate this if u55.
 
 # generate_ref design - Instance 1 - U55C TOP PORT.
-source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
+  if { $env(VITIS_VERSION) == "2021.2" } {
+    # generate_ref design - Instance 1 - U55C TOP PORT.
+    source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
+  } else {
+    # 2022.2
+    source $COMMON_PATH/ptp/src/ts_$env(VITIS_VERSION).tcl
+  }
 
 make_wrapper -files [get_files $workingDir/$env(PERSONALITY).srcs/sources_1/bd/ts/ts.bd] -top
 add_files -norecurse $workingDir/$env(PERSONALITY).gen/sources_1/bd/ts/hdl/ts_wrapper.vhd
