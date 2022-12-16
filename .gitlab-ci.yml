@@ -1,7 +1,9 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  VITIS_VERSION: "2022.2"
   GITLAB_PROJECT_ID: 38134197  # used in manual build (upload)
-  XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+  XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm"
+  RIVIERA_TARGET: "Riviera-PRO-2022.10-x64" # version for 2022.2
 
   PERSONALITY: "correlator"
   TARGET_ALVEO: "u55"

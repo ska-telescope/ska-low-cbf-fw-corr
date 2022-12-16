@@ -10,7 +10,7 @@
 ALLOWED_ALVEO=(u55) #ALVEO is either U50 or U55 as of Sept 2021
 KERNELS_TO_GEN=(cor)
 XILINX_PATH=/tools/Xilinx
-VIVADO_VERSION_IN_USE=2021.2
+VIVADO_VERSION_IN_USE=2022.2
 
 # use ptp submodule (we assume it's initialised)
 PTP_IP="${PWD}/pub-timeslave/hw/cores"
@@ -59,7 +59,7 @@ else
     exit 2
 fi
 # assume U55 is the default otherwise set U50LV
-export XPFM=/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm
+export XPFM=/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm
 export VITIS_TARGET=u55
 
 if [ $TARGET_ALVEO = "u50" ]; then
