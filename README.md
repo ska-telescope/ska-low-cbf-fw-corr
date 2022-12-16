@@ -89,4 +89,4 @@ system being used.
 # Changelog
 
 * 0.0.1 - 
-    * U55C  - xilinx_u55c_gen3x16_xdma_2_202110_1
+    * U55C  - xilinx_u55c_gen3x16_xdma_3_202210_1

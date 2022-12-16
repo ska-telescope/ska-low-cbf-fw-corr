@@ -47,11 +47,9 @@ set_property target_simulator XSim [current_project]
 set_property  ip_repo_paths  $timeslave_repo [current_project]
 update_ip_catalog
 
-# only generate this if u55.
-
-# generate_ref design - Instance 1 - U55C TOP PORT.
+  # generate Timeslave BD - Instance 1 - U55C TOP PORT.
+  # based on Vitis version.
   if { $env(VITIS_VERSION) == "2021.2" } {
-    # generate_ref design - Instance 1 - U55C TOP PORT.
     source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
   } else {
     # 2022.2
