@@ -58,7 +58,8 @@ specifically mentions another license.
 
 ## FPGA IDE
 
-Current tool is Vitis 2021.2
+Xilinx tool is Vitis 2022.2
+Target ALVEO - U55C - platform 3
 
 ## Tool Environment
 
@@ -87,4 +88,5 @@ system being used.
 
 # Changelog
 
-* 0.0.0 - Unreleased...
+* 0.0.1 - 
+    * U55C  - xilinx_u55c_gen3x16_xdma_2_202110_1
