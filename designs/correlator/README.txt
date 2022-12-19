@@ -1,6 +1,7 @@
 # Some useful commands.
+# Please do not delete this file.
 
-# 1. Use bash
+# 1. Use bash (default on most systems)
 bash
 
 # 2. set SVN to the checkout root
@@ -21,10 +22,13 @@ python3 $SVN/tools/args/gen_c_config.py -f correlator
 # Note that the fpga map file (python structures with register names and addresses) will be in build/ARGS/py/correlator/fpgamap_???.py
 
 # set which version of Vivado to use.
-source /tools/Xilinx/Vitis/2021.2/settings64.sh
+source /tools/Xilinx/Vitis/2022.2/settings64.sh
 
-# 5. Run the setup project script
-vivado -mode batch -source create_project_u55.tcl
+# 5. Run the setup project script - Following environment variables are required by create_project.tcl
+export PERSONALITY=correlator
+export TARGET_ALVEO=u55
+export VITIS_VERSION=2022.2
+vivado -mode batch -source create_project.tcl
 
 # 6. Open the project in vivado
 

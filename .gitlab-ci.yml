@@ -1,0 +1,61 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  VITIS_VERSION: "2022.2"
+  GITLAB_PROJECT_ID: 38134197  # used in manual build (upload)
+  XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm"
+  RIVIERA_TARGET: "Riviera-PRO-2022.10-x64" # version for 2022.2
+
+  PERSONALITY: "correlator"
+  TARGET_ALVEO: "u55"
+  # we escape the $ for BASEDIR to allow evaluation later
+  CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_project.tcl"
+  VIVADO_BUILD_BASE_DIR: "./build"
+  PACKAGE_KRNL_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/src/scripts/package_kernel.tcl"
+  GEN_XO_DIRECTORY: "$${BASEDIR}/designs/${PERSONALITY}/src/scripts"
+  GEN_XO_SCRIPT_PATH: "$GEN_XO_DIRECTORY/gen_xo.tcl"
+  VPP_SCRIPT_DIR: "designs/${PERSONALITY}/src/scripts/${TARGET_ALVEO}"
+  EXTRA_VPP_ARGS: "--user_ip_repo_paths $${BASEDIR}/pub-timeslave/hw/cores"
+  EXTRA_XSIM_DIR: "$${BASEDIR}/sim"  # set to "" downstream if no sim exists
+  EXTRA_MODEL_DIR: "" #"low-cbf-model"  # used as path for artifacts from xsim job
+  EXTRA_MATLAB_MODEL_DIR: "$${BASEDIR}/${EXTRA_MODEL_DIR}/src_atomic"  # set to "" downstream to skip matlab job
+  COMPARE_SIM_TO_MODEL: "FALSE" 
+
+
+  
+
+include:
+  # Alveo FPGA build common CI configuration
+  # Note: GitLab includes always grab the latest.
+  # This may not match the copy in our 'common' submodule!
+  - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
+    file: 'gitlab/build.yml'
+    # ref: 'b199d7c80292a5f42cbddd7f83b8d14c6daf350c'
+  - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
+    file: 'gitlab/simulate.yml'
+    # ref: 'b199d7c80292a5f42cbddd7f83b8d14c6daf350c'
+
+
+  # SKA standard includes
+  # RAW artefact handling
+  - project: 'ska-telescope/templates-repository'
+    file: 'gitlab-ci/includes/raw.gitlab-ci.yml'
+  # Release management
+  - project: 'ska-telescope/templates-repository'
+    file: 'gitlab-ci/includes/release.gitlab-ci.yml'
+  # Docs pages
+  - project: 'ska-telescope/templates-repository'
+    file: 'gitlab-ci/includes/docs.gitlab-ci.yml'
+  # .post step finalisers eg: badges
+  - project: 'ska-telescope/templates-repository'
+    file: 'gitlab-ci/includes/finaliser.gitlab-ci.yml'
+
+raw-build:
+  # note: this is modifying a job imported from templates-repository!
+  needs:
+    - job: v++
+      optional: true  # v++ job doesn't always exist in pipeline
+  variables:
+    BUILD_STRING: "CI CAR Package. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT}. Tag ${CI_COMMIT_TAG}. Commit ${CI_COMMIT_SHORT_SHA}."
+  before_script:
+    # we check if the build directory exists because v++ doesn't always run
+    - if [ -d build ]; then source common/scripts/util.sh; prepare_package_files raw/ska-low-cbf-fw-corr-u55c "$BUILD_STRING"; fi;

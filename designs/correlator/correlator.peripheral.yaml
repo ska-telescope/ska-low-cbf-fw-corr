@@ -86,6 +86,24 @@ peripherals:
               reset_value       : 0x0
               field_description : "Number of seconds since programming"
           #################################
+          - - field_name        : eth100G_ptp_nano_seconds
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "nanoseconds value range o to 999,999,999"
+          #################################
+          - - field_name        : eth100G_ptp_lower_seconds
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "lower 32-bits of 48 bit second time vector"
+          #################################
+          - - field_name        : eth100G_ptp_upper_seconds
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "upper 16-bits of 48 bit second time vector"
+          #################################
           - - field_name        : eth100G_locked
               width             : 1
               access_mode       : RO
