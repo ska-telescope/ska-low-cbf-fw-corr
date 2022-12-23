@@ -113,7 +113,7 @@ entity corr_ct2_top is
         ---------------------------------------------------------------
         -- Data out to the correlator arrays
         --
-        -- correlator 0 is ready to receive a new block of data. This will go low once data starts to be received.
+        -- The correlator is ready to receive a new block of data. This will go low once data starts to be received.
         -- A block of data consists of data for 64 times, and up to 512 virtual channels.
         i_cor_ready  : in std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  
         -- Each 256 bit word : two time samples, 4 consecutive virtual channels

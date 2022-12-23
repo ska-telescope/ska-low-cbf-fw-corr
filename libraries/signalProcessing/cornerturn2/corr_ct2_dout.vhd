@@ -146,8 +146,6 @@ architecture Behavioral of corr_ct2_dout is
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
     signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
     signal dataFIFO_wrCount : std_logic_vector(9 downto 0);
-    
-    
     --
     signal SB_stations : std_logic_vector(15 downto 0); -- 16 bits, the number of (sub)stations in this subarray-beam
     signal SB_coarseStart : std_logic_vector(8 downto 0);  -- The first coarse channel in this subarray-beam

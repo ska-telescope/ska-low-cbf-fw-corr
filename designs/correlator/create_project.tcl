@@ -366,6 +366,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count6.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count16.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
 ]
 
 set_property library ct_lib [get_files {\
@@ -376,11 +377,12 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count6.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count16.vhd \
+ *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd]
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd]
-
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd]
 
 #############################################################
 ## Correlator filterbank and fine delay
