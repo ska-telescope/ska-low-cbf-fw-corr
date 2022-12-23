@@ -405,7 +405,7 @@ begin
         );
     end generate;
     
-    nocor2geni : if (not g_USE_TWO_CORRELATORS) generate
+    nocor2geni : if (g_CORRELATORS < 2) generate
         cor1_HBM_start <= (others => '0');
         cor1_HBM_end <= (others => '0');
         cor1_HBM_cells <= (others => '0');

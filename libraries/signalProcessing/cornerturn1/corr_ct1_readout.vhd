@@ -108,8 +108,9 @@ use axi4_lib.axi4_full_pkg.ALL;
 
 entity corr_ct1_readout is
     generic (
-        -- Number of LFAA blocks per frame
-        g_LFAA_BLOCKS_PER_FRAME : integer := 128   -- Number of LFAA blocks per frame;
+        -- Number of SPS PACKETS per frame. 128 = 283 ms corner turn frame.
+        -- 32 is also supported by this module, for use in simulation only.
+        g_SPS_PACKETS_PER_FRAME : integer := 128
     );
     Port(
         shared_clk : in std_logic; -- Shared memory clock
@@ -392,9 +393,9 @@ begin
                 validMemWrEn <= '1';
                 validMemWriteAddr(18 downto 17) <= ar_previousBuffer;
                 validMemWriteAddr(16 downto 7) <= axi_araddr(29 downto 20);
-                validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME - 23,7));
-            elsif (((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) < (g_LFAA_BLOCKS_PER_FRAME-23))) or 
-                   ((axi_araddr(31 downto 30) = ar_previousBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) >= (g_LFAA_BLOCKS_PER_FRAME-23)))) and
+                validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 23,7));
+            elsif (((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) < (g_SPS_PACKETS_PER_FRAME-23))) or 
+                   ((axi_araddr(31 downto 30) = ar_previousBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) >= (g_SPS_PACKETS_PER_FRAME-23)))) and
                   (axi_arvalid = '1' and axi_arvalidDel1 = '0') then
                 -- clear the valid bit
                 --   - on the last read from any but the final 23 blocks in this buffer.
@@ -602,7 +603,7 @@ begin
                     --  =  <last sample in the previous frame> - 47104 + coarse_delay
                     -- (g_LFAA_BLOCKS_PER_FRAME, ar_currentBuffer, ar_previousBuffer)
                     bufBuffer(i) <= ar_previousBuffer; -- initial reads are the pre-load data from the previous buffer
-                    bufSampleTemp(i) := std_logic_vector((g_LFAA_BLOCKS_PER_FRAME * 2048) - 47104 + unsigned(bufCoarseDelay(i)));
+                    bufSampleTemp(i) := std_logic_vector((g_SPS_PACKETS_PER_FRAME * 2048) - 47104 + unsigned(bufCoarseDelay(i)));
                     bufSampleTemp8bit(i) := '0' & bufSampleTemp(i)(6 downto 0);
                     -- Round it down so we have 64 byte aligned accesses to the HBM. Note buf0Sample is the sample within the buffer for this particular virtual channel
                     bufSample(i) <= bufSampleTemp(i)(17 downto 4) & "0000"; -- This gets multiplied by 4 to get the byte address, so the byte address will be 64 byte aligned.
@@ -619,7 +620,7 @@ begin
                     bufSamplesToRead(i) <= std_logic_vector(128 - unsigned(bufSampleTemp8bit(i)));
                     --buf0SamplesToRead <= std_logic_vector(unsigned((not buf0SampleTemp8bit)) + 1);  -- Number of valid samples that actually get read in the AXI memory transaction. 
                     -- total number of samples per frame is g_LFAA_BLOCKS_PER_FRAME * 2048, plus the preload of 11*4096 = 45056 samples
-                    bufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME * 2048 + 45056,18)); 
+                    bufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME * 2048 + 45056,18)); 
                 end if;
                     
                 if ((ar_fsm = getBufData) and (unsigned(ar_fsm_buffer) = i)) then
@@ -632,7 +633,7 @@ begin
                     bufSamplesRemaining(i) <= std_logic_vector(unsigned(bufSamplesRemaining(i)) - unsigned(bufSamplesToRead18bit(i)));
                     bufFirstRead(i) <= '0';
                 elsif ((ar_fsmDel1 = getBufData) and (unsigned(ar_fsm_bufferDel1) = i)) then  -- Second of two steps to update buf0Sample when we issue a read request
-                    if (unsigned(bufSample(i)) = (g_LFAA_BLOCKS_PER_FRAME * 2048)) then -- i.e. if we have hit the end of the preload buffer, then go to the start of the next buffer.
+                    if (unsigned(bufSample(i)) = (g_SPS_PACKETS_PER_FRAME * 2048)) then -- i.e. if we have hit the end of the preload buffer, then go to the start of the next buffer.
                         bufSample(i) <= (others => '0');
                         bufBuffer(i) <= ar_currentBuffer;
                     end if;
@@ -1316,25 +1317,25 @@ begin
                             --   or g_LFAA_BLOCKS_PER_FRAME*128 + 11*256 + 1   (for the case where the first sample is not aligned to a 64 byte boundary)                            
                             --
                             if bufFIFO_dout(0)(67 downto 64) = "0000" then
-                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2816,16));
+                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
-                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2817,16));
+                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
                             end if;
                             if bufFIFO_dout(1)(67 downto 64) = "0000" then
-                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2816,16));
+                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
-                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2817,16));
+                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
                             end if;
                             if bufFIFO_dout(2)(67 downto 64) = "0000" then
-                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2816,16));
+                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
-                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2817,16));
+                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
                             end if;
                             
                             if bufFIFO_dout(3)(67 downto 64) = "0000" then
-                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2816,16));
+                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
-                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME*128 + 2817,16));
+                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
                             end if;
                             
                             rd_fsm <= rd_buf0;
@@ -1568,7 +1569,7 @@ begin
             
             if readoutStartDel(15) = '1' then
                 -- Packets are 4096 samples; Number of packets in a burst is 11 preload packets plus half the number of LFAA blocks per frame, since LFAA blocks are 2048 samples.
-                packetsRemaining <= std_logic_vector(to_unsigned(g_LFAA_BLOCKS_PER_FRAME /2 + 11,16));
+                packetsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME /2 + 11,16));
                 packetCount <= FBpacketCount;  -- packet count output in the meta data
                 clockCount <= (others => '0');
                 clockCountZero <= '1';

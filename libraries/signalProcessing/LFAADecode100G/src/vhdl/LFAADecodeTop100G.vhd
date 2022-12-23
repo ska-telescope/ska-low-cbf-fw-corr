@@ -43,33 +43,22 @@ USE technology_lib.tech_mac_100g_pkg.ALL;
 entity LFAADecodeTop100G is
     port(
         -- Data in from the 100GE MAC
-        -- Input type is defined in tech_mac_100g_pkg.vhd
-        -- 4 parallel segments of 128 bits each
-        --  TYPE t_lbus_sosi IS RECORD  -- Source Out and Sink In
-        --   data       : STD_LOGIC_VECTOR(511 DOWNTO 0);                -- Data bus
-        --   valid      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Data segment enable
-        --   eop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- End of packet
-        --   sop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Start of packet
-        --   error      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Error flag, indicates data has an error
-        --   empty      : t_empty_arr(c_lbus_data_w/c_segment_w-1 DOWNTO 0);         -- Number of bytes empty in the segment
-        i_eth100_rx_sosi : in t_lbus_sosi;
-        i_data_clk       : in std_logic;     -- 322 MHz from the 100GE MAC; note 512 bits x 322 MHz = 165 Mbit/sec, so even full rate traffic will have .valid low 1/3rd of the time.
-        i_data_rst       : in std_logic;
+        i_axis_tdata   : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep   : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast   : in std_logic;                      
+        i_axis_tuser   : in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid  : in std_logic;
+        i_data_clk     : in std_logic;     -- 322 MHz from the 100GE MAC; note 512 bits x 322 MHz = 165 Mbit/sec, so even full rate traffic will have .valid low 1/3rd of the time.
+        i_data_rst     : in std_logic;
         -- Data out to corner turn module.
         -- This is just the header for each packet. The data part goes direct to the HBM via the wdata part of the AXI-full bus 
         --  
         o_virtualChannel : out std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station.
         o_packetCount    : out std_logic_vector(31 downto 0);
         o_valid          : out std_logic;
-        -- clock synchronisation packets from timing packets on the 100GE
-        o_100GE_timing_valid : out std_logic;
-        o_100GE_timing       : out std_logic_vector(63 downto 0);
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
         o_axi_w         : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0)) => o_m01_axi_w,    -- w data bus (.wvalid, .wdata, .wlast)
         i_axi_wready    : in std_logic;
-        -- miscellaneous
-        i_my_mac         : in std_logic_vector(47 downto 0); -- MAC address for this board; incoming packets from the 40GE interface are filtered using this.
-        i_wallTime       : in std_logic_vector(63 downto 0);
         -- Registers AXI Lite Interface
         i_s_axi_mosi     : in t_axi4_lite_mosi;
         o_s_axi_miso     : out t_axi4_lite_miso;
@@ -128,44 +117,40 @@ architecture Behavioral of LFAADecodeTop100G is
     
 begin
     
-    o_100GE_timing_valid <= '0';
-    o_100GE_timing <= (others => '0');
-    
     -------------------------------------------------------------------------------------------------
     -- Process packets from the 100GE LFAA input 
     
     LFAAProcessInst : entity LFAADecode100G_lib.LFAAProcess100G
     port map(
         -- Data in from the 100GE MAC
-        i_eth100_rx_sosi  => i_eth100_rx_sosi, -- in t_axi4_sosi;   -- 128 bit wide data in, only fields that are used are .tdata, .tvalid, .tuser
-        i_data_clk        => i_data_clk,     -- in std_logic;     -- 312.5 MHz for 40GE MAC
-        i_data_rst        => i_data_rst,     -- in std_logic;
+        i_axis_tdata   => i_axis_tdata,
+        i_axis_tkeep   => i_axis_tkeep,
+        i_axis_tlast   => i_axis_tlast,
+        i_axis_tuser   => i_axis_tuser,
+        i_axis_tvalid  => i_axis_tvalid,
+        i_data_clk     => i_data_clk,     -- in std_logic;     -- 312.5 MHz for 40GE MAC
+        i_data_rst     => i_data_rst,     -- in std_logic;
         -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
-        i_ap_clk         => i_s_axi_clk,  -- in  std_logic;
-        o_axi_w          => o_axi_w,      -- out t_axi4_full_data
-        i_axi_wready     => i_axi_wready, -- in std_logic;
+        i_ap_clk       => i_s_axi_clk,  -- in  std_logic;
+        o_axi_w        => o_axi_w,      -- out t_axi4_full_data
+        i_axi_wready   => i_axi_wready, -- in std_logic;
         -- Only the header data goes to the corner turn.
         o_virtualChannel => o_virtualChannel, -- out std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station.
-        o_packetCount    => o_packetCount,    -- out std_logic_vector(31 downto 0);
-        o_valid          => o_valid,          -- out std_logic;
-        -- Miscellaneous
-        i_my_mac          => i_my_mac,       -- in(47:0); -- MAC address for this board; incoming packets from the 40GE interface are filtered using this.
-        i_wallTime        => i_wallTime,     -- in t_wall_time; Defined in DSP_top_pkg, 32 bit seconds (.sec), 30 bit nanoseconds (.ns). 
-        --i_time_sec        => ptp_out(58 downto 27),     -- PTP time; 32 bit second count and 27 bit fractional count. (note this module records a 32 bit second count and 24 bit fractional count)
-        --i_time_frac       => ptp_out(26 downto 0),
+        o_packetCount  => o_packetCount,    -- out std_logic_vector(31 downto 0);
+        o_valid        => o_valid,          -- out std_logic;
         -- Interface to the registers
-        i_reg_rw          => reg_rw,         -- in t_statctrl_rw;
-        o_reg_count       => LFAAreg_count,  -- out t_statctrl_count;
+        i_reg_rw       => reg_rw,         -- in t_statctrl_rw;
+        o_reg_count    => LFAAreg_count,  -- out t_statctrl_count;
         -- Virtual channel table memory in the registers
         o_searchAddr      => LFAAVCTable_addr,       -- out(11:0); -- read address to the VCTable_ram in the registers.
         i_VCTable_rd_data => VCTable_ram_out.rd_dat, -- in(31:0);  -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
         -- Virtual channel stats in the registers.
-        o_statsWrData     => VCStats_ram_in_wr_dat,  -- out(31:0);
-        o_statsWE         => VCStats_ram_in_wr_en,   -- out std_logic;
-        o_statsAddr       => VCStats_ram_in_adr,     -- out(12:0);
-        i_statsRdData     => VCStats_ram_out_rd_dat, -- in(31:0)
+        o_statsWrData  => VCStats_ram_in_wr_dat,  -- out(31:0);
+        o_statsWE      => VCStats_ram_in_wr_en,   -- out std_logic;
+        o_statsAddr    => VCStats_ram_in_adr,     -- out(12:0);
+        i_statsRdData  => VCStats_ram_out_rd_dat, -- in(31:0)
         -- debug ports
-        o_dbg             => o_dbg
+        o_dbg             => o_dbg   -- out(13:0)
     );
     
     -- VCTable memory inputs

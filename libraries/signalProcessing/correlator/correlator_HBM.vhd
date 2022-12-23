@@ -258,7 +258,7 @@ begin
         injectdbiterr => '0',           -- 1-bit input: Double Bit Error Injection: Injects a double bit error if the ECC feature is used on block RAMs or UltraRAM macros.
         injectsbiterr => '0',           -- 1-bit input: Single Bit Error Injection: Injects a single bit error if the ECC feature is used on block RAMs or UltraRAM macros.
         rd_en => i_axi_wready,          -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
-        rst => open,                    -- 1-bit input: Reset: Must be synchronous to wr_clk. 
+        rst => '0',                    -- 1-bit input: Reset: Must be synchronous to wr_clk. 
         sleep => '0',                   -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
         wr_clk => i_axi_clk,            -- 1-bit input: Write clock: Used for write operation. 
         wr_en => w_fifo_we              -- 1-bit input: Write Enable: If the FIFO is not full, asserting this signal causes data (on din) to be written to the FIFO 
@@ -314,7 +314,7 @@ begin
         injectdbiterr => '0',           -- 1-bit input: Double Bit Error Injection: Injects a double bit error if the ECC feature is used on block RAMs or UltraRAM macros.
         injectsbiterr => '0',           -- 1-bit input: Single Bit Error Injection: Injects a single bit error if the ECC feature is used on block RAMs or UltraRAM macros.
         rd_en => i_axi_awready,         -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
-        rst => open,                    -- 1-bit input: Reset: Must be synchronous to wr_clk. 
+        rst => '0',                    -- 1-bit input: Reset: Must be synchronous to wr_clk. 
         sleep => '0',                   -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
         wr_clk => i_axi_clk,            -- 1-bit input: Write clock: Used for write operation. 
         wr_en => aw_fifo_we             -- 1-bit input: Write Enable: If the FIFO is not full, asserting this signal causes data (on din) to be written to the FIFO 
@@ -325,19 +325,4 @@ begin
     o_axi_aw.addr(39 downto 32) <= "00000000";
     o_axi_aw.len <= aw_fifo_dout(39 downto 32);
     
-    
-    process(i_axi_clk)
-    begin
-        if rising_edge(i_axi_clk) then
-            
-            
-        end if;
-    end process;
-    
-    
-    
-
 end Behavioral;
-
-				
-			

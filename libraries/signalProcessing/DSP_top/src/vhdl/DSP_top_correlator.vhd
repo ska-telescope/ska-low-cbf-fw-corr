@@ -37,13 +37,14 @@ use xpm.vcomponents.all;
 -------------------------------------------------------------------------------
 entity DSP_top_correlator is
     generic (
-        -- Number of LFAA blocks per frame for the PSS/PST output.
-        -- Each LFAA block is 2048 time samples. e.g. 27 for a 60 ms corner turn.
-        -- This value needs to be a multiple of 3 so that there are a whole number of PST outputs per frame.
-        -- Maximum value is 30, (limited by the 256MByte buffer size, which has to fit 1024 virtual channels)
         g_DEBUG_ILA              : boolean := false;
         g_BEAM_ILA               : boolean := false;
-        g_LFAA_BLOCKS_PER_FRAME  : integer := 9;  -- Number of LFAA blocks per frame divided by 3; minimum value is 1, i.e. 3 LFAA blocks per frame.
+        -- Each SPS packet is 2048 time samples @ 1080ns/sample. The second stage corner turn only supports
+        -- a value for g_LFAA_BLOCKS_PER_FRAME of 128.
+        -- 128 packets per frame = (1080 ns) * (2048 samples/packet) * 128 packets = 
+        -- This value needs to be a multiple of 3 so that there are a whole number of PST outputs per frame.
+        -- Maximum value is 30, (limited by the 256MByte buffer size, which has to fit 1024 virtual channels)
+        g_SPS_PACKETS_PER_FRAME  : integer := 128;  -- Number of LFAA blocks per frame 
         g_USE_META               : boolean := FALSE;  -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
         -- There are 34 bytes per sample : 4 x 8 byte visibilites, + 1 byte TCI + 1 byte DV
         g_PACKET_SAMPLES_DIV16   : integer := 64;  -- Actual number of samples in a correlator SPEAD packet is this value x 16; each sample is 34 bytes; default value => 64*34 = 2176 bytes of data per packet.
@@ -53,10 +54,19 @@ entity DSP_top_correlator is
     port (
         -----------------------------------------------------------------------
         -- Received data from 100GE
-        i_data_rx_sosi      : in t_lbus_sosi;
+        i_axis_tdata   : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep   : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast   : in std_logic;                      
+        i_axis_tuser   : in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid  : in std_logic;
         -- Data to be transmitted on 100GE
-        o_data_tx_sosi      : out t_lbus_sosi;
-        i_data_tx_siso      : in t_lbus_siso;
+        o_axis_tdata   : out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        o_axis_tkeep   : out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        o_axis_tlast   : out std_logic;                      
+        o_axis_tuser   : out std_logic;
+        o_axis_tvalid  : out std_logic;
+        i_axis_tready  : in std_logic;
+        --
         i_clk_100GE         : in std_logic;
         i_eth100G_locked    : in std_logic;
         -----------------------------------------------------------------------
@@ -76,9 +86,6 @@ entity DSP_top_correlator is
         o_LFAALite_axi_miso : out t_axi4_lite_miso; -- => mc_lite_miso(c_LFAADecode_lite_index),
         i_LFAAFull_axi_mosi : in  t_axi4_full_mosi; -- => mc_full_mosi(c_LFAAdecode_full_index),
         o_LFAAFull_axi_miso : out t_axi4_full_miso; -- => mc_full_miso(c_LFAAdecode_full_index),
-        -- Timing control
-        i_timing_axi_mosi : in t_axi4_lite_mosi;
-        o_timing_axi_miso : out t_axi4_lite_miso;
         -- Corner Turn between LFAA Ingest and the filterbanks.
         i_LFAA_CT_axi_mosi : in t_axi4_lite_mosi;  --
         o_LFAA_CT_axi_miso : out t_axi4_lite_miso; --
@@ -92,15 +99,13 @@ entity DSP_top_correlator is
         i_cor_axi_mosi : in  t_axi4_lite_mosi;
         o_cor_axi_miso : out t_axi4_lite_miso;
         -- Output packetiser
-        i_PSR_packetiser_Lite_axi_mosi : in t_axi4_lite_mosi; 
-        o_PSR_packetiser_Lite_axi_miso : out t_axi4_lite_miso;
-        
-        i_PSR_packetiser_Full_axi_mosi : in  t_axi4_full_mosi;
-        o_PSR_packetiser_Full_axi_miso : out t_axi4_full_miso;
+        i_packetiser_Lite_axi_mosi : in t_axi4_lite_mosi; 
+        o_packetiser_Lite_axi_miso : out t_axi4_lite_miso;
+        i_packetiser_Full_axi_mosi : in  t_axi4_full_mosi;
+        o_packetiser_Full_axi_miso : out t_axi4_full_miso;
         -----------------------------------------------------------------------
         -- AXI interfaces to shared memory
         -- Uses the same clock as MACE (300MHz)
-        
         o_HBM_axi_aw      : out t_axi4_full_addr_arr(4 downto 0); -- => HBM_axi_aw,       -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
         i_HBM_axi_awready : in std_logic_vector(4 downto 0);      -- => HBM_axi_awreadyi,  --                     in std_logic_vector(4 downto 0);
         o_HBM_axi_w       : out t_axi4_full_data_arr(4 downto 0); -- => HBM_axi_w,        -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
@@ -121,9 +126,6 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     ---------------------------------------------------------------------------   
     signal LFAADecode_dbg : std_logic_vector(13 downto 0);
     signal gnd : std_logic_vector(199 downto 0);
-    
-    signal timingPacketData : std_logic_vector(63 downto 0);
-    signal timingPacketValid : std_logic;
     
     signal clk_LFAA40GE_wallTime : t_wall_time;
     signal clk_HBM_wallTime : t_wall_time;
@@ -176,11 +178,6 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     signal FB_valid : std_logic;
     
-    signal clk300_walltime : std_logic_vector(63 downto 0); -- wall time in clk300 domain, in nanoseconds
-    signal clk400_walltime : std_logic_vector(63 downto 0); -- out(63:0); -- wall time in clk400 domain, in nanoseconds
-    signal clk450_walltime : std_logic_vector(63 downto 0); -- out(63:0); -- wall time in the clk450 domain, in nanoseconds
-    signal clk322_walltime : std_logic_vector(63 downto 0); -- 
-    
     signal FD_frameCount :  std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
     signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
     signal FD_headerValid : std_logic_vector(3 downto 0);
@@ -226,6 +223,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_packet_data : t_slv_256_arr(1 downto 0);
     signal cor_packet_valid : std_logic_vector(1 downto 0);
     signal totalChannels : std_logic_vector(11 downto 0);
+    signal data_tx_siso : t_lbus_siso;
     
 begin
     
@@ -245,24 +243,20 @@ begin
     LFAAin : entity LFAADecode100G_lib.LFAADecodeTop100G
     port map(
         -- Data in from the 100GE MAC
-        -- Input is a 512 bit wide data in from the 100GE core. It consists of 4 segments of 128 bits each.
-        -- Includes .data(511:0), .valid(3:0), .eop(3:0), .sop(3:0), .error(3:0), .empty(3:0)(3:0)
-        i_eth100_rx_sosi => i_data_rx_sosi, -- in t_axi4_sosi; lds that are used are .tdata, .tvalid, .tuser
-        i_data_clk       => i_clk_100GE,    -- in std_logic;  322 MHz for 100GE MAC
+        i_axis_tdata     => i_axis_tdata, --  in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep     => i_axis_tkeep, --  in (63:0);  one bit per byte in i_axi_tdata
+        i_axis_tlast     => i_axis_tlast, --  in std_logic;                      
+        i_axis_tuser     => i_axis_tuser, --  in (79:0);  -- Timestamp for the packet, from the PTP core
+        i_axis_tvalid    => i_axis_tvalid, -- in std_logic;
+        i_data_clk       => i_clk_100GE,   -- 322 MHz from the 100GE MAC; note 512 bits x 322 MHz = 165 Mbit/sec, so even full rate traffic will have .valid low 1/3rd of the time.
         i_data_rst       => '0',            -- in std_logic;
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
         o_virtualChannel => LFAAingest_virtualChannel,  -- out(15:0), single number to uniquely identify the channel+station for this packet.
         o_packetCount    => LFAAingest_packetCount,     -- out(31:0). Packet count from the SPEAD header.
         o_valid          => LFAAingest_valid,           -- out std_logic; o_virtualChannel and o_packetCount are valid.
-        -- Timing information from timing packets, on the 322 MHz clock (i_clk_100GE)
-        o_100GE_timing_valid => timingPacketValid, -- out std_logic;
-        o_100GE_timing       => timingPacketData,  -- out std_logic_vector(63 downto 0)
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
-        o_axi_w      => o_HBM_axi_w(0),    -- w data bus (.wvalid, .wdata, .wlast)
+        o_axi_w      => o_HBM_axi_w(0),      -- w data bus (.wvalid, .wdata, .wlast)
         i_axi_wready => i_HBM_axi_wready(0), -- 
-        -- miscellaneous
-        i_my_mac           => mac100G,      -- in std_logic_vector(47 downto 0); -- MAC address for this board; incoming packets from the 40GE interface are filtered using this.
-        i_wallTime         => clk322_wallTime,  -- in(63:0); time in nanoseconds.
         --AXI lite Interface
         i_s_axi_mosi       => i_LFAALite_axi_mosi, -- in t_axi4_lite_mosi; at the top level use mc_lite_mosi(c_LFAADecode_lite_index)
         o_s_axi_miso       => o_LFAALite_axi_miso, -- out t_axi4_lite_miso;
@@ -276,36 +270,10 @@ begin
         -- debug
         o_dbg              => LFAADecode_dbg
     );
-
-    timing : entity timingControl_lib.timing_control_atomic
-    port map (
-        -- Registers - Uses 300 MHz clock
-        mm_rst    => i_MACE_rst,        -- in std_logic;
-        i_sla_in  => i_timing_axi_mosi, -- in t_axi4_lite_mosi;
-        o_sla_out => o_timing_axi_miso, -- out t_axi4_lite_miso;
-        -------------------------------------------------------
-        -- clocks :
-        -- THe 300MHz clock must be 300MHz, since it is used to track the time in ns. However this module will still work if the other clocks are not the frequency implied by their name.
-        i_clk300        => i_MACE_clk,   -- 300 MHz processing clock, used for interfaces in the vitis core. This clock is used for tracking the time (3 clocks = 10 ns)
-        i_clk400        => i_clk400,     -- in std_logic;  -- 400 MHz processing clock.
-        i_clk450        => i_clk450,     -- in std_logic;  -- 450 MHz processing clock.
-        i_LFAA100GE_clk => i_clk_100GE,  -- in std_logic;  -- 322 MHz clock from the 100GE core. 
-        -- Wall time outputs in each clock domain
-        o_clk300_wallTime => clk300_walltime, -- out(63:0); -- wall time in clk300 domain, in nanoseconds
-        o_clk400_wallTime => clk400_walltime, -- out(63:0); -- wall time in clk400 domain, in nanoseconds
-        o_clk450_wallTime => clk450_walltime, -- out(63:0); -- wall time in the clk450 domain, in nanoseconds
-        o_clk100GE_wallTime => clk322_walltime, -- out(63:0); -- wall time in clk322 domain, in nanoseconds
-        --------------------------------------------------------
-        -- Timing notifications from LFAA ingest module.
-        -- This is the wall time according to timing packets coming in on the 100G network. This is in the i_LFAA100GE_clk domain.
-        i_100GE_timing_valid => timingPacketValid, -- in std_logic;
-        i_100GE_timing       => timingPacketData   -- in(63:0)  -- current time in nanoseconds according to UDP timing packets from the switch
-    );
-    
     
     LFAA_FB_CT : entity CT_lib.corr_ct1_top
     generic map (
-        g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME
+        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME
     ) port map (
         -- shared memory interface clock (300 MHz)
         i_shared_clk => i_MACE_clk, -- in std_logic;
@@ -313,9 +281,6 @@ begin
         --AXI Lite Interface for registers
         i_saxi_mosi => i_LFAA_CT_axi_mosi, -- in t_axi4_lite_mosi;
         o_saxi_miso => o_LFAA_CT_axi_miso, -- out t_axi4_lite_miso;
-        --wall time:
-        i_shared_clk_wall_time => clk300_walltime, -- in(63:0); --wall time in input_clk domain           
-        i_FB_clk_wall_time => clk450_walltime, -- in(63:0); --wall time in output_clk domain
         -- other config (from LFAA ingest config, must be the same for the corner turn)
         i_virtualChannels => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
         o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
@@ -593,11 +558,17 @@ begin
     
     cmac_reset <= NOT i_eth100G_locked;
     
+    -- lbus inputs, not used (replaced with axi).
+    data_tx_siso.ready <= '1';
+    data_tx_siso.overflow <= '0';
+    data_tx_siso.underflow <= '0';
+    
     packet_generator : entity PSR_Packetiser_lib.psr_packetiser100G_Top 
     Generic Map (
         g_DEBUG_ILA       => g_DEBUG_ILA,
         Number_of_stream  => 1,
-        packet_type       => 5   -- 5 = correlator packets
+        packet_type       => 5,   -- 5 = correlator packets
+        CMAC_IS_LBUS      => false  -- "false" to use axi interface to the cmac
     )
     Port Map ( 
         -- ~322 MHz
@@ -608,16 +579,16 @@ begin
         i_packetiser_rst => '0',
         
         -- Lbus to MAC
-        o_data_to_transmit        => o_data_tx_sosi,
-        i_data_to_transmit_ctl    => i_data_tx_siso,
+        o_data_to_transmit        => open,
+        i_data_to_transmit_ctl    => data_tx_siso,
         
         -- AXI to CMAC interface to be implemented
-        o_tx_axis_tdata           => open,
-        o_tx_axis_tkeep           => open,
-        o_tx_axis_tvalid          => open,
-        o_tx_axis_tlast           => open,
-        o_tx_axis_tuser           => open,
-        i_tx_axis_tready          => '0',
+        o_tx_axis_tdata           => o_axis_tdata,
+        o_tx_axis_tkeep           => o_axis_tkeep,
+        o_tx_axis_tvalid          => o_axis_tvalid,
+        o_tx_axis_tlast           => o_axis_tlast,
+        o_tx_axis_tuser           => o_axis_tuser,
+        i_tx_axis_tready          => i_axis_tready,
         
         -- signals from signal processing/HBM/the moon/etc
         packet_stream_ctrl        => packetiser_host_bus_ctrl,
@@ -654,11 +625,11 @@ begin
         
         i_packetiser_clk                    => i_MACE_clk,
         
-        i_PSR_packetiser_Lite_axi_mosi      => i_PSR_packetiser_Lite_axi_mosi,
-        o_PSR_packetiser_Lite_axi_miso      => o_PSR_packetiser_Lite_axi_miso,
+        i_PSR_packetiser_Lite_axi_mosi      => i_packetiser_Lite_axi_mosi,
+        o_PSR_packetiser_Lite_axi_miso      => o_packetiser_Lite_axi_miso,
         
-        i_PSR_packetiser_Full_axi_mosi      => i_PSR_packetiser_Full_axi_mosi,
-        o_PSR_packetiser_Full_axi_miso      => o_PSR_packetiser_Full_axi_miso,
+        i_PSR_packetiser_Full_axi_mosi      => i_packetiser_Full_axi_mosi,
+        o_PSR_packetiser_Full_axi_miso      => o_packetiser_Full_axi_miso,
         
         o_packet_stream_ctrl                => packetiser_host_bus_ctrl,  --   out packetiser_stream_ctrl;
                 

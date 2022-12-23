@@ -105,13 +105,14 @@ set_property library correlator_lib [get_files {\
 # Design specific files
 ############################################################
 
+# removed $DESIGN_PATH/src/vhdl/mac_100g_wrapper.vhd, now uses timeslave wrapper
+
 # verilog version replaced with vhdl version due to problem with black box generation in IP packaging ($DESIGN_PATH/src/verilog/krnl_control_s_axi.v) 
 
 add_files -fileset sources_1 [glob \
 $DESIGN_PATH/src/vhdl/u55c/correlator.vhd \
 $DESIGN_PATH/src/vhdl/correlator_core.vhd \
 $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
-$DESIGN_PATH/src/vhdl/mac_100g_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
 $DESIGN_PATH/src/vhdl/version_pkg.vhd \ 
 ]
@@ -126,7 +127,6 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/u55c/correlator.vhd \
 *correlator/src/vhdl/correlator_core.vhd \
 *correlator/src/vhdl/cdma_wrapper.vhd \
-*correlator/src/vhdl/mac_100g_wrapper.vhd \
 *correlator/src/vhdl/krnl_control_axi.vhd \
 *correlator/src/vhdl/tb_correlatorCore.vhd \
 *correlator/src/vhdl/lbus_packet_receive.vhd \
@@ -137,7 +137,6 @@ set_property library correlator_lib [get_files {\
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/correlator_core.vhd]
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
-#add_files -fileset constrs_1 [ glob $DESIGN_PATH/vivado/vcu128_gemini_dsp.xdc ]
 
 # top level testbench
 set_property top tb_correlatorCore [get_filesets sim_1]
@@ -261,19 +260,6 @@ set_property library LFAADecode100G_lib [get_files {\
 # tcl scripts for ip generation
 source $ARGS_PATH/LFAADecode100G/lfaadecode100g/ip_LFAADecode100G_lfaadecode100g_vcstats_ram.tcl
 
-#############################################################
-# Timing Control
-add_files -fileset sources_1 [glob \
- $ARGS_PATH/timingControlA/timingcontrola/timingControlA_timingcontrola_reg_pkg.vhd \
- $ARGS_PATH/timingControlA/timingcontrola/timingControlA_timingcontrola_reg.vhd \
- $RLIBRARIES_PATH/signalProcessing/timingControl/src/vhdl/timing_control_atomic.vhd \
-]
-set_property library timingControl_lib [get_files {\
- *build/ARGS/correlator/timingControlA/timingcontrola/timingControlA_timingcontrola_reg_pkg.vhd \
- *build/ARGS/correlator/timingControlA/timingcontrola/timingControlA_timingcontrola_reg.vhd \
- *libraries/signalProcessing/timingControl/src/vhdl/timing_control_atomic.vhd \
-}]
-
 ## tcl scripts for ip generation
 #source $RLIBRARIES_PATH/signalProcessing/timingControl/ptpclk125.tcl
 
@@ -341,15 +327,11 @@ set_property library DRP_lib [get_files {\
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/common/src/vhdl/sync.vhd \
  $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
- $COMMON_PATH/common/src/vhdl/s_axi_to_lbus.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
  */common/src/vhdl/sync_vector.vhd \
- */common/src/vhdl/s_axi_to_lbus.vhd \
 }]
-
-set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/common/src/vhdl/s_axi_to_lbus.vhd]
 
 #############################################################
 # 1st corner turn, between LFAA ingest and filterbanks
@@ -440,14 +422,61 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/cor/config/cor_config_reg_pkg.vhd \
   $ARGS_PATH/cor/config/cor_config_reg.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/correlator_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/single_correlator.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/full_correlator.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_HBM.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/LTA_urams.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/row_col_dataIn.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/LTA_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/centroid_divider.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/vis2fp.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/dv_tci_mem.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/sqrt_rom.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/fp32_x_Uint.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom0.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom1.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom2.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom3.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom4.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom5.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom6.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom7.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom8.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_quad_wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
 ]
 
 set_property library correlator_lib [get_files {\
   *build/ARGS/correlator/cor/config/cor_config_reg_pkg.vhd \
   *build/ARGS/correlator/cor/config/cor_config_reg.vhd \
   *libraries/signalProcessing/correlator/correlator_top.vhd \
+  *libraries/signalProcessing/correlator/single_correlator.vhd \
+  *libraries/signalProcessing/correlator/full_correlator.vhd \
+  *libraries/signalProcessing/correlator/correlator_HBM.vhd \
+  *libraries/signalProcessing/correlator/LTA_urams.vhd \
+  *libraries/signalProcessing/correlator/row_col_dataIn.vhd \
+  *libraries/signalProcessing/correlator/LTA_top.vhd \
+  *libraries/signalProcessing/correlator/centroid_divider.vhd \
+  *libraries/signalProcessing/correlator/vis2fp.vhd \
+  *libraries/signalProcessing/correlator/dv_tci_mem.vhd \
+  *libraries/signalProcessing/correlator/sqrt_rom.vhd \
+  *libraries/signalProcessing/correlator/fp32_x_Uint.vhd \
+  *libraries/signalProcessing/correlator/inv_rom_top.vhd \
+  *libraries/signalProcessing/correlator/inv_rom0.vhd \
+  *libraries/signalProcessing/correlator/inv_rom1.vhd \
+  *libraries/signalProcessing/correlator/inv_rom2.vhd \
+  *libraries/signalProcessing/correlator/inv_rom3.vhd \
+  *libraries/signalProcessing/correlator/inv_rom4.vhd \
+  *libraries/signalProcessing/correlator/inv_rom5.vhd \
+  *libraries/signalProcessing/correlator/inv_rom6.vhd \
+  *libraries/signalProcessing/correlator/inv_rom7.vhd \
+  *libraries/signalProcessing/correlator/inv_rom8.vhd \
+  *libraries/signalProcessing/correlator/cmac_quad_wrapper.vhd \
+  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
 }]
 
+source $RLIBRARIES_PATH/signalProcessing/correlator/LTA.tcl
 
 #############################################################
 # signal processing Top level

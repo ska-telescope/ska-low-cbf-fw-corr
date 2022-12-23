@@ -31,21 +31,21 @@ use xpm.vcomponents.all;
 ENTITY correlator_core IS
     generic (
         -- GENERICS for use in the testbench 
-        g_SIMULATION : BOOLEAN := FALSE;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
-        g_USE_META : boolean := FALSE;    -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
+        g_SIMULATION : boolean := FALSE;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
+        g_USE_META   : boolean := FALSE;    -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
         -- GLOBAL GENERICS for PERENTIE LOGIC
-        g_DEBUG_ILA                     : BOOLEAN := FALSE;
+        g_DEBUG_ILA                : boolean := FALSE;
         -- Number of LFAA blocks per first stage corner turn frame; Nominal (and maximum allowed) value is 128;
         -- Allowed values are 32, 64, 128.
         -- Minimum possible value is 32, since we need enough preload data in a buffer to initialise the filterbanks
         -- Filterbanks need 11 x 4096 samples for initialisation; That's 22 LFAA frames (since they are 2048 samples).
-        g_LFAA_BLOCKS_PER_FRAME   : integer := 128;  -- Number of LFAA blocks per frame divided by 3; minimum value is 1, i.e. 3 LFAA blocks per frame.
-        g_FIRMWARE_MAJOR_VERSION        : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_MINOR_VERSION        : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_PATCH_VERSION        : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_LABEL                : std_logic_vector(31 downto 0) := x"00000000";
-        g_FIRMWARE_PERSONALITY          : std_logic_vector(31 downto 0) := x"20434F52"; -- ascii " COR"
-        g_FIRMWARE_BUILD_DATE           : std_logic_vector(31 downto 0) := x"00000000";
+        g_SPS_PACKETS_PER_FRAME    : integer := 128;  -- Number of LFAA blocks per frame divided by 3; minimum value is 1, i.e. 3 LFAA blocks per frame.
+        g_FIRMWARE_MAJOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_MINOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_PATCH_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_LABEL           : std_logic_vector(31 downto 0) := x"00000000";
+        g_FIRMWARE_PERSONALITY     : std_logic_vector(31 downto 0) := x"20434F52"; -- ascii " COR"
+        g_FIRMWARE_BUILD_DATE      : std_logic_vector(31 downto 0) := x"00000000";
         -- GENERICS for SHELL INTERACTION
         C_S_AXI_CONTROL_ADDR_WIDTH : integer := 7;
         C_S_AXI_CONTROL_DATA_WIDTH : integer := 32;
@@ -731,7 +731,7 @@ begin
     system_fields_ro.eth100G_tx_total_packets       <= eth100G_tx_total_packets;
     system_fields_ro.eth100g_ptp_nano_seconds       <= PTP_time_ARGs_clk(31 downto 0);
     system_fields_ro.eth100g_ptp_lower_seconds      <= PTP_time_ARGs_clk(63 downto 32);
-    system_fields_ro.eth100g_ptp_upper_seconds      <= zero_word & PTP_time_ARGs_clk(79 downto 64);
+    system_fields_ro.eth100g_ptp_upper_seconds      <= x"0000" & PTP_time_ARGs_clk(79 downto 64);
     
     -------------------------------------------------------------------------------------------
     -- 100G ethernet
@@ -896,14 +896,26 @@ begin
     dsp_topi : entity dsp_top_lib.DSP_top_correlator
     generic map (
         g_DEBUG_ILA             => g_DEBUG_ILA,
-        g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME, -- nominal value is 128
+        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
         g_USE_META              => g_USE_META
     ) port map (
         -- Received data from 100GE
-        i_data_rx_sosi      => eth100_rx_sosi, -- in t_lbus_sosi;
+        i_axis_tdata   => rx_axis_tdata,   -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep   => rx_axis_tkeep,  -- in (63:0);  one bit per byte in i_axi_tdata
+        i_axis_tlast   => rx_axis_tlast,  -- in std_logic;                      
+        i_axis_tuser   => rx_axis_tuser,  -- in (79:0);  Timestamp for the packet.
+        i_axis_tvalid  => rx_axis_tvalid, -- in std_logic;
         -- Data to be transmitted on 100GE
-        o_data_tx_sosi      => eth100_tx_sosi, -- out t_lbus_sosi;
-        i_data_tx_siso      => eth100_tx_siso, -- in t_lbus_siso;
+        o_axis_tdata   => tx_axis_tdata, -- out (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        o_axis_tkeep   => tx_axis_tkeep, -- out (63:0);  one bit per byte in o_axis_tdata
+        o_axis_tlast   => tx_axis_tlast, -- out std_logic;                      
+        o_axis_tuser   => tx_axis_tuser, -- out std_logic;
+        o_axis_tvalid  => tx_axis_tvalid, -- out std_logic;
+        i_axis_tready  => tx_axis_tready, -- in std_logic;
+        
+        
+       -- o_data_tx_sosi      => eth100_tx_sosi, -- out t_lbus_sosi;
+       -- i_data_tx_siso      => eth100_tx_siso, -- in t_lbus_siso;
         i_clk_100GE         => eth100G_clk,      -- in std_logic;
         i_eth100G_locked    => eth100G_locked,
         -- Filterbank processing clock, 450 MHz
@@ -916,17 +928,11 @@ begin
         -- AXI slave interfaces for modules
         i_MACE_clk  => ap_clk, -- in std_logic;
         i_MACE_rst  => ap_rst, -- in std_logic;
-        -- DSP top lite slave
-        --i_dsptopLite_axi_mosi => mc_lite_mosi(c_dsp_top_lite_index), -- in t_axi4_lite_mosi;
-        --o_dsptopLite_axi_miso => mc_lite_miso(c_dsp_top_lite_index), -- out t_axi4_lite_miso;
         -- LFAADecode, lite + full slave
         i_LFAALite_axi_mosi => mc_lite_mosi(c_LFAADecode100g_lite_index), -- in t_axi4_lite_mosi; 
         o_LFAALite_axi_miso => mc_lite_miso(c_LFAADecode100g_lite_index), -- out t_axi4_lite_miso;
         i_LFAAFull_axi_mosi => mc_full_mosi(c_lfaadecode100g_full_index), -- in  t_axi4_full_mosi;
         o_LFAAFull_axi_miso => mc_full_miso(c_lfaadecode100g_full_index), -- out t_axi4_full_miso;
-        -- Timing control
-        i_timing_axi_mosi => mc_lite_mosi(c_timingcontrola_lite_index), -- in t_axi4_lite_mosi;
-        o_timing_axi_miso => mc_lite_miso(c_timingcontrola_lite_index), -- out t_axi4_lite_miso;
         -- Corner Turn between LFAA Ingest and the filterbanks.
         i_LFAA_CT_axi_mosi => mc_lite_mosi(c_corr_ct1_lite_index), -- in  t_axi4_lite_mosi;
         o_LFAA_CT_axi_miso => mc_lite_miso(c_corr_ct1_lite_index), -- out t_axi4_lite_miso;
@@ -939,24 +945,23 @@ begin
         -- correlator
         i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
         o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
-        
---        -- PSR Packetiser interface
---        i_PSR_packetiser_lite_axi_mosi  => mc_lite_mosi(c_packetiser_lite_index),
---        o_PSR_packetiser_lite_axi_miso  => mc_lite_miso(c_packetiser_lite_index),
---        i_PSR_packetiser_full_axi_mosi  => mc_full_mosi(c_packetiser_full_index), 
---        o_PSR_packetiser_full_axi_miso  => mc_full_miso(c_packetiser_full_index), 
---        -----------------------------------------------------------------------
---        -- AXI interfaces to HBM memory
---        o_HBM_axi_aw      => HBM_axi_aw,       -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
---        i_HBM_axi_awready => HBM_axi_awreadyi,  --                     in std_logic_vector(4 downto 0);
---        o_HBM_axi_w       => HBM_axi_w,        -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
---        i_HBM_axi_wready  => HBM_axi_wreadyi,  --              in std_logic_vector(4 downto 0);
---        i_HBM_axi_b       => HBM_axi_b,        -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
---        o_HBM_axi_ar      => HBM_axi_ar,       -- read address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
---        i_HBM_axi_arready => HBM_axi_arreadyi, --                    in std_logic_vector(4 downto 0);
---        i_HBM_axi_r       => HBM_axi_r,        -- r data bus : in t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
---        o_HBM_axi_rready  => HBM_axi_rreadyi   --              out std_logic_vector(4 downto 0);
---    );
+        -- PSR Packetiser interface
+        i_packetiser_lite_axi_mosi  => mc_lite_mosi(c_packetiser_lite_index),
+        o_packetiser_lite_axi_miso  => mc_lite_miso(c_packetiser_lite_index),
+        i_packetiser_full_axi_mosi  => mc_full_mosi(c_packetiser_full_index), 
+        o_packetiser_full_axi_miso  => mc_full_miso(c_packetiser_full_index), 
+        -----------------------------------------------------------------------
+        -- AXI interfaces to HBM memory
+        o_HBM_axi_aw      => HBM_axi_aw,       -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_awready => HBM_axi_awreadyi,  --                     in std_logic_vector(4 downto 0);
+        o_HBM_axi_w       => HBM_axi_w,        -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_wready  => HBM_axi_wreadyi,  --              in std_logic_vector(4 downto 0);
+        i_HBM_axi_b       => HBM_axi_b,        -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM_axi_ar      => HBM_axi_ar,       -- read address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_arready => HBM_axi_arreadyi, --                    in std_logic_vector(4 downto 0);
+        i_HBM_axi_r       => HBM_axi_r,        -- r data bus : in t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_rready  => HBM_axi_rreadyi   --              out std_logic_vector(4 downto 0);
+    );
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    

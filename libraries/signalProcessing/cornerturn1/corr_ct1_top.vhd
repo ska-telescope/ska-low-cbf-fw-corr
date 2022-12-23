@@ -104,12 +104,9 @@ Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 
---library UNISIM;
---use UNISIM.VComponents.all;
-
 entity corr_ct1_top is
     generic (
-        -- Number of LFAA blocks per frame for the correlator output.
+        -- Number of SPS packets per frame (for a single virtual channel) for the correlator output.
         -- Each LFAA block is 2048 time samples. 
         -- Default value is 128.
         -- (128 LFAA packets) x (8192 bytes / LFAA packet) x (1024 virtual channels) = 2^30 bytes = 1 Gbyte per buffer.
@@ -119,7 +116,7 @@ entity corr_ct1_top is
         --   - Can use 32 for simulation of the LFAA ingest, 1st corner turn and filterbank
         --     32 is the minimum possible value because otherwise there is insufficient data for the filterbank preload.
         --   - full build must use 128. The second stage corner turn only supports 128.
-        g_LFAA_BLOCKS_PER_FRAME : integer := 128   
+        g_SPS_PACKETS_PER_FRAME : integer := 128   
     );
     port (
         -- shared memory interface clock (300 MHz)
@@ -128,9 +125,6 @@ entity corr_ct1_top is
         -- Registers (uses the shared memory clock)
         i_saxi_mosi       : in  t_axi4_lite_mosi; -- MACE IN
         o_saxi_miso       : out t_axi4_lite_miso; -- MACE OUT
-        --wall time:
-        i_shared_clk_wall_time : in std_logic_vector(63 downto 0); --wall time in input_clk domain           
-        i_FB_clk_wall_time     : in std_logic_vector(63 downto 0); --wall time in output_clk domain
         -- other config (comes from LFAA ingest module).
         i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         o_rst               : out std_logic;  -- reset from the register module, copied out to be used downstream.
@@ -439,10 +433,10 @@ begin
             buf2offset <= std_logic_vector(signed(packetCount) - signed(packetCountBuffer2));
             
             -- Select which of the 4 buffers to use. This is still qualified in the state machine by checks on whether the packet is in range.
-            if ((signed(buf0offset) >= 0) and (signed(buf0offset) < g_LFAA_BLOCKS_PER_FRAME)) then
+            if ((signed(buf0offset) >= 0) and (signed(buf0offset) < g_SPS_PACKETS_PER_FRAME)) then
                 LFAAAddr(31 downto 30) <= "00";
                 LFAAAddr(19 downto 13) <= buf0offset(6 downto 0);
-            elsif ((signed(buf1offset) >= 0) and (signed(buf1offset) < g_LFAA_BLOCKS_PER_FRAME)) then
+            elsif ((signed(buf1offset) >= 0) and (signed(buf1offset) < g_SPS_PACKETS_PER_FRAME)) then
                 LFAAAddr(31 downto 30) <= "01";
                 LFAAAddr(19 downto 13) <= buf1offset(6 downto 0);
             else -- if ((signed(buf2offset) >= 0) and (signed(buf2offset) < g_LFAA_BLOCKS_PER_FRAME)) then
@@ -471,11 +465,11 @@ begin
                 currentWrBuffer <= "00";
                 currentRdBuffer <= "10";   -- although we don't actually do a read out on the first frame
                 packetCountBuffer0 <= scanStartPacketCountExt;
-                packetCountBuffer1 <= std_logic_vector(signed(scanStartPacketCountExt) + g_LFAA_BLOCKS_PER_FRAME);  -- Next frame
-                packetCountBuffer2 <= std_logic_vector(signed(scanStartPacketCountExt) - g_LFAA_BLOCKS_PER_FRAME);  -- Previous frame
-                frameCountReadTrigger <= std_logic_vector(signed(scanStartPacketCountExt) + g_LFAA_BLOCKS_PER_FRAME + signed(untimedFrameCountStart));
+                packetCountBuffer1 <= std_logic_vector(signed(scanStartPacketCountExt) + g_SPS_PACKETS_PER_FRAME);  -- Next frame
+                packetCountBuffer2 <= std_logic_vector(signed(scanStartPacketCountExt) - g_SPS_PACKETS_PER_FRAME);  -- Previous frame
+                frameCountReadTrigger <= std_logic_vector(signed(scanStartPacketCountExt) + g_SPS_PACKETS_PER_FRAME + signed(untimedFrameCountStart));
                 minPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) - 2); -- -2 so that it includes the preload data.
-                maxPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) + 3*g_LFAA_BLOCKS_PER_FRAME - 2); -- -2 so we don't overwrite preload data for the current frame being read out with future data.
+                maxPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) + 3*g_SPS_PACKETS_PER_FRAME - 2); -- -2 so we don't overwrite preload data for the current frame being read out with future data.
                 triggerRead <= '0';
             elsif ((input_fsm = check_range) and (signed(packetCount) >= signed(frameCountReadTrigger))) then 
                 -- Advance to the next frame
@@ -485,18 +479,18 @@ begin
                     when "01" => currentWrBuffer <= "10";
                     when others => currentWrBuffer <= "00";
                 end case;
-                frameCountReadTrigger <= std_logic_vector(unsigned(frameCountReadTrigger) + g_LFAA_BLOCKS_PER_FRAME);
+                frameCountReadTrigger <= std_logic_vector(unsigned(frameCountReadTrigger) + g_SPS_PACKETS_PER_FRAME);
                 if currentWrBuffer = "00" then
                     -- We are far enough into buffer 1 to start reading from buffer 0, with preload data coming from buffer 2.
                     -- For the purpose of writing new LFAA data, advance buffer 2 (although the end of buffer2 is still used for preload data). 
-                    packetCountBuffer2 <= std_logic_vector(unsigned(packetCountBuffer2) + 3 * g_LFAA_BLOCKS_PER_FRAME);
+                    packetCountBuffer2 <= std_logic_vector(unsigned(packetCountBuffer2) + 3 * g_SPS_PACKETS_PER_FRAME);
                 elsif currentWrBuffer = "01" then
-                    packetCountBuffer0 <= std_logic_vector(unsigned(packetCountBuffer0) + 3 * g_LFAA_BLOCKS_PER_FRAME);
+                    packetCountBuffer0 <= std_logic_vector(unsigned(packetCountBuffer0) + 3 * g_SPS_PACKETS_PER_FRAME);
                 else
-                    packetCountBuffer1 <= std_logic_vector(unsigned(packetCountBuffer1) + 3 * g_LFAA_BLOCKS_PER_FRAME);
+                    packetCountBuffer1 <= std_logic_vector(unsigned(packetCountBuffer1) + 3 * g_SPS_PACKETS_PER_FRAME);
                 end if;
-                minPacketCount <= std_logic_vector(unsigned(minPacketCount) + g_LFAA_BLOCKS_PER_FRAME);
-                maxPacketCount <= std_logic_vector(unsigned(maxPacketCount) + g_LFAA_BLOCKS_PER_FRAME);
+                minPacketCount <= std_logic_vector(unsigned(minPacketCount) + g_SPS_PACKETS_PER_FRAME);
+                maxPacketCount <= std_logic_vector(unsigned(maxPacketCount) + g_SPS_PACKETS_PER_FRAME);
                 triggerRead <= '1';
             else
                 triggerRead <= '0';
@@ -691,7 +685,7 @@ begin
     
     readout : entity ct_lib.corr_ct1_readout
     generic map (
-        g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME
+        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME
     )
     port map (
         shared_clk => i_shared_clk, -- in std_logic; Shared memory clock
