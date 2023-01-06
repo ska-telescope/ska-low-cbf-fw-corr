@@ -92,6 +92,8 @@ entity HBM_axi_tbModel is
         i_write_to_disk_size : in integer; -- size in bytes
         i_fname : in string;
         -- Initialisation of the memory
+        -- The memory is loaded with the contents of the file i_init_fname in 
+        -- any clock cycle where i_init_mem is high.
         i_init_mem   : in std_logic;
         i_init_fname : in string
     );

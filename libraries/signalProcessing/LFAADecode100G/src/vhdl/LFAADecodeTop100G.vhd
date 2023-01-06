@@ -96,7 +96,7 @@ architecture Behavioral of LFAADecodeTop100G is
     signal data_clk_vec : std_logic_vector(0 downto 0);
     
     -- One only of the "LFAAProcess" and the "TestProcess" modules controls the memories in the registers.
-    signal LFAAVCTable_addr, testVCTable_addr : std_logic_vector(9 downto 0);
+    signal LFAAVCTable_addr : std_logic_vector(11 downto 0);
     signal LFAAstats_wr_data, testStats_wr_data : std_logic_vector(31 downto 0);
     signal LFAAstats_we, testStats_we : std_logic;
     signal LFAAstats_addr, testStats_addr : std_logic_vector(12 downto 0); 

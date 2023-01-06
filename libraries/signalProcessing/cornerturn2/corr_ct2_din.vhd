@@ -181,6 +181,7 @@ architecture Behavioral of corr_ct2_din is
     signal get_addr : std_logic;
     signal HBM_addr : std_logic_vector(31 downto 0);
     signal HBM_addr_bad, HBM_fine_high, HBM_Addr_valid : std_logic;
+    signal fineChannel_ext : std_logic_vector(23 downto 0);
     
 begin
     
@@ -381,25 +382,27 @@ begin
     port map(
         i_axi_clk => i_axi_clk, --  in std_logic;
         -- Values from the Subarray-beam table
-        i_SB_HBM_base_Addr => copy_SB_HBM_base_addr, -- in std_logic_vector(31 downto 0); -- Base address in HBM for this subarray-beam
-        i_SB_coarseStart   => copy_SB_coarseStart, -- in std_logic_vector(8 downto 0);  -- First coarse channel for this subarray-beam, x781.25 kHz to get the actual sky frequency 
-        i_SB_fineStart     => copy_SB_fineStart, -- in std_logic_vector(11 downto 0); -- First fine channel for this subarray-beam, runs from 0 to 3455
-        i_SB_stations      => copy_SB_stations, -- in std_logic_vector(15 downto 0); -- Total number of stations in this subarray-beam
-        i_SB_N_fine        => copy_SB_N_fine, -- in std_logic_vector(23 downto 0); -- Total number of fine channels to store for this subarray-beam
+        i_SB_HBM_base_Addr => copy_SB_HBM_base_addr, -- in (31:0); Base address in HBM for this subarray-beam
+        i_SB_coarseStart   => copy_SB_coarseStart(8 downto 0),   -- in (8:0);  First coarse channel for this subarray-beam, x781.25 kHz to get the actual sky frequency 
+        i_SB_fineStart     => copy_SB_fineStart(11 downto 0),     -- in (11:0); First fine channel for this subarray-beam, runs from 0 to 3455
+        i_SB_stations      => copy_SB_stations,      -- in (15:0); Total number of stations in this subarray-beam
+        i_SB_N_fine        => copy_SB_N_fine, -- in (23:0); Total number of fine channels to store for this subarray-beam
         -- Values for this particular block of 512 bytes. Each block of 512 bytes is 4 stations, 32 time samples ((4stations)*(32timesamples)*(2pol)*(1byte)(2(complex)) = 512 bytes)
-        i_coarse_channel   => copy_skyFrequency, -- in std_logic_vector(8 downto 0);  -- coarse channel for this block, x781.25kHz to get the actual sky frequency (so is comparable to i_SB_coarseStart
-        i_fine_channel     => copy_fineChannel, -- in std_logic_vector(11 downto 0); -- fine channel for this block, runs from 0 to 3455
-        i_station          => copy_station, -- in std_logic_vector(11 downto 0); -- Index of this station within the subarray
-        i_time_block       => copy_time,    -- in std_logic_vector(2 downto 0);  -- Which time block this is for; 0 to 5. Each time block is 32 time samples.
+        i_coarse_channel   => copy_skyFrequency, -- in (8:0); Coarse channel for this block, x781.25kHz to get the actual sky frequency (so is comparable to i_SB_coarseStart
+        i_fine_channel     => fineChannel_ext,   -- in (23:0); Fine channel for this block.
+        i_station          => copy_station, -- in (11:0); Index of this station within the subarray
+        i_time_block       => copy_time,    -- in (2:0);  Which time block this is for; 0 to 5. Each time block is 32 time samples.
         i_buffer           => copy_buffer,  -- in std_logic; -- Which half of the buffer to calculate for (each half is 1.5 Gbytes)
         -- All above data is valid, do the calculation.
         i_valid            => get_addr, -- in std_logic;
         -- Resulting address in the HBM, after 8 cycles latency.
-        o_HBM_addr         => HBM_addr, -- out std_logic_vector(31 downto 0);
+        o_HBM_addr         => HBM_addr, -- out (31:0);
         o_out_of_range     => HBM_addr_bad,   -- out std_logic; -- indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
         o_fine_high        => HBM_fine_high,  -- out std_logic; -- indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
         o_valid            => HBM_addr_valid  -- out std_logic -- some fixed number of clock cycles after i_valid.
     );
+    
+    fineChannel_ext <= x"00" & copy_fineChannel;
     
     process(i_axi_clk)
     begin
@@ -409,12 +412,10 @@ begin
                 copy_fsm <= start;
                 copy_buffer <= copyToHBM_buffer;   -- Which half of each 3Gbyte buffer to write to in the HBM. 1.5 Gbytes of data = 849 ms of data for (typically, up to) 512 stations.
                 copy_fine <= (others => '0');
-                --copy_channelGroup <= copyToHBM_channelGroup; -- Up to 256 groups of 4 channels
                 copy_time <= copyToHBM_time;           -- Which group of times within the corner turn (6 possible value, 0 to 5, corresponding to times of (0-31, 32-63, 64-95, 96-127, 128-159, 160-191))
-                
                 copy_station <= copyToHBM_station;
                 copy_skyFrequency <= copyToHBM_skyFrequency;
-                if copyToHBM_skyFrequency = copyToHBM_SB_coarseStart then
+                if copyToHBM_skyFrequency = copyToHBM_SB_coarseStart(8 downto 0) then
                     copy_fineChannel <= copyToHBM_SB_fineStart;
                 else
                     copy_fineChannel <= (others => '0');
@@ -585,13 +586,15 @@ begin
             end if;
             
             dataFIFO_wrEn(0) <= dataFIFO0_wrEn(15);
-            dataFIFO_wrEN(1) <= dataFIFO1_wrEn(15);
-            dataFIFO_din <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
+            dataFIFO_wrEn(1) <= dataFIFO1_wrEn(15);
+            dataFIFO_din(0) <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
+            dataFIFO_din(1) <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
             
         end if;
     end process;
 
-    -- number of ones in the wrEN vector is the number of pending writes to the fifo, due to the latency of the ultraRAM buffer.
+    -- Number of ones in the wrEN vector is the number of pending writes to the fifo,
+    -- due to the latency of the ultraRAM buffer.
     one_count1 : entity ct_lib.ones_count16
     port map (
         clk   => i_axi_clk, --  in std_logic;

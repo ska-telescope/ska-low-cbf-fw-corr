@@ -63,7 +63,7 @@ architecture Behavioral of get_ct2_HBM_addr is
     signal time_block : std_logic_vector(3 downto 0);
     signal time_x_N_fine_full : signed(28 downto 0);
     signal time_x_N_fine : std_logic_vector(22 downto 0);
-    signal fine_channel_del1 : std_logic_vector(11 downto 0);
+    signal fine_channel_del1 : std_logic_vector(23 downto 0);
     signal SB_fineStart_del1, SB_fineStart_del2 : std_logic_vector(11 downto 0);
     signal time_x_N_fine_del4, time_x_N_fine_del3 : std_logic_vector(22 downto 0);
     signal fine_channel_del2, SB_fineStart_del3, sum3, coarse_diff_x_3456_plus_fine, coarse_diff_x_3456_p_fine_m_fstart, sum1_del5 : std_logic_vector(22 downto 0);
@@ -175,7 +175,7 @@ begin
             coarse_diff_x_3456 <= signed(coarse_diff_ext) * (signed(c_3456)); -- 10 bit x 13 bit = 23 bit result.
             
             fine_channel_del1 <= i_fine_channel;
-            fine_channel_del2 <= "00000000000" & fine_channel_del1; -- convert to 23 bit value.
+            fine_channel_del2 <= fine_channel_del1(22 downto 0); -- convert to 23 bit value.
             
             SB_fineStart_del1 <= i_SB_fineStart;
             SB_fineStart_del2 <= SB_fineStart_del1;

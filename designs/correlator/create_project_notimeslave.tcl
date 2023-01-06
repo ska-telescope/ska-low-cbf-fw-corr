@@ -14,7 +14,7 @@ puts $env(RADIOHDL)
 
 puts "Timeslave IP in submodule"
 # RADIOHDL is ENV_VAR for current project REPO. 
-set timeslave_repo "$env(RADIOHDL)/pub-timeslave/hw/cores"
+#set timeslave_repo "$env(RADIOHDL)/pub-timeslave/hw/cores"
 
 # Create the new build directory
 puts "Creating build_directory $proj_dir"
@@ -44,40 +44,40 @@ set_property target_simulator XSim [current_project]
 ############################################################
 # Timeslave files
 ############################################################
-set_property  ip_repo_paths  $timeslave_repo [current_project]
-update_ip_catalog
+#set_property  ip_repo_paths  $timeslave_repo [current_project]
+#update_ip_catalog
 
   # generate Timeslave BD - Instance 1 - U55C TOP PORT.
   # based on Vitis version.
-  if { $env(VITIS_VERSION) == "2021.2" } {
-    source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
-  } else {
-    # 2022.2
-    source $COMMON_PATH/ptp/src/ts_$env(VITIS_VERSION).tcl
-  }
+#  if { $env(VITIS_VERSION) == "2021.2" } {
+#    source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
+#  } else {
+#    # 2022.2
+#    source $COMMON_PATH/ptp/src/ts_$env(VITIS_VERSION).tcl
+#  }
 
-make_wrapper -files [get_files $workingDir/$env(PERSONALITY).srcs/sources_1/bd/ts/ts.bd] -top
-add_files -norecurse $workingDir/$env(PERSONALITY).gen/sources_1/bd/ts/hdl/ts_wrapper.vhd
+#make_wrapper -files [get_files $workingDir/$env(PERSONALITY).srcs/sources_1/bd/ts/ts.bd] -top
+#add_files -norecurse $workingDir/$env(PERSONALITY).gen/sources_1/bd/ts/hdl/ts_wrapper.vhd
 
-add_files -fileset sources_1 [glob \
- $COMMON_PATH/ptp/src/CMAC_100G_wrap_w_timeslave.vhd \
-]
-set_property library Timeslave_CMAC_lib [get_files {\
- */src/CMAC_100G_wrap_w_timeslave.vhd \
-}]
+#add_files -fileset sources_1 [glob \
+# $COMMON_PATH/ptp/src/CMAC_100G_wrap_w_timeslave.vhd \
+#]
+#set_property library Timeslave_CMAC_lib [get_files {\
+# */src/CMAC_100G_wrap_w_timeslave.vhd \
+#}]
 
-add_files -fileset sources_1 [glob \
- $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
- $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg.vhd \
- $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
- $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg.vhd \
-]
-set_property library Timeslave_CMAC_lib [get_files {\
- *CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
- *CMAC/cmac/CMAC_cmac_reg.vhd \
- */Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
- */Timeslave/timeslave/Timeslave_timeslave_reg.vhd \ 
-}]
+#add_files -fileset sources_1 [glob \
+# $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
+# $ARGS_PATH/CMAC/cmac/CMAC_cmac_reg.vhd \
+# $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
+# $ARGS_PATH/Timeslave/timeslave/Timeslave_timeslave_reg.vhd \
+#]
+#set_property library Timeslave_CMAC_lib [get_files {\
+# *CMAC/cmac/CMAC_cmac_reg_pkg.vhd \
+# *CMAC/cmac/CMAC_cmac_reg.vhd \
+# */Timeslave/timeslave/Timeslave_timeslave_reg_pkg.vhd \
+# */Timeslave/timeslave/Timeslave_timeslave_reg.vhd \ 
+#}]
 
 ############################################################
 # ARGS generated files
@@ -110,7 +110,7 @@ set_property library correlator_lib [get_files {\
 # verilog version replaced with vhdl version due to problem with black box generation in IP packaging ($DESIGN_PATH/src/verilog/krnl_control_s_axi.v) 
 
 add_files -fileset sources_1 [glob \
-$DESIGN_PATH/src/vhdl/u55c/correlator.vhd \
+#$DESIGN_PATH/src/vhdl/u55c/correlator.vhd \
 $DESIGN_PATH/src/vhdl/correlator_core.vhd \
 $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
@@ -123,7 +123,7 @@ $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd \
 ]
 
 set_property library correlator_lib [get_files {\
-*correlator/src/vhdl/u55c/correlator.vhd \
+#*correlator/src/vhdl/u55c/correlator.vhd \
 *correlator/src/vhdl/correlator_core.vhd \
 *correlator/src/vhdl/cdma_wrapper.vhd \
 *correlator/src/vhdl/krnl_control_axi.vhd \
@@ -133,7 +133,7 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/version_pkg.vhd \
 }]
 
-set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]
+#set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/correlator_core.vhd]
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
 
@@ -501,11 +501,11 @@ set_property file_type {VHDL 2008} [get_files  *libraries/signalProcessing/DSP_t
 
 ##############################################################
 # timeslave causes simulation problems in vivado, remove it from the simulation.
-set_property used_in_simulation false [get_files  *common/libraries/ptp/src/CMAC_100G_wrap_w_timeslave.vhd]
-set_property used_in_simulation false [get_files  *correlator.gen/sources_1/bd/ts/hdl/ts_wrapper.vhd]
-set_property used_in_simulation false [get_files  *correlator.srcs/sources_1/bd/ts/ts.bd]
-set_property used_in_simulation false [get_files  *designs/correlator/src/vhdl/u55c/correlator.vhd]
-set_property used_in_simulation false [get_files  *correlator/Timeslave/timeslave/Timeslave_timeslave_reg.vhd]
+#set_property used_in_simulation false [get_files  *common/libraries/ptp/src/CMAC_100G_wrap_w_timeslave.vhd]
+#set_property used_in_simulation false [get_files  *correlator.gen/sources_1/bd/ts/hdl/ts_wrapper.vhd]
+#set_property used_in_simulation false [get_files  *correlator.srcs/sources_1/bd/ts/ts.bd]
+#set_property used_in_simulation false [get_files  *designs/correlator/src/vhdl/u55c/correlator.vhd]
+#set_property used_in_simulation false [get_files  *correlator/Timeslave/timeslave/Timeslave_timeslave_reg.vhd]
 
 ##############################################################
 # Set top
@@ -515,6 +515,6 @@ set_property PROCESSING_ORDER LATE [get_files vitisAccelCoreCon.xdc]
 set_property -name {xsim.compile.xvlog.more_options} -value {-d SIM_SPEED_UP} -objects [get_filesets sim_1]
 set_property top_lib xil_defaultlib [get_filesets sim_1]
 
-set_property top correlator [current_fileset]
+set_property top correlator_core [current_fileset]
 update_compile_order -fileset sources_1
 

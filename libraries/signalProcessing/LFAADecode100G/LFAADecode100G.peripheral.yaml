@@ -97,7 +97,7 @@ peripherals:
                                       bits 16:13 = beam_id, \
                                       bits 25:17 = frequency_id  \
                                       bits 30:26 = subarray_id \
-                                      bit  31    = set to '1' to indicate this entry is invalid \
+                                      bit  31    = set to '1' to indicate this entry is valid \
                                     Second Word : \
                                       bits (9:0) =  Virtual channel.  \
                                    The maximum number of valid entries in this table is defined by total_channels.\

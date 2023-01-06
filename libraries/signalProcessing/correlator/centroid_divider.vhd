@@ -69,7 +69,7 @@ begin
     
     process(i_clk)
         variable weight_numerator_v : t_slv_14_arr(11 downto 0);
-        variable centroid_numerator_v : t_slv_14_arr(8 downto 0);
+        variable centroid_numerator_v : t_slv_21_arr(8 downto 0);
     begin
         if rising_edge(i_clk) then
             -- 1st pipeline stage
@@ -85,7 +85,7 @@ begin
             weight_numerator0 <= std_logic_vector(Nsamples(12 downto 0));
             
             -- 3rd pipeline stage
-            centroid_denominator1 <= std_logic_vector(centroid_denominator0(19 downto 0));
+            centroid_denominator1 <= std_logic_vector(centroid_denominator0(20 downto 0));
             centroid_numerator1   <= centroid_numerator0;
             weight_denominator1   <= std_logic_vector(weight_denominator0(12 downto 0));
             weight_numerator1     <= weight_numerator0;
@@ -99,7 +99,7 @@ begin
             -- Divider : 8 stages of shift and subtract for the centroid
             -- Algorithm assumes the initial denominator being larger than the initial numerator.
             for i in 0 to 7 loop
-                if (unsigned(centroid_numerator(i)) > unsigned(centroid_denominator)) then 
+                if (unsigned(centroid_numerator(i)) > unsigned(centroid_denominator(i))) then 
                     centroid_numerator_v(i) := std_logic_vector(unsigned(centroid_numerator(i)) - unsigned(centroid_denominator(i)));
                     centroid_result(i+1) <= centroid_result(i)(7 downto 0) & '1';
                 else
@@ -116,7 +116,7 @@ begin
             -- Divider for data valid, 12 bit result, which is then converted via sqrt rom to an 8 bit result.
             -- Note this algorithm relies on the initial denominator being larger than the initial numerator.
             for i in 0 to 11 loop
-                if (unsigned(weight_numerator(i)) > unsigned(weight_denominator)) then 
+                if (unsigned(weight_numerator(i)) > unsigned(weight_denominator(i))) then 
                     weight_numerator_v(i) := std_logic_vector(unsigned(weight_numerator(i)) - unsigned(weight_denominator(i)));
                     weight_result(i+1) <= weight_result(i)(11 downto 0) & '1';
                 else
@@ -135,7 +135,7 @@ begin
     end process;
     
     centroid_result(0) <= "000000000";
-    weight_result(0) <= "000000000";
+    weight_result(0) <= "0000000000000";
     
     -- Square root of the weight
     -- 2 cycle latency.

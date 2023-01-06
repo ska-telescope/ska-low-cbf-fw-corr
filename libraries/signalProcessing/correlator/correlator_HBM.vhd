@@ -69,7 +69,7 @@ entity correlator_HBM is
         i_dcount    : in std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         i_cell      : in std_logic_vector(7 downto 0);  -- a "cell" is a 16x16 station block of correlations
         i_tile      : in std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        i_channel   : in std_logic_vector(15 downto 0); -- first fine channel index for this correlation.
+        i_channel   : in std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         o_stop      : out std_logic;
@@ -115,17 +115,18 @@ architecture Behavioral of correlator_HBM is
     signal set_aw_fsm : aw_fsm_type := idle;
     signal cellDel1, curCell : std_logic_vector(7 downto 0);
     signal tileDel1, curTile : std_logic_vector(9 downto 0);
-    signal channelDel1, curChannel : std_logic_vector(15 downto 0);
+    signal channelDel1, curChannel : std_logic_vector(23 downto 0);
     signal aw_fifo_dout_valid : std_logic;
     signal aw_fifo_dout : std_logic_vector(39 downto 0);
     signal errors_int : std_logic_vector(3 downto 0);
     signal aw_fifo_full : std_logic;
     signal w_fifo_dout_valid : std_logic;
-    signal w_fifo_dout : std_logic_vector(513 downto 0);
-    signal w_fifo_din : std_logic_vector(256 downto 0);
+    signal w_fifo_dout : std_logic_vector(512 downto 0);
+    signal w_fifo_din : std_logic_vector(512 downto 0);
     signal w_fifo_we : std_logic;
-    signal w_fifo_count : std_logic_vector(6 downto 0);
+    signal w_fifo_count : std_logic_vector(9 downto 0);
     signal w_fifo_full : std_logic;
+    signal dcountDel1 : std_logic_vector(7 downto 0);
     
 begin
     
@@ -133,28 +134,37 @@ begin
     begin
         if rising_edge(i_axi_clk) then
             visValidDel1 <= i_visValid;
+            dcountDel1 <= i_dcount;
             cellDel1 <= i_cell;
             tileDel1 <= i_tile;
             channelDel1 <= i_channel;
             
-            w_fifo_din(255 downto 0) <= i_data;
+            if i_dcount(0) = '0' then
+                w_fifo_din(255 downto 0) <= i_data;
+            else
+                w_fifo_din(511 downto 256) <= i_data;
+            end if;
             if ((i_visValid = '1' and i_dcount(6 downto 0) = "1111111") or (i_TCIvalid = '1' and i_dcount = "00001111")) then
                 -- indicates last word in a HBM data transfer.
                 -- Occurs twice in the 256 transfers for the data, at i_dcount = x7F and i_dcount = xFF, and once at the end of the TCI data, when i_dcount = 0xf
-                w_fifo_din(256) <= '1';
+                w_fifo_din(512) <= '1';
             else
-                w_fifo_din(256) <= '0';
+                w_fifo_din(512) <= '0';
             end if;
-            w_fifo_we <= i_visValid or i_TCIvalid;
-            if unsigned(w_fifo_count) > 32 then
-                o_stop <= '1';  -- about 20 clock latency for data to actually stop, so we stop when we still have more than 20 spare spots in the FIFO.
+            -- write a 513 bit word for every second 256 bit input word.
+            w_fifo_we <= (i_visValid or i_TCIvalid) and i_dcount(0); 
+            
+            -- There is about 20 clocks latency for data to stop after o_stop is high.
+            -- So we stop when we still have space for more than 20 new 256-bit words in the FIFO.
+            if unsigned(w_fifo_count) > 400 then
+                o_stop <= '1';
             else
                 o_stop <= '0';
             end if;
             
             visValidDel2 <= visValidDel1;
             
-            if visValidDel1 = '1' and visValidDel2 = '0' then
+            if visValidDel1 = '1' and dcountDel1 = "00000000" then
                 curCell <= cellDel1;
                 curTile <= tileDel1;
                 curChannel <= channelDel1;
@@ -204,6 +214,10 @@ begin
                 errors_int <= "0000";
             else
                 if aw_fifo_full = '1' then
+                    -- this should be impossible, since the data fifo can only buffer up
+                    -- at most 4 cells, at which point it will stall the sending of 
+                    -- more data to this module. 
+                    -- 4 cells = 12 aw requests, so cannot fill the 32-deep aw FIFO.
                     errors_int(0) <= '1';
                 end if;
                 if w_fifo_full = '1' then
@@ -217,25 +231,26 @@ begin
     o_errors <= errors_int;
     
     -- FIFO to convert the data to 512 bits wide, and interface to the o_axi_w bus.
+    -- The FIFO has space for 32 x 512 bits = 2048 bytes.
     wdata_fifo_i : xpm_fifo_sync
     generic map (
         CASCADE_HEIGHT => 0,        -- DECIMAL
         DOUT_RESET_VALUE => "0",    -- String
         ECC_MODE => "no_ecc",       -- String
-        FIFO_MEMORY_TYPE => "distributed", -- String
+        FIFO_MEMORY_TYPE => "auto", -- String
         FIFO_READ_LATENCY => 0,     -- DECIMAL
-        FIFO_WRITE_DEPTH => 64,   -- DECIMAL
+        FIFO_WRITE_DEPTH => 512,     -- DECIMAL
         FULL_RESET_VALUE => 0,      -- DECIMAL
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
-        READ_DATA_WIDTH => 514,     -- DECIMAL
-        READ_MODE => "fwft",         -- String
+        RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
+        READ_DATA_WIDTH => 513,     -- DECIMAL
+        READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 257,     -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 7    -- DECIMAL
+        WRITE_DATA_WIDTH => 513,    -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 10   -- DECIMAL
     ) port map (
         almost_empty => open,           -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
         almost_full => open,            -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
@@ -265,8 +280,8 @@ begin
     );
     
     o_axi_w.valid <= w_fifo_dout_valid;
-    o_axi_w.data <= w_fifo_dout(512 downto 257) & w_fifo_dout(255 downto 0); 
-    o_axi_w.last <= w_fifo_dout(513);
+    o_axi_w.data <= w_fifo_dout(511 downto 0); 
+    o_axi_w.last <= w_fifo_dout(512);
     
     
     -- FIFO for aw commands.
@@ -291,7 +306,7 @@ begin
         USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
         WAKEUP_TIME => 0,           -- DECIMAL
         WRITE_DATA_WIDTH => 40,     -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 7    -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
     ) port map (
         almost_empty => open,           -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
         almost_full => open,            -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.

@@ -5,12 +5,19 @@
 -- Create Date: 08/14/2022 08:38:07 PM
 -- Module Name: LTA_top - Behavioral
 -- Description: 
---   Long term accumulator for the correlator.
---
+--   Long term accumulator for the correlator. 
+--   Accumulates across multiple fine frequency channels and
+--   multiple blocks of 64 time samples.
+--   Data is stored in a block of 128 ultraRAM blocks
+--   (double buffered) * (256 x 256 stations) * (32 + 32 bits complex) * (2x2 dual-pol correlation products)
+--   =    2 *             256*256 *               (4+4)                *  2*2 = 4 Mbytes = 128 ultraRAMs (@ 32k per ultraRAM)
+-- 
+-- 
 -- Useful Definitions/Notation :
---    "cell" : refers to a 16x16 station block of correlations. A stations is dual-pol. so each cell has 1024 visibilities.
+--    "cell" : refers to a 16x16 station block of correlations. A stations is dual-pol, so each cell has 1024 visibilities.
 --    "visibility" : Single complex value from the correlation array. Output of the correlation array is 3+3 bytes, while the accumulation in this module uses 4+4 byte integers.
---    "tile" : Refers to up a block of up to 16x16 cells.
+--    "tile" : Refers to up a block of up to 16x16 cells, i.e. 256x256 stations
+-- 
 -- 
 ----------------------------------------------------------------------------------
 library IEEE, common_lib, correlator_lib;
@@ -30,7 +37,7 @@ entity LTA_top is
         -- Write side interface : 
         i_cell    : in std_logic_vector(7 downto 0); -- 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
         i_tile    : in std_logic_vector(9 downto 0); -- tile index, passed to the output.
-        i_channel : in std_logic_vector(15 downto 0); -- first fine channel index for this correlation
+        i_channel : in std_logic_vector(23 downto 0); -- first fine channel index for this correlation
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
         i_first   : in std_logic; 
@@ -63,7 +70,7 @@ entity LTA_top is
         o_dcount  : out std_logic_vector(7 downto 0); -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_cell    : out std_logic_vector(7 downto 0);  -- a "cell" is a 16x16 station block of correlations
         o_tile    : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_channel : out std_logic_vector(15 downto 0); -- first fine channel index for this correlation.
+        o_channel : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop    : in std_logic 
@@ -72,18 +79,20 @@ end LTA_top;
 
 architecture Behavioral of LTA_top is
     
-    signal accumulator_rdAddr, accumulator_rdAddrDel1, accumulator_rdAddrDel2, accumulator_rdAddrDel3, accumulator_rdAddrDel4, accumulator_rdAddrDel5 : std_logic_vector(5 downto 0);
+    signal accumulator_rdAddr, accumulator_rdAddrDel1, accumulator_rdAddrDel2 : std_logic_vector(5 downto 0);
+    signal accumulator_rdAddrDel3, accumulator_rdAddrDel4, accumulator_rdAddrDel5 : std_logic_vector(5 downto 0);
     signal accumulator_cell : std_logic_vector(7 downto 0);
     signal data_del5_re_ext : t_slv_32_arr(15 downto 0);
     signal data_del5_im_ext : t_slv_32_arr(15 downto 0);
     signal accumulator_valid : std_logic;
     signal buf0_used, buf1_used, wrBuffer : std_logic := '0';
-    signal accumulator_first, accumulator_firstDel1, accumulator_firstDel2, accumulator_firstDel3, accumulator_firstDel4 : std_logic := '0';
+    signal accumulator_first, accumulator_firstDel1, accumulator_firstDel2 : std_logic := '0';
+    signal accumulator_firstDel3, accumulator_firstDel4 : std_logic := '0';
     signal accumulator_firstDel : std_logic_vector(15 downto 0) := x"0000";
     signal accumulator_wrBuffer : std_logic := '0';
     signal accumulator_last : std_logic := '0';
     signal accumulator_tile : std_logic_vector(9 downto 0);
-    signal centroid_del5_samples : t_slv_13_arr(15 downto 0); -- (i) <= std_logic_vector(resize(unsigned(i_centroid_del4(i)(7 downto 0)),13));
+    signal centroid_del5_samples : t_slv_13_arr(15 downto 0);
     signal centroid_del5_timeSum : t_slv_19_arr(15 downto 0);
     
     signal wrVisibilities : t_slv_64_arr(15 downto 0); 
@@ -108,7 +117,7 @@ architecture Behavioral of LTA_top is
     
     signal accumulator_totalTimes, buf0_totalTimes, buf1_totalTimes : std_logic_vector(7 downto 0);
     signal accumulator_totalChannels, buf0_totalChannels, buf1_totalChannels : std_logic_vector(4 downto 0);
-    signal accumulator_channel, buf0_channel, buf1_channel : std_logic_vector(15 downto 0);
+    signal accumulator_channel, buf0_channel, buf1_channel : std_logic_vector(23 downto 0);
     
     signal readoutCell, readoutElement : std_logic_vector(7 downto 0);
     signal integratedAddr : std_logic_vector(15 downto 0);
@@ -118,19 +127,19 @@ architecture Behavioral of LTA_top is
     signal rdTotaltimes : std_logic_vector(7 downto 0);
     signal rdTotalChannels : std_logic_vector(4 downto 0);
     signal fifo_dout : std_logic_vector(287 downto 0);
-    signal rdChannel : std_logic_vector(15 downto 0);
+    signal rdChannel : std_logic_vector(23 downto 0);
     
     signal cor_to_axi_send : std_logic := '0';
     signal cor_to_axi_src_rcv : std_logic := '0';
-    signal cor_to_axi_din : std_logic_vector(46 downto 0);
+    signal cor_to_axi_din : std_logic_vector(54 downto 0);
     
     signal axi_cellMax : std_logic_vector(7 downto 0);
     signal axi_totalTimes : std_logic_vector(7 downto 0);
-    signal axi_channel : std_logic_vector(15 downto 0);
+    signal axi_channel : std_logic_vector(23 downto 0);
     signal axi_totalChannels : std_logic_vector(4 downto 0);
     signal axi_tile : std_logic_vector(9 downto 0);
     signal cor_to_axi_req : std_logic;
-    signal cor_to_axi_dout : std_logic_vector(46 downto 0);
+    signal cor_to_axi_dout : std_logic_vector(54 downto 0);
     signal fifo_rd_en : std_logic;
     
     signal visReadoutCount_del : t_slv_8_arr(19 downto 0);
@@ -153,14 +162,14 @@ architecture Behavioral of LTA_top is
     signal final_visData : std_logic_vector(255 downto 0);
     signal final_visData_valid : std_logic;
     
-    signal cellReadoutCount, visReadoutCount : std_logic_vector(7 downto 0); -- which cell in the tile are we up to ? (0 to axi_cellMax)
+    signal cellReadoutCount, visReadoutCount : std_logic_vector(7 downto 0);
     signal axi_meta_valid : std_logic;
     signal deliver_cellMax : std_logic_vector(7 downto 0);
     signal cellReadoutCountDel : t_slv_8_arr(15 downto 0);
     signal deliverTileDel : t_slv_10_Arr(15 downto 0);
     signal deliver_tile : std_logic_vector(9 downto 0);
-    signal deliverChannelDel : t_slv_16_arr(15 downto 0); 
-    signal deliver_channel : std_logic_vector(15 downto 0);
+    signal deliverChannelDel : t_slv_24_arr(15 downto 0); 
+    signal deliver_channel : std_logic_vector(23 downto 0);
     signal data_output_count : std_logic_vector(7 downto 0);
     signal outputCountReset : std_logic_Vector(15 downto 0);
     
@@ -360,9 +369,9 @@ begin
             end if;
             cor_to_axi_din(7 downto 0) <= rdCellMax; -- 8 bit  
             cor_to_axi_din(15 downto 8) <= rdTotaltimes; -- 8 bit
-            cor_to_axi_din(31 downto 16) <= rdChannel;   -- 16 bit; first channel in the integration
-            cor_to_axi_din(36 downto 32) <= rdTotalChannels; -- 5 bit
-            cor_to_axi_din(46 downto 37) <= rdTile;    -- 10 bit
+            cor_to_axi_din(39 downto 16) <= rdChannel;   -- 24 bits; first channel in the integration
+            cor_to_axi_din(44 downto 40) <= rdTotalChannels; -- 5 bit
+            cor_to_axi_din(54 downto 45) <= rdTile;    -- 10 bit
             
         end if;
     end process;
@@ -378,15 +387,19 @@ begin
         ----------------------------------------------------------------------------------------
         -- read-modify-write interface for the accumulator functionality: 
         -- read address
-        i_cell      => accumulator_cell, -- in std_logic_vector(7 downto 0); -- 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
-        i_readCount => accumulator_rdAddr, -- in std_logic_vector(5 downto 0); -- 64 different visibilities per row of the correlation matrix. 
-        i_valid     => accumulator_valid, -- in std_logic;                    -- i_cell and i_readCount are valid.
-        -- read data
-        o_AccumVisibilties => rd_visibilities, --  out t_slv_64_arr(15 downto 0); -- output for each row; first has 4 cycle latency from i_cell, i_readcount, one extra cycle latency for each of the 16 outputs.
-        o_AccumCentroid    => rd_centroid, --  out t_slv_32_arr(15 downto 0);    -- constant for 4 clocks at a time, since the centroid data is the same for all combinations of polarisations.
-        -- Write data, must be valid 2 clocks after o_AccumVisibilities, o_AccumCentroid.
-        i_wrVisibilities => wrVisibilities, -- in t_slv_64_arr(15 downto 0); 
-        i_wrCentroid     => wrCentroid,     -- in t_slv_32_arr(15 downto 0);      -- Should be valid for the 4 consecutive clocks where i_wrVisibilities is for the same station pair.
+        i_cell      => accumulator_cell,   -- in (7:0);  16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
+        i_readCount => accumulator_rdAddr, -- in (5:0);  64 different visibilities per row of the correlation matrix. 
+        i_valid     => accumulator_valid,  -- in std_logic; i_cell and i_readCount are valid.
+        -- Read data --------------------------------
+        --  Output for each row; first has 4 cycle latency from i_cell, i_readcount, one extra cycle latency for each of the 16 outputs.
+        o_AccumVisibilties => rd_visibilities, --  out t_slv_64_arr(15:0); 
+        --  Constant for 4 clocks at a time, since the centroid data is the same for all combinations of polarisations.
+        o_AccumCentroid    => rd_centroid, --  out t_slv_32_arr(15 downto 0);
+        -- Write data --------------------------------
+        --  Must be valid 2 clocks after o_AccumVisibilities, o_AccumCentroid.
+        i_wrVisibilities => wrVisibilities, -- in t_slv_64_arr(15 downto 0);
+        --  Should be valid for the 4 consecutive clocks where i_wrVisibilities is for the same station pair 
+        i_wrCentroid     => wrCentroid,     -- in t_slv_32_arr(15 downto 0);
         ----------------------------------------------------------------------------------------
         -- Data output 
         -- 256 bit bus for visibilities, 16 bit bus for centroid data.
@@ -476,15 +489,15 @@ begin
     -- Only needs a single buffer, since we read it all out as soon as a full cell is processed, before moving on to the next cell.
     tcii : entity correlator_lib.dv_tci_mem
     port map (
-        i_clk => i_axi_clk, -- : in std_logic;
+        i_clk => i_axi_clk, -- in std_logic;
         -- data input
-        i_DV  => DV,    -- in std_logic_vector(7 downto 0);
-        i_TCI => TCI,    -- in std_logic_vector(7 downto 0);
+        i_DV  => DV,        -- in (7:0);
+        i_TCI => TCI,       -- in (7:0);
         i_wrEn => fifo_rd_en_del(19),   -- in std_logic;
-        i_wrAddr => visReadoutCount_del(19), -- in std_logic_vector(7 downto 0); -- 256 elements in a correlation cell
+        i_wrAddr => visReadoutCount_del(19), -- in (7:0); 256 elements in a correlation cell
         -- data output, 2 cycle latency.
         i_rdAddr => TCIReadoutCount_del(17), -- in (3:0); Using del(17) here to match the delay for the visibility data, so that dv_tci_dout comes directly after final_visData
-        o_dout   => dv_tci_dout  -- out std_logic_vector(255 downto 0)
+        o_dout   => dv_tci_dout  -- out (255:0)
     );
     
     
@@ -521,7 +534,7 @@ begin
         INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
         SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         SRC_SYNC_FF => 3,    -- DECIMAL; range: 2-10
-        WIDTH => 47           -- DECIMAL; range: 1-1024
+        WIDTH => 55           -- DECIMAL; range: 1-1024
     ) port map (
         dest_out => cor_to_axi_dout,   -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
         dest_req => cor_to_axi_req,    -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic. 
@@ -534,7 +547,6 @@ begin
     );
     
     
-    
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
@@ -542,9 +554,9 @@ begin
             if (cor_to_axi_req = '1') then
                 axi_cellMax <= cor_to_axi_dout(7 downto 0);   -- count of cells to be read out, minus 1.
                 axi_totalTimes <= cor_to_axi_dout(15 downto 8); -- number of time samples in the integrations
-                axi_channel <= cor_to_axi_dout(31 downto 16);  -- start channel for the integration
-                axi_totalChannels <= cor_to_axi_dout(36 downto 32); -- number of channels integrated.
-                axi_tile <= cor_to_axi_dout(46 downto 37);          -- index of the tile being read out.
+                axi_channel <= cor_to_axi_dout(39 downto 16);  -- start channel for the integration
+                axi_totalChannels <= cor_to_axi_dout(44 downto 40); -- number of channels integrated.
+                axi_tile <= cor_to_axi_dout(54 downto 45);          -- index of the tile being read out.
                 axi_meta_valid <= '1';
             elsif data_deliver_fsm = idle then
                 axi_meta_valid <= '0';
@@ -660,7 +672,7 @@ begin
             sendTCI_del(19 downto 1) <= sendTCI_del(18 downto 0);
             
             visReadoutCount_del(19 downto 1) <= visReadoutCount_del(18 downto 0);
-            TCIReadoutCount_del(17 downto 1) <= TCIReadoutCount_del(18 downto 0);
+            TCIReadoutCount_del(17 downto 1) <= TCIReadoutCount_del(16 downto 0);
         end if;
     end process;
     

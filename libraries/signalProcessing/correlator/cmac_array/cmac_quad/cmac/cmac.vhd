@@ -92,7 +92,7 @@ begin  -- architecture rtl
     end process;
     c5_col   <= pipe_col(0);
 
-    E_MULT_ADD: ENTITY work.mult_add
+    E_MULT_ADD: ENTITY correlator_lib.mult_add
     GENERIC MAP (
         g_DSP_PIPELINE_CYCLES => c_DSP_PIPELINE_CYCLES,     
         g_BIT_WIDTH           => g_SAMPLE_WIDTH

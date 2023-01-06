@@ -6,7 +6,7 @@
 -- Module Name: LFAAProcess - Behavioral
 -- Project Name: Perentie
 -- Description: 
---  Takes in LFAA data from the 100GE interface, decodes it, finds the matching virtual channel,
+--  Takes in LFAA data from the 40GE interface, decodes it, finds the matching virtual channel,
 -- and outputs the packet to downstream modules.
 -- 
 -- The input bus is 512 bits wide, with a 322 MHz clock.
@@ -16,20 +16,33 @@
 -- 128 clocks for the data part.
 -- Note : 64 bytes = 16 dual-pol samples. 
 --
--- The total number of bytes before the data starts = 
---  6 : dest eth address, 
---  6 : src eth address,
---  2 : Ethtype,
---  20 : IPv4 header,
---  8 : UDP header,
---  72 : SPEAD header
--- = 6+6+2+20+8+72 = 114.
--- Since 114 = 64 + 50, there are 2 x 64-byte words in the header, with the data part starting at byte 50 in the second word.
+--
+--  Sample data captured from 100G core :
+--
+-- TRIGGER, eth100_rx_sosi[data][511:0],                                                         eth100_rx_sosi[valid][3:0],eth100_rx_sosi[eop][3:0],eth100_rx_sosi[error][3:0], empty][0][3:0],[empty][1][3:0], [empty][2][3:0], [empty][3][3:0], sop][3:0]
+--trigger                data                                                                                                          valid eop error empty0 empty1 empty2 empty 3  sop
+-- 0,00000000000000000000000000000000 0002d552767d20500000000000000000 20642e8640004011d7ec0a0a00010a0a 506b4b603020506b4bc40ed008004500, 0,  0,    0,   0,      0,     0,     0,     1,
+-- 1,000880010069000006b9800400000000 0002d552767d205038ab530402060000 20642e8640004011d7ec0a0a00010a0a 506b4b603020506b4bc40ed008004500, f,  0,    0,   0,      0,     0,     0,     1,
+-- 0,00000000000000000000000000000000 00aab001010100020100b30000000000 00009011000007ea8ed4b00000000001 0000902700005e6f53e596000000b583, 0,  0,    0,   0,      0,     0,     0,     0,
+-- 0,00000000000000000000000000000000 00aab001010100020100b30000000000 00009011000007ea8ed4b00000000001 0000902700005e6f53e596000000b583, f,  0,    0,   0,      0,     0,     0,     0,
+-- 0,00000000000000000000000000000000 00000000000000000000000000000000 00000000000000000000000000000000 00000000000000000000000000000000, f,  0,    0,   0,      0,     0,     0,     0,
+--
+-- In this example, we have:
+--  - destination MAC Address = 0x506b4b603020
+--  - Source MAC Address      = 0x506b4bc40ed0
+--  - ethertype               = 0x0800          (=IPv4)
+--  - IPv4 header:
+--      - first 2 bytes = 0x4500
+--      - total Length  = 0x2064  (= 8292 = [8192 data bytes] + [72 bytes SPEAD header] + [20 bytes IPv4 header] + [8 bytes UDP header])
+--   etc.
+--  The total number of bytes before the data starts = 6+6+2+20+8+72 = 114.
+--  Since 114 = 7*16 + 2, there are 8 x 128-bit segments in the header, with the data part starting at byte 3 in the 8th segment.
 ----------------------------------------------------------------------------------
 
 library IEEE, axi4_lib, xpm, LFAADecode100G_lib, ctc_lib, dsp_top_lib;
 library technology_lib;
 USE technology_lib.tech_mac_100g_pkg.ALL;
+--use ctc_lib.ctc_pkg.all;
 use DSP_top_lib.DSP_top_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
@@ -41,14 +54,18 @@ use LFAADecode100G_lib.LFAADecode100G_lfaadecode100g_reg_pkg.ALL;
 
 entity LFAAProcess100G is
     port(
-        -- Data in from the 100GE MAC
-        i_axis_tdata   : in std_logic_vector(511 downto 0); -- first byte in (7:0), next byte (15:8) etc.
-        i_axis_tkeep   : in std_logic_vector(63 downto 0);  -- which bytes are valid.
-        i_axis_tlast   : in std_logic;
-        i_axis_tuser   : in std_logic_vector(79 downto 0);  -- 80 bit timestamp for the packet. Format is determined by the PTP core.
-        i_axis_tvalid  : in std_logic;
-        i_data_clk     : in std_logic;     -- 322 MHz for 100GE MAC
-        i_data_rst     : in std_logic;
+        -- Data in from the 100GE MAC        
+        -- 4 parallel segments of 128 bits each
+        --  TYPE t_lbus_sosi IS RECORD  -- Source Out and Sink In
+        --   data       : STD_LOGIC_VECTOR(511 DOWNTO 0);                -- Data bus
+        --   valid      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Data segment enable
+        --   eop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- End of packet
+        --   sop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Start of packet
+        --   error      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Error flag, indicates data has an error
+        --   empty      : t_empty_arr(c_lbus_data_w/c_segment_w-1 DOWNTO 0);         -- Number of bytes empty in the segment
+        i_eth100_rx_sosi   : in t_lbus_sosi;
+        i_data_clk         : in std_logic;     -- 322 MHz for 100GE MAC
+        i_data_rst         : in std_logic;
         ----------------------------------------------------------------------------------
         -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
         i_ap_clk        : in  std_logic;  -- Shared memory clock used to access the HBM.
@@ -59,6 +76,11 @@ entity LFAAProcess100G is
         o_packetCount    : out std_logic_vector(31 downto 0);
         o_valid          : out std_logic;
         -----------------------------------------------------------------------------------
+        -- miscellaneous
+        i_my_mac           : in std_logic_vector(47 downto 0); -- MAC address for this board; incoming packets from the 100GE interface are filtered using this.
+        i_wallTime         : in std_logic_vector(63 downto 0); -- 64 bit time in units of nanoseconds. 
+        --i_time_sec         : in std_logic_vector(31 downto 0); -- Current time in this clock domain; 32 bit second count
+        --i_time_frac        : in std_logic_vector(26 downto 0); -- Count in units of 8ns; only use 64 ns steps (drop the low 3 bits in this module) 
         -- Interface to the registers
         i_reg_rw           : in t_statctrl_rw;
         o_reg_count        : out t_statctrl_count;
@@ -93,9 +115,9 @@ architecture Behavioral of LFAAProcess100G is
     constant fieldsToMatch : natural := 30;
     
     type t_field_match is record
-        wordCount  : std_logic_vector(0 downto 0); -- which 512-bit word the field should match to, either 0 or 1.
-        byteOffset : natural;     -- where in the 512-bit word the relevant bits should sit
-        bytes      : natural;     -- How many bits we are checking
+        wordCount  : std_logic_vector(2 downto 0); -- which 128-bit word (= LBUS "segment") the field should match to. This will always be in the first 8 128-bit words.
+        byteOffset : natural; -- where in the 128-bit word the relevant bits should sit
+        bytes      : natural;  -- How many bits we are checking
         expected   : std_logic_vector(47 downto 0); -- Value we expect for a valid SPEAD packet
         check      : std_logic;   -- Whether we should check against the expected value or not
     end record;
@@ -123,40 +145,37 @@ architecture Behavioral of LFAAProcess100G is
     
     -- Total header is 114 bytes, so fits in the first two 512 bit words.
     constant c_fieldmatch_loc : t_field_match_loc_array := 
-        ((wordCount => "0", byteOffset => 0,  bytes => 6, expected => x"000000000000", check => '0'),  -- 0. Destination MAC address, first 6 bytes of the frame.
-         (wordCount => "0", byteOffset => 12, bytes => 2, expected => x"000000000800", check => '1'),  -- 1. Ethertype field at byte 12 should be 0x0800 for IPv4 packets
-         (wordCount => "0", byteOffset => 14, bytes => 1, expected => x"000000000045", check => '1'),  -- 2. Version and header length fields of the IPv4 header, at byte 14. should be x45.
-         (wordCount => "0", byteOffset => 16, bytes => 2, expected => x"000000002064", check => '1'),  -- 3. Total Length from the IPv4 header. Should be 20 (IPv4) + 8 (UDP) + 72 (SPEAD) + 8192 (Data) = 8292 = x2064
-         (wordCount => "0", byteOffset => 23, bytes => 1, expected => x"000000000011", check => '1'),  -- 4. Protocol field from the IPv4 header, Should be 0x11 (UDP).
-         (wordCount => "0", byteOffset => 36, bytes => 2, expected => x"000000000000", check => '0'),  -- 5. Destination UDP port - expected value to be configured via MACE
-         (wordCount => "0", byteOffset => 38, bytes => 2, expected => x"000000002050", check => '1'),  -- 6. UDP length. Should be 8 (UDP) + 72 (SPEAD) + 8192 (Data) = x2050
-         (wordCount => "0", byteOffset => 42, bytes => 2, expected => x"000000005304", check => '1'),  -- 7. First 2 bytes of the SPEAD header, should be 0x53 ("MAGIC"), 0x04 ("Version")
-         (wordCount => "0", byteOffset => 44, bytes => 2, expected => x"000000000206", check => '1'),  -- 8. Bytes 3 and 4 of the SPEAD header, should be 0x02 ("ItemPointerWidth"), 0x06 ("HeapAddrWidht")
-         (wordCount => "0", byteOffset => 48, bytes => 2, expected => x"000000000008", check => '1'),  -- 9. Bytes 7 and 8 of the SPEAD header, should be 0x00 and 0x08 ("Number of Items")
-         (wordCount => "0", byteOffset => 50, bytes => 2, expected => x"000000008001", check => '1'),  -- 10. SPEAD ID 0x0001 = "heap_counter" field, should be 0x8001.
-         (wordCount => "0", byteOffset => 52, bytes => 2, expected => x"000000000000", check => '0'),  -- 11. Logical Channel ID
-         (wordCount => "0", byteOffset => 54, bytes => 4, expected => x"000000000000", check => '0'),  -- 12. Packet Counter 
-         (wordCount => "0", byteOffset => 58, bytes => 2, expected => x"000000008004", check => '1'),  -- 13. SPEAD ID 0x0004 = "pkt_len" (data for this SPEAD ID is ignored)
-         (wordCount => "1", byteOffset => 2,  bytes => 2, expected => x"000000009027", check => '1'),  -- 14. SPEAD ID 0x1027 = "sync_time"
-         (wordCount => "1", byteOffset => 4,  bytes => 6, expected => x"000000000000", check => '0'),  -- 15. sync time in seconds from UNIX epoch
-         (wordCount => "1", byteOffset => 10, bytes => 2, expected => x"000000009600", check => '1'),  -- 16. SPEAD ID 0x1600 = timestamp, time in nanoseconds after "sync_time"
-         (wordCount => "1", byteOffset => 12, bytes => 4, expected => x"000000000000", check => '0'),  -- 17. first 4 bytes of timestamp
-         (wordCount => "1", byteoffset => 16, bytes => 2, expected => x"000000000000", check => '0'),  -- 18. Last 2 bytes of the timestamp
-         (wordCount => "1", byteoffset => 18, bytes => 2, expected => x"000000009011", check => '1'),  -- 19. SPEAD ID 0x1011 = center_freq
-         (wordCount => "1", byteoffset => 20, bytes => 6, expected => x"000000000000", check => '0'),  -- 20. center_frequency in Hz
-         (wordCount => "1", byteoffset => 26, bytes => 2, expected => x"00000000b000", check => '1'),  -- 21. SPEAD ID 0x3000 = csp_channel_info
-         (wordCount => "1", byteoffset => 30, bytes => 2, expected => x"000000000000", check => '0'),  -- 22. beam_id
-         (wordCount => "1", byteoffset => 32, bytes => 2, expected => x"000000000000", check => '0'),  -- 23. frequency_id
-         (wordCount => "1", byteoffset => 34, bytes => 2, expected => x"00000000b001", check => '1'),  -- 24. SPEAD ID 0x3001 = csp_antenna_info
-         (wordCount => "1", byteoffset => 36, bytes => 1, expected => x"000000000000", check => '0'),  -- 25. substation_id
-         (wordCount => "1", byteoffset => 37, bytes => 1, expected => x"000000000000", check => '0'),  -- 26. subarray_id
-         (wordCount => "1", byteoffset => 38, bytes => 2, expected => x"000000000000", check => '0'),  -- 27. station_id
-         (wordCount => "1", byteoffset => 40, bytes => 2, expected => x"000000000000", check => '0'),  -- 28. nof_contributing_antennas
-         (wordCount => "1", byteoffset => 42, bytes => 2, expected => x"000000003300", check => '0')   -- 29. SPEAD ID 0x3300 = sample_offset. top bit is not set since this is "indirect" even though it is a null pointer.
-    );    
-    
-    
-    
+        ((wordCount => "000", byteOffset => 0, bytes => 6,  expected => x"000000000000", check => '0'), -- 0. Destination MAC address, first 6 bytes of the frame.
+         (wordCount => "000", byteOffset => 12, bytes => 2, expected => x"000000000800", check => '1'), -- 1. Ethertype field at byte 12 should be 0x0800 for IPv4 packets
+         (wordCount => "000", byteOffset => 14, bytes => 1, expected => x"000000000045", check => '1'), -- 2. Version and header length fields of the IPv4 header, at byte 14. should be x45.
+         (wordCount => "001", byteOffset => 0, bytes => 2,  expected => x"000000002064", check => '1'), -- 3. Total Length from the IPv4 header. Should be 20 (IPv4) + 8 (UDP) + 72 (SPEAD) + 8192 (Data) = 8292 = x2064
+         (wordCount => "001", byteOffset => 7, bytes=> 1,   expected => x"000000000011", check => '1'), -- 4. Protocol field from the IPv4 header, Should be 0x11 (UDP).
+         (wordCount => "010", byteOffset => 4, bytes => 2,  expected => x"000000000000", check => '0'), -- 5. Destination UDP port - expected value to be configured via MACE
+         (wordCount => "010", byteOffset => 6, bytes => 2,  expected => x"000000002050", check => '1'), -- 6. UDP length. Should be 8 (UDP) + 72 (SPEAD) + 8192 (Data) = x2050
+         (wordCount => "010", byteOffset => 10, bytes => 2, expected => x"000000005304", check => '1'), -- 7. First 2 bytes of the SPEAD header, should be 0x53 ("MAGIC"), 0x04 ("Version")
+         (wordCount => "010", byteOffset => 12, bytes => 2, expected => x"000000000206", check => '1'), -- 8. Bytes 3 and 4 of the SPEAD header, should be 0x02 ("ItemPointerWidth"), 0x06 ("HeapAddrWidht")
+         (wordCount => "011", byteOffset => 0, bytes => 2,  expected => x"000000000008", check => '1'), -- 9. Bytes 7 and 8 of the SPEAD header, should be 0x00 and 0x08 ("Number of Items")
+         (wordCount => "011", byteOffset => 2, bytes => 2,  expected => x"000000008001", check => '1'), -- 10. SPEAD ID 0x0001 = "heap_counter" field, should be 0x8001.
+         (wordCount => "011", byteOffset => 4, bytes => 2,  expected => x"000000000000", check => '0'), -- 11. Logical Channel ID
+         (wordCount => "011", byteOffset => 6, bytes => 4,  expected => x"000000000000", check => '0'), -- 12. Packet Counter 
+         (wordCount => "011", byteOffset => 10, bytes => 2, expected => x"000000008004", check => '1'), -- 13. SPEAD ID 0x0004 = "pkt_len" (data for this SPEAD ID is ignored)
+         (wordCount => "100", byteOffset => 2, bytes => 2,  expected => x"000000009027", check => '1'), -- 14. SPEAD ID 0x1027 = "sync_time"
+         (wordCount => "100", byteOffset => 4, bytes => 6,  expected => x"000000000000", check => '0'),    -- 15. sync time in seconds from UNIX epoch
+         (wordCount => "100", byteOffset => 10, bytes => 2, expected => x"000000009600", check => '1'), -- 16. SPEAD ID 0x1600 = timestamp, time in nanoseconds after "sync_time"
+         (wordCount => "100", byteOffset => 12, bytes => 4, expected => x"000000000000", check => '0'),    -- 17. first 4 bytes of timestamp
+         (wordCount => "101", byteoffset => 0, bytes => 2,  expected => x"000000000000", check => '0'),    -- 18. Last 2 bytes of the timestamp
+         (wordCount => "101", byteoffset => 2, bytes => 2,  expected => x"000000009011", check => '1'), -- 19. SPEAD ID 0x1011 = center_freq
+         (wordCount => "101", byteoffset => 4, bytes => 6,  expected => x"000000000000", check => '0'),     -- 20. center_frequency in Hz
+         (wordCount => "101", byteoffset => 10, bytes => 2, expected => x"00000000b000", check => '1'), -- 21. SPEAD ID 0x3000 = csp_channel_info
+         (wordCount => "101", byteoffset => 14, bytes => 2, expected => x"000000000000", check => '0'),    -- 22. beam_id
+         (wordCount => "110", byteoffset => 0, bytes => 2,  expected => x"000000000000", check => '0'),    -- 23. frequency_id
+         (wordCount => "110", byteoffset => 2, bytes => 2,  expected => x"00000000b001", check => '1'), -- 24. SPEAD ID 0x3001 = csp_antenna_info
+         (wordCount => "110", byteoffset => 4, bytes => 1,  expected => x"000000000000", check => '0'),    -- 25. substation_id
+         (wordCount => "110", byteoffset => 5, bytes => 1,  expected => x"000000000000", check => '0'),    -- 26. subarray_id
+         (wordCount => "110", byteoffset => 6, bytes => 2,  expected => x"000000000000", check => '0'),    -- 27. station_id
+         (wordCount => "110", byteoffset => 8, bytes => 2,  expected => x"000000000000", check => '0'),    -- 28. nof_contributing_antennas
+         (wordCount => "110", byteoffset => 10, bytes => 2, expected => x"000000003300", check => '0')  -- 29. SPEAD ID 0x3300 = sample_offset. top bit is not set since this is "indirect" even though it is a null pointer.
+    );
     
     -- For data coming in, capture the following fields to registers, and use them to look up the virtual channel from the table in the registers.
     --  - frequency_id, 9 bits, SPEAD ID 0x3000
@@ -190,6 +209,7 @@ architecture Behavioral of LFAAProcess100G is
     signal rxActive : std_logic := '0';  -- we are receiving a frame.
     signal rxCount : std_logic_vector(9 downto 0) := (others => '0'); -- which 128 bit word we are up to.
     signal dataAlignedCount : std_logic_vector(9 downto 0) := (others => '0');
+    signal rxAlign : std_logic_vector(1 downto 0) := "00"; 
     
     signal txCount : std_logic_vector(8 downto 0) := (others => '0');
     type t_tx_fsm is (idle, send_data, next_buffer, send_wait);
@@ -211,6 +231,7 @@ architecture Behavioral of LFAAProcess100G is
     signal rdBufSel : std_logic_vector(1 downto 0) := "00";
     signal rxSOP : std_logic := '0';
     signal dataAligned2byte : std_logic_vector(15 downto 0);
+    signal dataAlignedErr : std_logic;
     
     signal bufWE : std_logic_vector(0 downto 0);
     signal bufWrCount : std_logic_vector(9 downto 0);
@@ -218,6 +239,7 @@ architecture Behavioral of LFAAProcess100G is
     signal bufWrAddr, bufRdAddr : std_logic_vector(8 downto 0);
     signal data_clk_vec : std_logic_vector(0 downto 0);
     signal bufDout : std_logic_vector(511 downto 0);
+    signal bufDinErr : std_logic := '0';
     signal bufDinEOP : std_logic := '0';
     signal bufDinGoodLength : std_logic := '0';
     
@@ -248,8 +270,11 @@ architecture Behavioral of LFAAProcess100G is
     signal goodPacket_dbg : std_logic;
     signal nonSPEADPacket_dbg : std_logic;
     signal VCTable_rd_data_del1 : std_logic_vector(31 downto 0);
+    signal rxAlignOld : std_logic_vector(1 downto 0) := "00";
     signal statsTimestamp, statsSyncTime : std_logic_vector(47 downto 0);
+    signal bufDin_LE : std_logic_vector(511 downto 0);
 
+    signal dataDel : t_lbus_sosi;
     signal searchMax, searchMin, searchInterval : std_logic_vector(15 downto 0);
     signal upperIntervalCenter, lowerIntervalCenter : std_logic_vector(15 downto 0);
     type lookup_fsm_type is (search_failure, search_success, wait_rd_VC1, wait_rd_VC2, wait_rd_VC3, check_rd_data, wait_rd3, wait_rd2, wait_rd1, start, idle);
@@ -277,6 +302,7 @@ architecture Behavioral of LFAAProcess100G is
     signal totalVirtualChannels : std_logic_vector(15 downto 0);
     signal packet_gt_table : std_logic := '0';
     
+    signal eth100_rx_sosi   : t_lbus_sosi;
     signal tableSelect : std_logic := '0';
     
     component ila_beamData
@@ -285,16 +311,24 @@ architecture Behavioral of LFAAProcess100G is
         probe0 : in std_logic_vector(119 downto 0)); 
     end component;
     
-    signal axis_tdata, axis_tdata_del : std_logic_vector(511 downto 0);
-    signal axis_tkeep, axis_tkeep_del : std_logic_vector(63 downto 0);  -- 64 bits, one bit per byte in i_axi_tdata
-    signal axis_tlast, axis_tlast_del : std_logic;
-    signal axis_tvalid, axis_tvalid_del : std_logic;
-    signal packet_active : std_logic := '0';
-    signal axis_tuser_del, axis_tuser, dataAlignedTimestamp : std_logic_vector(63 downto 0);
-    
 begin
     
     o_dbg <= nonSPEADPacket_dbg & goodPacket_dbg & rx_fsm_dbg & stats_fsm_dbg & tx_fsm_dbg;
+   
+    -- For data coming in from the 40G MAC, the only fields that are used are
+    --  data_rx_sosi.tdata
+    --  data_rx_sosi.tuser
+    --  data_rx_sosi.tvalid
+    -- segment 0 relates to data_rx_sosi.tdata(63:0)
+    
+    --  TYPE t_lbus_sosi IS RECORD  -- Source Out and Sink In
+    --   data       : STD_LOGIC_VECTOR(511 DOWNTO 0);                -- Data bus
+    --   valid      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Data segment enable
+    --   eop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- End of packet
+    --   sop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Start of packet
+    --   error      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Error flag, indicates data has an error
+    --   empty      : t_empty_arr(c_lbus_data_w/c_segment_w-1 DOWNTO 0);         -- Number of bytes empty in the segment
+    -- i_eth100_rx_sosi   : in t_lbus_sosi;
     
     ------------------------------------------------------------------------------
     -- Capture and validate all the packet headers (MAC, IPv4, UDP, SPEAD)
@@ -311,91 +345,238 @@ begin
         variable allFieldsMatchv : std_logic := '0';
     begin
         
+        eth100_rx_sosi <= i_eth100_rx_sosi;
+        
         if i_data_rst = '1' then
             wrBufSel <= "00";
             rx_fsm <= idle;
-            packet_active <= '0';
         elsif rising_edge(i_data_clk) then
-            
-            axis_tdata <= i_axis_tdata; -- 512 bit input bus.
-            axis_tuser <= i_axis_tuser(63 downto 0); -- 80 bit timestamp, keep low 64 bits. 
-            axis_tkeep <= i_axis_tkeep; -- 64 bits, one bit per byte in i_axi_tdata
-            axis_tlast <= i_axis_tlast; -- in std_logic;
-            axis_tvalid <= i_axis_tvalid;
-            
-            if axis_tvalid = '1' then
-                axis_tdata_del <= axis_tdata;
-                axis_tkeep_del <= axis_tkeep;
-                axis_tuser_del <= axis_tuser;
-                axis_tlast_del <= axis_tlast;
+            -- Align the input so that start of packet is always in the first 128 bits
+            if eth100_rx_sosi.valid(0) = '1' then -- if any segments are valid, then segment 0 must be valid.
+                dataDel <= eth100_rx_sosi;
             end if;
-            axis_tvalid_del <= axis_tvalid;
-            
-            -- There is no start of packet signal. Packets start whenever tvalid = '1',
-            -- and continue until tlast = '1'.
-            -- rxSOP = '1' indicates that the data in axi_tdata_del contains the first word of a packet.
-            if axis_tvalid = '1' and packet_active = '0' then
-                rxCount <= (others => '0'); -- which 512 bit word we are up to in axis_tdata_del
+            -- find where the start of packet occurs. If there is more than one start of packet, take the last one, 
+            -- since the others must be short packets.
+            if eth100_rx_sosi.sop(3) = '1' and eth100_rx_sosi.valid(3) = '1' then
+                rxCount <= (others => '0'); -- which 512 bit word we are up to.
+                rxAlign <= "11";   -- Start of packet occurred on segment 3.
                 rxSOP <= '1';
-                if axis_tlast = '0' then
-                    packet_active <= '1'; 
-                else
-                    -- Note that when axis_tdata_del contains the final word in the packet, packet_active = '0'.
-                    packet_active <= '0';
-                end if;
+            elsif eth100_rx_sosi.sop(2) = '1' and eth100_rx_sosi.valid(2) = '1' then
+                rxCount <= (others => '0'); -- which 512 bit word we are up to.
+                rxAlign <= "10";   -- Start of packet occurred on segment 2.
+                rxSOP <= '1';
+            elsif eth100_rx_sosi.sop(1) = '1' and eth100_rx_sosi.valid(1) = '1' then
+                rxCount <= (others => '0'); -- which 512 bit word we are up to.
+                rxAlign <= "01";   -- Start of packet occurred on segment 1.
+                rxSOP <= '1';
+            elsif eth100_rx_sosi.sop(0) = '1' and eth100_rx_sosi.valid(0) = '1' then
+                rxCount <= (others => '0');
+                rxAlign <= "00";   -- start of packet occurred on segment 0 
+                rxSOP <= '1';
+            elsif eth100_rx_sosi.valid(0) = '1' then
+                rxCount <= std_logic_vector(unsigned(rxCount) + 1);
+                rxSOP <= '0';
             else
                 rxSOP <= '0';
-                if axis_tvalid = '1' then
-                    rxCount <= std_logic_vector(unsigned(rxCount) + 1);
-                end if;
-                if axis_tvalid = '1' and axis_tlast = '1' then
-                    packet_active <= '0';
-                end if;
             end if;
             
-            -- Next pipeline stage; build the 64 byte data, aligned with the sof at byte 0.
+            -- Next pipeline stage; build the 64 byte data, aligned with the sof at byte 0. 
+            -- Since dataDel is only loaded when valid = '1', we only
+            -- need to check eth100_rx_sosi.valid and start of frame to determine when dataAligned is valid.
             -- dataAligned is only used to capture the header information. 
-            -- dataAligned has the first byte in bits 7:0, 2nd byte in bits 15:8, etc.
-            dataAligned <= axis_tdata_del;
-            dataAlignedValid <= axis_tvalid_del;
-            dataAlignedEOP <= axis_tlast_del;
+            -- dataAligned has the first byte in bits 511:504, 2nd byte in bits 503:496, etc.
+            if rxAlign = "00" then
+                dataAligned <= dataDel.data(127 downto 0) & dataDel.data(255 downto 128) & dataDel.data(383 downto 256) & dataDel.data(511 downto 384);
+                dataAlignedValid <= dataDel.valid(0);
+                if dataDel.eop(0) = '1' then -- dataAlignedmty = empty for the whole 16 bytes
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(0);
+                elsif dataDel.eop(1) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(1);
+                elsif dataDel.eop(2) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(2);    
+                elsif dataDel.eop(3) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(3);
+                else
+                    dataAlignedEOP <= '0';
+                    dataAlignedErr <= '0';
+                end if;
+            elsif rxAlign = "01" then
+                dataAligned <= dataDel.data(255 downto 128) & dataDel.data(383 downto 256) & dataDel.data(511 downto 384) & eth100_rx_sosi.data(127 downto 0);
+                dataAlignedValid <= dataDel.valid(1);
+                if dataDel.eop(1) = '1' then -- dataAlignedmty = empty for the whole 16 bytes
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(1);
+                elsif dataDel.eop(2) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(2);
+                elsif dataDel.eop(3) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(3);    
+                elsif eth100_rx_sosi.eop(0) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= eth100_rx_sosi.error(0);
+                else
+                    dataAlignedEOP <= '0';
+                    dataAlignedErr <= '0';
+                end if;
+            elsif rxAlign = "10" then
+                dataAligned <= dataDel.data(383 downto 256) & dataDel.data(511 downto 384) & eth100_rx_sosi.data(127 downto 0) & eth100_rx_sosi.data(255 downto 128);
+                dataAlignedValid <= dataDel.valid(2);
+                if dataDel.eop(2) = '1' then -- dataAlignedmty = empty for the whole 16 bytes
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(2);
+                elsif dataDel.eop(3) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(3);
+                elsif eth100_rx_sosi.eop(0) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= eth100_rx_sosi.error(0);    
+                elsif eth100_rx_sosi.eop(1) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= eth100_rx_sosi.error(1);
+                else
+                    dataAlignedEOP <= '0';
+                    dataAlignedErr <= '0';
+                end if;
+            else -- rxAlign = "11"
+                dataAligned <= dataDel.data(511 downto 384) & eth100_rx_sosi.data(127 downto 0) & eth100_rx_sosi.data(255 downto 128)  & eth100_rx_sosi.data(383 downto 256);
+                dataAlignedValid <= dataDel.valid(3);
+                if dataDel.eop(3) = '1' then -- dataAlignedmty = empty for the whole 16 bytes
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= dataDel.error(3);
+                elsif eth100_rx_sosi.eop(0) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= eth100_rx_sosi.error(0);
+                elsif eth100_rx_sosi.eop(1) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= eth100_rx_sosi.error(1);    
+                elsif eth100_rx_sosi.eop(2) = '1' then
+                    dataAlignedEOP <= '1';
+                    dataAlignedErr <= eth100_rx_sosi.error(2);
+                else
+                    dataAlignedEOP <= '0';
+                    dataAlignedErr <= '0';
+                end if;
+            end if;
             dataAlignedSOP <= rxSOP;
-            dataAlignedTimestamp <= axis_tuser_del;
             dataAlignedCount <= rxCount;
             
+            
             -- Data portion of the packet is written to the buffer, with an appropriate alignment for the data.
-            -- There are 114 bytes in the header = 64 + 50, so the data starts at byte 51 in the second word.
             -- Note that, if the first 128 bit segment is segment 1, then packet data starts in the 3rd byte of the 8th segment.
             -- This arranges the bytes so that the first byte of data is in bufDin(511:504), second byte in bufDin(503:496) etc to the 64th byte of data in bufDin(7:0)
-            if ((unsigned(rxCount) >= 1) and axis_tvalid = '1') then
-                -- rxCount is the word in axis_tdata_del. So when rxCount = 1
-                --                                 word 0 has passed;
-                -- axis_tdata_del contains 64-byte word 1 
-                -- axis_tdata     contains 64-byte word 2
-                bufDin <= axis_tdata(399 downto 0) & axis_tdata_del(511 downto 400);
+            if (((unsigned(rxCount) = 1) and eth100_rx_sosi.valid(0) = '1' and rxAlign = "00") or
+                ((unsigned(rxCount) > 1) and eth100_rx_sosi.valid(0) = '1' and rxAlignOld = "00")) then
+                -- Counting 128 bit segments from 1, then, for rxCount = 1,
+                -- dataDel           contains segments 5, 6, 7, 8
+                -- eth100_rx_sosi  contains segments 9, 10, 11, 12
+                bufDin <= dataDel.data(495 downto 384) & eth100_rx_sosi.data(127 downto 0) & eth100_rx_sosi.data(255 downto 128) & eth100_rx_sosi.data(383 downto 256) & eth100_rx_sosi.data(511 downto 496);
                 bufWE(0) <= '1';
                 if (unsigned(rxCount) = 1) then
                     bufWrCount <= (others => '0');
+                    rxAlignOld <= rxAlign;
                 else
                     bufWrCount <= std_logic_vector(unsigned(bufWrCount) + 1);
                 end if;
-                
-                if axis_tlast_del = '1' or axis_tlast = '1' then
+                if (dataDel.eop(3) = '1' or eth100_rx_sosi.eop(0) = '1' or eth100_rx_sosi.eop(1) = '1' or eth100_rx_sosi.eop(2) = '1' or eth100_rx_sosi.eop(3) = '1') then
                     bufDinEOP <= '1';
-                    if (unsigned(bufWrCount) = 126) and axis_tlast = '1' and axis_tkeep = "0000000000000011111111111111111111111111111111111111111111111111" then
-                        -- There should be 50 valid bytes in the last word. 
-                        bufDinGoodLength <= '1';
+                    bufDinErr <= dataDel.error(3) or eth100_rx_sosi.error(0) or eth100_rx_sosi.error(1) or eth100_rx_sosi.error(2) or eth100_rx_sosi.error(3);
+                    if ((unsigned(bufWrCount) = 126) and eth100_rx_sosi.eop(3) = '1' and eth100_rx_sosi.empty(3) = "1110") then
+                        bufDinGoodLength <= '1'; -- bufWrCount will be 127 in the next cycle; 128 x 512 bit words = 128 x 64 bytes = 8192 bytes = the full data part of the packet.
                     else
                         bufDinGoodLength <= '0';
                     end if;
                 else
                     bufDinEOP <= '0';
+                    bufDinErr <= '0';
                     bufDinGoodLength <= '0';
                 end if;
-                
+            elsif (((unsigned(rxCount) = 2) and eth100_rx_sosi.valid(0) = '1' and rxAlign = "01") or
+                   ((unsigned(rxCount) > 2) and eth100_rx_sosi.valid(0) = '1' and rxAlignOld = "01")) then
+                -- Counting 128 bit segments from 1, then when rxCount = 2, previous cycles included segments [1,2,3], [4,5,6,7]
+                -- dataDel           contains segments 8, 9, 10, 11
+                -- eth100_rx_sosi  contains segments 12, 13, 14, 15
+                bufDin <= dataDel.data(111 downto 0) & dataDel.data(255 downto 128) & dataDel.data(383 downto 256) & dataDel.data(511 downto 384) & eth100_rx_sosi.data(127 downto 112);
+                bufWE(0) <= '1';
+                if (unsigned(rxCount) = 2) then
+                    bufWrCount <= (others => '0');
+                    rxAlignOld <= rxAlign;
+                else
+                    bufWrCount <= std_logic_vector(unsigned(bufWrCount) + 1);
+                end if;
+                if (dataDel.eop(0) = '1' or dataDel.eop(1) = '1' or dataDel.eop(2) = '1' or dataDel.eop(3) = '1' or eth100_rx_sosi.eop(0) = '1') then
+                    bufDinEOP <= '1';
+                    bufDinErr <= dataDel.error(0) or dataDel.error(1) or dataDel.error(2) or dataDel.error(3) or eth100_rx_sosi.error(0);
+                    if ((unsigned(bufWrCount) = 126) and eth100_rx_sosi.eop(0) = '1' and eth100_rx_sosi.empty(0) = "1110") then
+                        bufDinGoodLength <= '1'; -- bufWrCount will be 127 in the next cycle; 128 x 512 bit words = 128 x 64 bytes = 8192 bytes = the full data part of the packet.
+                    else
+                        bufDinGoodLength <= '0';
+                    end if;
+                else
+                    bufDinEOP <= '0';
+                    bufDinErr <= '0';
+                    bufDinGoodLength <= '0';
+                end if;
+            elsif (((unsigned(rxCount) = 2) and eth100_rx_sosi.valid(0) = '1' and rxAlign = "10") or
+                   ((unsigned(rxCount) > 2) and eth100_rx_sosi.valid(0) = '1' and rxAlignOld = "10")) then
+                -- Counting 128 bit segments from 1, then (rxCount = 2, so previous segments were [1, 2], [3, 4, 5, 6])
+                -- dataDel           contains segments 7, 8, 9, 10
+                -- eth100_rx_sosi  contains segments 11, 12, 13, 14
+                bufDin <= dataDel.data(239 downto 128) & dataDel.data(383 downto 256) & dataDel.data(511 downto 384) & eth100_rx_sosi.data(127 downto 0) & eth100_rx_sosi.data(255 downto 240);
+                bufWE(0) <= '1';
+                if (unsigned(rxCount) = 2) then
+                    bufWrCount <= (others => '0');
+                    rxAlignOld <= rxAlign;
+                else
+                    bufWrCount <= std_logic_vector(unsigned(bufWrCount) + 1);
+                end if;
+                if (dataDel.eop(1) = '1' or dataDel.eop(2) = '1' or dataDel.eop(3) = '1' or eth100_rx_sosi.eop(0) = '1' or eth100_rx_sosi.eop(1) = '1') then
+                    bufDinEOP <= '1';
+                    bufDinErr <= dataDel.error(1) or dataDel.error(2) or dataDel.error(3) or eth100_rx_sosi.error(0) or eth100_rx_sosi.error(1);
+                    if ((unsigned(bufWrCount) = 126) and eth100_rx_sosi.eop(1) = '1' and eth100_rx_sosi.empty(1) = "1110") then
+                        bufDinGoodLength <= '1'; -- bufWrCount will be 127 in the next cycle; 128 x 512 bit words = 128 x 64 bytes = 8192 bytes = the full data part of the packet.
+                    else
+                        bufDinGoodLength <= '0';
+                    end if;
+                else
+                    bufDinEOP <= '0';
+                    bufDinErr <= '0';
+                    bufDinGoodLength <= '0';
+                end if;
+            elsif (((unsigned(rxCount) = 2) and eth100_rx_sosi.valid(0) = '1' and rxAlign = "11") or 
+                   ((unsigned(rxCount) > 2) and eth100_rx_sosi.valid(0) = '1' and rxAlignOld = "11")) then
+                -- Counting 128 bit segments from 1, then (rxCount = 2, so previous segments were [1], [2, 3, 4, 5]
+                -- dataDel           contains segments 6, 7, 8, 9
+                -- eth100_rx_sosi  contains segments 10, 11, 12, 13
+                bufDin <= dataDel.data(367 downto 256) & dataDel.data(511 downto 384) & eth100_rx_sosi.data(127 downto 0) & eth100_rx_sosi.data(255 downto 128) & eth100_rx_sosi.data(383 downto 368);
+                bufWE(0) <= '1';
+                if (unsigned(rxCount) = 2) then
+                    bufWrCount <= (others => '0');
+                    rxAlignOld <= rxAlign;
+                else
+                    bufWrCount <= std_logic_vector(unsigned(bufWrCount) + 1);
+                end if;
+                if (dataDel.eop(2) = '1' or dataDel.eop(3) = '1' or eth100_rx_sosi.eop(0) = '1' or eth100_rx_sosi.eop(1) = '1' or eth100_rx_sosi.eop(2) = '1') then
+                    bufDinEOP <= '1';
+                    bufDinErr <= dataDel.error(2) or dataDel.error(3) or eth100_rx_sosi.error(0) or eth100_rx_sosi.error(1) or eth100_rx_sosi.error(2);
+                    if ((unsigned(bufWrCount) = 126) and eth100_rx_sosi.eop(2) = '1' and eth100_rx_sosi.empty(2) = "1110") then
+                        bufDinGoodLength <= '1'; -- bufWrCount will be 127 in the next cycle; 128 x 512 bit words = 128 x 64 bytes = 8192 bytes = the full data part of the packet.
+                    else
+                        bufDinGoodLength <= '0';
+                    end if;
+                else
+                    bufDinEOP <= '0';
+                    bufDinErr <= '0';
+                    bufDinGoodLength <= '0';
+                end if;
             else
                 bufWE(0) <= '0';
                 bufDinEOP <= '0';
+                bufDinErr <= '0';
                 bufDinGoodLength <= '0';
             end if;
             
@@ -406,19 +587,19 @@ begin
             -- wordCount is in units of 128 bits. dataAligned is 512 bits. So wordCount(1:0) is the 128 bit word within dataAligned.
             for i in 0 to (fieldsToMatch-1) loop
                 if ((dataAlignedCount(9 downto 1) = "000000000") and 
-                    (dataAlignedCount(0) = c_fieldmatch_loc(i).wordcount(0)) and 
+                    (dataAlignedCount(0) = c_fieldmatch_loc(i).wordcount(2)) and 
                     (dataAlignedValid = '1')) then
                     -- Copy the bytes into the actualValues array
                     for j in 0 to (c_fieldmatch_loc(i).bytes-1) loop
                         actualValues(i)(((j+1) * 8 - 1) downto (j*8)) <=
-                            dataAligned((c_fieldmatch_loc(i).byteOffset * 8 + c_fieldmatch_loc(i).bytes * 8 + j*8 + 7) downto
-                                        (c_fieldmatch_loc(i).byteOffset * 8 + c_fieldmatch_loc(i).bytes * 8 + j*8));
+                            dataAligned( 512 - (to_integer(unsigned(c_fieldmatch_loc(i).wordCount(1 downto 0))) * 128 + c_fieldmatch_loc(i).byteOffset * 8 + c_fieldmatch_loc(i).bytes * 8) + (j+1)*8-1 downto
+                                         512 - (to_integer(unsigned(c_fieldmatch_loc(i).wordCount(1 downto 0))) * 128 + c_fieldmatch_loc(i).byteOffset * 8 + c_fieldmatch_loc(i).bytes * 8) + j*8);
                     end loop;
                 end if;
             end loop;
             
             if dataAlignedSOP = '1' then
-                SOPTime <= dataAlignedTimestamp;
+                SOPTime <= i_wallTime;
             end if;
             
             ------------------------------------------------------------------------------------------------
@@ -539,7 +720,7 @@ begin
                         
                     when wait_rd_VC3 =>
                         -- The virtual channel to be assigned to this packet is read from the second word in the virtual channel table.
-                        virtualChannel <= i_VCTable_rd_data(10 downto 0); 
+                        virtualChannel <= i_VCTable_rd_data(9 downto 0); 
                         searchDone <= '1';
                         NoMatch <= '0';
                         lookup_fsm <= idle;
@@ -554,12 +735,7 @@ begin
                 end case;
             end if;
             
-            -- Invert the top bit of vctable_rd_data.
-            -- in the table, '1' means valid, but we need '0' to indicate valid since
-            -- it is used to sort the entries, so anything with the high bit set is at the
-            -- end of the table in terms of sorting.
-            VCTable_rd_data_del1(30 downto 0) <= i_VCTable_rd_data(30 downto 0);
-            VCTable_rd_data_del1(31) <= not i_VCTable_rd_data(31);
+            VCTable_rd_data_del1 <= i_VCTable_rd_data;
             
             if (VCTable_rd_data_del1 = VirtualSearch) then
                 VCTableMatch <= '1';
@@ -614,8 +790,13 @@ begin
                         badEthPacket <= '0';
                     elsif dataAlignedEOP = '1' then
                         rx_fsm <= idle;
-                        nonSPEADPacket <= '1';
-                        badEthPacket <= '0';
+                        if dataAlignedErr = '1' then
+                            badEthPacket <= '1';
+                            nonSPEADPacket <= '0';
+                        else
+                            nonSPEADPacket <= '1';
+                            badEthPacket <= '0';
+                        end if;
                     else
                         nonSPEADPacket <= '0';
                         badEthPacket <= '0';
@@ -632,8 +813,13 @@ begin
                         nonSPEADPacket <= '1';
                     elsif dataAlignedEOP = '1' then
                         rx_fsm <= idle;
-                        nonSPEADPacket <= '1';
-                        badEthPacket <= '0';
+                        if dataAlignedErr = '1' then
+                            badEthPacket <= '1';
+                            nonSPEADPacket <= '0';
+                        else
+                            nonSPEADPacket <= '1';
+                            badEthPacket <= '0';
+                        end if;
                         noVirtualChannel <= '0';
                     elsif searchDone = '1' then
                         if NoMatch = '1' then
@@ -661,8 +847,13 @@ begin
                         badEthPacket <= '0';
                     elsif dataAlignedEOP = '1' then
                         rx_fsm <= idle;
-                        nonSPEADPacket <= '1';
-                        badEthPacket <= '0';
+                        if dataAlignedErr = '1' then
+                            badEthPacket <= '1';
+                            nonSPEADPacket <= '0';
+                        else
+                            nonSPEADPacket <= '1';
+                            badEthPacket <= '0';
+                        end if;
                     else
                         nonSPEADPacket <= '0';
                         badEthPacket <= '0';
@@ -670,22 +861,22 @@ begin
                     end if;
                     if wrBufSel = "00" then
                         HdrBuf0.packet_count <= actualValues(c_packet_counter)(31 downto 0);
-                        HdrBuf0.virtual_channel <= "00000" & virtualChannel;                -- 16 bits allocated in the header for the virtual channel.
+                        HdrBuf0.virtual_channel <= "000000" & virtualChannel;                -- 16 bits allocated in the header for the virtual channel.
                         HdrBuf0.channel_frequency <= actualValues(c_frequency_id_index)(15 downto 0);
                         HdrBuf0.station_id <= actualValues(c_station_id_index)(15 downto 0);
                     elsif wrBufSel = "01" then
                         HdrBuf1.packet_count <= actualValues(c_packet_counter)(31 downto 0);
-                        HdrBuf1.virtual_channel <= "00000" & virtualChannel;
+                        HdrBuf1.virtual_channel <= "000000" & virtualChannel;
                         HdrBuf1.channel_frequency <= actualValues(c_frequency_id_index)(15 downto 0);
                         HdrBuf1.station_id <= actualValues(c_station_id_index)(15 downto 0);
                     elsif wrBufSel = "10" then
                         HdrBuf2.packet_count <= actualValues(c_packet_counter)(31 downto 0);
-                        HdrBuf2.virtual_channel <= "00000" & virtualChannel;
+                        HdrBuf2.virtual_channel <= "000000" & virtualChannel;
                         HdrBuf2.channel_frequency <= actualValues(c_frequency_id_index)(15 downto 0);
                         HdrBuf2.station_id <= actualValues(c_station_id_index)(15 downto 0);
                     elsif wrBufSel = "11" then
                         HdrBuf3.packet_count <= actualValues(c_packet_counter)(31 downto 0);
-                        HdrBuf3.virtual_channel <= "00000" & virtualChannel;
+                        HdrBuf3.virtual_channel <= "000000" & virtualChannel;
                         HdrBuf3.channel_frequency <= actualValues(c_frequency_id_index)(15 downto 0);
                         HdrBuf3.station_id <= actualValues(c_station_id_index)(15 downto 0);
                     end if;
@@ -694,7 +885,7 @@ begin
                     badIPUDPPacket <= '0';
                     rx_fsm_dbg <= "0101";
                     if bufDinEOP = '1' then
-                        if (bufDinGoodLength = '1') then 
+                        if (bufDinGoodLength = '1' and bufDinErr = '0') then 
                             -- Good frame received - correct length, no errors.
                             wrBufSel <= std_logic_vector(unsigned(wrBufSel) + 1);
                             goodPacket <= '1';
@@ -702,8 +893,13 @@ begin
                             nonSPEADPacket <= '0';
                         else
                             goodPacket <= '0';
-                            nonSPEADPacket <= '1';
-                            badEthPacket <= '0';
+                            if bufDinErr = '1' then
+                                badEthPacket <= '1';
+                                nonSPEADPacket <= '0';
+                            else
+                                nonSPEADPacket <= '1';
+                                badEthPacket <= '0';
+                            end if;
                         end if;
                         if dataAlignedSOP = '1' then
                             rx_fsm <= frame_start;
@@ -1067,7 +1263,7 @@ begin
         ena                     => '1',
         wea                     => bufWE,
         addra                   => bufWrAddr,
-        dina                    => bufDin,
+        dina                    => bufDin_LE,
         injectsbiterra          => '0',
         injectdbiterra          => '0',
         -- Port B (read side)
@@ -1080,6 +1276,12 @@ begin
         sbiterrb                => open,
         dbiterrb                => open
     );
+
+    -- reorder the input data to be little endian; 
+    -- i.e. first byte in bits(7:0), next byte in bits(15:8) etc.
+    littleEndianGen : for i in 0 to 63 generate
+        bufDin_LE((i*8+7) downto (i*8)) <= bufDin((512 - i*8 - 1) downto (512 - i*8 - 8));
+    end generate;
 
     ----------------------------------------------------------
     -- first word fall through FIFO to meet the AXI requirements for stalling for the output data

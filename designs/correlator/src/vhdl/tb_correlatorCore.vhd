@@ -30,15 +30,27 @@ USE technology_lib.tech_mac_100g_pkg.ALL;
 
 entity tb_correlatorCore is
     generic (
-        LFAA_BLOCKS_PER_FRAME_DIV3_generic :integer := 2;
-        default_bigsim                     :boolean := FALSE
+        g_SPS_PACKETS_PER_FRAME : integer := 128;
+        -- Location of the test case; All the other filenames in generics here are in this directory
+        g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        -- text file with SPS packets
+        g_SPS_DATA_FILENAME : string := "sps_axi_tb_input.txt";
+        -- Register initialisation
+        g_REGISTER_INIT_FILENAME : string := "tb_registers.txt";
+        -- File to log the output data to (the 100GE axi interface)
+        g_SDP_FILENAME : string := "tb_SDP_data_out.txt";
+        -- initialisation of corner turn 1 HBM
+        g_LOAD_CT1_HBM : boolean := False;
+        g_CT1_INIT_FILENAME : string := "";
+        -- initialisation of corner turn 2 HBM
+        g_LOAD_CT2_HBM_CORR1 : boolean := True;
+        g_CT2_HBM_CORR1_FILENAME : string := "ct2_init.txt";
+        g_LOAD_CT2_HBM_CORR2 : boolean := False;
+        g_CT2_HBM_CORR2_FILENAME : string := ""
     );
 end tb_correlatorCore;
 
 architecture Behavioral of tb_correlatorCore is
-
-    -- signal cmd_file_name    : string(1 to 21) := "LFAA100GE_tb_data.txt";
-    -- signal RegCmd_file_name : string(1 to 14) := "HWData1_tb.txt";
 
     signal ap_clk : std_logic := '0';
     signal clk100 : std_logic := '0';
@@ -144,12 +156,6 @@ architecture Behavioral of tb_correlatorCore is
     signal m00_rvalid :  STD_LOGIC;
     signal m00_rready :  STD_LOGIC;
     
-    signal m00_clk : std_logic;
-    signal m00_we : std_logic_vector(3 downto 0);
-    signal m00_addr : std_logic_vector(16 downto 0);
-    signal m00_wrData : std_logic_vector(31 downto 0);
-    signal m00_rdData : std_logic_vector(31 downto 0);
-    
     constant g_HBM_INTERFACES : integer := 5;
     signal HBM_axi_awvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
@@ -191,9 +197,6 @@ architecture Behavioral of tb_correlatorCore is
     signal HBM_axi_rid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
     signal HBM_axi_rresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
 
-    signal eth100_rx_sosi : t_lbus_sosi;
-    signal eth100_tx_sosi : t_lbus_sosi;
-    signal eth100_tx_siso : t_lbus_siso;
     signal setupDone : std_logic;
     signal eth100G_clk : std_logic := '0';
     
@@ -225,6 +228,37 @@ architecture Behavioral of tb_correlatorCore is
     signal wr_addr_x410E0, rd_addr_x410E0 : std_logic := '0'; 
     signal wrdata_x410E0, rddata_x410E0 : std_logic := '0';
     
+    signal eth100_rx_axi_tdata : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal eth100_rx_axi_tkeep : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal eth100_rx_axi_tlast : std_logic;
+    signal eth100_rx_axi_tuser : std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+    signal eth100_rx_axi_tvalid : std_logic;
+    -- Data to be transmitted on 100GE
+    signal eth100_tx_axi_tdata : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal eth100_tx_axi_tkeep : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal eth100_tx_axi_tlast : std_logic;                      
+    signal eth100_tx_axi_tuser : std_logic;  
+    signal eth100_tx_axi_tvalid : std_logic;
+    
+    constant one0 : std_logic_vector(3 downto 0) := "0000";
+    constant FOUR0 : std_logic_vector(15 downto 0) := x"0000";
+    constant FOUR1 : std_logic_vector(3 downto 0) := "0001";
+    constant T0 : std_logic_vector(511 downto 0) := (others => '0');
+    
+    signal tvalid_ext : std_logic_vector(3 downto 0);
+    signal tlast_ext : std_logic_vector(3 downto 0);
+    signal tuser_ext : std_logic_vector(3 downto 0);
+    signal sim_register_input_file_counter : integer := 0;
+    
+    signal load_ct1_HBM, load_ct2_HBM_corr1, load_ct2_HBM_corr2 : std_logic := '0';
+    signal axi4_lite_miso_dummy : t_axi4_lite_miso;
+    signal axi4_full_miso_dummy : t_axi4_full_miso;
+    
+    signal ct2_readout_start  : std_logic := '0';
+    signal ct2_readout_buffer : std_logic := '0';
+    
+    -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
+    -- +bid buser
     -- Do an axi-lite read of a single 32-bit register.
     PROCEDURE axi_lite_rd(SIGNAL mm_clk   : IN STD_LOGIC;
                           SIGNAL axi_miso : IN t_axi4_lite_miso;
@@ -236,9 +270,7 @@ architecture Behavioral of tb_correlatorCore is
         VARIABLE result            : STD_LOGIC_VECTOR(31 DOWNTO 0);
         variable wvalidInt         : std_logic;
         variable awvalidInt        : std_logic;
-        
     BEGIN
-
         -- Start transaction
         WAIT UNTIL rising_edge(mm_clk);
             -- Setup read address
@@ -258,7 +290,6 @@ architecture Behavioral of tb_correlatorCore is
             END IF;
         END LOOP;
 
-        
         rd_data := axi_miso.rdata(31 downto 0);
         -- Read response
         IF axi_miso.rresp = "01" THEN
@@ -272,96 +303,175 @@ architecture Behavioral of tb_correlatorCore is
            writeline(output, stdio);
         END IF;
 
-
-        
         WAIT UNTIL rising_edge(mm_clk);
         axi_mosi.rready <= '0';
     end procedure;
-        
+    
 begin
 
     ap_clk <= not ap_clk after 1.666 ns; -- 300 MHz clock.
     clk100 <= not clk100 after 5 ns; -- 100 MHz clock
     eth100G_clk <= not eth100G_clk after 1.553 ns; -- 322 MHz
 
-    -- process
-    --     file RegCmdfile: TEXT;
-    --     variable RegLine_in : Line;
-    --     variable RegGood : boolean;
-    --     variable cmd_str : string(1 to 2);
-    --     variable regAddr : std_logic_vector(31 downto 0);
-    --     variable regSize : std_logic_vector(31 downto 0);
-    --     variable regData : std_logic_vector(31 downto 0);
-    --     variable readResult : std_logic_vector(31 downto 0);
-    -- begin        
-    --     SetupDone <= '0';
-    --     ap_rst_n <= '1';
+    process
+        file RegCmdfile: TEXT;
+        variable RegLine_in : Line;
+        variable RegGood : boolean;
+        variable cmd_str : string(1 to 2);
+        variable regAddr : std_logic_vector(31 downto 0);
+        variable regSize : std_logic_vector(31 downto 0);
+        variable regData : std_logic_vector(31 downto 0);
+        variable readResult : std_logic_vector(31 downto 0);
+    begin        
+        SetupDone <= '0';
+        ap_rst_n <= '1';
+        load_ct1_HBM <= '0';
+        load_ct2_HBM_corr1 <= '0';
+        load_ct2_HBM_corr2 <= '0';
+        FILE_OPEN(RegCmdfile, g_TEST_CASE & g_REGISTER_INIT_FILENAME, READ_MODE);
         
-    --     --FILE_OPEN(RegCmdfile,RegCmd_file_name,READ_MODE);
+        for i in 1 to 10 loop
+            WAIT UNTIL RISING_EDGE(ap_clk);
+        end loop;
+        ap_rst_n <= '0';
+        for i in 1 to 10 loop
+             WAIT UNTIL RISING_EDGE(ap_clk);
+        end loop;
+        ap_rst_n <= '1';
         
-    --     for i in 1 to 10 loop
-    --         WAIT UNTIL RISING_EDGE(ap_clk);
-    --     end loop;
-    --     ap_rst_n <= '0';
-    --     for i in 1 to 10 loop
-    --          WAIT UNTIL RISING_EDGE(ap_clk);
-    --     end loop;
-    --     ap_rst_n <= '1';
+        if g_LOAD_CT1_HBM then
+            load_ct1_HBM <= '1';
+        end if;
+        if g_LOAD_CT2_HBM_CORR1 then
+            load_ct2_HBM_corr1 <= '1';
+        end if;
+        if g_LOAD_CT2_HBM_CORR2 then
+            load_ct2_HBM_corr2 <= '1';
+        end if;        
         
-    --     for i in 1 to 100 loop
-    --          WAIT UNTIL RISING_EDGE(ap_clk);
-    --     end loop;
+        wait until rising_edge(ap_clk);
         
-    --     -- For some reason the first transaction doesn't work; this is just a dummy transaction
-    --     -- Arguments are       clk,    miso      ,    mosi     , 4-byte word Addr, write ?, data)
-    --     axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 0,    true, x"00000000");
-        
-    --     -- Addresses in the axi lite control module
-    --     -- ADDR_AP_CTRL         = 6'h00,
-    --     -- ADDR_DMA_SRC_0       = 6'h10,
-    --     -- ADDR_DMA_DEST_0      = 6'h14,
-    --     -- ADDR_DMA_SHARED_0    = 6'h18,
-    --     -- ADDR_DMA_SHARED_1    = 6'h1C,
-    --     -- ADDR_DMA_SIZE        = 6'h20,
-    --     --
-    --     axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 6, true, x"DEF20000");  -- Full address of the shared memory; arbitrary so long as it is 128K aligned.
-    --     axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 7, true, x"56789ABC");  -- High 32 bits of the  address of the shared memory; arbitrary.
-        
-        
-    --     -- Pseudo code :
-    --     --
-    --     --  Repeat while there are commands in the command file:
-    --     --    - Read command from the file (either read or write, together with the ARGs register address)
-    --     --        - Possible commands : [read address length]   <-- Does a register read.
-    --     --                              [write address length]  <-- Does a register write
-    --     --    - If this is a write, then read the write data from the file, and copy into a shared variable used by the memory.
-    --     --    - trigger the kernel to do the register read/write.
-    --     --  Trigger sending of the 100G test data.
-    --     --
-        
-    --     -- 
+        load_ct1_HBM <= '0';
+        load_ct2_HBM_corr1 <= '0';
+        load_ct2_HBM_corr2 <= '0';
         
         
-    --     SetupDone <= '1';
-    --     wait;
-    -- end process;
-    
-    
-    -- m00_bram_addr_word <= m00_bram_addr(16 downto 2);
-    
-    -- process(m00_bram_clk)
-    -- begin
-    --     if rising_edge(m00_bram_clk) then
-    --         m00_bram_rdData <= std_logic_vector(to_signed(sharedMem(to_integer(unsigned(m00_bram_addr_word))),32)); 
+        for i in 1 to 100 loop
+             WAIT UNTIL RISING_EDGE(ap_clk);
+        end loop;
+        
+        -- For some reason the first transaction doesn't work; this is just a dummy transaction
+        -- Arguments are       clk,    miso      ,    mosi     , 4-byte word Addr, write ?, data)
+        axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 0,    true, x"00000000");
+       
+        -- Addresses in the axi lite control module
+        -- ADDR_AP_CTRL         = 6'h00,
+        -- ADDR_DMA_SRC_0       = 6'h10,
+        -- ADDR_DMA_DEST_0      = 6'h14,
+        -- ADDR_DMA_SHARED_0    = 6'h18,
+        -- ADDR_DMA_SHARED_1    = 6'h1C,
+        -- ADDR_DMA_SIZE        = 6'h20,
+        --
+        axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 6, true, x"DEF20000");  -- Full address of the shared memory; arbitrary so long as it is 128K aligned.
+        axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 7, true, x"56789ABC");  -- High 32 bits of the  address of the shared memory; arbitrary.
+        
+        -- Pseudo code :
+        --
+        --  Repeat while there are commands in the command file:
+        --    - Read command from the file (either read or write, together with the ARGs register address)
+        --        - Possible commands : [read address length]   <-- Does a register read.
+        --                              [write address length]  <-- Does a register write
+        --    - If this is a write, then read the write data from the file, and copy into a shared variable used by the memory.
+        --    - trigger the kernel to do the register read/write.
+        --  Trigger sending of the 100G test data.
+        --
+
+        while (not endfile(RegCmdfile)) loop 
+            sim_register_input_file_counter <= sim_register_input_file_counter +1;
+            readline(RegCmdfile, RegLine_in);
             
-    --         if m00_bram_we(0) = '1' and m00_bram_en = '1' then
-    --             sharedMem(to_integer(unsigned(m00_bram_addr_word))) := to_integer(signed(m00_bram_wrData));
-    --         end if;
+            assert False report "Processing register command " & RegLine_in.all severity note;
             
-    --         assert (m00_bram_we(3 downto 0) /= "0000" or m00_bram_we(3 downto 0) /= "1111") report "Byte wide write enables should never occur to shared memory" severity error;
+            -- line_in should have a command; process it.
+            read(RegLine_in,cmd_str,RegGood);   -- cmd should be either "rd" or "wr"
+            hread(RegLine_in,regAddr,regGood);  -- then the register address
+            hread(RegLine_in,regSize,regGood);  -- then the number of words
             
-    --     end if;
-    -- end process;
+            if strcmp(cmd_str,"wr") then
+            
+                -- The command is a write, so get the write data into the shared memory variable "sharedMem"
+                -- Divide by 4 to get the number of words, since the size is in bytes.
+                for i in 0 to (to_integer(unsigned(regSize(31 downto 2)))-1) loop
+                    readline(regCmdFile, regLine_in);
+                    hread(regLine_in,regData,regGood);
+                    sharedMem(i) := to_integer(signed(regData));
+                end loop;
+                
+                -- put in the source address. For writes, the source address is the shared memory, which is mapped to word address 0x8000 (=byte address 0x20000) in the ARGS address space.
+                axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 4, true, x"00020000"); 
+                -- Put in the destination address in the ARGS memory space.
+                axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 5, true, regAddr);
+                -- Size = number of bytes to transfer. 
+                axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 8, true, regSize);
+
+            elsif strcmp(cmd_str,"rd") then
+                -- Put in the source address
+                axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 4, true, regAddr);      -- source Address
+                -- Destination Address - the shared memory. 
+                axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 5, true, x"00040000");  
+                axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 8, true, regSize);      -- size of the transaction in bytes
+                
+            else
+                assert False report "Bad data in register command file" severity error;
+            end if;
+   
+            -- trigger the command
+            axi_lite_transaction(ap_clk, mc_lite_miso, mc_lite_mosi, 0, true, x"00000001");
+        
+            -- Poll until the command is done
+            readResult := (others => '0');
+            while (readResult(1) = '0') loop
+                axi_lite_rd(ap_clk, mc_lite_miso, mc_lite_mosi, 0, readResult);
+                for i in 1 to 10 loop
+                    WAIT UNTIL RISING_EDGE(ap_clk);
+                end loop;
+            end loop;
+            
+        end loop;
+
+        wait UNTIL RISING_EDGE(ap_clk);
+        wait UNTIL RISING_EDGE(ap_clk);
+        wait UNTIL RISING_EDGE(ap_clk);
+        wait UNTIL RISING_EDGE(ap_clk);
+        ct2_readout_start <= '1';
+        wait UNTIL RISING_EDGE(ap_clk);
+        ct2_readout_start <= '0';
+
+        if validMemRstActive = '1' then
+            wait until validMemRstActive = '0';
+        end if;
+        
+        SetupDone <= '1';
+        
+        wait;
+    end process;
+    ct2_readout_buffer <= '0';
+    
+    m00_bram_addr_word <= m00_bram_addr(16 downto 2);
+    
+    process(m00_bram_clk)
+    begin
+        if rising_edge(m00_bram_clk) then
+            m00_bram_rdData <= std_logic_vector(to_signed(sharedMem(to_integer(unsigned(m00_bram_addr_word))),32)); 
+           
+            if m00_bram_we(0) = '1' and m00_bram_en = '1' then
+                sharedMem(to_integer(unsigned(m00_bram_addr_word))) := to_integer(signed(m00_bram_wrData));
+            end if;
+           
+            assert (m00_bram_we(3 downto 0) /= "0000" or m00_bram_we(3 downto 0) /= "1111") report "Byte wide write enables should never occur to shared memory" severity error;
+           
+        end if;
+    end process;
     
     -----------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------
@@ -413,137 +523,121 @@ begin
     
     -------------------------------------------------------------------------------------------
     -- 100 GE data input
-    -- eth100_rx_sosi
-    -- TYPE t_lbus_sosi IS RECORD  -- Source Out and Sink In
-    --   data       : STD_LOGIC_VECTOR(511 DOWNTO 0);                -- Data bus
-    --   valid      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Data segment enable
-    --   eop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- End of packet
-    --   sop        : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Start of packet
-    --   error      : STD_LOGIC_VECTOR(3 DOWNTO 0);    -- Error flag, indicates data has an error
-    --   empty      : t_empty_arr(3 DOWNTO 0);         -- Number of bytes empty in the segment  (four 4bit entries)
-    -- END RECORD;
+    --  
     process
         file cmdfile: TEXT;
         variable line_in : Line;
         variable good : boolean;
-        variable LFAArepeats : std_logic_vector(15 downto 0);
-        variable LFAAData  : std_logic_vector(511 downto 0);
-        variable LFAAvalid : std_logic_vector(3 downto 0);
-        variable LFAAeop   : std_logic_vector(3 downto 0);
-        variable LFAAerror : std_logic_vector(3 downto 0);
-        variable LFAAempty0 : std_logic_vector(3 downto 0);
-        variable LFAAempty1 : std_logic_vector(3 downto 0);
-        variable LFAAempty2 : std_logic_vector(3 downto 0);
-        variable LFAAempty3 : std_logic_vector(3 downto 0);
-        variable LFAAsop    : std_logic_vector(3 downto 0);
+        variable sps_axi_repeats : std_logic_vector(15 downto 0);
+        variable sps_axi_tvalid : std_logic_vector(3 downto 0);
+        variable sps_axi_tlast : std_logic_vector(3 downto 0);
+        variable sps_axi_tkeep : std_logic_vector(63 downto 0);
+        variable sps_axi_tdata  : std_logic_vector(511 downto 0);
+        variable sps_axi_tuser : std_logic_vector(79 downto 0);
+        
     begin
         
-        eth100_rx_sosi.data <= (others => '0');  -- 512 bits
-        eth100_rx_sosi.valid <= "0000";          -- 4 bits
-        eth100_rx_sosi.eop <= "0000";  
-        eth100_rx_sosi.sop <= "0000";
-        eth100_rx_sosi.error <= "0000";
-        eth100_rx_sosi.empty(0) <= "0000";
-        eth100_rx_sosi.empty(1) <= "0000";
-        eth100_rx_sosi.empty(2) <= "0000";
-        eth100_rx_sosi.empty(3) <= "0000";
+        eth100_rx_axi_tdata <= (others => '0'); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        eth100_rx_axi_tkeep <= (others => '0'); -- 64 bits,  one bit per byte in i_axi_tdata
+        eth100_rx_axi_tlast <= '0';    -- in std_logic;
+        eth100_rx_axi_tuser <= (others => '0'); -- 80 bit timestamp for the packet.
+        eth100_rx_axi_tvalid <= '0';   -- in std_logic;        
         
---        FILE_OPEN(cmdfile,cmd_file_name,READ_MODE);
---        wait until SetupDone = '1';
+        FILE_OPEN(cmdfile,g_TEST_CASE & g_SPS_DATA_FILENAME,READ_MODE);
+        wait until SetupDone = '1';
         
---        wait until rising_edge(eth100G_clk);
+        wait until rising_edge(eth100G_clk);
         
---        while (not endfile(cmdfile)) loop 
---            readline(cmdfile, line_in);
---            hread(line_in,LFAArepeats,good);
---            hread(line_in,LFAAData,good);
---            hread(line_in,LFAAvalid,good);
---            hread(line_in,LFAAeop,good);
---            hread(line_in,LFAAerror,good);
---            hread(line_in,LFAAempty0,good);
---            hread(line_in,LFAAempty1,good);
---            hread(line_in,LFAAempty2,good);
---            hread(line_in,LFAAempty3,good);
---            hread(line_in,LFAAsop,good);
+        while (not endfile(cmdfile)) loop 
+            readline(cmdfile, line_in);
+            hread(line_in, sps_axi_repeats, good);
+            hread(line_in, sps_axi_tvalid, good);
+            hread(line_in, sps_axi_tlast, good);
+            hread(line_in, sps_axi_tkeep, good);
+            hread(line_in, sps_axi_tdata, good);
+            hread(line_in, sps_axi_tuser, good);
             
---            eth100_rx_sosi.data <= LFAAData;  -- 512 bits
---            eth100_rx_sosi.valid <= LFAAValid;          -- 4 bits
---            eth100_rx_sosi.eop <= LFAAeop;
---            eth100_rx_sosi.sop <= LFAAsop;
---            eth100_rx_sosi.error <= LFAAerror;
---            eth100_rx_sosi.empty(0) <= LFAAempty0;
---            eth100_rx_sosi.empty(1) <= LFAAempty1;
---            eth100_rx_sosi.empty(2) <= LFAAempty2;
---            eth100_rx_sosi.empty(3) <= LFAAempty3;
+            for i in 0 to 63 loop
+                eth100_rx_axi_tdata(i*8+7 downto i*8) <= sps_axi_tdata(503 - i*8 + 8 downto (504 - i*8)) ;  -- 512 bits
+            end loop;
+            eth100_rx_axi_tkeep <= sps_axi_tkeep;
+            eth100_rx_axi_tlast <= sps_axi_tlast(0);
+            eth100_rx_axi_tuser <= sps_axi_tuser;
+            eth100_rx_axi_tvalid <= sps_axi_tvalid(0);
             
---            wait until rising_edge(eth100G_clk);
---            while LFAArepeats /= "0000000000000000" loop
---                LFAArepeats := std_logic_vector(unsigned(LFAArepeats) - 1);
---                wait until rising_edge(eth100G_clk);
---            end loop;
---        end loop;
+            wait until rising_edge(eth100G_clk);
+            while sps_axi_repeats /= "0000000000000000" loop
+                sps_axi_repeats := std_logic_vector(unsigned(sps_axi_repeats) - 1);
+                wait until rising_edge(eth100G_clk);
+            end loop;
+        end loop;
         
---        LFAADone <= '1';
---        wait;
-
+        LFAADone <= '1';
+        wait;
         report "number of tx packets all received";
-
         wait for 5 us;
         report "simulation successfully finished";
         finish;
     end process;
     
-    eth100_tx_siso.ready <= '1';
-    eth100_tx_siso.underflow <= '0';
-    eth100_tx_siso.overflow <= '0';
     
-    -- Capture data packets in eth100_tx_sosi to a file.
-    -- fields in eth100_tx_sosi are
-    --   .data(511:0)
-    --   .valid(3:0)
-    --   .eop(3:0)
-    --   .sop(3:0)
-    --   .empty(3:0)(3:0)
+    -- write the output 100GE axi bus to a file.
+    tvalid_ext <= "000" & eth100_tx_axi_tvalid;
+    tlast_ext <= "000" & eth100_tx_axi_tlast;
+    tuser_ext <= "000" & eth100_tx_axi_tuser;
     
-     lbusRX : entity correlator_lib.lbus_packet_receive
-     Generic map (
-         log_file_name => "lbus_out.txt"
-     )
-     Port map ( 
-         clk      => eth100G_clk, -- in  std_logic;     -- clock
-         i_rst    => '0', -- in  std_logic;     -- reset input
-         i_din    => eth100_tx_sosi.data, -- in  std_logic_vector(511 downto 0);  -- actual data out.
-         i_valid  => eth100_tx_sosi.valid, -- in  std_logic_vector(3 downto 0);     -- data out valid (high for duration of the packet)
-         i_eop    => eth100_tx_sosi.eop,   -- in  std_logic_vector(3 downto 0);
-         i_sop    => eth100_tx_sosi.sop,   -- in  std_logic_vector(3 downto 0);
-         i_empty0 => eth100_tx_sosi.empty(0), --  in std_logic_vector(3 downto 0);
-         i_empty1 => eth100_tx_sosi.empty(1), -- in std_logic_vector(3 downto 0);
-         i_empty2 => eth100_tx_sosi.empty(2), -- in std_logic_vector(3 downto 0);
-         i_empty3 => eth100_tx_sosi.empty(3)  -- in std_logic_vector(3 downto 0)
-     );
+    process
+		file logfile: TEXT;
+		--variable data_in : std_logic_vector((BIT_WIDTH-1) downto 0);
+		variable line_out : Line;
+    begin
+	    FILE_OPEN(logfile, g_TEST_CASE &  g_SDP_FILENAME, WRITE_MODE);
+		
+		loop
+            -- wait until we need to read another command
+            -- need to when : rising clock edge, and last_cmd_cycle high
+            -- read the next entry from the file and put it out into the command queue.
+            wait until rising_edge(eth100G_clk);
+            if eth100_tx_axi_tvalid = '1' then
+                
+                -- write data to the file
+                hwrite(line_out,FOUR0,RIGHT,4);  -- repeats of this line, tied to 0
+                
+                hwrite(line_out,tvalid_ext,RIGHT,2); -- tvalid
+                hwrite(line_out,tlast_ext,RIGHT,2);  -- tlast
+                hwrite(line_out,eth100_tx_axi_tkeep,RIGHT,18);    -- tkeep
+                hwrite(line_out,eth100_tx_axi_tdata,RIGHT,130); -- tdata
+                hwrite(line_out,tlast_ext,RIGHT,2); -- tuser
+                
+                writeline(logfile,line_out);
+            end if;
+         
+        end loop;
+        file_close(logfile);	
+        wait;
+    end process;
     
--- temp lbus out stimulus
-lbus_out_proc : process(eth100G_clk)
-begin
-    if rising_edge(eth100G_clk) then
-        eth100_tx_sosi.data(511 downto 384)     <= x"0123456789ABCDEF2222222222222222";
-        eth100_tx_sosi.data(383 downto 256)     <= x"1888888889ABCDEF4444444444444444";
-        eth100_tx_sosi.data(255 downto 128)     <= x"2DEADBEEF9ABCDEF6666666666666666";
-        eth100_tx_sosi.data(127 downto 0)       <= x"300000000000CDEF8888888888888888";
-        
-        
-        eth100_tx_sosi.valid                    <= x"A";
-        
-        
-        eth100_tx_sosi.eop                      <= x"A";
-        eth100_tx_sosi.sop                      <= x"A";
-        eth100_tx_sosi.empty(0)                 <= x"0";
-        eth100_tx_sosi.empty(1)                 <= x"0";
-        eth100_tx_sosi.empty(2)                 <= x"A";
-        eth100_tx_sosi.empty(3)                 <= x"0";
-
-    end if;
-end process;
+    -- timeslave and 100GE core is outside correlator_core, and contains a register slave.
+    -- drive the signals here.
+    axi4_lite_miso_dummy.awready <= '1'; --  t_axi4_lite_miso;
+    axi4_lite_miso_dummy.wready <= '1';
+    axi4_lite_miso_dummy.bresp <= (others => '0');
+    axi4_lite_miso_dummy.bvalid <= '0';
+    axi4_lite_miso_dummy.arready <= '1';
+    axi4_lite_miso_dummy.rdata <= (others => '0');
+    axi4_lite_miso_dummy.rresp <= (others => '0');
+    axi4_lite_miso_dummy.rvalid <= '0';
+    
+    axi4_full_miso_dummy.awready <= '1'; --  t_axi4_lite_miso;
+    axi4_full_miso_dummy.wready <= '1';
+    axi4_full_miso_dummy.bresp <= (others => '0');
+    axi4_full_miso_dummy.bvalid <= '0';
+    axi4_full_miso_dummy.arready <= '1';
+    axi4_full_miso_dummy.rdata <= (others => '0');
+    axi4_full_miso_dummy.rresp <= (others => '0');
+    axi4_full_miso_dummy.rvalid <= '0';
+    axi4_full_miso_dummy.bid <= (others => '0');
+    axi4_full_miso_dummy.buser <= (others => '0');
     
     
     dut : entity correlator_lib.correlator_core
@@ -552,8 +646,8 @@ end process;
         g_USE_META => FALSE,   -- BOOLEAN;  -- puts meta data in place of the filterbank data in the corner turn, to help debug the corner turn.
         -- GLOBAL GENERICS for PERENTIE LOGIC
         g_DEBUG_ILA                => FALSE, --  BOOLEAN
-        g_LFAA_BLOCKS_PER_FRAME    => 128,   --  allowed values are 32, 64 or 128. 32 and 64 are for simulation. For real system, use 128.
-        C_S_AXI_CONTROL_ADDR_WIDTH => 8,   -- integer := 7;
+        g_SPS_PACKETS_PER_FRAME    => g_SPS_PACKETS_PER_FRAME,   --  allowed values are 32, 64 or 128. 32 and 64 are for simulation. For real system, use 128.
+        C_S_AXI_CONTROL_ADDR_WIDTH => 7,   -- integer := 7;
         C_S_AXI_CONTROL_DATA_WIDTH => 32,  -- integer := 32;
         C_M_AXI_ADDR_WIDTH => 64,          -- integer := 64;
         C_M_AXI_DATA_WIDTH => 32,          -- integer := 32;
@@ -568,102 +662,130 @@ end process;
         g_HBM_INTERFACES     => g_HBM_INTERFACES,   -- integer := 5;
         g_HBM_AXI_ADDR_WIDTH => 64,  -- integer := 64;
         g_HBM_AXI_DATA_WIDTH => 512, -- integer := 512;
-        g_HBM_AXI_ID_WIDTH   => 1    -- integer := 1
+        g_HBM_AXI_ID_WIDTH   => 1,   -- integer := 1
+        -- Number of correlator blocks to instantiate.
+        g_CORRELATORS        => 1    -- integer := 2
     ) port map (
         ap_clk   => ap_clk, --  in std_logic;
         ap_rst_n => ap_rst_n, -- in std_logic;
         
---        -----------------------------------------------------------------------
---        -- Ports used for simulation only.
---        --
---        -- Received data from 100GE
---        i_eth100_rx_sosi => eth100_rx_sosi, -- in t_lbus_sosi;
---        -- Data to be transmitted on 100GE
---        o_eth100_tx_sosi => eth100_tx_sosi, -- out t_lbus_sosi;
---        i_eth100_tx_siso => eth100_tx_siso, --  in t_lbus_siso;
---        i_clk_100GE      => eth100G_clk,     -- in std_logic;        
---        -- reset of the valid memory is in progress.
---        o_validMemRstActive => validMemRstActive, -- out std_logic;  
---        --  Note: A minimum subset of AXI4 memory mapped signals are declared.  AXI
---        --  signals omitted from these interfaces are automatically inferred with the
---        -- optimal values for Xilinx SDx systems.  This allows Xilinx AXI4 Interconnects
---        -- within the system to be optimized by removing logic for AXI4 protocol
---        -- features that are not necessary. When adapting AXI4 masters within the RTL
---        -- kernel that have signals not declared below, it is suitable to add the
---        -- signals to the declarations below to connect them to the AXI4 Master.
---        --
---        -- List of omitted signals - effect
---        -- -------------------------------
---        --  ID - Transaction ID are used for multithreading and out of order transactions.  This increases complexity. This saves logic and increases Fmax in the system when ommited.
---        -- SIZE - Default value is log2(data width in bytes). Needed for subsize bursts. This saves logic and increases Fmax in the system when ommited.
---        -- BURST - Default value (0b01) is incremental.  Wrap and fixed bursts are not recommended. This saves logic and increases Fmax in the system when ommited.
---        -- LOCK - Not supported in AXI4
---        -- CACHE - Default value (0b0011) allows modifiable transactions. No benefit to changing this.
---        -- PROT - Has no effect in SDx systems.
---        -- QOS - Has no effect in SDx systems.
---        -- REGION - Has no effect in SDx systems.
---        -- USER - Has no effect in SDx systems.
---        --  RESP - Not useful in most SDx systems.
---        --------------------------------------------------------------------------------------
---        --  AXI4-Lite slave interface
---        s_axi_control_awvalid => mc_lite_mosi.awvalid, --  in std_logic;
---        s_axi_control_awready => mc_lite_miso.awready, --  out std_logic;
---        s_axi_control_awaddr  => mc_lite_mosi.awaddr(7 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_ADDR_WIDTH-1 downto 0);
---        s_axi_control_wvalid  => mc_lite_mosi.wvalid, -- in std_logic;
---        s_axi_control_wready  => mc_lite_miso.wready, -- out std_logic;
---        s_axi_control_wdata   => mc_lite_mosi.wdata(31 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_DATA_WIDTH-1 downto 0);
---        s_axi_control_wstrb   => mc_lite_mosi.wstrb(3 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_DATA_WIDTH/8-1 downto 0);
---        s_axi_control_arvalid => mc_lite_mosi.arvalid, -- in std_logic;
---        s_axi_control_arready => mc_lite_miso.arready, -- out std_logic;
---        s_axi_control_araddr  => mc_lite_mosi.araddr(7 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_ADDR_WIDTH-1 downto 0);
---        s_axi_control_rvalid  => mc_lite_miso.rvalid,  -- out std_logic;
---        s_axi_control_rready  => mc_lite_mosi.rready, -- in std_logic;
---        s_axi_control_rdata   => mc_lite_miso.rdata(31 downto 0), -- out std_logic_vector(C_S_AXI_CONTROL_DATA_WIDTH-1 downto 0);
---        s_axi_control_rresp   => mc_lite_miso.rresp(1 downto 0), -- out std_logic_vector(1 downto 0);
---        s_axi_control_bvalid  => mc_lite_miso.bvalid, -- out std_logic;
---        s_axi_control_bready  => mc_lite_mosi.bready, -- in std_logic;
---        s_axi_control_bresp   => mc_lite_miso.bresp(1 downto 0), -- out std_logic_vector(1 downto 0);
+        -----------------------------------------------------------------------
+        -- Ports used for simulation only.
+        --
+        -- Received data from 100GE
+        i_axis_tdata => eth100_rx_axi_tdata,   -- in (511:0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep => eth100_rx_axi_tkeep,   -- in (63:0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast => eth100_rx_axi_tlast,   -- in std_logic;
+        i_axis_tuser => eth100_rx_axi_tuser,   -- in (79:0);  -- Timestamp for the packet.
+        i_axis_tvalid => eth100_rx_axi_tvalid, -- in std_logic;
+        -- Data to be transmitted on 100GE
+        o_axis_tdata => eth100_tx_axi_tdata, -- out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        o_axis_tkeep => eth100_tx_axi_tkeep, -- out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        o_axis_tlast => eth100_tx_axi_tlast, -- out std_logic;                      
+        o_axis_tuser => eth100_tx_axi_tuser, -- out std_logic;  
+        o_axis_tvalid => eth100_tx_axi_tvalid, -- out std_logic;
+        i_axis_tready    => '1',
+        
+        i_eth100g_clk  => eth100G_clk, --  in std_logic;
+        i_eth100g_locked => '1',       -- in std_logic;
+        -- reset of the valid memory is in progress.
+        o_validMemRstActive => validMemRstActive, -- out std_logic;
+
+        i_PTP_time_ARGs_clk  => (others => '0'), -- in (79:0);
+        o_eth100_reset_final => open, -- out std_logic;
+        o_fec_enable_322m    => open, -- out std_logic;
+        
+        i_eth100G_rx_total_packets => (others => '0'), -- in (31:0);
+        i_eth100G_rx_bad_fcs       => (others => '0'), -- in (31:0);
+        i_eth100G_rx_bad_code      => (others => '0'), -- in (31:0);
+        i_eth100G_tx_total_packets => (others => '0'), -- in (31:0);
+        
+        -- registers in the timeslave core
+        o_timeslave_mc_lite_mosi => open, --  out t_axi4_lite_mosi; 
+        i_timeslave_mc_lite_miso => axi4_lite_miso_dummy, --  in t_axi4_lite_miso;
+        o_timeslave_mc_full_mosi => open, --  out t_axi4_full_mosi;
+        i_timeslave_mc_full_miso => axi4_full_miso_dummy, -- in t_axi4_full_miso;
+
+        --  Note: A minimum subset of AXI4 memory mapped signals are declared.  AXI
+        --  signals omitted from these interfaces are automatically inferred with the
+        -- optimal values for Xilinx SDx systems.  This allows Xilinx AXI4 Interconnects
+        -- within the system to be optimized by removing logic for AXI4 protocol
+        -- features that are not necessary. When adapting AXI4 masters within the RTL
+        -- kernel that have signals not declared below, it is suitable to add the
+        -- signals to the declarations below to connect them to the AXI4 Master.
+        --
+        -- List of omitted signals - effect
+        -- -------------------------------
+        --  ID - Transaction ID are used for multithreading and out of order transactions.  This increases complexity. This saves logic and increases Fmax in the system when ommited.
+        -- SIZE - Default value is log2(data width in bytes). Needed for subsize bursts. This saves logic and increases Fmax in the system when ommited.
+        -- BURST - Default value (0b01) is incremental.  Wrap and fixed bursts are not recommended. This saves logic and increases Fmax in the system when ommited.
+        -- LOCK - Not supported in AXI4
+        -- CACHE - Default value (0b0011) allows modifiable transactions. No benefit to changing this.
+        -- PROT - Has no effect in SDx systems.
+        -- QOS - Has no effect in SDx systems.
+        -- REGION - Has no effect in SDx systems.
+        -- USER - Has no effect in SDx systems.
+        --  RESP - Not useful in most SDx systems.
+        --------------------------------------------------------------------------------------
+        --  AXI4-Lite slave interface
+        s_axi_control_awvalid => mc_lite_mosi.awvalid, --  in std_logic;
+        s_axi_control_awready => mc_lite_miso.awready, --  out std_logic;
+        s_axi_control_awaddr  => mc_lite_mosi.awaddr(6 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_ADDR_WIDTH-1 downto 0);
+        s_axi_control_wvalid  => mc_lite_mosi.wvalid, -- in std_logic;
+        s_axi_control_wready  => mc_lite_miso.wready, -- out std_logic;
+        s_axi_control_wdata   => mc_lite_mosi.wdata(31 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_DATA_WIDTH-1 downto 0);
+        s_axi_control_wstrb   => mc_lite_mosi.wstrb(3 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_DATA_WIDTH/8-1 downto 0);
+        s_axi_control_arvalid => mc_lite_mosi.arvalid, -- in std_logic;
+        s_axi_control_arready => mc_lite_miso.arready, -- out std_logic;
+        s_axi_control_araddr  => mc_lite_mosi.araddr(6 downto 0), -- in std_logic_vector(C_S_AXI_CONTROL_ADDR_WIDTH-1 downto 0);
+        s_axi_control_rvalid  => mc_lite_miso.rvalid,  -- out std_logic;
+        s_axi_control_rready  => mc_lite_mosi.rready, -- in std_logic;
+        s_axi_control_rdata   => mc_lite_miso.rdata(31 downto 0), -- out std_logic_vector(C_S_AXI_CONTROL_DATA_WIDTH-1 downto 0);
+        s_axi_control_rresp   => mc_lite_miso.rresp(1 downto 0), -- out std_logic_vector(1 downto 0);
+        s_axi_control_bvalid  => mc_lite_miso.bvalid, -- out std_logic;
+        s_axi_control_bready  => mc_lite_mosi.bready, -- in std_logic;
+        s_axi_control_bresp   => mc_lite_miso.bresp(1 downto 0), -- out std_logic_vector(1 downto 0);
   
---        -- AXI4 master interface for accessing registers : m00_axi
---        m00_axi_awvalid => m00_awvalid, -- out std_logic;
---        m00_axi_awready => m00_awready, -- in std_logic;
---        m00_axi_awaddr  => m00_awaddr,  -- out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
---        m00_axi_awid    => open, --s_axi_awid,    -- out std_logic_vector(C_M_AXI_ID_WIDTH - 1 downto 0);
---        m00_axi_awlen   => m00_awlen,   -- out std_logic_vector(7 downto 0);
---        m00_axi_awsize  => m00_awsize,  -- out std_logic_vector(2 downto 0);
---        m00_axi_awburst => m00_awburst, -- out std_logic_vector(1 downto 0);
---        m00_axi_awlock  => open, -- s_axi_awlock,  -- out std_logic_vector(1 downto 0);
---        m00_axi_awcache => m00_awcache, -- out std_logic_vector(3 downto 0);
---        m00_axi_awprot  => m00_awprot,  -- out std_logic_vector(2 downto 0);
---        m00_axi_awqos   => open, -- s_axi_awqos,   -- out std_logic_vector(3 downto 0);
---        m00_axi_awregion => open, -- s_axi_awregion, -- out std_logic_vector(3 downto 0);
---        m00_axi_wvalid   => m00_wvalid,   -- out std_logic;
---        m00_axi_wready   => m00_wready,   -- in std_logic;
---        m00_axi_wdata    => m00_wdata,    -- out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
---        m00_axi_wstrb    => m00_wstrb,    -- out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
---        m00_axi_wlast    => m00_wlast,    -- out std_logic;
---        m00_axi_bvalid   => m00_bvalid,   -- in std_logic;
---        m00_axi_bready   => m00_bready,   -- out std_logic;
---        m00_axi_bresp    => m00_bresp,    -- in std_logic_vector(1 downto 0);
---        m00_axi_bid      => "0", -- s_axi_bid,      -- in std_logic_vector(C_M_AXI_ID_WIDTH - 1 downto 0);
---        m00_axi_arvalid  => m00_arvalid,  -- out std_logic;
---        m00_axi_arready  => m00_arready,  -- in std_logic;
---        m00_axi_araddr   => m00_araddr,   -- out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
---        m00_axi_arid     => open, -- s_axi_arid,     -- out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
---        m00_axi_arlen    => m00_arlen,    -- out std_logic_vector(7 downto 0);
---        m00_axi_arsize   => m00_arsize,   -- out std_logic_vector(2 downto 0);
---        m00_axi_arburst  => m00_arburst,  -- out std_logic_vector(1 downto 0);
---        m00_axi_arlock   => open, -- s_axi_arlock,   -- out std_logic_vector(1 downto 0);
---        m00_axi_arcache  => m00_arcache,  -- out std_logic_vector(3 downto 0);
---        m00_axi_arprot   => m00_arprot,   -- out std_logic_Vector(2 downto 0);
---        m00_axi_arqos    => open, -- s_axi_arqos,    -- out std_logic_vector(3 downto 0);
---        m00_axi_arregion => open, -- s_axi_arregion, -- out std_logic_vector(3 downto 0);
---        m00_axi_rvalid   => m00_rvalid,   -- in std_logic;
---        m00_axi_rready   => m00_rready,   -- out std_logic;
---        m00_axi_rdata    => m00_rdata,    -- in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
---        m00_axi_rlast    => m00_rlast,    -- in std_logic;
---        m00_axi_rid      => "0", -- s_axi_rid,      -- in std_logic_vector(C_M_AXI_ID_WIDTH - 1 downto 0);
---        m00_axi_rresp    => m00_rresp,    -- in std_logic_vector(1 downto 0);
+        -- AXI4 master interface for accessing registers : m00_axi
+        m00_axi_awvalid => m00_awvalid, -- out std_logic;
+        m00_axi_awready => m00_awready, -- in std_logic;
+        m00_axi_awaddr  => m00_awaddr,  -- out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+        m00_axi_awid    => open, --s_axi_awid,    -- out std_logic_vector(C_M_AXI_ID_WIDTH - 1 downto 0);
+        m00_axi_awlen   => m00_awlen,   -- out std_logic_vector(7 downto 0);
+        m00_axi_awsize  => m00_awsize,  -- out std_logic_vector(2 downto 0);
+        m00_axi_awburst => m00_awburst, -- out std_logic_vector(1 downto 0);
+        m00_axi_awlock  => open, -- s_axi_awlock,  -- out std_logic_vector(1 downto 0);
+        m00_axi_awcache => m00_awcache, -- out std_logic_vector(3 downto 0);
+        m00_axi_awprot  => m00_awprot,  -- out std_logic_vector(2 downto 0);
+        m00_axi_awqos   => open, -- s_axi_awqos,   -- out std_logic_vector(3 downto 0);
+        m00_axi_awregion => open, -- s_axi_awregion, -- out std_logic_vector(3 downto 0);
+        m00_axi_wvalid   => m00_wvalid,   -- out std_logic;
+        m00_axi_wready   => m00_wready,   -- in std_logic;
+        m00_axi_wdata    => m00_wdata,    -- out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+        m00_axi_wstrb    => m00_wstrb,    -- out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
+        m00_axi_wlast    => m00_wlast,    -- out std_logic;
+        m00_axi_bvalid   => m00_bvalid,   -- in std_logic;
+        m00_axi_bready   => m00_bready,   -- out std_logic;
+        m00_axi_bresp    => m00_bresp,    -- in std_logic_vector(1 downto 0);
+        m00_axi_bid      => "0", -- s_axi_bid,      -- in std_logic_vector(C_M_AXI_ID_WIDTH - 1 downto 0);
+        m00_axi_arvalid  => m00_arvalid,  -- out std_logic;
+        m00_axi_arready  => m00_arready,  -- in std_logic;
+        m00_axi_araddr   => m00_araddr,   -- out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+        m00_axi_arid     => open, -- s_axi_arid,     -- out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+        m00_axi_arlen    => m00_arlen,    -- out std_logic_vector(7 downto 0);
+        m00_axi_arsize   => m00_arsize,   -- out std_logic_vector(2 downto 0);
+        m00_axi_arburst  => m00_arburst,  -- out std_logic_vector(1 downto 0);
+        m00_axi_arlock   => open, -- s_axi_arlock,   -- out std_logic_vector(1 downto 0);
+        m00_axi_arcache  => m00_arcache,  -- out std_logic_vector(3 downto 0);
+        m00_axi_arprot   => m00_arprot,   -- out std_logic_Vector(2 downto 0);
+        m00_axi_arqos    => open, -- s_axi_arqos,    -- out std_logic_vector(3 downto 0);
+        m00_axi_arregion => open, -- s_axi_arregion, -- out std_logic_vector(3 downto 0);
+        m00_axi_rvalid   => m00_rvalid,   -- in std_logic;
+        m00_axi_rready   => m00_rready,   -- out std_logic;
+        m00_axi_rdata    => m00_rdata,    -- in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+        m00_axi_rlast    => m00_rlast,    -- in std_logic;
+        m00_axi_rid      => "0", -- s_axi_rid,      -- in std_logic_vector(C_M_AXI_ID_WIDTH - 1 downto 0);
+        m00_axi_rresp    => m00_rresp,    -- in std_logic_vector(1 downto 0);
 
         ---------------------------------------------------------------------------------------
         -- AXI4 interfaces for accessing HBM
@@ -676,57 +798,54 @@ end process;
         -- 4 = 0.5 Gbytes, Visibilities from Second correlator instance;
         HBM_axi_awvalid  => HBM_axi_awvalid, -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_awready  => HBM_axi_awready, -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_awaddr   => HBM_axi_awaddr,  -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        HBM_axi_awid     => HBM_axi_awid,    -- out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        HBM_axi_awlen    => HBM_axi_awlen,   -- out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(7 downto 0);
-        HBM_axi_awsize   => HBM_axi_awsize,  -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
-        HBM_axi_awburst  => HBM_axi_awburst, -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
-        HBM_axi_awlock   => HBM_axi_awlock,  -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
-        HBM_axi_awcache  => HBM_axi_awcache, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
-        HBM_axi_awprot   => HBM_axi_awprot,  -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
-        HBM_axi_awqos    => HBM_axi_awqos,   -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- out std_logic_vector(3 downto 0);
-        HBM_axi_awregion => HBM_axi_awregion, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+        HBM_axi_awaddr   => HBM_axi_awaddr,  -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awid     => HBM_axi_awid,    -- out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awlen    => HBM_axi_awlen,   -- out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awsize   => HBM_axi_awsize,  -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awburst  => HBM_axi_awburst, -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awlock   => HBM_axi_awlock,  -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awcache  => HBM_axi_awcache, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awprot   => HBM_axi_awprot,  -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awqos    => HBM_axi_awqos,   -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awregion => HBM_axi_awregion, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_wvalid   => HBM_axi_wvalid,   -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_wready   => HBM_axi_wready,   -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_wdata    => HBM_axi_wdata,    -- out t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        HBM_axi_wstrb    => HBM_axi_wstrb,    -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
+        HBM_axi_wdata    => HBM_axi_wdata,    -- out t_slv_512_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_wstrb    => HBM_axi_wstrb,    -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_wlast    => HBM_axi_wlast,    -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_bvalid   => HBM_axi_bvalid,   -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_bready   => HBM_axi_bready,   -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_bresp    => HBM_axi_bresp,    -- in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
-        HBM_axi_bid      => HBM_axi_bid,      -- in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+        HBM_axi_bresp    => HBM_axi_bresp,    -- in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_bid      => HBM_axi_bid,      -- in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_arvalid  => HBM_axi_arvalid,  -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_arready  => HBM_axi_arready,  -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_araddr   => HBM_axi_araddr,   -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        HBM_axi_arid     => HBM_axi_arid,     -- out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
-        HBM_axi_arlen    => HBM_axi_arlen,    -- out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(7 downto 0);
-        HBM_axi_arsize   => HBM_axi_arsize,   -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(2 downto 0);
-        HBM_axi_arburst  => HBM_axi_arburst,  -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
-        HBM_axi_arlock   => HBM_axi_arlock,   -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
-        HBM_axi_arcache  => HBM_axi_arcache,  -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
-        HBM_axi_arprot   => HBM_axi_arprot,   -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_Vector(2 downto 0);
-        HBM_axi_arqos    => HBM_axi_arqos,    -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
-        HBM_axi_arregion => HBM_axi_arregion, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+        HBM_axi_araddr   => HBM_axi_araddr,   -- out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arid     => HBM_axi_arid,     -- out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arlen    => HBM_axi_arlen,    -- out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arsize   => HBM_axi_arsize,   -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arburst  => HBM_axi_arburst,  -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arlock   => HBM_axi_arlock,   -- out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arcache  => HBM_axi_arcache,  -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arprot   => HBM_axi_arprot,   -- out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arqos    => HBM_axi_arqos,    -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arregion => HBM_axi_arregion, -- out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_rvalid   => HBM_axi_rvalid,   -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_rready   => HBM_axi_rready,   -- out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_rdata    => HBM_axi_rdata,    -- in t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+        HBM_axi_rdata    => HBM_axi_rdata,    -- in t_slv_512_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_rlast    => HBM_axi_rlast,    -- in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_rid      => HBM_axi_rid,      -- in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        HBM_axi_rresp    => HBM_axi_rresp,    -- in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
-        --
+        HBM_axi_rid      => HBM_axi_rid,      -- in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_rresp    => HBM_axi_rresp,    -- in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
         -- GT pins
         -- clk_gt_freerun is a 50MHz free running clock, according to the GT kernel Example Design user guide.
         -- But it looks like it is configured to be 100MHz in the example designs for all parts except the U280. 
-        clk_freerun => clk100, --  in std_logic; 
-        gt_rxp_in      => "0000", --  in std_logic_vector(3 downto 0);
-        gt_rxn_in      => "1111", -- in std_logic_vector(3 downto 0);
-        gt_txp_out     => open, -- out std_logic_vector(3 downto 0);
-        gt_txn_out     => open, -- out std_logic_vector(3 downto 0);
-        gt_refclk_p    => '0', -- in std_logic;
-        gt_refclk_n    => '1'  -- in std_logic
+        clk_freerun => clk100,   -- in std_logic; 
+        -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
+        -- used in testing with pre-load of the second corner turn HBM data
+        i_ct2_readout_start  => ct2_readout_start, -- in std_logic;
+        i_ct2_readout_buffer => ct2_readout_buffer -- in std_logic
     );
     
-    
+    ----------------------------------------------------------------------------------
     -- Emulate HBM
     -- 3 Gbyte of memory for the first corner turn.
     HBM3G_1 : entity correlator_lib.HBM_axi_tbModel
@@ -786,8 +905,8 @@ end process;
         i_write_to_disk_addr => 0, -- in integer; -- address to start the memory dump at.
         i_write_to_disk_size => 0, -- in integer; -- size in bytes
         -- Initialisation of the memory
-        i_init_mem   => '0',   -- in std_logic;
-        i_init_fname => ""  -- in string
+        i_init_mem   => load_ct1_HBM,   -- in std_logic;
+        i_init_fname => g_TEST_CASE & g_CT1_INIT_FILENAME  -- in string
     );
     
     -- 3 GBytes second stage corner turn, first correlator cell
@@ -843,13 +962,15 @@ end process;
         axi_rlast    => HBM_axi_rlast(1),
         axi_rvalid   => HBM_axi_rvalid(1),
         axi_rready   => HBM_axi_rready(1),
-        i_write_to_disk => '0', -- : in std_logic;
-        i_fname         => "", -- : in string
-        i_write_to_disk_addr => 0, -- : in integer; -- address to start the memory dump at.
-        i_write_to_disk_size => 0, -- : in integer; -- size in bytes
+        i_write_to_disk => '0', -- in std_logic;
+        i_fname         => "",  -- in string
+        i_write_to_disk_addr => 0, -- in integer; -- address to start the memory dump at.
+        i_write_to_disk_size => 0, --in integer; -- size in bytes
         -- Initialisation of the memory
-        i_init_mem   => '0',   -- in std_logic;
-        i_init_fname => ""  -- in string
+        -- The memory is loaded with the contents of the file i_init_fname in 
+        -- any clock cycle where i_init_mem is high.
+        i_init_mem   => load_ct2_HBM_corr1, -- in std_logic;
+        i_init_fname => g_TEST_CASE & g_CT2_HBM_CORR1_FILENAME  -- in string
     );
     
     -- 3 GBytes second stage corner turn, second correlator cell
@@ -910,8 +1031,8 @@ end process;
         i_write_to_disk_addr => 0, --  in integer; -- address to start the memory dump at.
         i_write_to_disk_size => 0, --  in integer; -- size in bytes
         -- Initialisation of the memory
-        i_init_mem   => '0',   -- in std_logic;
-        i_init_fname => ""  -- in string
+        i_init_mem   => load_ct2_HBM_corr2,   -- in std_logic;
+        i_init_fname => g_TEST_CASE & g_CT2_HBM_CORR2_FILENAME  -- in string
     );
     
     

@@ -6,7 +6,7 @@
 -- Module Name: single_correlator - Behavioral
 -- Description: 
 --  Includes all logic specific to a single instance of the correlator array (i.e. 16x16 cmac array) :
---    - 16x16 station cmac array
+--    - 16x16 dual-pol stations CMAC array
 --    - Long term accumulator
 --    - HBM interface and packetiser
 ----------------------------------------------------------------------------------
@@ -45,8 +45,8 @@ entity single_correlator is
         -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
         i_cor_data  : in std_logic_vector(255 downto 0); 
         -- meta data
-        i_cor_time    : in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        i_cor_station : in std_logic_vector(8 downto 0); -- first of the 4 virtual channels in i_cor0_data
+        i_cor_time    : in std_logic_vector(7 downto 0);  -- Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        i_cor_station : in std_logic_vector(11 downto 0); -- First of the 4 virtual channels in i_cor0_data
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --            For correlation cells on the diagonal, only non-duplicate entries are sent out.
@@ -62,13 +62,12 @@ entity single_correlator is
         -- Tiles can be triangles or rectangles from the full correlation.
         -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 2 rectangles.
         --      for 4096x4096 stations, there will be 16 triangles, and 240 rectangles.
-        i_cor_tileCount : in std_logic_vector(9 downto 0);
-        -- Which block of frequency channels is this tile for ?
-        -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
-        i_cor_tileChannel : in std_logic_vector(11 downto 0);
+        i_cor_tileLocation : in std_logic_vector(9 downto 0);
+        -- Fine channel being delivered, relative to the start of the data HBM.
+        i_cor_tileChannel : in std_logic_vector(23 downto 0);
         
         -- more correlator configuration
-        i_cor_tileTotalTimes    : in std_logic_vector(7 downto 0);    -- Number of time samples to integrate for this tile.
+        i_cor_tileTotalTimes    : in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
         i_cor_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
         i_cor_rowstations       : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
         i_cor_colstations       : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.        
@@ -107,7 +106,7 @@ architecture Behavioral of single_correlator is
     signal dcount_del : t_slv_8_arr(g_PIPELINE_STAGES downto 0);
     signal cell_del   : t_slv_8_arr(g_PIPELINE_STAGES downto 0);
     signal tile_del   : t_slv_10_arr(g_PIPELINE_STAGES downto 0);
-    signal channel_del : t_slv_16_arr(g_PIPELINE_STAGES downto 0);
+    signal channel_del : t_slv_24_arr(g_PIPELINE_STAGES downto 0);
     signal HBM_stop    : std_logic_vector(g_PIPELINE_STAGES downto 0);
     
 begin
@@ -132,15 +131,15 @@ begin
         -- Each 256 bit word : two time samples, 4 consecutive virtual channels
         -- (31:0) = time 0, virtual channel 0; (63:32) = time 0, virtual channel 1; (95:64) = time 0, virtual channel 2; (127:96) = time 0, virtual channel 3;
         -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
-        i_cor_data  => i_cor_data, --  in std_logic_vector(255 downto 0); 
+        i_cor_data  => i_cor_data, -- in (255:0); 
         -- meta data
-        i_cor_time  => i_cor_time, -- in std_logic_vector(7 downto 0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        i_cor_time  => i_cor_time, -- in (7:0); Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
         -- Counts the virtual channels in i_cor_data, always in steps of 4, where the value is the first of the 4 virtual channels in i_cor_data
         -- If i_cor_tileType = '0', then up to 256 channels are delivered, with the same channels going to both row and column memories.
         --                          In this case, i_cor_VC_count will run from 0 to 256 in steps of 4.
         -- If i_cor_tileType = '1', then up to 512 channels are delivered, with different channels going to the row and column memories.
         --                          counts 0 to 255 go to the column memories, while counts 256-511 go to the row memories. 
-        i_cor_station => i_cor_station, --  in std_logic_vector(8 downto 0); 
+        i_cor_station => i_cor_station, --  in (11:0); 
         -- Options for tileType : 
         --   '0' = Triangle. In this case, all the input data goes to both the row and column memories, and a triangle from the correlation matrix is computed.
         --         The number of 16x16 correlation cells computed will be 
@@ -158,24 +157,24 @@ begin
         -- Tiles can be triangles or rectangles/squares from the full correlation.
         -- e.g. for 512x512 stations, there will be 3 tiles, consisting of 2 triangles and 1 square.
         --      for 4096x4096 stations, there will be 16 triangles, and 120 squares.
-        i_cor_tile     => i_cor_tileCount, -- in std_logic_vector(9 downto 0);
+        i_cor_tile     => i_cor_tileLocation, -- in (9:0); bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
         -- Which block of frequency channels is this tile for ?
         -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor_tile.
-        i_cor_tileChannel       => i_cor_tileChannel,       -- in std_logic_vector(11 downto 0);
-        i_cor_tileTotalTimes    => i_cor_tileTotalTimes,    -- in std_logic_vector(7 downto 0);    -- Number of time samples to integrate for this tile.
-        i_cor_tiletotalChannels => i_cor_tileTotalChannels, -- in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
-        i_cor_row_stations      => i_cor_rowStations, --  in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
-        i_cor_col_stations      => i_cor_colStations, -- in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.
+        i_cor_tileChannel       => i_cor_tileChannel,       -- in (23:0);
+        i_cor_tileTotalTimes    => i_cor_tileTotalTimes,    -- in (7:0); Number of time samples to integrate for this tile.
+        i_cor_tiletotalChannels => i_cor_tileTotalChannels, -- in (4:0); Number of frequency channels to integrate for this tile.
+        i_cor_row_stations      => i_cor_rowStations, --  in (8:0); Number of stations in the row memories to process; up to 256.
+        i_cor_col_stations      => i_cor_colStations, -- in (8:0);  Number of stations in the col memories to process; up to 256.
         -- Data out to the HBM
         -- o_data is a burst of 16*16*4*8 = 8192 bytes = 256 clocks with 256 bits per clock, for one cell of visibilities, when o_dtype = '0'
         -- When o_dtype = '1', centroid data is being sent as a block of 16*16*2 = 512 bytes = 16 clocks with 256 bits per clock.
         o_data     => data_del(0),     -- out std_logic_vector(255 downto 0);
         o_visValid => visValid_del(0), -- out std_logic;                     -- o_data is valid visibility data
         o_TCIvalid => TCIValid_del(0), -- out std_logic;                     -- o_data is valid TCI & DV data
-        o_dcount   => dcount_del(0),   -- out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
-        o_cell     => cell_del(0),     -- out std_logic_vector(7 downto 0);  -- a "cell" is a 16x16 station block of correlations
-        o_tile     => tile_del(0),     -- out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_channel  => channel_del(0),  -- out std_logic_vector(15 downto 0); -- first fine channel index for this correlation.
+        o_dcount   => dcount_del(0),   -- out (7:0); Counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_cell     => cell_del(0),     -- out (7:0); A "cell" is a 16x16 station block of correlations
+        o_tile     => tile_del(0),     -- out (9:0); A "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_channel  => channel_del(0),  -- out (23:0); First fine channel index for this correlation.
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     => HBM_stop(g_PIPELINE_STAGES)  -- in std_logic
@@ -219,7 +218,7 @@ begin
         i_dcount    => dcount_del(g_PIPELINE_STAGES),   -- in (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         i_cell      => cell_del(g_PIPELINE_STAGES),     -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         i_tile      => tile_del(g_PIPELINE_STAGES),     -- in (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        i_channel   => channel_del(g_PIPELINE_STAGES),  -- in (15:0); -- first fine channel index for this correlation.
+        i_channel   => channel_del(g_PIPELINE_STAGES),  -- in (23:0); -- first fine channel index for this correlation.
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         o_stop      => HBM_stop(0),                     --  out std_logic;

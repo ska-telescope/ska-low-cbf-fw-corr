@@ -87,7 +87,7 @@ peripherals:
               reset_value       : 0x0
               field_description : "Length of the most recent frame in units of 400 MHz clocks at the output of the corner turn"
           #################################
-          - - field_name        : VC_demap
+          - - field_name        : vc_demap
               width             : 32
               access_mode       : RW
               number_of_fields  : 1024

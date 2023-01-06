@@ -125,7 +125,7 @@ architecture Behavioral of FB_Top_correlator is
     signal bufWrData, bufDout : std_logic_vector(127 downto 0);
     signal triggerSendTo100GE : std_logic;
     signal vc_hold, vc_out : t_slv_16_arr(3 downto 0);
-    signal framecount_hold, framecount_out : std_logic_vector(36 downto 0);
+    signal framecount_hold, framecount_out : std_logic_vector(31 downto 0);
     signal bufWrAddr, bufRdAddr : std_logic_vector(12 downto 0);
     signal config_ro : t_config_ro;
     signal output_disable_i : t_config_output_disable_ram_in;
@@ -661,7 +661,7 @@ begin
             bufRdAddrBufferDel3 <= bufRdAddrBufferDel2;
             
             if (sendTo100GE_fsm_del3 = sendHeader) then
-                o_packetData(39 downto 0) <= "000" & framecount_out;
+                o_packetData(39 downto 0) <= "00000000" & framecount_out;
                 o_packetData(63 downto 40) <= x"000000";
                 case bufRdAddrBufferDel3(2 downto 1) is
                     when "00"   => o_packetData(79 downto 64) <= vc_out(0);

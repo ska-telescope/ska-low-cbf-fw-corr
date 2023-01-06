@@ -43,8 +43,9 @@ entity LTA_urams is
         i_cell      : in std_logic_vector(7 downto 0); -- 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
         i_readCount : in std_logic_vector(5 downto 0); -- 64 different visibilities per row of the correlation matrix. 
         i_valid     : in std_logic;                    -- i_cell and i_readCount are valid.
-        -- read data
-        o_AccumVisibilties : out t_slv_64_arr(15 downto 0); -- output for each row; first has 4 cycle latency from i_cell, i_readcount, one extra cycle latency for each of the 16 outputs.
+        -- Read data
+        -- output for each row; first has 4 cycle latency from i_cell, i_readcount, one extra cycle latency for each of the 16 outputs.
+        o_AccumVisibilties : out t_slv_64_arr(15 downto 0); 
         o_AccumCentroid : out t_slv_32_arr(15 downto 0);    -- constant for 4 clocks at a time, since the centroid data is the same for all combinations of polarisations.
         -- Write data, must be valid 2 clocks after o_AccumVisibilities, o_AccumCentroid.
         i_wrVisibilities : in t_slv_64_arr(15 downto 0); 
@@ -67,7 +68,7 @@ architecture Behavioral of LTA_urams is
     signal buf1_dout : t_dout;
     signal accumulator_rdAddr : std_logic_vector(11 downto 0);
     signal accumulator_memSelect : t_slv_2_arr(21 downto 0);
-    signal AccumVisibilities0, AccumVisibilities1 : t_slv_72_arr(15 downto 0);
+    signal AccumVisibilities0, AccumVisibilities1 : t_slv_64_arr(15 downto 0);
     signal wrBufferDel : std_logic_vector(19 downto 0);
     signal buf0_centroid, buf1_centroid : t_slv_32_arr(15 downto 0);
     signal wrAddr : t_slv_12_arr(21 downto 0);
@@ -106,8 +107,8 @@ begin
             wrBufferDel(19 downto 1) <= wrBufferDel(18 downto 0);
             
             for row in 0 to 15 loop
-                AccumVisibilities0(row) <= buf0_dout(row)(to_integer(unsigned(accumulator_memSelect(row+3))));  -- 3 cycle read latency on the memory, so add 3 to memSelect.
-                AccumVisibilities1(row) <= buf1_dout(row)(to_integer(unsigned(accumulator_memSelect(row+3))));
+                AccumVisibilities0(row) <= buf0_dout(row)(to_integer(unsigned(accumulator_memSelect(row+3))))(63 downto 0);  -- 3 cycle read latency on the memory, so add 3 to memSelect.
+                AccumVisibilities1(row) <= buf1_dout(row)(to_integer(unsigned(accumulator_memSelect(row+3))))(63 downto 0);
                 if wrBufferDel(row+4) = '0' then
                     o_AccumVisibilties(row) <= AccumVisibilities0(row);
                     o_AccumCentroid(row)    <= buf0_centroid(row);
@@ -184,7 +185,7 @@ begin
                 o_readoutVisibilities <= dout0(15)(279 downto 216) & dout0(15)(207 downto 144) & dout0(15)(135 downto 72) & dout0(15)(63 downto 0);
                 o_readoutCentroid <= dout0(15)(287 downto 280) & dout0(15)(215 downto 208) & dout0(15)(143 downto 136) & dout0(15)(71 downto 64);
             else
-                o_readoutVisibilities <= dout1(15);
+                o_readoutVisibilities <= dout1(15)(279 downto 216) & dout1(15)(207 downto 144) & dout1(15)(135 downto 72) & dout1(15)(63 downto 0);
                 o_readoutCentroid <= dout1(15)(287 downto 280) & dout1(15)(215 downto 208) & dout1(15)(143 downto 136) & dout1(15)(71 downto 64);
             end if;
             
@@ -193,14 +194,21 @@ begin
     
     
     uram_row_gen : for row in 0 to 15 generate
-    
+        -- 16 blocks of memory, one for each row of the correlation being calculated in the CMAC array.
         uram_mem_gen : for mem in 0 to 3 generate
+            -- Groups of four memories are in parallel so that all correlations for a station pair (i.e. pol 0 x pol 0, pol 0 x pol 1 etc) are read at the same time
+            
+            -- Data :
+            --   bits 63:0 from each memory contain a visibility for a particular pair of polarisations.
+            --   bits 71:64 from all 4 memories are concatenated together to get 32 bits of centroid data. 
             
             -- Address : 
             --   Within a single memory, the address is :
             --    bits (3:0) = 16 different correlations, all the columns for a single row of the 16x16 station correlation matrix.
             --    bits (11:4) = 256 different correlation cells within a tile.
-            -- Groups of four memories are in parallel so that all correlations for a station pair (i.e. pol 0 x pol 0, pol 0 x pol 1 etc) are read at the same time
+            
+            -- 2 memories, "buf0" and "buf1" for double buffering, 
+            -- One for read out to HBM while the other is being used for accumulating the next tile. 
             xpm_memory_sdpram0_inst : xpm_memory_sdpram
             generic map (
                 ADDR_WIDTH_A => 12,              -- DECIMAL
