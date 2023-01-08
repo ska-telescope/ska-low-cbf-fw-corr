@@ -150,7 +150,7 @@ end corr_ct2_dout;
 
 architecture Behavioral of corr_ct2_dout is
 
-    type ar_fsm_type is (check_arFIFO, get_SB_data, wait_SB_data, set_ar, wait_ar, update_addr, next_fine, next_tile, check_fineBase, next_fineBase, next_timeBase, done);
+    type ar_fsm_type is (check_arFIFO, get_SB_data, wait_SB_data, set_ar, set_ar2, wait_ar, update_addr, next_fine, next_tile, check_fineBase, next_fineBase, next_timeBase, done);
     signal ar_fsm, ar_fsm_del1 : ar_fsm_type := done;
     signal readBuffer : std_logic := '0';
     
@@ -164,7 +164,7 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutVCx16 : std_logic_vector(7 downto 0);
     signal readoutKey : std_logic_vector(1 downto 0);
     signal arFIFO_valid, arFIFO_full, arFIFO_rdEn, arFIFO_wrEn : std_logic;
-    signal arFIFO_din, arFIFO_dout : std_logic_vector(74 downto 0);
+    signal arFIFO_din, arFIFO_dout : std_logic_vector(76 downto 0);
     signal dataFIFO_valid, dataFIFO_rdEn, dataFIFO_wrEn, dataFIFO_full : std_logic;
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
     signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
@@ -182,7 +182,7 @@ architecture Behavioral of corr_ct2_dout is
     signal cur_fineChannel : std_logic_vector(23 downto 0);
     signal cur_fineChannelBase : std_logic_vector(23 downto 0);
     signal cur_fineChannelOffset : std_logic_vector(5 downto 0);
-    signal cur_station : std_logic_vector(11 downto 0);
+    signal cur_station, cur_station_plus16 : std_logic_vector(11 downto 0);
     signal cur_timeGroup : std_logic_vector(3 downto 0);
     signal cur_tileColumn, cur_tileColumn_plus1 : std_logic_vector(3 downto 0);  -- Which tile are we currently up to; 256 stations in a tile, so up to 16x256 = 4096 stations altogether 
     signal cur_tileRow  : std_logic_vector(3 downto 0);  --     
@@ -205,6 +205,10 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutTimeIntegration : std_logic_vector(1 downto 0);
     signal first_req_in_integration : std_logic := '0';
     signal readoutFirst : std_logic;
+    signal cur_station_offset_ext : std_logic_vector(22 downto 0);
+    signal cur_station_offset : std_logic_vector(1 downto 0);
+    signal cur_station_ext, cur_station_offset_x4, up_to_station : std_logic_vector(15 downto 0);
+    signal readoutStationOffset : std_logic_vector(1 downto 0);
     
 begin
     
@@ -236,20 +240,25 @@ begin
     cur_fineChannelOffset_ext(5 downto 0) <= cur_fineChannelOffset;
     cur_fineChannel <= std_logic_vector(unsigned(cur_fineChannelBase) + unsigned(cur_fineChannelOffset_ext));
     
-    
-    -- Always read blocks of 2048 bytes = 32 x (512 bit) words.
+    -- Always read blocks of 512 bytes = 8 x (512 bit) words.
     -- There is data for 4 stations in each 512 byte block in HBM, so 2048 byte reads 
     -- returns data for 4x4=16 stations, i.e. the minimum amount used by the correlator array.
-    o_HBM_axi_ar.len <= "00011111";
+    o_HBM_axi_ar.len <= "00000111";
     o_HBM_axi_ar.addr(39 downto 32) <= "00000000";
-    o_HBM_axi_ar.addr(10 downto 0) <= "00000000000";  -- All reads are 2048 byte aligned.
+    o_HBM_axi_ar.addr(8 downto 0) <= "000000000";  -- All reads are 512 byte aligned.
     
     SB_stations_div256 <= SB_stations(15 downto 8);
     cur_tileColumn_plus1 <= std_logic_vector(unsigned(cur_tileColumn) + 1);
+    cur_station_offset_ext <= "000000000000000000000" & cur_station_offset;
+    
+    cur_station_ext <= "0000" & cur_station;
+    cur_station_offset_x4 <= "000000000000" & cur_station_offset & "00";
     
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
+        
+            up_to_station <= std_logic_vector(unsigned(cur_station_ext) + unsigned(cur_station_offset_x4) + 4);
         
             if HBM_addr_valid = '1' then
                 HBM_addr_hold <= HBM_addr;
@@ -257,7 +266,6 @@ begin
             elsif clear_hold = '1' then
                 HBM_Addr_hold_valid <= '0';
             end if;
-            
             
             if SB_stations(7 downto 0) = "00000000" then
                 tiles_per_row_minus1 <= std_logic_vector(unsigned(SB_stations_div256) - 1);
@@ -296,6 +304,7 @@ begin
                             cur_fineChannelBase <= "000000000000" & i_fineStart(11 downto 0);
                             cur_fineChannelOffset <= "000000"; -- counts through the channels that we step through within a single integration
                             cur_station <= (others => '0');    -- The station within the array that we are getting; always starts from 0. 
+                            cur_station_offset <= "00";        -- Which group of 4 stations are we up to for the memory request (fsm does 4 requests to get data for up to 16 stations in a burst)
                             cur_tileColumn <= (others => '0'); -- Which tile are we currently up to 
                             cur_tileRow <= (others => '0');    -- 
                             cur_timeBase <= "0000"; -- fixed at "0000" for 849 ms integrations, steps through "0000", "0010", "0100" for 283 ms integrations.
@@ -316,12 +325,13 @@ begin
                         o_SB_req <= '0';
                     
                     when set_ar =>
+                        -- This sets the HBM address for the first 512 byte block in a group of 4 blocks
                         clear_hold <= '1';
                         o_SB_req <= '0';
                         if HBM_addr_valid = '1' then
-                            o_HBM_axi_ar.addr(31 downto 11) <= HBM_addr(31 downto 11);
+                            o_HBM_axi_ar.addr(31 downto 9) <= HBM_addr(31 downto 9);
                         elsif HBM_addr_hold_valid = '1' then
-                            o_HBM_axi_ar.addr(31 downto 11) <= HBM_addr_hold(31 downto 11);
+                            o_HBM_axi_ar.addr(31 downto 9) <= HBM_addr_hold(31 downto 9);
                         end if;
                         if HBM_addr_valid = '1' or HBM_addr_hold_valid = '1' then
                             ar_fsm <= wait_ar;
@@ -333,10 +343,22 @@ begin
                         o_SB_req <= '0';
                         if i_HBM_axi_arready = '1' then
                             o_HBM_axi_ar.valid <= '0';
-                            ar_fsm <= update_addr;
+                            
                             first_req_in_integration <= '0';
+                            cur_station_offset <= std_logic_vector(unsigned(cur_station_offset) + 1);
+                            if (unsigned(SB_stations) > unsigned(up_to_station)) then
+                                ar_fsm <= set_ar2;
+                            else
+                                ar_fsm <= update_addr;
+                            end if;
                         end if;
                     
+                    when set_ar2 =>
+                        -- Set the HBM address for (up to) 3 remaining 512-byte blocks.
+                        o_HBM_axi_ar.addr(31 downto 9) <= std_logic_vector(unsigned(HBM_addr_hold(31 downto 9)) + unsigned(cur_station_offset_ext));
+                        o_HBM_axi_ar.valid <= '1';
+                        ar_fsm <= wait_ar;
+                        
                     when update_addr =>
                         
                         --  For subarray = 1:total_subarrays    -- This is handled in the level above; Each new subarray is a read from the subarray-beam table. Once all are done, i_SB_done goes high.
@@ -375,7 +397,8 @@ begin
                         else
                             cur_timegroup(0) <= '0';
                             
-                            if cur_station(7 downto 0) = "11110000" or (unsigned(cur_station) >= unsigned(SB_stations)) then
+                            if cur_station(7 downto 0) = "11110000" or (unsigned(cur_station_plus16) >= unsigned(SB_stations)) then
+                                -- Each read is 16 stations, so cur_station_plus16 is the number of stations we have read at this point
                                 if ((cur_tileRow = cur_tileColumn) or (cur_station(11 downto 8) = cur_tileRow(3 downto 0))) then
                                     -- same data is loaded for row and column memories, or we have just finished loading for the row memories,
                                     -- so now move on to the next fine channel
@@ -496,6 +519,7 @@ begin
                 end case;
             end if;
             ar_fsm_del1 <= ar_fsm;
+            cur_station_plus16 <= std_logic_vector(unsigned(cur_station) + 16);
             
             if cur_tileRow = cur_tileColumn then
                 cur_TileType <= '0';
@@ -504,7 +528,7 @@ begin
             end if;
             
             -- FIFO to keep meta data associated with each HBM ar request.
-            if ar_fsm = set_ar then
+            if (ar_fsm /= set_ar and ar_fsm_del1 = set_ar) or (ar_fsm /= set_ar2 and ar_fsm_del1 = set_ar2) then -- i.e. when we leave the "set_ar" or "set_ar2" state.
                 arFIFO_wrEn <= '1';
                 arFIFO_din(0) <= cur_TileType; -- 1 bit
                 arFIFO_din(24 downto 1)  <= cur_fineChannel(23 downto 0); -- 24 bits, Selects fine channel within the buffer.
@@ -532,6 +556,7 @@ begin
                 arFIFO_din(73 downto 72) <= SB_timeIntegrations;
                 -- first data for a new integration
                 arFIFO_din(74) <= first_req_in_integration;
+                arFIFO_din(76 downto 75) <= cur_station_offset;
                 
             elsif ar_fsm_del1 = next_fine then
                 arFIFO_wrEn <= '1';
@@ -571,12 +596,12 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
-        READ_DATA_WIDTH => 75,      -- DECIMAL
+        READ_DATA_WIDTH => 77,      -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 75,     -- DECIMAL
+        WRITE_DATA_WIDTH => 77,     -- DECIMAL
         WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
     ) port map (
         almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -680,6 +705,7 @@ begin
                         readoutTotalChannels <= arFIFO_dout(71 downto 66);
                         readoutTimeIntegration <= arFIFO_dout(73 downto 72);
                         readoutFirst <= arFIFO_dout(74);
+                        readoutStationOffset <= arFIFO_dout(76 downto 75); -- 4 ar requests to get 16 stations.
                         if (arFIFO_dout(39 downto 38) = "00") then
                             if (unsigned(dataFIFO_rdCount) >= 64) then
                                 -- each ar request is for 32 x 64-byte words = 2048 bytes; at the read side of the data fifo this is 64 words.
@@ -694,14 +720,14 @@ begin
                     sendCount <= (others => '0');
                     
                 when wait_data =>
-                    if (unsigned(dataFIFO_rdCount) >= 64) then
+                    if (unsigned(dataFIFO_rdCount) >= 16) then
                         readout_fsm <= send_data;
                     end if;
                     sendCount <= (others => '0');
                     
                 when send_data =>
                     sendCount <= std_logic_vector(unsigned(sendCount) + 1);
-                    if unsigned(sendCount) = 63 then
+                    if unsigned(sendCount) = 15 then
                         readout_fsm <= idle;
                     end if;
                 
@@ -730,7 +756,7 @@ begin
             
             sendCountDel1 <= sendCount;
             o_cor_time <= readoutTimeGroup(2 downto 0) & sendCountDel1(3 downto 0) & '0'; -- 8 bit output; time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-            o_cor_station <= readoutVCx16 & sendCountDel1(5 downto 4) & "00"; -- 12 bit output; first of the 4 stations in o_cor_data
+            o_cor_station <= readoutVCx16 & readoutStationOffset & "00"; -- 12 bit output; first of the 4 stations in o_cor_data
             o_cor_tileChannel <= readoutFineChannel; -- 24 bit output; Which 226 Hz fine channel is this relative to the start of the subarray-beam buffer.
             o_cor_tile_location <= "00" & readoutTileLocation;  
             o_cor_tileType <= readoutTriangle; -- 1 bit output; '0' for triangle, '1' for a square subset of the correlation matrix.

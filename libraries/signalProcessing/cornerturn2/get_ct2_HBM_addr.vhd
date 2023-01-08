@@ -36,13 +36,13 @@ entity get_ct2_HBM_addr is
         -- Values for this particular block of 512 bytes. Each block of 512 bytes is 4 stations, 32 time samples ((4stations)*(32timesamples)*(2pol)*(1byte)(2(complex)) = 512 bytes)
         i_coarse_channel   : in std_logic_vector(8 downto 0);  -- coarse channel for this block, x781.25kHz to get the actual sky frequency (so is comparable to i_SB_coarseStart
         i_fine_channel     : in std_logic_vector(23 downto 0); -- fine channel for this block; Actual channel referred to is i_coarse_channel*3456 + i_fine_channel, so it is ok for this to be more than 3455.
-        i_station          : in std_logic_vector(11 downto 0); -- Index of this station within the subarray
+        i_station          : in std_logic_vector(11 downto 0); -- Index of this station within the subarray; low 2 bits are ignored.
         i_time_block       : in std_logic_vector(2 downto 0);  -- Which time block this is for; 0 to 5. Each time block is 32 time samples.
         i_buffer           : in std_logic; -- Which half of the buffer to calculate for (each half is 1.5 Gbytes)
         -- All above data is valid, do the calculation.
         i_valid            : in std_logic;
         -- Resulting address in the HBM, after 8 cycles latency.
-        o_HBM_addr     : out std_logic_vector(31 downto 0);
+        o_HBM_addr     : out std_logic_vector(31 downto 0); -- Always 512-byte aligned.
         o_out_of_range : out std_logic; -- indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
         o_fine_high    : out std_logic; -- indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
         o_valid        : out std_logic -- some fixed number of clock cycles after i_valid.
@@ -68,7 +68,9 @@ architecture Behavioral of get_ct2_HBM_addr is
     signal time_x_N_fine_del4, time_x_N_fine_del3 : std_logic_vector(22 downto 0);
     signal fine_channel_del2, SB_fineStart_del3, sum3, coarse_diff_x_3456_plus_fine, coarse_diff_x_3456_p_fine_m_fstart, sum1_del5 : std_logic_vector(22 downto 0);
     signal sum1_ext_del5 : std_logic_vector(23 downto 0);
-    signal SB_stations_del1, SB_stations_del2, SB_stations_del3, SB_stations_del4, SB_stations_del5 : std_logic_vector(15 downto 0);  -- The number of (sub)stations in this subarray-beam
+    signal SB_stations_div4_del1, SB_stations_div4_del2, SB_stations_div4_del3, SB_stations_div4_del4 : std_logic_vector(13 downto 0);
+    signal SB_stations_div4_lowbits : std_logic_vector(1 downto 0);
+    signal SB_stations_div4_del5 : std_logic_vector(15 downto 0);  -- The number of (sub)stations in this subarray-beam
     signal stations_x_sum1 : signed(39 downto 0);
     signal stations_x_sum1_x512 : std_logic_vector(31 downto 0);
     signal HBM_base_plus_station_del2, HBM_base_plus_station_del3, HBM_base_plus_station_del4, HBM_base_plus_station_del5, HBM_base_plus_station_del6, HBM_base_plus_station_del7 : std_logic_vector(31 downto 0);
@@ -82,7 +84,8 @@ architecture Behavioral of get_ct2_HBM_addr is
     
 begin
     
-    demap_station_x128 <= "0000000000000" & i_station & "0000000"; -- 32 bits = 13+12+7
+    -- Drop low 2 bits of i_station, since we only return 512-byte aligned addresses.
+    demap_station_x128 <= "0000000000000" & i_station(11 downto 2) & "000000000"; -- 32 bits = 13+12+7
     SB_N_Fine <= '0' & i_SB_N_fine;
     coarse_diff_ext <= '0' & coarse_diff;
     time_block <= '0' & i_time_block;
@@ -151,7 +154,7 @@ begin
             -- The calculation is rearranged to minimize multipliers as :
             --     HBM address = i_SB_HBM_base_addr + 
             --                   128 * i_station + 
-            --                   i_SB_stations * (i_time_block * i_SB_N_fine + (i_coarse_channel - i_SB_coarseStart)*3456 + i_fine_channel - i_SB_fineStart)
+            --                   512 * ceil(i_SB_stations/4) * (i_time_block * i_SB_N_fine + (i_coarse_channel - i_SB_coarseStart)*3456 + i_fine_channel - i_SB_fineStart)
             --
             --
             --
@@ -192,13 +195,18 @@ begin
             
             sum1_del5 <= std_logic_vector(unsigned(time_x_N_fine_del4) + unsigned(coarse_diff_x_3456_p_fine_m_fstart));
             
-            SB_stations_del1 <= i_SB_stations;
-            SB_stations_del2 <= SB_stations_del1;
-            SB_stations_del3 <= SB_stations_del2;
-            SB_stations_del4 <= SB_stations_del3;
-            SB_stations_del5 <= SB_stations_del4;
+            SB_stations_div4_del1 <= i_SB_stations(15 downto 2);
+            SB_stations_div4_lowbits <= i_SB_stations(1 downto 0);
+            if SB_stations_div4_lowbits = "00" then
+                SB_stations_div4_del2 <= SB_stations_div4_del1;
+            else
+                SB_stations_div4_del2 <= std_logic_vector(unsigned(SB_stations_div4_del1) + 1);
+            end if;
+            SB_stations_div4_del3 <= SB_stations_div4_del2;
+            SB_stations_div4_del4 <= SB_stations_div4_del3;
+            SB_stations_div4_del5 <= "00" & SB_stations_div4_del4;
             
-            stations_x_sum1 <= signed(SB_stations_del5) * signed(sum1_ext_del5); -- 16 bit x 24 bit
+            stations_x_sum1 <= signed(SB_stations_div4_del5) * signed(sum1_ext_del5); -- 16 bit x 24 bit
             stations_x_sum1_x512 <= std_logic_vector(stations_x_sum1(22 downto 0)) & "000000000";
             
             o_HBM_addr <= std_logic_vector(unsigned(stations_x_sum1_x512) + unsigned(HBM_base_plus_station_del7));
