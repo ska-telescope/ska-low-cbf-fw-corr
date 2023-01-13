@@ -45,17 +45,17 @@ begin
     ones_count6_2 : entity work.ones_count6
     port map (
         vec_i  => i_vec(11 downto 6),
-        ones_o => one_count0
+        ones_o => one_count1
     );
-    one_count_ext0 <= "000" & one_count0;
+    one_count_ext1 <= "000" & one_count1;
     
     v3 <= "00" & i_vec(15 downto 12);
     ones_count6_3 : entity work.ones_count6
     port map (
         vec_i  => v3,
-        ones_o => one_count0
+        ones_o => one_count2
     );
-    one_count_ext0 <= "000" & one_count0;
+    one_count_ext2 <= "000" & one_count2;
     
     
 end Behavioral;
