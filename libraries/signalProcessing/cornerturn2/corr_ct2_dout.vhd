@@ -154,7 +154,7 @@ architecture Behavioral of corr_ct2_dout is
     signal ar_fsm, ar_fsm_del1 : ar_fsm_type := done;
     signal readBuffer : std_logic := '0';
     
-    type readout_fsm_type is (idle, wait_data, send_data, signal_correlator, wait_correlator_ready);
+    type readout_fsm_type is (idle, wait_data, send_data, signal_correlator, wait_correlator_ready, wait_correlator_ready1, wait_correlator_ready2, wait_correlator_ready3);
     signal readout_fsm : readout_fsm_type := idle;
     signal cor_valid : std_logic;
     signal sendCount, sendCountDel1 : std_logic_vector(7 downto 0);
@@ -385,7 +385,7 @@ begin
                         --    the correlator |                  Read HBM : 32 time samples, 16 stations
                         --    cell           |                  Read HBM : Next 32 time samples, same 16 stations 
                         --
-                        
+                        cur_station_offset <= "00";
                         clear_hold <= '0';
                         o_SB_req <= '0';
                         
@@ -733,6 +733,17 @@ begin
                 
                 when signal_correlator =>
                     -- send notification to the correlator to run the correlator, or that the correlation is done.
+                    readout_fsm <= wait_correlator_ready1;
+                
+                when wait_correlator_ready1 =>
+                    -- takes a few clocks to notify the correlator that the data is complete,
+                    -- and for the correlator to indicate if it is ready for more data or not.
+                    readout_fsm <= wait_correlator_ready2;
+                
+                when wait_correlator_ready2 =>
+                    readout_fsm <= wait_correlator_ready3;
+                    
+                when wait_correlator_ready3 =>
                     readout_fsm <= wait_correlator_ready;
                 
                 when wait_correlator_ready =>

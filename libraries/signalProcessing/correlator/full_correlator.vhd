@@ -179,7 +179,7 @@ architecture Behavioral of full_correlator is
     signal axi_to_cor_src_rcv : std_logic;
     signal axi_to_cor_dest_out : std_logic_vector(68 downto 0);
     signal axi_to_cor_dest_req : std_logic;
-    signal axi_to_cor_src_send : std_logic;
+    signal axi_to_cor_src_send : std_logic := '0';
     signal cdc_wrBuffer : std_logic;
     signal tileType : std_logic;
     signal tileFirst : std_logic;
