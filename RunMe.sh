@@ -167,6 +167,8 @@ if [ "$4" = "args" ]; then
     exit 0
 fi
 
+export VITIS_VERSION=$VIVADO_VERSION_IN_USE
+
 # If you wish to just generate the .CCFG , issue the following command
 #python3 $GITREPO/tools/args/gen_c_config.py -f $kernel
 echo "Sourcing ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh"

@@ -557,10 +557,10 @@ begin
         MSTR_OUT_FULL  => mc_full_mosi
     );
     
-    o_timeslave_mc_lite_mosi <= mc_lite_mosi(c_packetiser_lite_index);
-    mc_lite_miso(c_packetiser_lite_index) <= i_timeslave_mc_lite_miso;
-    o_timeslave_mc_full_mosi <= mc_full_mosi(c_packetiser_full_index);
-    mc_full_miso(c_packetiser_full_index) <= i_timeslave_mc_full_miso;
+    o_timeslave_mc_lite_mosi <= mc_lite_mosi(c_timeslave_lite_index);
+    mc_lite_miso(c_timeslave_lite_index) <= i_timeslave_mc_lite_miso;
+    o_timeslave_mc_full_mosi <= mc_full_mosi(c_timeslave_full_index);
+    mc_full_miso(c_timeslave_full_index) <= i_timeslave_mc_full_miso;
     
     -- Map the connection to shared memory for register reads and writes.
     m00_axi_awvalid <= mc_full_mosi(c_vitis_shared_full_index).awvalid; -- out std_logic;

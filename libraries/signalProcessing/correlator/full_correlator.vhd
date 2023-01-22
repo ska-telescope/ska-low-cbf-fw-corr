@@ -846,10 +846,10 @@ begin
                 i_row_data => rowDataDel(row_mult)(col_mult), -- in (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
                 i_row_meta => rowMetaDel(row_mult)(col_mult), -- in t_cmac_input_bus; .valid, .first, .last, .rfi, .sample_cnt
                 -- pipelined source data
-                o_col_data => colDataDel(row_mult + 1)(col_mult), -- out (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
-                o_col_meta => colMetaDel(row_mult + 1)(col_mult), -- out t_cmac_input_bus;  .valid, .first, .last, .rfi, .sample_cnt
-                o_row_data => rowDataDel(row_mult)(col_mult + 1), -- out (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
-                o_row_meta => rowMetaDel(row_mult)(col_mult + 1), -- out t_cmac_input_bus; .valid, .first, .last, .rfi, .sample_cnt
+                o_col_data => colDataDel(row_mult + 1)(col_mult + 1), -- out (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
+                o_col_meta => colMetaDel(row_mult + 1)(col_mult + 1), -- out t_cmac_input_bus;  .valid, .first, .last, .rfi, .sample_cnt
+                o_row_data => rowDataDel(row_mult + 1)(col_mult + 1), -- out (31:0); (7:0) = pol 0 real, (15:8) = pol 0 imaginary, (23:16) = pol 1 real, (31:24) = pol 1 imaginary.
+                o_row_meta => rowMetaDel(row_mult + 1)(col_mult + 1), -- out t_cmac_input_bus; .valid, .first, .last, .rfi, .sample_cnt
                 -- Output data
                 -- Output is a burst of 4 clocks, with (1) Col pol0 - row pol0, (2) col pol0 - row pol1, (3) col pol1 - row pol 0, (4) col pol 1 - row pol 1
                 -- Centroid data is valid in the first output clock.
