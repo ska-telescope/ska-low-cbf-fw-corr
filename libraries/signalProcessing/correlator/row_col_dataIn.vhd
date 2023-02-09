@@ -56,7 +56,7 @@ architecture Behavioral of row_col_dataIn is
     attribute dont_touch : string;
 
     signal cor_data_del1 : std_logic_vector(255 downto 0);
-    signal cor_data_del1_neg : std_logic_vector(255 downto 0);
+    --signal cor_data_del1_neg : std_logic_vector(255 downto 0);
     signal cor_time_del1 : std_logic_vector(7 downto 0);
     signal cor_station_del1, cor_station_del2, cor_station_del3, cor_station_del4 : std_logic_vector(8 downto 0);
     signal cor_valid_del1, cor_valid_del2, cor_valid_del3, cor_valid_del4 : std_logic;
@@ -118,23 +118,23 @@ begin
             
             -- Get the negative of each byte for use in the complex conjugate.
             -- Note that rfi is signalled via most negative value (i.e. 0x80), which maps to the same value here. 
-            for b in 0 to 31 loop
-                cor_data_del1_neg(b*8 + 7 downto b*8) <= std_logic_vector(unsigned(not i_cor_data(b*8 + 7 downto b*8)) + 1); 
-            end loop;
+            --for b in 0 to 31 loop
+            --    cor_data_del1_neg(b*8 + 7 downto b*8) <= std_logic_vector(unsigned(not i_cor_data(b*8 + 7 downto b*8)) + 1); 
+            --end loop;
             
             -- Each 256 bit word : two time samples, 4 consecutive virtual channels
             -- (31:0) = time 0, virtual channel 0; (63:32) = time 0, virtual channel 1; (95:64) = time 0, virtual channel 2; (127:96) = time 0, virtual channel 3;
             -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
             -- Note 4 consecutive channels always go to 4 consecutive memories. 
             -- So break the 256 bit bus into 4 x 64 bit busses. Each 64 bit bus has 4 possible destinations.
-            colWrDataDel(0)(31 downto 0)  <= cor_data_del1_neg(31 downto 24)   & cor_data_del1(23 downto 16)   & cor_data_del1_neg(15 downto 8)    & cor_data_del1(7 downto 0); -- first time samples for first virtual channel
-            colWrDataDel(0)(63 downto 32) <= cor_data_del1_neg(159 downto 152) & cor_data_del1(151 downto 144) & cor_data_del1_neg(143 downto 136) & cor_data_del1(135 downto 128);
-            colWrDataDel(1)(31 downto 0)  <= cor_data_del1_neg(63 downto 56)   & cor_data_del1(55 downto 48)   & cor_data_del1_neg(47 downto 40)   & cor_data_del1(39 downto 32);
-            colWrDataDel(1)(63 downto 32) <= cor_data_del1_neg(191 downto 184) & cor_data_del1(183 downto 176) & cor_data_del1_neg(175 downto 168) & cor_data_del1(167 downto 160);
-            colWrDataDel(2)(31 downto 0)  <= cor_data_del1_neg(95 downto 88)   & cor_data_del1(87 downto 80)   & cor_data_del1_neg(79 downto 72)   & cor_data_del1(71 downto 64);
-            colWrDataDel(2)(63 downto 32) <= cor_data_del1_neg(223 downto 216) & cor_data_del1(215 downto 208) & cor_data_del1_neg(207 downto 200) & cor_data_del1(199 downto 192);
-            colWrDataDel(3)(31 downto 0)  <= cor_data_del1_neg(127 downto 120) & cor_data_del1(119 downto 112) & cor_data_del1_neg(111 downto 104) & cor_data_del1(103 downto 96);
-            colWrDataDel(3)(63 downto 32) <= cor_Data_del1_neg(255 downto 248) & cor_Data_del1(247 downto 240) & cor_Data_del1_neg(239 downto 232) & cor_Data_del1(231 downto 224);
+            colWrDataDel(0)(31 downto 0)  <= cor_data_del1(31 downto 24)   & cor_data_del1(23 downto 16)   & cor_data_del1(15 downto 8)    & cor_data_del1(7 downto 0); -- first time samples for first virtual channel
+            colWrDataDel(0)(63 downto 32) <= cor_data_del1(159 downto 152) & cor_data_del1(151 downto 144) & cor_data_del1(143 downto 136) & cor_data_del1(135 downto 128);
+            colWrDataDel(1)(31 downto 0)  <= cor_data_del1(63 downto 56)   & cor_data_del1(55 downto 48)   & cor_data_del1(47 downto 40)   & cor_data_del1(39 downto 32);
+            colWrDataDel(1)(63 downto 32) <= cor_data_del1(191 downto 184) & cor_data_del1(183 downto 176) & cor_data_del1(175 downto 168) & cor_data_del1(167 downto 160);
+            colWrDataDel(2)(31 downto 0)  <= cor_data_del1(95 downto 88)   & cor_data_del1(87 downto 80)   & cor_data_del1(79 downto 72)   & cor_data_del1(71 downto 64);
+            colWrDataDel(2)(63 downto 32) <= cor_data_del1(223 downto 216) & cor_data_del1(215 downto 208) & cor_data_del1(207 downto 200) & cor_data_del1(199 downto 192);
+            colWrDataDel(3)(31 downto 0)  <= cor_data_del1(127 downto 120) & cor_data_del1(119 downto 112) & cor_data_del1(111 downto 104) & cor_data_del1(103 downto 96);
+            colWrDataDel(3)(63 downto 32) <= cor_Data_del1(255 downto 248) & cor_Data_del1(247 downto 240) & cor_Data_del1(239 downto 232) & cor_Data_del1(231 downto 224);
              
             colWrDataDel(4) <= colWrDataDel(0);
             colWrDataDel(5) <= colWrDataDel(1);

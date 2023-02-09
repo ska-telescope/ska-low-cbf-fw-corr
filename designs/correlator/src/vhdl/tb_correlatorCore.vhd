@@ -46,7 +46,13 @@ entity tb_correlatorCore is
         g_LOAD_CT2_HBM_CORR1 : boolean := True;
         g_CT2_HBM_CORR1_FILENAME : string := "ct2_init.txt";
         g_LOAD_CT2_HBM_CORR2 : boolean := False;
-        g_CT2_HBM_CORR2_FILENAME : string := ""
+        g_CT2_HBM_CORR2_FILENAME : string := "";
+        --
+        --
+        -- Text file to use to check against the visibility data going to the HBM from the correlator.
+        g_VIS_CHECK_FILE : string := "LTA_vis_check.txt";
+        -- Text file to use to check the meta data going to the HBM from the correlator
+        g_META_CHECK_FILE : string := "LTA_TCI_FD_check.txt"
     );
 end tb_correlatorCore;
 
@@ -256,6 +262,18 @@ architecture Behavioral of tb_correlatorCore is
     
     signal ct2_readout_start  : std_logic := '0';
     signal ct2_readout_buffer : std_logic := '0';
+    
+    signal cor0_tb_data : std_logic_vector(255 downto 0);
+    signal cor0_tb_data_check : t_slv_32_arr(7 downto 0);
+    signal cor0_tb_visValid : std_logic; -- o_tb_data is valid visibility data
+    signal cor0_tb_TCIvalid : std_logic; -- i_data is valid TCI & DV data
+    signal cor0_tb_dcount   : std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+    signal cor0_tb_cell : std_logic_vector(7 downto 0);  -- a "cell" is a 16x16 station block of correlations
+    signal cor0_tb_tile : std_logic_Vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+    signal cor0_tb_channel : std_logic_vector(23 downto 0);
+    signal visCheckDone, visMetaCheckDone : std_logic;
+    --signal visCheckData : std_logic_vector(255 downto 0);
+    signal visCheckData, visMetaCheckData : t_slv_32_arr(7 downto 0);
     
     -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
     -- +bid buser
@@ -559,8 +577,8 @@ begin
             
             for i in 0 to 63 loop
                 eth100_rx_axi_tdata(i*8+7 downto i*8) <= sps_axi_tdata(503 - i*8 + 8 downto (504 - i*8)) ;  -- 512 bits
+                eth100_rx_axi_tkeep(i) <= sps_axi_tkeep(63 - i);
             end loop;
-            eth100_rx_axi_tkeep <= sps_axi_tkeep;
             eth100_rx_axi_tlast <= sps_axi_tlast(0);
             eth100_rx_axi_tuser <= sps_axi_tuser;
             eth100_rx_axi_tvalid <= sps_axi_tvalid(0);
@@ -638,6 +656,78 @@ begin
     axi4_full_miso_dummy.rvalid <= '0';
     axi4_full_miso_dummy.bid <= (others => '0');
     axi4_full_miso_dummy.buser <= (others => '0');
+    
+    
+    ------------------------------------------------------------
+    -- Checking of the data written to the HBM by the correlator
+    
+    -- split visibility and visibility meta data into 32 bit words
+    -- for easier comparison with the model data.
+    cor0_tb_data_check(0) <= cor0_tb_data(31 downto 0);
+    cor0_tb_data_check(1) <= cor0_tb_data(63 downto 32);
+    cor0_tb_data_check(2) <= cor0_tb_data(95 downto 64);
+    cor0_tb_data_check(3) <= cor0_tb_data(127 downto 96);
+    cor0_tb_data_check(4) <= cor0_tb_data(159 downto 128);
+    cor0_tb_data_check(5) <= cor0_tb_data(191 downto 160);
+    cor0_tb_data_check(6) <= cor0_tb_data(223 downto 192);
+    cor0_tb_data_check(7) <= cor0_tb_data(255 downto 224);    
+    
+    process
+        file vis_check_file: TEXT;
+        variable line_in : Line;
+        variable good : boolean;
+        variable vis256bits : t_slv_32_arr(7 downto 0);
+    begin
+        
+        FILE_OPEN(vis_check_file,g_TEST_CASE & g_VIS_CHECK_FILE,READ_MODE);
+        visCheckDone <= '0';
+        while (not endfile(vis_check_file)) loop 
+            for i in 0 to 7 loop
+                -- Each line in the file is 32 bits; 8x32 bits = 256 bits 
+                --  = 1 word from the correlator.
+                readline(vis_check_file, line_in);
+                hread(line_in, vis256bits(i), good);
+            end loop;
+            visCheckData <= vis256bits;
+            -- wait for a word of visibility data from the correlator
+            wait until (falling_edge(ap_clk) and (cor0_tb_visValid = '1'));
+            assert (vis256bits = cor0_tb_data_check) report "Visibility data does not match" severity error;
+            
+        end loop;
+        
+        visCheckDone <= '1';
+        report "Finished checking visibility data for correlator";
+        wait;
+    end process;
+    
+    -- Check visibility meta data
+    process
+        file vis_meta_check_file: TEXT;
+        variable line_in : Line;
+        variable good : boolean;
+        variable visMeta256bits : t_slv_32_arr(7 downto 0);
+    begin
+        
+        FILE_OPEN(vis_meta_check_file,g_TEST_CASE & g_META_CHECK_FILE,READ_MODE);
+        visMetaCheckDone <= '0';
+        while (not endfile(vis_meta_check_file)) loop 
+            for i in 0 to 7 loop
+                -- Each line in the file is 32 bits; 8x32 bits = 256 bits 
+                --  = 1 word from the correlator.
+                readline(vis_meta_check_file, line_in);
+                hread(line_in, visMeta256bits(i), good);
+            end loop;
+            visMetaCheckData <= visMeta256bits;
+            -- wait for a word of visibility data from the correlator
+            wait until (falling_edge(ap_clk) and (cor0_tb_TCIValid = '1'));
+            assert (visMeta256bits = cor0_tb_data_check) report "Visibility Meta data (TCI, FD) does not match" severity error;
+            
+        end loop;
+        
+        visMetaCheckDone <= '1';
+        report "Finished checking visibility meta data for correlator";
+        wait;
+    end process;
     
     
     dut : entity correlator_lib.correlator_core
@@ -842,7 +932,17 @@ begin
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start  => ct2_readout_start, -- in std_logic;
-        i_ct2_readout_buffer => ct2_readout_buffer -- in std_logic
+        i_ct2_readout_buffer => ct2_readout_buffer, -- in std_logic
+        ---------------------------------------------------------------
+        -- copy of the bus taking data to be written to the HBM.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      => cor0_tb_data,     -- out (255:0);
+        o_tb_visValid  => cor0_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  => cor0_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    => cor0_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      => cor0_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      => cor0_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   => cor0_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
     );
     
     ----------------------------------------------------------------------------------

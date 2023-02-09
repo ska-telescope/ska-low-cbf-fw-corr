@@ -117,7 +117,18 @@ entity DSP_top_correlator is
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start  : in std_logic;
-        i_ct2_readout_buffer : in std_logic
+        i_ct2_readout_buffer : in std_logic;
+        ---------------------------------------------------------------
+        -- Copy of the bus taking data to be written to the HBM,
+        -- for the first correlator instance.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      : out std_logic_vector(255 downto 0);
+        o_tb_visValid  : out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  : out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
     );
 end DSP_top_correlator;
 
@@ -540,8 +551,18 @@ begin
         
         o_packet1_dout  => cor_packet_data(1),  --  out (255:0);
         o_packet1_valid => cor_packet_valid(1), --  out std_logic;
-        i_packet1_ready => '1'                --  in std_logic
-        
+        i_packet1_ready => '1',                --  in std_logic
+
+        ---------------------------------------------------------------
+        -- copy of the bus taking data to be written to the HBM.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      => o_tb_data,     -- out (255:0);
+        o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
     );
     
     

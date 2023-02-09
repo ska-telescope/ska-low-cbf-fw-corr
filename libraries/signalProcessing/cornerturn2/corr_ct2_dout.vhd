@@ -209,6 +209,8 @@ architecture Behavioral of corr_ct2_dout is
     signal cur_station_offset : std_logic_vector(1 downto 0);
     signal cur_station_ext, cur_station_offset_x4, up_to_station : std_logic_vector(15 downto 0);
     signal readoutStationOffset : std_logic_vector(1 downto 0);
+    signal arFIFO_wr_count : std_logic_vector(6 downto 0);
+    signal cor_last_int, cor_first_int : std_logic := '0';
     
 begin
     
@@ -316,8 +318,10 @@ begin
                         clear_hold <= '0';
                 
                     when check_arFIFO =>
-                        -- check there is space in the ar FIFO
-                        if (arFIFO_full = '0') then
+                        -- check there is space in the ar FIFO.
+                        -- Up to 4 requests get made at a time, so make sure there is 
+                        -- at least 4 slots free in the ar fifo.
+                        if (unsigned(arFIFO_wr_count) < 56) then
                             ar_fsm <= set_ar;
                         end if;
                         get_addr <= '0';
@@ -511,6 +515,10 @@ begin
                             else
                                 ar_fsm <= get_SB_data;
                             end if;
+                            get_Addr <= '0';
+                        else
+                            get_Addr <= '1';
+                            ar_fsm <= check_arFIFO;
                         end if;
                     
                     when done =>
@@ -582,7 +590,7 @@ begin
     
     -- arFIFO is read when data is read out of the dataFIFO in this module, so the number of entries in the 
     -- arFIFO is the number of words that will be in the dataFIFO when all the requests have returned from the HBM.
-    -- The dataFIFO has space for 512 words, i.e. 16 ar requests (each ar request is 2048 bytes = 32 x 64byte words)
+    -- The dataFIFO has space for 512 words, i.e. 64 ar requests (each ar request is 512 bytes = 8 x 64byte words)
     -- So arFIFO only really needs to be 16 deep.
     arfifoi : xpm_fifo_sync
     generic map (
@@ -591,18 +599,18 @@ begin
         ECC_MODE => "no_ecc",       -- String
         FIFO_MEMORY_TYPE => "distributed", -- String
         FIFO_READ_LATENCY => 0,     -- DECIMAL
-        FIFO_WRITE_DEPTH => 32,     -- DECIMAL
+        FIFO_WRITE_DEPTH => 64,     -- DECIMAL
         FULL_RESET_VALUE => 0,      -- DECIMAL
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
+        RD_DATA_COUNT_WIDTH => 7,   -- DECIMAL
         READ_DATA_WIDTH => 77,      -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
         WRITE_DATA_WIDTH => 77,     -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 7    -- DECIMAL
     ) port map (
         almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
         almost_full => open,        -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
@@ -619,7 +627,7 @@ begin
         sbiterr => open,            -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
         underflow => open,          -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
         wr_ack => open,             -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
-        wr_data_count => open, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
+        wr_data_count => arFIFO_wr_count, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
         wr_rst_busy => open,        -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
         din => arFIFO_din,          -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
         injectdbiterr => '0',       -- 1-bit input: Double Bit Error Injection
@@ -774,13 +782,16 @@ begin
             o_cor_rowStations <= readoutRowStations;
             o_cor_colStations <= readoutColStations;
             o_cor_tileTotalChannels <= readoutTotalChannels(4 downto 0);
-            
-            o_cor_first <= readoutFirst;
+            if readoutFirst = '1' then 
+                cor_first_int <= '1';
+            elsif cor_last_int = '1' then
+                cor_first_int <= '0';
+            end if;
              
             if readout_fsm = signal_correlator and readoutKey(0) = '1' then
-                o_cor_last <= '1'; --  out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+                cor_last_int <= '1'; --  out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
             else
-                o_cor_last <= '0';
+                cor_last_int <= '0';
             end if;
             if readout_fsm = signal_correlator and readoutKey(1) = '1' then
                 o_cor_final <= '1';  -- Tells the correlator that the integration is complete.
@@ -794,8 +805,10 @@ begin
                 o_cor_tileTotalTimes <= x"C0";
             end if;
             
-            
         end if;
     end process;
+    
+    o_cor_last <= cor_last_int;
+    o_cor_first <= cor_first_int;
     
 end Behavioral;

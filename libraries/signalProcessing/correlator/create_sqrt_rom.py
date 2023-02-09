@@ -26,7 +26,7 @@ if __name__ == "__main__":
         f.write('end ' + rom_name + '; \n');
         f.write(' \n')
         f.write('architecture behavioral of ' + rom_name + ' is \n')
-        f.write('    type rom_type is array(4095 downto 0) of std_logic_vector(7 downto 0); \n')
+        f.write('    type rom_type is array(0 to 4095) of std_logic_vector(7 downto 0); \n')
         f.write('    signal rom : rom_type := (\n')
         for rom_row in range(4096):
             d = np.round(255 * np.sqrt(rom_row/4095.0))

@@ -81,12 +81,32 @@ entity correlator_HBM is
         o_HBM_cells : out std_logic_vector(15 downto 0); -- Number of cells currently in the circular buffer.
         o_errors    : out std_logic_vector(3 downto 0); -- bit 0 = aw fifo full; this should never happen.
         -----------------------------------------------------------------------------------------
-        -- Packets for SDP, via 100GE
-        -- Packets are SPEAD, i.e. they contain the SPEAD data and nothing else (no ethernet, udp or ip headers).
-        o_packet_dout  : out std_logic_vector(255 downto 0);
-        o_packet_valid : out std_logic;
-        i_packet_ready : in std_logic;
+        -- Readout bus "ro"
+        -- Notifies the SPEAD packet generation module that data is available in the HBM to be read out.
+        -- This bus is on the i_axi_clk domain (i.e. same clock as the HBM interface).
         
+        -- Byte address in HBM of the start of a strip from the visibility matrix.
+        -- Start address of the meta data is at (o_HBM_start_addr/16 + 256 Mbytes)
+        o_ro_HBM_start_addr : out std_logic_vector(31 downto 0);
+        -- Index of the subarray-beam,
+        -- This is the address into the table in the second corner turn. Valid range is 0 up.
+        o_ro_subarray : out std_logic_vector(7 downto 0);
+        -- output frequency index. Count of the frequency channels being generated
+        -- by the correlator. Counts from 0.
+        o_ro_freq_index : out std_logic_vector(16 downto 0);
+        -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
+        -- integration time.
+        o_ro_time_ref : out std_logic_vector(63 downto 0);
+        -- The first of the block of rows in the visibility matrix that is now available for readout.
+        -- Counts from 0. 
+        -- The number of columns to read out for the first row will be (o_row + 1).
+        -- The number of columns to read out for the last row in this strip will be (o_row + o_row_count)
+        o_ro_row : out std_logic_vector(12 downto 0);
+        -- The number of rows to read out. Valid range is 1 up to 256.
+        o_ro_row_count : out std_logic_vector(8 downto 0);
+        -- valid indicates that the other signals are valid. 
+        -- valid will pulse high for 1 clock cycle when a strip of data from the visibility matrix is available.
+        o_ro_valid : out std_logic;
         -----------------------------------------------------------------------------------------
         -- HBM interface
         -- Write to HBM
@@ -94,12 +114,7 @@ entity correlator_HBM is
         i_axi_awready : in  std_logic;
         o_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
         i_axi_wready  : in  std_logic;
-        i_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        -- Reading from HBM
-        o_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_axi_arready : in  std_logic;
-        i_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_axi_rready  : out std_logic
+        i_axi_b       : in  t_axi4_full_b -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
     );
 end correlator_HBM;
 
@@ -107,7 +122,7 @@ architecture Behavioral of correlator_HBM is
 
     signal visValidDel1, visValidDel2 : std_logic;
     
-    signal fifo_wr_ptr : std_logic_vector(14 downto 0); -- 256 MBytes = 32768 blocks of 8192 bytes;
+    signal fifo_wr_ptr : std_logic_vector(14 downto 0) := (others => '0'); -- 256 MBytes = 32768 blocks of 8192 bytes;
     signal aw_fifo_we : std_logic;
     signal aw_fifo_din : std_logic_vector(39 downto 0);
     signal set_aw : std_logic;

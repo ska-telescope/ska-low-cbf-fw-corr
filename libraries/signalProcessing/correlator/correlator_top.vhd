@@ -225,7 +225,19 @@ entity correlator_top is
         
         o_packet1_dout : out std_logic_vector(255 downto 0);
         o_packet1_valid : out std_logic;
-        i_packet1_ready : in std_logic
+        i_packet1_ready : in std_logic;
+        
+        ---------------------------------------------------------------
+        -- Copy of the bus taking data to be written to the HBM,
+        -- for the first correlator instance.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      : out std_logic_vector(255 downto 0);
+        o_tb_visValid  : out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  : out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
         
     );
 end correlator_top;
@@ -315,9 +327,20 @@ begin
         i_packet_ready    => i_packet0_ready, --  in std_logic;
         ---------------------------------------------------------------
         -- Registers
-        o_HBM_start => cor0_HBM_start, -- out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
-        o_HBM_end   => cor0_HBM_end,   -- out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-        o_HBM_cells => cor0_HBM_cells  -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+        o_HBM_start => cor0_HBM_start, -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
+        o_HBM_end   => cor0_HBM_end,   -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
+        o_HBM_cells => cor0_HBM_cells, -- out (15:0)  -- Number of cells currently in the circular buffer.
+        
+        ---------------------------------------------------------------
+        -- copy of the bus taking data to be written to the HBM.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      => o_tb_data,     -- out (255:0);
+        o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
     );
     
     cor2geni : if (g_CORRELATORS > 1) generate
@@ -378,7 +401,17 @@ begin
             -- Registers
             o_HBM_start => cor1_HBM_start, -- out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
             o_HBM_end   => cor1_HBM_end,   -- out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-            o_HBM_cells => cor1_HBM_cells  -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+            o_HBM_cells => cor1_HBM_cells, -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+            ---------------------------------------------------------------
+            -- copy of the bus taking data to be written to the HBM.
+            -- Used for simulation only, to check against the model data.
+            o_tb_data      => open, -- out (255:0);
+            o_tb_visValid  => open, -- out std_logic; -- o_tb_data is valid visibility data
+            o_tb_TCIvalid  => open, -- out std_logic; -- i_data is valid TCI & DV data
+            o_tb_dcount    => open, -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+            o_tb_cell      => open, -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+            o_tb_tile      => open, -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+            o_tb_channel   => open  -- out (23:0) -- first fine channel index for this correlation.
         );
     end generate;
     
