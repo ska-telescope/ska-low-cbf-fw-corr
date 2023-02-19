@@ -48,7 +48,9 @@ use PSR_Packetiser_lib.ethernet_pkg.ALL;
 entity correlator_data_reader is
     Generic ( 
         DEBUG_ILA           : BOOLEAN := FALSE;
-        SPEAD_DATA_WIDTH    : INTEGER := 256
+        SPEAD_DATA_WIDTH    : INTEGER := 256;
+        HBM_META_DEPTH      : INTEGER := 16;
+        HBM_DATA_DEPTH      : INTEGER := 128
 
     );
     Port ( 
@@ -111,40 +113,24 @@ signal meta_cache_fifo_full     : std_logic;
 signal meta_cache_fifo_wr_count : std_logic_vector(((ceil_log2(meta_cache_depth))) downto 0);
 
 
--- HBM data from correlator.
 constant hbm_data_width       : INTEGER := 512;
-constant hbm_data_depth       : INTEGER := 128;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
-
-signal hbm_data_fifo_in_reset : std_logic;
+-- VIS data from correlator.
 signal hbm_data_fifo_rd       : std_logic;
 signal hbm_data_fifo_q        : std_logic_vector((hbm_data_width-1) downto 0);
-signal hbm_data_fifo_q_valid  : std_logic;
 signal hbm_data_fifo_empty    : std_logic;
 signal hbm_data_fifo_rd_count : std_logic_vector(((ceil_log2(hbm_data_depth))) downto 0);
--- WR        
-signal hbm_data_fifo_wr       : std_logic;
-signal hbm_data_fifo_data     : std_logic_vector((hbm_data_width-1) downto 0);
-signal hbm_data_fifo_full     : std_logic;
-signal hbm_data_fifo_wr_count : std_logic_vector(((ceil_log2(hbm_data_depth))) downto 0);
 
--- HBM data from correlator.
-constant hbm_meta_width       : INTEGER := 512;
-constant hbm_meta_depth       : INTEGER := 32;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
+-- META data from correlator.
+constant META_FIFO_WRITE_WIDTH : integer := 512;
+constant META_FIFO_READ_WIDTH  : integer := 32;
+constant META_FIFO_WRITE_DEPTH : integer := 32;
+constant META_FIFO_READ_DEPTH  : integer := META_FIFO_WRITE_DEPTH * META_FIFO_WRITE_WIDTH / META_FIFO_READ_WIDTH;
 
-signal hbm_meta_fifo_in_reset : std_logic;
 signal hbm_meta_fifo_rd       : std_logic;
-signal hbm_meta_fifo_q        : std_logic_vector((hbm_meta_width-1) downto 0);
-signal hbm_meta_fifo_q_valid  : std_logic;
+signal hbm_meta_fifo_q        : std_logic_vector((META_FIFO_READ_WIDTH-1) downto 0);
 signal hbm_meta_fifo_empty    : std_logic;
-signal hbm_meta_fifo_rd_count : std_logic_vector(((ceil_log2(hbm_meta_depth))) downto 0);
--- WR        
-signal hbm_meta_fifo_wr       : std_logic;
-signal hbm_meta_fifo_data     : std_logic_vector((hbm_meta_width-1) downto 0);
-signal hbm_meta_fifo_full     : std_logic;
-signal hbm_meta_fifo_wr_count : std_logic_vector(((ceil_log2(hbm_meta_depth))) downto 0);
+signal hbm_meta_fifo_rd_count : std_logic_vector(((ceil_log2(META_FIFO_READ_DEPTH))) downto 0);
 
-signal hbm_data_sel           : std_logic;
-signal hbm_meta_sel           : std_logic;
 
 -- Packed data to SPEAD packets
 constant packed_width       : INTEGER := 272;   -- 34 bytes = 32 data + 2 meta.
@@ -179,15 +165,8 @@ signal cor_tri_row_count        : unsigned(8 downto 0);
 
 signal cor_read_data            : unsigned(16 downto 0);
 signal cor_read_meta            : unsigned(16 downto 0);
-signal HBM_reads                : unsigned(16 downto 0);
 
-signal HBM_start_addr           : std_logic_vector(31 downto 0) := (others => '0');
-
---------------------------------------------------------------------------------
--- HBM rd signals
-signal rd_addr                  : std_logic_vector(31 downto 0) := (others => '0');
-signal rd_addr_req              : std_logic := '0';
-signal hbm_addr_rd_rdy          : std_logic;
+signal hbm_rq_complete          : std_logic;
 
 --------------------------------------------------------------------------------
 -- HBM wr signals
@@ -199,7 +178,7 @@ signal HBM_wr_tracker_fsm : HBM_wr_tracker_fsm_type;
 type pack_it_fsm_type is   (IDLE, LOOPS, CALC, MATH, PROCESSING, RD_DRAIN, COMPLETE);
 signal pack_it_fsm : pack_it_fsm_type;
 
-signal meta_data_cache          : std_logic_vector(255 downto 0);
+signal meta_data_cache          : std_logic_vector(15 downto 0);
 signal hbm_data_cache           : std_logic_vector(255 downto 0);
 signal hbm_data_cache_2         : std_logic_vector(255 downto 0);
 
@@ -216,33 +195,24 @@ signal strut_counter            : integer := 0;
 signal hbm_data_cache_sel       : std_logic;
 signal hbm_data_rd_en           : std_logic;
 signal pack_start               : std_logic;
+signal hbm_start                : std_logic;
 
 signal row_count_rd_out         : unsigned(12 downto 0);
 signal small_matrix_tracker     : unsigned(3 downto 0);
 signal matrix_tracker           : unsigned(9 downto 0);
 
+signal reset_cache_fifos        : std_logic;
+signal cache_fifos_in_reset     : std_logic;
+
 TYPE segments_hbm_triangle IS ARRAY (INTEGER RANGE <>) OF UNSIGNED(3 DOWNTO 0);
 TYPE data_hbm_triangle IS ARRAY (INTEGER RANGE <>) OF UNSIGNED(7 DOWNTO 0);
---constant write_per_line         : data_hbm_triangle(0 to 15)    := (x"01",x"02",x"03",x"04",x"05",x"06",x"07",x"08",x"09",x"0A",x"0B",x"0C",x"0D",x"0E",x"0F",x"10");
---constant read_skip_per_line     : data_hbm_triangle(0 to 15)    := (x"08",x"08",x"07",x"07",x"06",x"06",x"05",x"05",x"04",x"04",x"03",x"03",x"02",x"02",x"01",x"01");
---constant read_keep_per_line     : data_hbm_triangle(0 to 15)    := (x"02",x"02",x"04",x"04",x"06",x"06",x"08",x"08",x"0A",x"0A",x"0C",x"0C",x"0E",x"0E",x"10",x"10");
 constant write_per_line         : segments_hbm_triangle(0 to 15)    := (x"0",x"1",x"2",x"3",x"4",x"5",x"6",x"7",x"8",x"9",x"A",x"B",x"C",x"D",x"E",x"F");
 constant read_skip_per_line     : segments_hbm_triangle(0 to 15)    := (x"7",x"7",x"6",x"6",x"5",x"5",x"4",x"4",x"3",x"3",x"2",x"2",x"1",x"1",x"0",x"0");
 constant read_keep_per_line     : segments_hbm_triangle(0 to 15)    := (x"0",x"0",x"1",x"1",x"2",x"2",x"3",x"3",x"4",x"4",x"5",x"5",x"6",x"6",x"7",x"7");
 
 
 --------------------------------------------------------------------------------
-
-
 begin
-    -- HBM addr
-    o_HBM_axi_ar.addr       <= zero_byte & std_logic_vector(rd_addr);
-    o_HBM_axi_ar.valid      <= rd_addr_req;
-    o_HBM_axi_ar.len        <= x"07";               -- read 512 bytes initially.
-    hbm_addr_rd_rdy         <= i_HBM_axi_arready;
-
-    -- HBM data
-    o_HBM_axi_rready        <= '1';
     
     clk                     <= i_axi_clk;
     reset                   <= i_axi_rst OR i_local_reset;
@@ -294,8 +264,10 @@ begin
             if reset = '1' then
                 cor_triangle_fsm    <= idle;
                 meta_cache_fifo_rd  <= '0';
-                HBM_reads           <= (others => '0');
                 pack_start          <= '0';
+                hbm_start           <= '0';
+                cor_tri_row         <= ( others => '0' );
+                cor_tri_row_count   <= ( others => '0' );
             else
                 case cor_triangle_fsm is
                     when idle => 
@@ -320,14 +292,13 @@ begin
                         -- skip if not enabled, after checking if the last pass through was for different sub array.
                         -- pass through initially.
                         cor_triangle_fsm        <= calculate_reads;
-                        HBM_start_addr          <= cor_tri_hbm_start_addr;
 
                     when calculate_reads => 
                         -- cor_tri_row_count is indicating where the edge of the triangle is, ie how many rows,
                         -- 512 bytes per row. 64 bytes per read on the interface so 8 per line.
                         -- so row_count needs to << 3.
-                        -- for 16 rows 8 rds per row = 16 x 8 = 128 rds per square.
-                        -- for a 4096 cor, rds will be 256 squares  * 128 rds
+                        -- for 16 rows 8 rds per row = 16 x 8 = 128 (64 Byte) rds per square.
+                        -- for a 4096 cor, rds will be 256 squares  * 128 rds = 32768
                         -- cor_tri_row is effectively a multiplier.
                         -- max requests = 4096 col x 32 bytes x 16 rows = 2 MB (last section of a 4096x4096 correlation)
                         cor_read_data <= cor_read_data + (cor_tri_row_count & "000");
@@ -337,11 +308,13 @@ begin
 
                         if cor_tri_row = 0 then
                             cor_triangle_fsm    <= complete;
+                            hbm_start           <= '1';
                         else
                             cor_tri_row         <= cor_tri_row - 1;
                         end if;
                                            
                     when complete => 
+                        hbm_start               <= '0';
                         cor_tri_row             <= unsigned(meta_cache_fifo_q(133 downto 121));
                         pack_start              <= '1';
 
@@ -370,64 +343,56 @@ begin
         end if;
     end process;
 
+
     ---------------------------------------------------------------------------
--- DATA cache
-    hbm_data_sel <= '1';
+    RD_manager : entity correlator_lib.cor_rd_HBM_queue_manager generic map ( 
+            DEBUG_ILA               => FALSE,
 
-    hbm_data_fifo_data  <= i_HBM_axi_r.data;
-    hbm_data_fifo_wr    <= i_HBM_axi_r.valid AND hbm_data_sel;
+            META_FIFO_WRITE_WIDTH   => META_FIFO_WRITE_WIDTH,
+            META_FIFO_READ_WIDTH    => META_FIFO_READ_WIDTH,
+            META_FIFO_WRITE_DEPTH   => META_FIFO_WRITE_DEPTH,
+            META_FIFO_READ_DEPTH    => META_FIFO_READ_DEPTH,
 
-    hbm_data_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper
-    Generic map (
-        FIFO_MEMORY_TYPE    => "block",
-        READ_MODE           => "fwft",
-        FIFO_DEPTH          => hbm_data_depth,
-        DATA_WIDTH          => hbm_data_width
-    )
-    Port map ( 
-        fifo_reset          => reset,
-        fifo_clk            => clk,
-        fifo_in_reset       => hbm_data_fifo_in_reset,
-        -- RD    
-        fifo_rd             => hbm_data_fifo_rd,
-        fifo_q              => hbm_data_fifo_q,
-        fifo_q_valid        => hbm_data_fifo_q_valid,
-        fifo_empty          => hbm_data_fifo_empty,
-        fifo_rd_count       => hbm_data_fifo_rd_count,
-        -- WR        
-        fifo_wr             => hbm_data_fifo_wr,
-        fifo_data           => hbm_data_fifo_data,
-        fifo_full           => hbm_data_fifo_full,
-        fifo_wr_count       => hbm_data_fifo_wr_count
-    );
+            HBM_DATA_DEPTH          => 128,
+            HBM_DATA_WIDTH          => 512
+        )
+        port map ( 
+            -- clock used for all data input and output from this module (300 MHz)
+            clk                         => clk,
+            reset                       => reset,
+    
+            i_fifo_reset                => reset_cache_fifos,
+            o_fifo_in_rst               => cache_fifos_in_reset,
+    
+            -- HBM config
+            i_begin                     => hbm_start,
+            i_hbm_base_addr             => unsigned(cor_tri_hbm_start_addr),
+            i_number_of_64b_rds         => cor_read_data,
+            o_done                      => hbm_rq_complete,
 
--- META cache
-    hbm_meta_fifo_data  <= i_HBM_axi_r.data;
-    hbm_meta_fifo_wr    <= i_HBM_axi_r.valid AND hbm_meta_sel;
+            -- Visibility Data FIFO RD interface
+            i_hbm_data_fifo_rd          => hbm_data_fifo_rd,
+            o_hbm_data_fifo_q           => hbm_data_fifo_q,
+            o_hbm_data_fifo_empty       => hbm_data_fifo_empty,
+            o_hbm_data_fifo_rd_count    => hbm_data_fifo_rd_count,
+    
+            -- Meta Data FIFO RD interface
+            i_hbm_meta_fifo_rd          => hbm_data_fifo_rd,    -- SAME cadence used due to same data width ratios.
+            o_hbm_meta_fifo_q           => hbm_meta_fifo_q, 
+            o_hbm_meta_fifo_empty       => hbm_meta_fifo_empty,
+            o_hbm_meta_fifo_rd_count    => hbm_meta_fifo_rd_count,
+    
+            -- feedback to pass to Correlator
+            o_HBM_curr_addr             => o_HBM_curr_addr,
+    
+            -- HBM read interface
+            o_HBM_axi_ar                => o_HBM_axi_ar,
+            i_HBM_axi_arready           => i_HBM_axi_arready,
+            i_HBM_axi_r                 => i_HBM_axi_r,
+            o_HBM_axi_rready            => o_HBM_axi_rready
+    
+        );
 
-    hbm_meta_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper
-    Generic map (
-        FIFO_MEMORY_TYPE    => "block",
-        READ_MODE           => "fwft",
-        FIFO_DEPTH          => hbm_meta_depth,
-        DATA_WIDTH          => hbm_meta_width
-    )
-    Port map ( 
-        fifo_reset          => reset,
-        fifo_clk            => clk,
-        fifo_in_reset       => hbm_meta_fifo_in_reset,
-        -- RD    
-        fifo_rd             => hbm_meta_fifo_rd,
-        fifo_q              => hbm_meta_fifo_q,
-        fifo_q_valid        => hbm_meta_fifo_q_valid,
-        fifo_empty          => hbm_meta_fifo_empty,
-        fifo_rd_count       => hbm_meta_fifo_rd_count,
-        -- WR        
-        fifo_wr             => hbm_meta_fifo_wr,
-        fifo_data           => hbm_meta_fifo_data,
-        fifo_full           => hbm_meta_fifo_full,
-        fifo_wr_count       => hbm_meta_fifo_wr_count
-    );
 
     ---------------------------------------------------------------------------
     -- Visibility (32 byte) + Meta data (2 byte) packed into 34 byte wide FIFO.
@@ -449,7 +414,6 @@ begin
     begin
         if rising_edge(clk) then
             if reset = '1' then
-                meta_data_cache     <= x"DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" ;
                 pack_it_fsm         <= IDLE;
                 packed_fifo_wr      <= '0';
                 meta_data_rd        <= x"F";
@@ -458,41 +422,46 @@ begin
                 data_rd_counter     <= ( others => '0' );
                 data_wr_counter     <= ( others => '0' );
                 row_count_rd_out    <= ( others => '0' );
+                hbm_data_cache      <= ( others => '0' );
+                meta_data_cache     <= ( others => '0' );
                 hbm_data_rd_en      <= '0';
+                reset_cache_fifos   <= '0';
             else
 
                 case pack_it_fsm is
                     when IDLE =>
                         --if pack_start = '1' and hbm_meta_fifo_empty = '0' and hbm_data_fifo_empty = '0' then
                         if pack_start = '1' and hbm_data_fifo_empty = '0' then
-                            pack_it_fsm     <= LOOPS;
+                            pack_it_fsm         <= LOOPS;
+                            row_count_rd_out    <= cor_tri_row_count + cor_tri_row;
                         end if;
                         packed_fifo_wr      <= '0';
                         strut_counter       <= 0;
                         hbm_data_cache_sel  <= '0';
-                        row_count_rd_out    <= cor_tri_row_count + cor_tri_row;
                         small_matrix_tracker<= x"0";
                         matrix_tracker      <= cor_tri_row(12 downto 3); --(others => '0');
                         hbm_data_rd_en      <= '0';
 
                     when LOOPS =>
-                        -- chop up the cell into 16 row lots.
-                        -- if less then process remaining and set exit condition of 0.
-                        if row_count_rd_out(8 downto 0) > 16 then
-                            small_matrix_tracker            <= x"F";
-                            row_count_rd_out(12 downto 8)   <= "00000";
-                            row_count_rd_out(7 downto 0)    <= row_count_rd_out(7 downto 0) - 16;
-                        else
-                            if row_count_rd_out(3 downto 0) = x"0" then
-                                small_matrix_tracker        <= x"0";
+                        if unsigned(hbm_data_fifo_rd_count) > 120 then
+                            -- chop up the cell into 16 row lots.
+                            -- if less then process remaining and set exit condition of 0.
+                            if row_count_rd_out(8 downto 0) > 16 then
+                                small_matrix_tracker            <= x"F";
+                                row_count_rd_out(12 downto 8)   <= "00000";
+                                row_count_rd_out(7 downto 0)    <= row_count_rd_out(7 downto 0) - 16;
                             else
-                                small_matrix_tracker        <= row_count_rd_out(3 downto 0) - 1;
+                                if row_count_rd_out(3 downto 0) = x"0" then
+                                    small_matrix_tracker        <= x"0";
+                                else
+                                    small_matrix_tracker        <= row_count_rd_out(3 downto 0) - 1;
+                                end if;
+                                row_count_rd_out                <= (others => '0');
                             end if;
-                            row_count_rd_out                <= (others => '0');
+
+                            pack_it_fsm                 <= CALC;
                         end if;
 
-                        pack_it_fsm                 <= CALC;
-                        
                     when CALC =>
                         -- Mux into vector the starting row number and add to end the number of reads for the triangle on 16x16 basis.
                         data_rd_counter(12 downto 0)    <= matrix_tracker(9 downto 0) & read_keep_per_line(strut_counter)(2 downto 0);
@@ -508,8 +477,10 @@ begin
                         hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
                         if hbm_data_cache_sel = '0' then
                             hbm_data_cache      <= hbm_data_fifo_q(255 downto 0);
+                            meta_data_cache     <= hbm_meta_fifo_q(15 downto 0);
                         else
                             hbm_data_cache      <= hbm_data_fifo_q(511 downto 256);
+                            meta_data_cache     <= hbm_meta_fifo_q(31 downto 16);
                         end if;
 
                         hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);
@@ -543,6 +514,7 @@ begin
                                 strut_counter       <= 0;
                                 if row_count_rd_out(7 downto 0) = 0 then
                                     pack_it_fsm         <= COMPLETE;
+                                    reset_cache_fifos   <= '1';
                                 else
                                     pack_it_fsm         <= LOOPS;
                                     matrix_tracker      <= matrix_tracker + 1;
@@ -559,29 +531,22 @@ begin
                         end if;
                         
                     when COMPLETE =>
-                        pack_it_fsm         <= IDLE;
+                        reset_cache_fifos        <= '0';
+                        
+                        if cache_fifos_in_reset = '0' then
+                            pack_it_fsm         <= IDLE;
+                        end if;
 
                     when OTHERS =>
                         pack_it_fsm         <= IDLE;
 
                 end case;
 
-
-                
-                if meta_data_rd = 0 then
-                    --meta_data_cache     <= x"DEADBEEFDEADBEEFDEADBEEFDEADBEEFAAAABBBBCCCCDDDDEEEEFFFFDEADBEEF" ;
-                    meta_data_cache     <= x"DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF" ;
-                    meta_data_rd        <= x"F";
-                elsif packed_fifo_wr = '1' then
-                    meta_data_cache     <= zero_word & meta_data_cache(255 downto 16);
-                    meta_data_rd        <= meta_data_rd - 1;
-                end if;
-
             end if;
         end if;
     end process;
 
-    packed_fifo_data    <= hbm_data_cache & meta_data_cache(15 downto 0);
+    packed_fifo_data    <= hbm_data_cache & meta_data_cache;
     ---------------------------------------------------------------------------
 
     packed_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper

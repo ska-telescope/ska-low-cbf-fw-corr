@@ -25,6 +25,9 @@ entity tb_cor_spead is
 end tb_cor_spead;
 
 architecture Behavioral of tb_cor_spead is
+constant fname          : string := "";
+constant init_fname     : string := "";
+constant HBM_addr_width         : integer := 32;
 
 signal clock_300 : std_logic := '0';    -- 3.33ns
 signal clock_400 : std_logic := '0';    -- 2.50ns
@@ -72,7 +75,7 @@ signal time_ref                 : std_logic_vector(63 downto 0) := (others => '0
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
 
-signal data_valid               : std_logic;
+signal data_valid               : std_logic := '0';
 
 signal row                      : std_logic_vector(12 downto 0);     -- The index of the first row that is available, counts from zero.
 signal row_count                : std_logic_vector(8 downto 0);      -- The number of rows available to be read out. Valid range is 1 to 256.
@@ -95,9 +98,20 @@ constant cor_E                  : std_logic_vector(255 downto 0)    := x"EEEEEEE
 constant cor_F                  : std_logic_vector(255 downto 0)    := x"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
 
 signal i                        : integer := 0;
+signal j                        : integer := 0;
+signal meta_data_sel            : std_logic := '0';
+signal test_meta_done           : std_logic := '0';
+                                                            -- LOTS OF 256 BITS TO EMULATE META LAYOUT.
+signal test_meta_triangle_1     : t_slv_512_arr(0 to 7)     := (zero_128 & zero_64      & zero_32       & x"DDEEAAFF"
+                                                                & zero_128 & zero_64    & zero_32       & x"0000BEEF",
+                                                                zero_128 & zero_64      & x"ACDC4545"   & x"FEEDDEAF"       
+                                                                & zero_128 & zero_64    & x"00007E55"   & x"B0B0ABCD",
+                                                                
+                                                                zero_512, zero_512, zero_512, zero_512, zero_512, zero_512
+                                                                );
 
 --  4x4 matrix                                                  ROW 1
-signal test_triangle_1          : t_slv_512_arr(0 to 31)     := (zero_256 & x"1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D",
+signal test_triangle_1          : t_slv_512_arr(0 to 31)    := (zero_256 & x"1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D1A1B1C1D",
                                                                 zero_512, zero_512, zero_512, zero_512, zero_512, zero_512, zero_512,
                                                                 -- ROW 2
                                                                 x"3A3B3C3D3A3B3C3D3A3B3C3D3A3B3C3D3A3B3C3D3A3B3C3D3A3B3C3D3A3B3C3D" & x"2A2B2C2D2A2B2C2D2A2B2C2D2A2B2C2D2A2B2C2D2A2B2C2D2A2B2C2D2A2B2C2D", 
@@ -211,67 +225,93 @@ end process;
 
 -------------------------------------------------------------------------------------------------------------
 
+
+HBM_axi_r.data  <=  test_meta_triangle_1(j) when meta_data_sel = '0' else
+                    test_triangle_1(i);
+
+
 run_proc : process(clock_300)
 begin
     if rising_edge(clock_300) then
-
-        freq_index      <= (others => '0');
-        sub_array       <= (others => '0');
-        hbm_start_addr  <= x"00002000";
-
-        if testCount_300 = 50 then
-            row         <= 5D"0" & zero_byte;
-            row_count   <= 9D"0";
+        if clock_300_rst = '1' then
             data_valid  <= '0';
-        else
-            row         <= "00000" & zero_byte;
-            row_count   <= "000000000";
-            data_valid  <= '0';
-        end if;
-
-        ---
-        -- some stimulus for initial triangle testing.
-        if testCount_300 > 70 AND testCount_300 < 103 then
-            i <= i + 1;
-            HBM_axi_r.data  <= test_triangle_1(i);
-            HBM_axi_r.valid <= '1';
-
-            -- META DATA FROM CORRELATOR SIM
-            row         <= 13D"0";
-            row_count   <= 9D"4";
-            data_valid  <= '1';
-
-        elsif testCount_300 > 200 AND testCount_300 < 392 then
-            i <= i + 1;
-            HBM_axi_r.data  <= test_triangle_2(i);
-            HBM_axi_r.valid <= '1';
-
-            row         <= 13D"0";
-            row_count   <= 9D"20";
-            data_valid  <= '1';
-        elsif testCount_300 > 800 AND testCount_300 < 992 then
-            i <= i + 1;
-            HBM_axi_r.data  <= test_triangle_2(i);
-            HBM_axi_r.valid <= '1';
-
-            row         <= 13D"0";
-            row_count   <= 9D"256";
-            data_valid  <= '1';
-        elsif testCount_300 > 36800 AND testCount_300 < 36992 then
-            i <= i + 1;
-            HBM_axi_r.data  <= test_triangle_2(i);
-            HBM_axi_r.valid <= '1';
-
-            row         <= 13D"256";
-            row_count   <= 9D"20";
-            data_valid  <= '1';
-        else
             i <= 0;
-            HBM_axi_r.data  <= zero_512;
-            HBM_axi_r.valid <= '0';
+            j <= 0;
+            meta_data_sel <= '0';
+            test_meta_done <= '0';
+        else
+            freq_index      <= (others => '0');
+            sub_array       <= (others => '0');
+            hbm_start_addr  <= x"00002000";
+
+            if testCount_300 = 50 then
+                row         <= 5D"0" & zero_byte;
+                row_count   <= 9D"0";
+                data_valid  <= '0';
+            else
+                row         <= "00000" & zero_byte;
+                row_count   <= "000000000";
+                data_valid  <= '0';
+            end if;
+
+            -- if meta_data_sel = '0' then 
+            --     HBM_axi_r.data  <=  test_meta_triangle_1;
+            -- else
+            --     HBM_axi_r.data  <=  test_triangle_1(i);
+            -- end if;
+            
+            if HBM_axi_r.valid = '1' then
+                if HBM_axi_r.last = '1' AND meta_data_sel = '0' then
+                    meta_data_sel <= '1';
+                                        
+                elsif meta_data_sel = '1' then
+                    if i < 31 then
+                        i <= i + 1;  
+                    end if;
+                end if;
+            end if;
+
+            -- some stimulus for initial triangle testing.
+            if testCount_300 = 69 then --AND testCount_300 < 103 then
+                -- META DATA FROM CORRELATOR SIM
+                row         <= 13D"0";
+                row_count   <= 9D"4";
+                data_valid  <= '1';
+
+            elsif testCount_300 > 75 then
+            -- elsif testCount_300 > 200 AND testCount_300 < 392 then
+            --     i <= i + 1;
+            --     HBM_axi_r.data  <= test_triangle_2(i);
+            --     --HBM_axi_r.valid <= '1';
+
+            --     row         <= 13D"0";
+            --     row_count   <= 9D"20";
+            --     data_valid  <= '1';
+            -- elsif testCount_300 > 800 AND testCount_300 < 992 then
+            --     i <= i + 1;
+            --     HBM_axi_r.data  <= test_triangle_2(i);
+            --     --HBM_axi_r.valid <= '1';
+
+            --     row         <= 13D"0";
+            --     row_count   <= 9D"256";
+            --     data_valid  <= '1';
+            -- elsif testCount_300 > 36800 AND testCount_300 < 36992 then
+            --     i <= i + 1;
+            --     HBM_axi_r.data  <= test_triangle_2(i);
+            --     --HBM_axi_r.valid <= '1';
+
+            --     row         <= 13D"256";
+            --     row_count   <= 9D"20";
+            --     data_valid  <= '1';
+            else
+                i <= 0;
+                --HBM_axi_r.data  <= zero_512;
+                meta_data_sel <= '0';
+                --HBM_axi_r.valid <= '0';
+            end if;
+                HBM_axi_r.resp  <= "00";
+                --HBM_axi_r.last  <= '0';
         end if;
-            HBM_axi_r.resp  <= "00";
-            HBM_axi_r.last  <= '0';
 
     end if;
 end process;
@@ -293,7 +333,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_sub_array         => sub_array,
         i_freq_index        => freq_index,
         i_data_valid        => data_valid,
-        i_time_ref          => zero_qword,
+        i_time_ref          => (others => '0'),
                             
         i_row               => row,
         i_row_count         => row_count,
@@ -317,5 +357,79 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
 
     );
 
+
+    -- signal HBM_axi_ar               : t_axi4_full_addr;                 -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+    -- signal HBM_axi_arready          : std_logic;
+    -- signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+    -- signal HBM_axi_rready           : std_logic;
+
+    HBM_interface : entity work.HBM_axi_tbModel
+    generic map (
+        AXI_ADDR_WIDTH => HBM_addr_width, 
+        AXI_ID_WIDTH => 1, 
+        AXI_DATA_WIDTH => 512, 
+        READ_QUEUE_SIZE => 16, 
+        MIN_LAG => 60,    
+        INCLUDE_PROTOCOL_CHECKER => TRUE,
+        RANDSEED => 43526,             -- natural := 12345;
+        LATENCY_LOW_PROBABILITY => 60, -- natural := 95;  -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+        LATENCY_ZERO_PROBABILITY => 60 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
+    ) Port map (
+        i_clk          => clock_300,
+        i_rst_n        => not clock_300_rst, 
+        -- WR
+        axi_awaddr     => (others => '0'),
+        axi_awid       => "0", 
+        axi_awlen      => (others => '0'),
+        axi_awsize     => "110",
+        axi_awburst    => "01", 
+        axi_awlock     => "00",  
+        axi_awcache    => "0011", 
+        axi_awprot     => "000",
+        axi_awqos      => "0000", 
+        axi_awregion   => "0000",
+        axi_awvalid    => '0', 
+        axi_awready    => open, 
+        axi_wdata      => (others => '0'), 
+        axi_wstrb      => (others => '0'),
+        axi_wlast      => '0',
+        axi_wvalid     => '0',
+        axi_wready     => open,
+        axi_bresp      => open,
+        axi_bvalid     => open,
+        axi_bready     => '1', 
+        axi_bid        => open,
+        -- RD 
+        axi_araddr     => HBM_axi_ar.addr(HBM_addr_width-1 downto 0),
+        axi_arlen      => HBM_axi_ar.len,
+        axi_arsize     => "110",   -- 6 = 64 bytes per beat = 512 bit wide bus. -- out std_logic_vector(2 downto 0);
+        axi_arburst    => "01",    -- "01" = incrementing address for each beat in the burst. -- out std_logic_vector(1 downto 0);
+        axi_arlock     => "00",
+        axi_arcache    => "0011",
+        axi_arprot     => "000",
+        axi_arvalid    => HBM_axi_ar.valid,
+        axi_arready    => HBM_axi_arready,
+        axi_arqos      => "0000",
+        axi_arid       => "0",
+	    axi_arregion   => "0000",
+        axi_rdata      => open, --HBM_axi_r.data,
+        axi_rresp      => open,
+        axi_rlast      => HBM_axi_r.last,
+        axi_rvalid     => HBM_axi_r.valid,
+        axi_rready     => HBM_axi_rready,
+
+        -- control dump to disk.
+        i_write_to_disk         => '0',
+        i_write_to_disk_addr    => 0,
+        i_write_to_disk_size    => 0,
+        i_fname                 => fname,
+        -- Initialisation of the memory
+        -- The memory is loaded with the contents of the file i_init_fname in 
+        -- any clock cycle where i_init_mem is high.
+        i_init_mem              => '0',
+        i_init_fname            => init_fname
+    );
+
+    
 
 end Behavioral;
