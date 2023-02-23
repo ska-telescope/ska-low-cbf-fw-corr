@@ -70,7 +70,7 @@ entity DSP_top_correlator is
         i_eth100G_locked    : in std_logic;
         -----------------------------------------------------------------------
         -- Other processing clocks.
-        i_clk450 : in std_logic; -- 450 MHz
+        i_clk425 : in std_logic; -- 425 MHz
         i_clk400 : in std_logic; -- 400 MHz
         -----------------------------------------------------------------------
         -- Debug signal used in the testbench.
@@ -232,7 +232,9 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_tileChannel : t_slv_24_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_tileTotalTimes : t_slv_8_arr((g_MAX_CORRELATORS-1) downto 0); -- Number of time samples to integrate for this tile.
     signal cor_timeTotalChannels : t_slv_5_arr((g_MAX_CORRELATORS-1) downto 0);  -- Number of frequency channels to integrate for this tile.
-    signal cor_rowStations, cor_colStations : t_slv_9_arr((g_MAX_CORRELATORS-1) downto 0); -- number of stations in the row memories to process; up to 256. 
+    signal cor_rowStations, cor_colStations : t_slv_9_arr((g_MAX_CORRELATORS-1) downto 0); -- number of stations in the row memories to process; up to 256.
+    signal cor_totalStations : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- Total number of stations being processing for this subarray-beam.
+    signal cor_subarrayBeam : t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);
     
     signal cor_packet_data : t_slv_256_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_packet_valid : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
@@ -307,10 +309,9 @@ begin
         i_packetCount    => LFAAingest_packetCount,    -- in std_logic_vector(31 downto 0);
         i_valid          => LFAAingest_valid, --  in std_logic;    
         -- Data bus output to the Filterbanks
-        -- 6 Outputs, each complex data, 8 bit real, 8 bit imaginary.
-        --FB_clk  => i_clk450,     -- in std_logic; Interface runs off shared_clk
+        -- 8 Outputs, each complex data, 8 bit real, 8 bit imaginary.
         o_sof   => FB_sof,     -- out std_logic; start of data for a set of 4 virtual channels.
-        o_sofFull => CT_sof,   -- out std_logic; start of the full frame, i.e. a burst of (typically) 60ms of data.
+        o_sofFull => CT_sof,   -- out std_logic; start of the full frame, i.e. a burst of (typically) 283 ms of data.
         o_data0 => FB_data0,   -- out t_slv_8_arr(1 downto 0);
         o_data1 => FB_data1,   -- out t_slv_8_arr(1 downto 0);
         o_meta01 => FB_meta01, -- out 
@@ -412,23 +413,23 @@ begin
         i_dataValid       => FD_dataValid,      -- in std_logic;
         --------------------------------------------------------------------------
         -- Data out to the correlators
-
         i_cor_ready             => cor_ready,     -- in std_logic; 
         o_cor_data              => cor_data,      -- out (255:0); 
         o_cor_time              => cor_time,      -- out (7:0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
         o_cor_station           => cor_station,   -- out (8:0); -- first of the 4 stations in i_cor0_data
-        o_cor_tileType          => cor_tileType,  -- out std_logic;
-        o_cor_valid             => cor_valid,     -- out std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
-        o_cor_first             => cor_first,     -- out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
-        o_cor_last              => cor_last,      -- out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
-        o_cor_final             => cor_final,     -- out std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
-        o_cor_tileLocation      => cor_tileLocation, -- out (9:0);   -- bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
-        o_cor_tileChannel       => cor_tileChannel,       --  out (23:0); Indicates the fine channel relative to the start of the subarray-beam buffer.
-        o_cor_tileTotalTimes    => cor_tileTotalTimes,    --  out (7:0); Number of time samples to integrate for this tile.
-        o_cor_tiletotalChannels => cor_timeTotalChannels, --  out (4:0); Number of frequency channels to integrate for this tile.
-        o_cor_rowstations       => cor_rowStations,       --  out (8:0); Number of stations in the row memories to process; up to 256.
-        o_cor_colstations       => cor_colStations,       --  out (8:0); Number of stations in the col memories to process; up to 256.   
-        
+        o_cor_tileType          => cor_tileType,  -- out slv();
+        o_cor_valid             => cor_valid,     -- out slv();  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        o_cor_first             => cor_first,     -- out slv();  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        o_cor_last              => cor_last,      -- out slv();  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        o_cor_final             => cor_final,     -- out slv();  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
+        o_cor_tileLocation      => cor_tileLocation, -- out t_slv_10_arr;   -- bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
+        o_cor_tileChannel       => cor_tileChannel,       -- out t_slv_24_arr; Indicates the fine channel relative to the start of the subarray-beam buffer.
+        o_cor_tileTotalTimes    => cor_tileTotalTimes,    -- out t_slv_8_arr; Number of time samples to integrate for this tile.
+        o_cor_tiletotalChannels => cor_timeTotalChannels, -- out t_slv_5_arr; Number of frequency channels to integrate for this tile.
+        o_cor_rowstations       => cor_rowStations,       -- out t_slv_9_arr; Number of stations in the row memories to process; up to 256.
+        o_cor_colstations       => cor_colStations,       -- out t_slv_9_arr; Number of stations in the col memories to process; up to 256.   
+        o_cor_totalStations     => cor_totalStations,     -- out t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); Total number of stations being processing for this subarray-beam.
+        o_cor_subarrayBeam      => cor_subarrayBeam,      -- out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  Which entry is this in the subarray-beam table ? 
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         i_axi_clk         => i_MACE_clk,        -- in std_logic;
@@ -460,7 +461,7 @@ begin
         i_axi_clk => i_MACE_clk, -- in std_logic;
         i_axi_rst => i_MACE_rst, -- in std_logic;
         -- Processing clock used for the correlation (>412.5 MHz)
-        i_cor_clk => i_clk450,   -- in std_logic;
+        i_cor_clk => i_clk425,   -- in std_logic;
         i_cor_rst => '0',        -- in std_logic;    
         
         ------------------------------------------------------------------------------------
@@ -491,12 +492,13 @@ begin
         i_cor0_tileLocation => cor_tileLocation(0), --  in std_logic_vector(9 downto 0);
         -- Which block of frequency channels is this tile for ?
         -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
-        i_cor0_tileChannel       => cor_tileChannel(0),       --  in (23:0);
-        i_cor0_tileTotalTimes    => cor_tileTotalTimes(0),    --  in (7:0); -- Number of time samples to integrate for this tile.
-        i_cor0_tiletotalChannels => cor_timeTotalChannels(0), --  in (4:0); -- Number of frequency channels to integrate for this tile.
-        i_cor0_rowstations       => cor_rowStations(0),       --  in (8:0); -- number of stations in the row memories to process; up to 256.
-        i_cor0_colstations       => cor_colStations(0),       --  in (8:0); -- number of stations in the col memories to process; up to 256.         
-        
+        i_cor0_tileChannel       => cor_tileChannel(0),       -- in (23:0);
+        i_cor0_tileTotalTimes    => cor_tileTotalTimes(0),    -- in (7:0);  Number of time samples to integrate for this tile.
+        i_cor0_tiletotalChannels => cor_timeTotalChannels(0), -- in (4:0);  Number of frequency channels to integrate for this tile.
+        i_cor0_rowstations       => cor_rowStations(0),       -- in (8:0);  Number of stations in the row memories to process; up to 256.
+        i_cor0_colstations       => cor_colStations(0),       -- in (8:0);  Number of stations in the col memories to process; up to 256.
+        i_cor0_totalStations     => cor_totalStations(0),     -- in (15:0); Total number of stations being processing for this subarray-beam.
+        i_cor0_subarrayBeam      => cor_subarrayBeam(0),      -- in (7:0);  Which entry is this in the subarray-beam table ?
         ------------------------------------------------------------------------------------
         -- Data input for the second correlator instance
         o_cor1_ready    => cor_ready(1), --  out std_logic; 
@@ -514,6 +516,8 @@ begin
         i_cor1_tiletotalChannels => cor_timeTotalChannels(1), --  in (4:0); Number of frequency channels to integrate for this tile.
         i_cor1_rowstations       => cor_rowStations(1),       --  in (8:0); Number of stations in the row memories to process; up to 256.
         i_cor1_colstations       => cor_colStations(1),       --  in (8:0); Number of stations in the col memories to process; up to 256.           
+        i_cor1_totalStations     => cor_totalStations(1),     -- in (15:0); Total number of stations being processing for this subarray-beam.
+        i_cor1_subarrayBeam      => cor_subarrayBeam(1),      -- in (7:0);  Which entry is this in the subarray-beam table ?
         
         -- AXI interface to the HBM for storage of visibilities
         o_cor0_axi_aw      => o_HBM_axi_aw(3),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))

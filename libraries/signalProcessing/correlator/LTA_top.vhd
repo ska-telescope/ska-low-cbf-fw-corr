@@ -38,6 +38,8 @@ entity LTA_top is
         i_cell    : in std_logic_vector(7 downto 0); -- 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
         i_tile    : in std_logic_vector(9 downto 0); -- tile index, passed to the output.
         i_channel : in std_logic_vector(23 downto 0); -- first fine channel index for this correlation
+        i_totalStations : in std_logic_vector(15 downto 0);
+        i_subarrayBeam : in std_logic_vector(7 downto 0);
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
         i_first   : in std_logic; 
@@ -69,8 +71,11 @@ entity LTA_top is
         o_TCIvalid : out std_logic;                   -- o_data is valid TCI & DV data
         o_dcount  : out std_logic_vector(7 downto 0); -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_cell    : out std_logic_vector(7 downto 0);  -- a "cell" is a 16x16 station block of correlations
-        o_tile    : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_cellLast : out std_logic;                    -- This is the last cell being written out in this tile
+        o_tile    : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation. Copy of i_tile input.
         o_channel : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+        o_totalStations : out std_logic_vector(15 downto 0); -- 
+        o_subarrayBeam : out std_logic_vector(7 downto 0);
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop    : in std_logic 
@@ -130,7 +135,7 @@ architecture Behavioral of LTA_top is
     
     signal cor_to_axi_send : std_logic := '0';
     signal cor_to_axi_src_rcv : std_logic := '0';
-    signal cor_to_axi_din : std_logic_vector(54 downto 0);
+    signal cor_to_axi_din : std_logic_vector(78 downto 0);
     
     signal axi_cellMax : std_logic_vector(7 downto 0);
     signal axi_totalTimes : std_logic_vector(7 downto 0);
@@ -138,7 +143,7 @@ architecture Behavioral of LTA_top is
     signal axi_totalChannels : std_logic_vector(4 downto 0);
     signal axi_tile : std_logic_vector(9 downto 0);
     signal cor_to_axi_req : std_logic;
-    signal cor_to_axi_dout : std_logic_vector(54 downto 0);
+    signal cor_to_axi_dout : std_logic_vector(78 downto 0);
     signal fifo_rd_en : std_logic;
     
     signal visReadoutCount_del : t_slv_8_arr(22 downto 0);
@@ -172,6 +177,15 @@ architecture Behavioral of LTA_top is
     signal data_output_count : std_logic_vector(7 downto 0);
     signal outputCountReset : std_logic_Vector(15 downto 0);
     signal readoutActive : std_logic := '0';
+    signal accumulator_totalStations, buf0_totalStations, buf1_totalStations : std_logic_vector(15 downto 0);
+    signal accumulator_subarrayBeam, buf0_subarrayBeam, buf1_subarrayBeam : std_logic_vector(7 downto 0);
+    signal deliver_totalStations, axi_totalStations : std_logic_vector(15 downto 0);
+    signal deliver_subarrayBeam, axi_subarrayBeam : std_logic_vector(7 downto 0);
+    signal rdtotalStations : std_logic_vector(15 downto 0);
+    signal rdsubarrayBeam : std_logic_vector(7 downto 0);
+    signal deliverTotalStationsDel : t_slv_16_arr(15 downto 0);
+    signal deliverSubarrayBeamDel : t_slv_8_arr(15 downto 0);
+    signal cellLastDel : std_logic_vector(15 downto 0);
     
 begin
     
@@ -193,6 +207,8 @@ begin
                     buf0_totalTimes <= accumulator_totalTimes;
                     buf0_totalChannels <= accumulator_totalChannels;
                     buf0_channel <= accumulator_channel;
+                    buf0_totalStations <= accumulator_totalStations;
+                    buf0_subarrayBeam <= accumulator_subarrayBeam;
                 else
                     wrBuffer <= '0';
                     set_buf0_used <= '0';
@@ -202,6 +218,8 @@ begin
                     buf1_totalTimes <= accumulator_totalTimes;
                     buf1_totalChannels <= accumulator_totalChannels;
                     buf1_channel <= accumulator_channel;
+                    buf1_totalStations <= accumulator_totalStations;
+                    buf1_subarrayBeam <= accumulator_subarrayBeam;
                 end if;
             else
                 set_buf0_used <= '0';
@@ -244,6 +262,8 @@ begin
                     accumulator_last <= i_last;
                     accumulator_wrBuffer <= wrBuffer;
                     accumulator_channel <= i_channel;
+                    accumulator_totalStations <= i_totalStations;
+                    accumulator_subarrayBeam <= i_subarrayBeam;
                 elsif accumulator_valid = '1' then
                     accumulator_rdAddr <= std_logic_vector(unsigned(accumulator_rdAddr) + 1);
                 end if;
@@ -290,6 +310,8 @@ begin
                         rdTotaltimes <= buf0_totalTimes;
                         rdTotalChannels <= buf0_totalChannels;
                         rdChannel <= buf0_channel;
+                        rdtotalStations <= buf0_totalStations;
+                        rdsubarrayBeam <= buf0_subarrayBeam;
                         readout_fsm <= start_readout;
                     elsif buf1_used = '1' then
                         rdBuffer <= '1';
@@ -298,6 +320,8 @@ begin
                         rdTotaltimes <= buf1_totalTimes;
                         rdTotalChannels <= buf1_totalChannels;
                         rdChannel <= buf1_channel;
+                        rdtotalStations <= buf1_totalStations;
+                        rdsubarrayBeam <= buf1_subarrayBeam;
                         readout_fsm <= start_readout;
                     end if;
                     readoutCell <= (others => '0');
@@ -365,7 +389,8 @@ begin
             cor_to_axi_din(39 downto 16) <= rdChannel;   -- 24 bits; first channel in the integration
             cor_to_axi_din(44 downto 40) <= rdTotalChannels; -- 5 bit
             cor_to_axi_din(54 downto 45) <= rdTile;    -- 10 bit
-            
+            cor_to_axi_din(70 downto 55) <= rdTotalStations;
+            cor_to_axi_din(78 downto 71) <= rdsubarrayBeam;
             if readout_fsm = idle then
                 readoutActive <= '0';
             else
@@ -534,7 +559,7 @@ begin
         INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
         SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         SRC_SYNC_FF => 3,    -- DECIMAL; range: 2-10
-        WIDTH => 55           -- DECIMAL; range: 1-1024
+        WIDTH => 79          -- DECIMAL; range: 1-1024
     ) port map (
         dest_out => cor_to_axi_dout,   -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
         dest_req => cor_to_axi_req,    -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic. 
@@ -557,6 +582,8 @@ begin
                 axi_channel <= cor_to_axi_dout(39 downto 16);  -- start channel for the integration
                 axi_totalChannels <= cor_to_axi_dout(44 downto 40); -- number of channels integrated.
                 axi_tile <= cor_to_axi_dout(54 downto 45);          -- index of the tile being read out.
+                axi_totalStations <= cor_to_axi_dout(70 downto 55);
+                axi_subarrayBeam <= cor_to_axi_dout(78 downto 71);
                 axi_meta_valid <= '1';
             elsif data_deliver_fsm = idle then
                 axi_meta_valid <= '0';
@@ -571,6 +598,8 @@ begin
                         deliver_channel <= axi_channel;
                         deliver_totalChannels <= axi_totalChannels;
                         deliver_tile <= axi_tile;
+                        deliver_totalStations <= axi_totalStations;
+                        deliver_subarrayBeam <= axi_subarrayBeam;
                     end if;
                     cellReadoutCount <= (others => '0'); -- which cell in the tile are we up to ? (0 to axi_cellMax)
                     visReadoutCount <= (others => '0'); -- which visibility in the cell are we up to  (0 to 255 for every cell)
@@ -635,8 +664,11 @@ begin
                 o_TCIvalid <= '0';
                 
                 o_cell <= cellReadoutCountDel(15);
+                o_cellLast <= cellLastDel(15);
                 o_tile <= deliverTileDel(15);
                 o_channel <= deliverChannelDel(15);
+                o_totalStations <= delivertotalStationsDel(15);
+                o_subarrayBeam <= deliverSubarrayBeamDel(15);
             else
                 o_data <= dv_tci_dout;
                 o_visValid <= '0';
@@ -652,6 +684,7 @@ begin
             elsif ((final_visData_Valid = '1') or (sendTCI_del(19) = '1')) then
                 data_output_count <= std_logic_vector(unsigned(data_output_count) + 1);
             end if;
+            o_dCount <= data_output_count;
             
             if (data_deliver_fsm = send_vis_start) then
                 outputCountReset(0) <= '1';
@@ -661,11 +694,24 @@ begin
             outputCountReset(15 downto 1) <= outputCountReset(14 downto 0);
             
             cellReadoutCountDel(0) <= cellReadoutCount;
+            if (cellReadoutCount = deliver_cellMax) then
+                cellLastDel(0) <= '1';
+            else
+                cellLastDel(0) <= '0';
+            end if;
+            
             cellReadoutCountDel(15 downto 1) <= cellReadoutCountDel(14 downto 0);
+            cellLastDel(15 downto 1) <= cellLastDel(14 downto 0);
             deliverTileDel(0) <= deliver_tile;
             deliverTileDel(15 downto 1) <= deliverTileDel(14 downto 0);
             deliverChannelDel(0) <= deliver_channel;
             deliverChannelDel(15 downto 1) <= deliverChannelDel(14 downto 0);
+            
+            deliverTotalStationsDel(0) <= deliver_totalStations;
+            deliverTotalStationsDel(15 downto 1) <= deliverTotalStationsDel(14 downto 0);
+            deliverSubarrayBeamDel(0) <= deliver_subarrayBeam;
+            deliverSubarrayBeamDel(15 downto 1) <= deliverSubarrayBeamDel(14 downto 0);
+            
             -- 18 clocks from fifo_rd_en(0) to 
             fifo_rd_en_del(22 downto 1) <= fifo_rd_en_del(21 downto 0);
             sendTCI_del(19 downto 1) <= sendTCI_del(18 downto 0);
@@ -674,8 +720,6 @@ begin
             TCIReadoutCount_del(17 downto 1) <= TCIReadoutCount_del(16 downto 0);
         end if;
     end process;
-    
-    o_dCount <= data_output_count;
     
     fifo_rd_en_del(0) <= fifo_rd_en;
     visReadoutCount_del(0) <= visReadoutCount;

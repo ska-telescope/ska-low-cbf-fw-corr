@@ -262,11 +262,11 @@ END correlator_core;
 -------------------------------------------------------------------------------
 ARCHITECTURE structure OF correlator_core IS
 
-    -- 300MHz in, 100 MHz and 450 MHz out.
+    -- 300MHz in, 100 MHz and 425 MHz out.
     component clk_gen100MHz
     port (
         clk100_out : out std_logic;
-        clk450_out : out std_logic;       
+        clk425_out : out std_logic;       
         clk_in1    : in  std_logic);
     end component;
 
@@ -332,7 +332,7 @@ ARCHITECTURE structure OF correlator_core IS
     signal GTY_startup_rst : std_logic := '0';
     signal clk100 : std_logic;
     signal clk400 : std_logic;
-    signal clk450 : std_logic;
+    signal clk425 : std_logic;
     signal clk_gt_freerun_use : std_logic;
     
     signal eth100G_uptime : std_logic_vector(31 downto 0) := (others => '0');
@@ -465,7 +465,7 @@ begin
     u_get100 : clk_gen100MHz
     port map ( 
         clk100_out => clk100,  -- 100 MHz 
-        clk450_out => clk450,  -- 450 MHz clock, used for some signal processing.
+        clk425_out => clk425,  -- 425 MHz clock, used for the correlator.
         clk_in1 => clk_freerun  -- 100 MHz in
     );
     
@@ -820,7 +820,7 @@ begin
         i_clk_100GE      => i_eth100G_clk,      -- in std_logic;
         i_eth100G_locked => i_eth100G_locked,
         -- Filterbank processing clock, 450 MHz
-        i_clk450 => clk450,  -- in std_logic;
+        i_clk425 => clk425,  -- in std_logic;
         i_clk400 => clk400,  -- in std_logic;
         -----------------------------------------------------------------------
         -- reset of the valid memory is in progress.

@@ -138,6 +138,8 @@ entity full_correlator is
         i_cor_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
         i_cor_row_stations : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
         i_cor_col_stations : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.
+        i_cor_totalStations : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
+        i_cor_subarrayBeam : in std_logic_vector(7 downto 0);   -- Which entry is this in the subarray-beam table ?
         -- Data out to the HBM
         -- o_data is a burst of 16*16*4*8 = 8192 bytes = 256 clocks with 256 bits per clock, for one cell of visibilities, when o_dtype = '0'
         -- When o_dtype = '1', centroid data is being sent as a block of 16*16*2 = 512 bytes = 16 clocks with 256 bits per clock.
@@ -146,8 +148,12 @@ entity full_correlator is
         o_TCIvalid : out std_logic;                     -- o_data is valid TCI & DV data
         o_dcount   : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_cell     : out std_logic_vector(7 downto 0);  -- a "cell" is a 16x16 station block of correlations
+        o_cellLast : out std_logic;                     -- This is the last cell for the tile.
         o_tile     : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
         o_channel  : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+        o_totalStations : out std_logic_vector(15 downto 0); -- total number of stations in this subarray-beam
+        o_subarrayBeam : out std_logic_vector(7 downto 0);   -- Index into the subarray-beam table.
+        
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     : in std_logic
@@ -168,7 +174,7 @@ architecture Behavioral of full_correlator is
     --signal correlator_fsm : correlator_fsm_type := done;
     signal buf0_done_axi_clk, buf1_done_axi_clk : std_logic := '0';
     signal buf0Used, buf1Used : std_logic := '0';
-    signal axi_to_cor_cdc_din : std_logic_vector(68 downto 0);
+    signal axi_to_cor_cdc_din : std_logic_vector(92 downto 0);
     signal tileChannel : std_logic_vector(23 downto 0);
     signal tileTotalTimes    : std_logic_vector(7 downto 0);    -- Number of time samples to integrate for this tile.
     signal tiletotalChannels : std_logic_Vector(4 downto 0);
@@ -177,7 +183,7 @@ architecture Behavioral of full_correlator is
     signal rowStations_minus1 : std_logic_vector(8 downto 0);
     signal colStations_minus1 : std_logic_vector(8 downto 0);
     signal axi_to_cor_src_rcv : std_logic;
-    signal axi_to_cor_dest_out : std_logic_vector(68 downto 0);
+    signal axi_to_cor_dest_out : std_logic_vector(92 downto 0);
     signal axi_to_cor_dest_req : std_logic;
     signal axi_to_cor_src_send : std_logic := '0';
     signal cdc_wrBuffer : std_logic;
@@ -251,7 +257,18 @@ architecture Behavioral of full_correlator is
     signal row_invalid, col_invalid : std_logic_vector(15 downto 0);
     signal row_possibly_invalid, col_possibly_invalid : std_logic_vector(17 downto 0);
     signal last_row, last_col : t_slv_4_arr(17 downto 0);
+    signal tileTotalStations : std_logic_vector(15 downto 0);
+    signal tileSubarrayBeam : std_logic_vector(7 downto 0);
     
+    signal buf0_tileTotalStations, buf1_tileTotalStations : std_logic_vector(15 downto 0);
+    signal buf0_tileSubarrayBeam, buf1_tileSubarrayBeam : std_logic_vector(7 downto 0);
+    
+    signal totalStationsDel : t_slv_16_arr(23 downto 0);
+    signal subarrayBeamDel  : t_slv_8_arr(23 downto 0);
+    signal cur_totalStations : std_logic_vector(15 downto 0);
+    signal cur_subarrayBeam : std_logic_vector(7 downto 0);
+    signal totalStationsDel1, totalStationsDel2, totalStationsDel3, totalStationsDel4 : std_logic_vector(15 downto 0);
+    signal subarrayBeamDel1, subarrayBeamDel2, subarrayBeamDel3, subarrayBeamDel4 : std_logic_vector(7 downto 0);
     
 begin
     
@@ -439,6 +456,8 @@ begin
                 -- Which block of frequency channels is this tile for ?
                 -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
                 tileChannel <= i_cor_tileChannel;   -- 24 bits.
+                tileTotalStations <= i_cor_totalStations;
+                tileSubarrayBeam <= i_cor_subArrayBeam;
                 tileTotalTimes <= i_cor_tileTotalTimes; -- in 8 bits; Number of time samples to integrate for this tile.
                 tileTotalChannels <= i_cor_tiletotalChannels; -- 5 bits input
                 tileTime <= i_cor_time(7 downto 6); -- which block of 64 time samples is this ?
@@ -467,7 +486,9 @@ begin
     axi_to_cor_cdc_din(66) <= cdc_wrBuffer;
     axi_to_cor_cdc_din(67) <= tileFirst;
     axi_to_cor_cdc_din(68) <= tileFinal;
-    
+    axi_to_cor_cdc_din(84 downto 69) <= tileTotalStations;
+    axi_to_cor_cdc_din(92 downto 85) <= tileSubarrayBeam;
+
     xpm_cdc_handshake_inst : xpm_cdc_handshake
     generic map (
         DEST_EXT_HSK => 0,   -- DECIMAL; 0=internal handshake, 1=external handshake
@@ -475,7 +496,7 @@ begin
         INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
         SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         SRC_SYNC_FF => 4,    -- DECIMAL; range: 2-10
-        WIDTH => 69           -- DECIMAL; range: 1-1024
+        WIDTH => 93           -- DECIMAL; range: 1-1024
     ) port map (
         dest_out => axi_to_cor_dest_out, -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
         dest_req => axi_to_cor_dest_req, -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic.
@@ -538,6 +559,8 @@ begin
                     buf0_tileType <= axi_to_cor_dest_out(65);
                     buf0_tileFirst <= axi_to_cor_dest_out(67);
                     buf0_tileFinal <= axi_to_cor_dest_out(68);
+                    buf0_tileTotalStations <= axi_to_cor_dest_out(84 downto 69);
+                    buf0_tileSubarrayBeam <= axi_to_cor_dest_out(92 downto 85);
                 else
                     -- Input buffer 1 has just been written.
                     buf1_tileCount <= axi_to_cor_dest_out(9 downto 0);
@@ -550,6 +573,8 @@ begin
                     buf1_tileType <= axi_to_cor_dest_out(65);
                     buf1_tileFirst <= axi_to_cor_dest_out(67);
                     buf1_tileFinal <= axi_to_cor_dest_out(68);
+                    buf1_tileTotalStations <= axi_to_cor_dest_out(84 downto 69);
+                    buf1_tileSubarrayBeam <= axi_to_cor_dest_out(92 downto 85);
                 end if;
             end if;
             
@@ -588,6 +613,8 @@ begin
                     if cor_buf0_used = '1' then
                         cur_tileCount <= buf0_tileCount;
                         cur_tileChannel <= buf0_tileChannel;
+                        cur_totalStations <= buf0_tileTotalStations;
+                        cur_subarrayBeam <= buf0_tileSubarrayBeam;
                         cur_rowStations_minus1 <= buf0_rowStations_minus1;
                         cur_colStations_minus1 <= buf0_colStations_minus1;
                         cur_tileType <= buf0_tileType;
@@ -600,6 +627,8 @@ begin
                     elsif cor_buf1_used = '1' then
                         cur_tileCount <= buf1_tileCount;
                         cur_tileChannel <= buf1_tileChannel;
+                        cur_totalStations <= buf1_tileTotalStations;
+                        cur_subarrayBeam <= buf1_tileSubarrayBeam;
                         cur_rowStations_minus1 <= buf1_rowStations_minus1;
                         cur_colStations_minus1 <= buf1_colStations_minus1;
                         -- "cells" is the number of blocks of 16x16 stations to do.
@@ -701,6 +730,9 @@ begin
             tileFirstDel1 <= cur_tileFirst;
             tileDel1 <= cur_tileCount;
             channelDel1 <= cur_tileChannel;
+            totalStationsDel1 <= cur_totalStations;
+            subarrayBeamDel1 <= cur_subarrayBeam;
+            
             totalTimesDel1 <= cur_totalTimes;
             totalChannelsDel1 <= cur_totalChannels;
             if ((cur_tileFinal = '1') and (rd_fsm = running) and (colRdVC = cur_colStations_minus1(7 downto 4)) and (rowRdVC = cur_rowStations_minus1(7 downto 4))) then
@@ -725,6 +757,9 @@ begin
             cellStartDel2 <= cellStartDel1;
             tileDel2 <= tileDel1;
             channelDel2 <= channelDel1;
+            totalStationsDel2 <= totalStationsDel1;
+            subarrayBeamDel2 <= subarrayBeamDel1;
+            
             totalTimesDel2 <= totalTimesDel1;
             totalChannelsDel2 <= totalChannelsDel1;
             
@@ -740,6 +775,8 @@ begin
             channelDel3 <= channelDel2;
             totalTimesDel3 <= totalTimesDel2;
             totalChannelsDel3 <= totalChannelsDel2;
+            totalStationsDel3 <= totalStationsDel2;
+            subarrayBeamDel3 <= subarrayBeamDel2;
             
             -- rd_fsm_del4 aligns with the data output from the first row and col memories, 
             -- i.e. colBRAMDout, rowBRAMDout(0), since there is a 3 cycle read latency for the memories.
@@ -755,6 +792,8 @@ begin
             channelDel4 <= channelDel3;
             totalTimesDel4 <= totalTimesDel3;
             totalChannelsDel4 <= totalChannelsDel3;
+            totalStationsDel4 <= totalStationsDel3;
+            subarrayBeamDel4 <= subarrayBeamDel3;
             
         end if;
     end process;            
@@ -794,6 +833,8 @@ begin
                 channelDel(0) <= channelDel4;
                 totalTimesDel(0) <= totalTimesDel4;
                 totalChannelsDel(0) <= totalChannelsDel4;
+                totalStationsDel(0) <= totalStationsDel4;
+                subarrayBeamDel(0) <= subarrayBeamDel4;
             else
                 colMetaDel(0)(0).last <= '0';
                 rowMetaDel(0)(0).last <= '0';
@@ -810,6 +851,8 @@ begin
             tileFirstDel(23 downto 1) <= tileFirstDel(22 downto 0);
             lastCellDel(23 downto 1) <= lastCellDel(22 downto 0);
             cellDel(23 downto 1) <= cellDel(22 downto 0);
+            totalStationsDel(23 downto 1) <= totalStationsDel(22 downto 0);
+            subarrayBeamDel(23 downto 1) <= subarrayBeamDel(22 downto 0);
             
             rowMetaDel(0)(0).sample_cnt(5 downto 0) <= rdTimeDel4;
             rowMetaDel(0)(0).sample_cnt(7 downto 6) <= tileTimeDel4;
@@ -985,6 +1028,8 @@ begin
         i_cellStart => cellStartDel(23), -- in std_logic; 
         i_tile    => tileDel(23),    -- in (9:0);  tile index, passed to the output.
         i_channel => channelDel(23), -- in (23:0); first fine channel index for this correlation
+        i_totalStations => totalStationsDel(23), -- in (15:0);
+        i_subarrayBeam => subarrayBeamDel(23),   -- in (7:0);
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
         i_first   => tileFirstDel(23), -- in std_logic; 
@@ -1008,10 +1053,13 @@ begin
         o_data     => o_data,     -- out std_logic_vector(255 downto 0);
         o_visValid => o_visValid, -- out std_logic;                   -- o_data is valid visibility data
         o_TCIvalid => o_TCIValid, -- out std_logic;                   -- o_data is valid TCI & DV data
-        o_dcount   => o_dcount,   -- out (7:0); -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
-        o_cell     => o_cell,     -- out (7:0);  -- a "cell" is a 16x16 station block of correlations
-        o_tile     => o_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_channel  => o_channel,  -- out (23:0); -- first fine channel index for this correlation.
+        o_dcount   => o_dcount,   -- out (7:0); Counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_cell     => o_cell,     -- out (7:0); A "cell" is a 16x16 station block of correlations
+        o_cellLast => o_cellLast, -- out std_logic; This is the last cell for the tile.
+        o_tile     => o_tile,     -- out (9:0); A "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_channel  => o_channel,  -- out (23:0); First fine channel index for this correlation.
+        o_totalStations => o_totalStations, -- out (15:0); Total number of stations in the correlation
+        o_subarrayBeam => o_subarrayBeam,   -- out (7:0); Index into the subarray-beam table.
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     => i_stop      -- in std_logic 

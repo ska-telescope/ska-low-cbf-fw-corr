@@ -68,17 +68,20 @@ entity correlator_HBM is
         i_TCIvalid  : in std_logic;                     -- o_data is valid TCI & DV data
         i_dcount    : in std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         i_cell      : in std_logic_vector(7 downto 0);  -- a "cell" is a 16x16 station block of correlations
-        i_tile      : in std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        i_cellLast  : in std_logic;                     -- Last cell for this tile.
+        -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        -- bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
+        i_tile      : in std_logic_vector(9 downto 0);  
         i_channel   : in std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+        i_totalStations : in std_logic_vector(15 downto 0); -- total number of stations in this subarray-beam
+        i_subarrayBeam : in std_logic_vector(7 downto 0);   -- Index into the subarray-beam table.
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
-        -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
+        -- There can be a lag of about 20 clocks between o_stop going high and data stopping.
         o_stop      : out std_logic;
         
         -----------------------------------------------------------------------------------------
         -- Status info
-        o_HBM_start : out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
         o_HBM_end   : out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-        o_HBM_cells : out std_logic_vector(15 downto 0); -- Number of cells currently in the circular buffer.
         o_errors    : out std_logic_vector(3 downto 0); -- bit 0 = aw fifo full; this should never happen.
         -----------------------------------------------------------------------------------------
         -- Readout bus "ro"
@@ -122,7 +125,7 @@ architecture Behavioral of correlator_HBM is
 
     signal visValidDel1, visValidDel2 : std_logic;
     
-    signal fifo_wr_ptr : std_logic_vector(14 downto 0) := (others => '0'); -- 256 MBytes = 32768 blocks of 8192 bytes;
+    signal fifo_wr_ptr, start_of_row_ptr : std_logic_vector(14 downto 0) := (others => '0'); -- 256 MBytes = 32768 blocks of 8192 bytes;
     signal aw_fifo_we : std_logic;
     signal aw_fifo_din : std_logic_vector(39 downto 0);
     signal set_aw : std_logic;
@@ -136,12 +139,19 @@ architecture Behavioral of correlator_HBM is
     signal errors_int : std_logic_vector(3 downto 0);
     signal aw_fifo_full : std_logic;
     signal w_fifo_dout_valid : std_logic;
-    signal w_fifo_dout : std_logic_vector(512 downto 0);
-    signal w_fifo_din : std_logic_vector(512 downto 0);
+    signal w_fifo_dout : std_logic_vector(513 downto 0);
+    signal w_fifo_din : std_logic_vector(513 downto 0);
     signal w_fifo_we : std_logic;
     signal w_fifo_count : std_logic_vector(9 downto 0);
     signal w_fifo_full : std_logic;
     signal dcountDel1 : std_logic_vector(7 downto 0);
+    signal subarrayBeamDel1 : std_logic_vector(7 downto 0);
+    signal lastStationDel1 : std_logic_vector(15 downto 0);
+    signal cellLastDel1 : std_logic;
+    
+    signal SPEAD_trigger_we : std_logic;
+    signal SPEAD_trigger_din, SPEAD_trigger_dout : std_logic_vector(54 downto 0);
+    signal SPEAD_trigger_rd_Del1, SPEAD_trigger_rd, SPEAD_trigger_full, SPEAD_trigger_empty : std_logic;
     
 begin
     
@@ -151,8 +161,13 @@ begin
             visValidDel1 <= i_visValid;
             dcountDel1 <= i_dcount;
             cellDel1 <= i_cell;
+            cellLastDel1 <= i_cellLast;
             tileDel1 <= i_tile;
             channelDel1 <= i_channel;
+            subarrayBeamDel1 <= i_subarrayBeam;
+            lastStationDel1 <= std_logic_vector(unsigned(i_totalStations) - 1);
+            
+            o_HBM_end <= "0000" & fifo_wr_ptr & "0000000000000";
             
             if i_dcount(0) = '0' then
                 w_fifo_din(255 downto 0) <= i_data;
@@ -164,8 +179,40 @@ begin
                 -- Occurs twice in the 256 transfers for the data, at i_dcount = x7F and i_dcount = xFF, and once at the end of the TCI data, when i_dcount = 0xf
                 w_fifo_din(512) <= '1';
             else
+                -- Not the last word in the HBM data transfer
                 w_fifo_din(512) <= '0';
             end if;
+            
+            if ((i_TCIvalid = '1' and i_dcount = "00001111") and
+                (tileDel1(7 downto 4) = tileDel1(3 downto 0)) and 
+                (cellLastDel1 = '1')) then
+                -- If this cell is the last cell in the tile, and this tile is the last 
+                -- tile in a row of tiles, then notify the SPEAD packet generator.
+                -- If tile row (=tileDel1(7 downto 4)) and tile column (= tileDel1(3 downto 0)) 
+                -- are the same, then we are at the end of the row of tiles. 
+                w_fifo_din(513) <= '1'; -- signals that the SPEAD_trigger_fifo should be read
+                SPEAD_trigger_we <= '1'; -- signals SPEAD packet generator
+                SPEAD_trigger_din(19 downto 0) <= channelDel1(19 downto 0);  -- 20 bits; 
+                SPEAD_trigger_din(27 downto 20) <= subarrayBeamDel1; --
+                SPEAD_trigger_din(31 downto 28) <= tileDel1(7 downto 4); -- The first row in this tile
+                
+                -- Number of rows to read out 
+                if lastStationDel1(11 downto 8) = tileDel1(7 downto 4) then
+                    -- This is the last row of tiles.
+                    -- Value = (number of rows to read out) - 1
+                    SPEAD_trigger_din(39 downto 32) <= lastStationDel1(7 downto 0);
+                else
+                    -- Not the last row of tiles, so read the whole 256 stations from the tiles.
+                    SPEAD_trigger_din(39 downto 32) <= "11111111"; -- 256-1 = 255 = 0xFF
+                end if;
+                -- The address in HBM for SPEAD packetiser to start reading from.
+                SPEAD_trigger_din(54 downto 40) <= start_of_row_ptr;
+            else
+                -- Do not trigger reading of the SPEAD_trigger_fifo 
+                w_fifo_din(513) <= '0';
+                SPEAD_trigger_we <= '0';
+            end if;
+            
             -- write a 513 bit word for every second 256 bit input word.
             w_fifo_we <= (i_visValid or i_TCIvalid) and i_dcount(0); 
             
@@ -182,8 +229,14 @@ begin
             if visValidDel1 = '1' and dcountDel1 = "00000000" then
                 curCell <= cellDel1;
                 curTile <= tileDel1;
-                curChannel <= channelDel1;
                 set_aw <= '1';
+                -- If this is the first cell in a row of tiles, then save the fifo wr pointer,
+                -- so it can be passed to the SPEAD readout at the end of this row of tiles.
+                -- tileDel1(3:0) is the column for this tile, so when it is zero we are at
+                -- the start of the strip of tiles.
+                if (cellDel1 = "00000000" and tileDel1(3 downto 0) = "0000") then
+                    start_of_row_ptr <= fifo_wr_ptr;
+                end if;
             else
                 set_aw <= '0';
             end if;
@@ -216,6 +269,7 @@ begin
                     aw_fifo_din(23 downto 0) <= fifo_wr_ptr & "000000000"; -- 512 bytes per block of data; so 9 zeros in the address.
                     aw_fifo_din(39 downto 32) <= "00000111";   -- aw_len = 512 bytes = 8 x (64 byte words)
                     aw_fifo_we <= '1';
+
                     -- update the write pointer;
                     fifo_wr_ptr <= std_logic_vector(unsigned(fifo_wr_ptr) + 1);
                     set_aw_fsm <= idle;
@@ -238,6 +292,12 @@ begin
                 if w_fifo_full = '1' then
                     errors_int(1) <= '1';
                 end if;
+                if SPEAD_trigger_full = '1' then
+                    errors_int(2) <= '1';
+                end if;
+                if SPEAD_trigger_empty = '1' and SPEAD_trigger_rd = '1' then
+                    errors_int(3) <= '1';
+                end if;
             end if;
             
         end if;
@@ -259,12 +319,12 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
-        READ_DATA_WIDTH => 513,     -- DECIMAL
+        READ_DATA_WIDTH => 514,     -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 513,    -- DECIMAL
+        WRITE_DATA_WIDTH => 514,    -- DECIMAL
         WR_DATA_COUNT_WIDTH => 10   -- DECIMAL
     ) port map (
         almost_empty => open,           -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -354,5 +414,94 @@ begin
     o_axi_aw.addr(31 downto 0)  <= aw_fifo_dout(31 downto 0);
     o_axi_aw.addr(39 downto 32) <= "00000000";
     o_axi_aw.len <= aw_fifo_dout(39 downto 32);
+    
+    
+    speadTrigger_fifoi : xpm_fifo_sync
+    generic map (
+        CASCADE_HEIGHT => 0,        -- DECIMAL
+        DOUT_RESET_VALUE => "0",    -- String
+        ECC_MODE => "no_ecc",       -- String
+        FIFO_MEMORY_TYPE => "distributed", -- String
+        FIFO_READ_LATENCY => 1,     -- DECIMAL
+        FIFO_WRITE_DEPTH => 32,     -- DECIMAL
+        FULL_RESET_VALUE => 0,      -- DECIMAL
+        PROG_EMPTY_THRESH => 10,    -- DECIMAL
+        PROG_FULL_THRESH => 10,     -- DECIMAL
+        RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
+        READ_DATA_WIDTH => 55,      -- DECIMAL
+        READ_MODE => "std",         -- String
+        SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+        USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
+        WAKEUP_TIME => 0,           -- DECIMAL
+        WRITE_DATA_WIDTH => 55,     -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
+    ) port map (
+        almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
+        almost_full => open,        -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
+        data_valid => open, -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
+        dbiterr => open,            -- 1-bit output: Double Bit Error
+        dout => SPEAD_trigger_dout, -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
+        empty => SPEAD_trigger_empty, -- 1-bit output: Empty Flag: When asserted, this signal indicates that the FIFO is empty. 
+        full => SPEAD_trigger_full, -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full. 
+        overflow => open,           -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full. 
+        prog_empty => open,         -- 1-bit output: Programmable Empty: 
+        prog_full => open,          -- 1-bit output: Programmable Full: 
+        rd_data_count => open,      -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
+        rd_rst_busy => open,        -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
+        sbiterr => open,            -- 1-bit output: Single Bit Error: 
+        underflow => open,          -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty. 
+        wr_ack => open,             -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
+        wr_data_count => open,      -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
+        wr_rst_busy => open,        -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
+        din => SPEAD_trigger_din,   -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+        injectdbiterr => '0',       -- 1-bit input: Double Bit Error Injection: Injects a double bit error if the ECC feature is used on block RAMs or UltraRAM macros.
+        injectsbiterr => '0',       -- 1-bit input: Single Bit Error Injection: Injects a single bit error if the ECC feature is used on block RAMs or UltraRAM macros.
+        rd_en => SPEAD_trigger_rd,  -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
+        rst => '0',                 -- 1-bit input: Reset: Must be synchronous to wr_clk. 
+        sleep => '0',               -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
+        wr_clk => i_axi_clk,        -- 1-bit input: Write clock: Used for write operation. 
+        wr_en => SPEAD_trigger_we   -- 1-bit input: Write Enable: If the FIFO is not full, asserting this signal causes data (on din) to be written to the FIFO 
+    );    
+    
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            if w_fifo_dout_valid = '1' and i_axi_wready = '1' and w_fifo_dout(513) = '1' then
+                SPEAD_trigger_rd <= '1';
+            else
+                SPEAD_trigger_rd <= '0';
+            end if;
+            SPEAD_trigger_rd_Del1 <= SPEAD_trigger_rd;
+            
+            if SPEAD_trigger_rd_Del1 = '1' then
+                -- output frequency index. Count of the frequency channels being generated
+                -- by the correlator. Counts from 0.
+                o_ro_freq_index <= SPEAD_trigger_dout(16 downto 0); -- out std_logic_vector(16 downto 0);            
+                -- Index of the subarray-beam,
+                -- This is the address into the table in the second corner turn. Valid range is 0 up.
+                o_ro_subarray <= SPEAD_trigger_dout(27 downto 20);            
+                -- The first of the block of rows in the visibility matrix that is now available for readout.
+                -- Counts from 0. 
+                -- The number of columns to read out for the first row will be (o_row + 1).
+                -- The number of columns to read out for the last row in this strip will be (o_row + o_row_count)
+                o_ro_row <= '0' & SPEAD_trigger_dout(31 downto 28) & "00000000";
+                -- The number of rows to read out. Valid range is 1 up to 256.
+                o_ro_row_count <= std_logic_vector(unsigned(SPEAD_trigger_dout(39 downto 32)) + 1); --  out (8:0);               
+                -- Byte address of the start of the row of tiles in HBM.
+                o_ro_HBM_start_addr <= "0000" & SPEAD_trigger_dout(54 downto 40) & "0000000000000"; -- out (31:0);
+
+                -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
+                -- integration time.
+                o_ro_time_ref <= (others => '0'); -- TODO - work out how this should be set.
+
+                -- valid indicates that the other signals are valid. 
+                -- valid will pulse high for 1 clock cycle when a strip of data from the visibility matrix is available.
+                o_ro_valid <= '1';
+            else
+                o_ro_valid <= '0';
+            end if;
+            
+        end if;
+    end process;
     
 end Behavioral;

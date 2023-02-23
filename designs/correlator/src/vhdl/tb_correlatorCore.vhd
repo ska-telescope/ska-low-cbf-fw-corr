@@ -677,28 +677,40 @@ begin
         variable line_in : Line;
         variable good : boolean;
         variable vis256bits : t_slv_32_arr(7 downto 0);
+        variable data_addr : std_logic_vector(31 downto 0);
     begin
         
         FILE_OPEN(vis_check_file,g_TEST_CASE & g_VIS_CHECK_FILE,READ_MODE);
         visCheckDone <= '0';
-        while (not endfile(vis_check_file)) loop 
-            for i in 0 to 7 loop
-                -- Each line in the file is 32 bits; 8x32 bits = 256 bits 
-                --  = 1 word from the correlator.
-                readline(vis_check_file, line_in);
-                hread(line_in, vis256bits(i), good);
+        while (not endfile(vis_check_file)) loop
+            --
+            -- Format is the same as the memory initialisation for HBM model.
+            -- Each line in the file has the address, then 512 bytes, 
+            --  consisting of 128 x 32 bits, where each 32 bits is an 8 digit hex value.
+            -- e.g. 
+            --  00000000 00000000 00000001 00000002 ... 0000007F
+            --   addr     word 0   word 1   word 2  ... word 127
+            --
+            readline(vis_check_file, line_in);
+            -- read the address word, and discard. We assume the data is in order.
+            hread(line_in, data_addr, good);
+            for j256 in 0 to 15 loop -- 16 x 256 bit words on a line in the text file.
+                -- Visibility data to be checked consists of 256 bit words, i.e. 8 x (32bit words)
+                for i in 0 to 7 loop
+                    hread(line_in, vis256bits(i), good);
+                end loop;
+                visCheckData <= vis256bits;
+                -- wait for a word of visibility data from the correlator
+                wait until (falling_edge(ap_clk) and (cor0_tb_visValid = '1'));
+                assert (vis256bits = cor0_tb_data_check) report "Visibility data does not match" severity error;
             end loop;
-            visCheckData <= vis256bits;
-            -- wait for a word of visibility data from the correlator
-            wait until (falling_edge(ap_clk) and (cor0_tb_visValid = '1'));
-            assert (vis256bits = cor0_tb_data_check) report "Visibility data does not match" severity error;
-            
         end loop;
         
         visCheckDone <= '1';
         report "Finished checking visibility data for correlator";
         wait;
     end process;
+
     
     -- Check visibility meta data
     process
@@ -706,22 +718,26 @@ begin
         variable line_in : Line;
         variable good : boolean;
         variable visMeta256bits : t_slv_32_arr(7 downto 0);
+        variable data_addr : std_logic_vector(31 downto 0);
     begin
         
         FILE_OPEN(vis_meta_check_file,g_TEST_CASE & g_META_CHECK_FILE,READ_MODE);
         visMetaCheckDone <= '0';
         while (not endfile(vis_meta_check_file)) loop 
-            for i in 0 to 7 loop
-                -- Each line in the file is 32 bits; 8x32 bits = 256 bits 
-                --  = 1 word from the correlator.
-                readline(vis_meta_check_file, line_in);
-                hread(line_in, visMeta256bits(i), good);
+            -- file format as for the visibility data, see visibility check process above.
+            readline(vis_meta_check_file, line_in);
+            -- read the address word, and discard. We assume the data is in order.
+            hread(line_in, data_addr, good);
+            for j256 in 0 to 15 loop -- 16 x 256 bit words on a line in the text file.
+                -- Visibility data to be checked consists of 256 bit words, i.e. 8 x (32bit words)
+                for i in 0 to 7 loop
+                    hread(line_in, visMeta256bits(i), good);
+                end loop;
+                visMetaCheckData <= visMeta256bits;
+                -- wait for a word of visibility data from the correlator
+                wait until (falling_edge(ap_clk) and (cor0_tb_TCIValid = '1'));
+                assert (visMeta256bits = cor0_tb_data_check) report "Visibility Meta data (TCI, FD) does not match" severity error;
             end loop;
-            visMetaCheckData <= visMeta256bits;
-            -- wait for a word of visibility data from the correlator
-            wait until (falling_edge(ap_clk) and (cor0_tb_TCIValid = '1'));
-            assert (visMeta256bits = cor0_tb_data_check) report "Visibility Meta data (TCI, FD) does not match" severity error;
-            
         end loop;
         
         visMetaCheckDone <= '1';
