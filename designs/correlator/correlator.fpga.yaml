@@ -15,6 +15,6 @@ peripherals:
   - peripheral_name        : corr_ct2/corr_ct2
   - peripheral_name        : cor/config
   - peripheral_name        : Packetiser/Packetiser
-  - peripheral_name        : DRP/DRP
+  - peripheral_name        : spead/spead_stream
   - peripheral_name        : CMAC/CMAC
   - peripheral_name        : Timeslave/Timeslave  

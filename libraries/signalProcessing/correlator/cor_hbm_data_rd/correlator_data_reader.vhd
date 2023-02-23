@@ -2,7 +2,7 @@
 -- Company: CSIRO
 -- Engineer: Giles Babich
 -- 
--- Create Date: 02/04/2023 04:22:23 PM
+-- Create Date: 02/02/2023 04:22:23 PM
 -- Design Name: 
 -- Module Name: correlator_data_reader - Behavioral
 --  
@@ -36,14 +36,14 @@
 -- 
 ----------------------------------------------------------------------------------
 
-library IEEE, correlator_lib, common_lib, PSR_Packetiser_lib, signal_processing_common;
+library IEEE, correlator_lib, common_lib, spead_lib, signal_processing_common;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 USE common_lib.common_pkg.ALL;
-use PSR_Packetiser_lib.ethernet_pkg.ALL;
+use spead_lib.ethernet_pkg.ALL;
 
 entity correlator_data_reader is
     Generic ( 
@@ -80,7 +80,7 @@ entity correlator_data_reader is
         o_HBM_axi_rready    : out std_logic;
         
         -- Packed up Correlator Data.
-        o_spead_data        : out std_logic_vector((SPEAD_DATA_WIDTH-1) downto 0);
+        o_spead_data        : out std_logic_vector((272-1) downto 0);
         i_spead_data_rd     : in std_logic;                         -- FWFT FIFO
         o_current_array     : out std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
         o_spead_data_rdy    : out std_logic;
@@ -134,7 +134,7 @@ signal hbm_meta_fifo_rd_count : std_logic_vector(((ceil_log2(META_FIFO_READ_DEPT
 
 -- Packed data to SPEAD packets
 constant packed_width       : INTEGER := 272;   -- 34 bytes = 32 data + 2 meta.
-constant packed_depth       : INTEGER := 256;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
+constant packed_depth       : INTEGER := 512;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
 
 signal packed_fifo_in_reset : std_logic;
 signal packed_fifo_rd       : std_logic;
@@ -551,7 +551,7 @@ begin
 
     packed_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper
     Generic map (
-        FIFO_MEMORY_TYPE    => "block",
+        FIFO_MEMORY_TYPE    => "uram",
         READ_MODE           => "fwft",
         FIFO_DEPTH          => packed_depth,
         DATA_WIDTH          => packed_width
@@ -573,4 +573,6 @@ begin
         fifo_wr_count       => packed_fifo_wr_count
     );    
     
+    ---------------------------------------------------------------------------
+    -- PROC to push data to packetiser.
 end Behavioral;

@@ -263,73 +263,49 @@ source $ARGS_PATH/LFAADecode100G/lfaadecode100g/ip_LFAADecode100G_lfaadecode100g
 #source $RLIBRARIES_PATH/signalProcessing/timingControl/ptpclk125.tcl
 
 #############################################################
-# PSR Packetiser
-# $ARGS_PATH/Packetiser/packetiser/Packetiser_packetiser_param_ram.vhd \
-#  *build/ARGS/correlator/Packetiser/packetiser/Packetiser_packetiser_param_ram.vhd \
+# SPEAD
 
 add_files -fileset sources_1 [glob \
- $ARGS_PATH/Packetiser/packetiser/Packetiser_packetiser_reg_pkg.vhd \
- $ARGS_PATH/Packetiser/packetiser/Packetiser_packetiser_reg.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packet_former.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packetiser100G_Top.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/adder_32_int.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packet_player.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/xpm_fifo_wrapper.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/test_packet_data_gen.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/stream_config_wrapper.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/cmac_args.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packet_length_check.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packet_former_correlator.vhd \
- $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packet_length_check_correlator.vhd \
+ $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
+ $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg.vhd \
+ $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+ $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
+ $COMMON_PATH/Packetiser100G/src/vhdl/packet_player.vhd \
+ $COMMON_PATH/spead/src/spead_packet_pkg.vhd \
+ $COMMON_PATH/spead/src/spead_packet.vhd \
+ $COMMON_PATH/spead/src/spead_registers.vhd \
+ $COMMON_PATH/spead/src/spead_top.vhd \
 ]
-set_property library PSR_Packetiser_lib [get_files {\
- *build/ARGS/correlator/Packetiser/packetiser/Packetiser_packetiser_reg_pkg.vhd \
- *build/ARGS/correlator/Packetiser/packetiser/Packetiser_packetiser_reg.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/packet_former.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/packetiser100G_Top.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/adder_32_int.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/packet_player.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/xpm_fifo_wrapper.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/test_packet_data_gen.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/stream_config_wrapper.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/cmac_args.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/packet_length_check.vhd \ 
- *libraries/signalProcessing/Packetiser100G/src/vhdl/packet_former_correlator.vhd \
- *libraries/signalProcessing/Packetiser100G/src/vhdl/packet_length_check_correlator.vhd \
+set_property library spead_lib [get_files {\
+ *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
+ *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg.vhd \
+ *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+ *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
+ *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
+ *libraries/Packetiser100G/src/vhdl/xpm_fifo_wrapper.vhd \
+ *libraries/spead/src/spead_packet_pkg.vhd \
+ *libraries/spead/src/spead_packet.vhd \
+ *libraries/spead/src/spead_registers.vhd \
+ *libraries/spead/src/spead_top.vhd \
 }]
 
 ## tcl scripts for ip generation
-source $ARGS_PATH/Packetiser/packetiser/ip_Packetiser_packetiser_param_ram.tcl
-source $RLIBRARIES_PATH/signalProcessing/Packetiser100G/src/vhdl/packetiser100G.tcl
+source $COMMON_PATH/spead/spead.tcl
 
-#############################################################
-# DRP
-#  ?? used to include $ARGS_PATH/DRP/drp/DRP_drp_cmac_data_ram.vhd \ but doesn't look like it is used ?
-add_files -fileset sources_1 [glob \
- $ARGS_PATH/DRP/drp/DRP_drp_reg_pkg.vhd \
- $ARGS_PATH/DRP/drp/DRP_drp_reg.vhd \
-]
-set_property library DRP_lib [get_files {\
- *build/ARGS/correlator/DRP/drp/DRP_drp_reg_pkg.vhd \
- *build/ARGS/correlator/DRP/drp/DRP_drp_reg.vhd \
-}]
-
-## tcl scripts for ip generation
-#source $ARGS_PATH/DRP/drp/ip_DRP_drp_cmac_data_ram.tcl
 
 #############################################################
 # Signal_processing_common
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/common/src/vhdl/sync.vhd \
  $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
+ $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
+ $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
  */common/src/vhdl/sync_vector.vhd \
+ */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
+ */common/src/vhdl/xpm_fifo_wrapper.vhd \
 }]
 
 #############################################################
@@ -518,3 +494,41 @@ set_property top_lib xil_defaultlib [get_filesets sim_1]
 set_property top correlator [current_fileset]
 update_compile_order -fileset sources_1
 
+##############################################################
+# setup sim set for SPEAD
+create_fileset -simset sim_cor_read_spead
+
+set_property SOURCE_SET sources_1 [get_filesets sim_cor_read_spead]
+
+add_files -fileset sim_cor_read_spead [glob \
+$RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead.vhd \
+$DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd \
+$RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+$RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
+$RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead_behav.wcfg \
+]
+
+set_property library spead_lib [get_files {\
+ */signalProcessing/correlator/tb/tb_cor_spead.vhd \
+}]
+
+set_property library correlator_lib [get_files {\
+ */src/vhdl/HBM_axi_tbModel.vhd \
+}]
+
+set_property library correlator_lib [get_files {\
+ */signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+ */signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
+}]
+
+set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead.vhd]
+#set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd]
+
+set_property top tb_cor_spead [get_filesets sim_cor_read_spead]
+set_property top_lib xil_defaultlib [get_filesets sim_cor_read_spead]
+update_compile_order -fileset sim_cor_read_spead
+
+# End of SPEAD SIM setup
+##############################################################

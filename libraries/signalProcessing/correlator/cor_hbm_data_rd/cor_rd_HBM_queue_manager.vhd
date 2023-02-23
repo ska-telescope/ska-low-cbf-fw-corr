@@ -18,14 +18,14 @@
 -- 
 ----------------------------------------------------------------------------------
 
-library IEEE, correlator_lib, common_lib, PSR_Packetiser_lib, signal_processing_common;
+library IEEE, correlator_lib, common_lib, spead_lib, signal_processing_common;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 USE common_lib.common_pkg.ALL;
-use PSR_Packetiser_lib.ethernet_pkg.ALL;
+use spead_lib.ethernet_pkg.ALL;
 library xpm;
 use xpm.vcomponents.all;
 

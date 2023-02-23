@@ -9,11 +9,12 @@
 ----------------------------------------------------------------------------------
 
 
-library IEEE,technology_lib, PSR_Packetiser_lib, signal_processing_common, HBM_PktController_lib, correlator_lib, common_lib;
+library IEEE,technology_lib, PSR_Packetiser_lib, signal_processing_common, HBM_PktController_lib; 
+library correlator_lib, common_lib, spead_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use PSR_Packetiser_lib.ethernet_pkg.ALL;
-use PSR_Packetiser_lib.CbfPsrHeader_pkg.ALL;
+use spead_lib.ethernet_pkg.ALL;
+use spead_lib.CbfPsrHeader_pkg.ALL;
 use common_lib.common_pkg.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
@@ -64,12 +65,12 @@ signal HBM_axi_arready          : std_logic;
 signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
 signal HBM_axi_rready           : std_logic;
 
-signal spead_data               : std_logic_vector((256-1) downto 0);
+signal spead_data               : std_logic_vector((256+16-1) downto 0);
 signal spead_data_rd            : std_logic;                         -- FWFT FIFO
 signal current_array            : std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
 signal spead_data_rdy           : std_logic;
 signal enabled_array            : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-signal freq_index               : std_logic_vector(16 downto 0);
+signal freq_index               : std_logic_vector(16 downto 0) := (others => '0');
 signal time_ref                 : std_logic_vector(63 downto 0) := (others => '0');
 
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
@@ -208,6 +209,22 @@ begin
     end if;
 end process;
 
+test_runner_proc_clk322: process(clock_322)
+begin
+    if rising_edge(clock_322) then
+        -- power up reset logic
+        if power_up_rst_clock_322(31) = '1' then
+            power_up_rst_clock_322(31 downto 0) <= power_up_rst_clock_322(30 downto 0) & '0';
+            clock_322_rst   <= '1';
+            testCount_322   <= 0;
+        else
+            clock_322_rst   <= '0';
+            testCount_322   <= testCount_322 + 1;
+        end if;
+    end if;
+end process;
+
+
 test_runner_proc_clk400: process(clock_400)
 begin
     if rising_edge(clock_400) then
@@ -331,7 +348,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_hbm_start_addr    => hbm_start_addr,
                                                                     -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
         i_sub_array         => sub_array,
-        i_freq_index        => freq_index,
+        i_freq_index        => (others => '0'),
         i_data_valid        => data_valid,
         i_time_ref          => (others => '0'),
                             
@@ -352,7 +369,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         o_current_array     => current_array,
         o_spead_data_rdy    => spead_data_rdy,
         i_enabled_array     => enabled_array,
-        o_freq_index        => open,
+        o_freq_index        => freq_index,
         o_time_ref          => time_ref
 
     );
@@ -363,7 +380,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
     -- signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
     -- signal HBM_axi_rready           : std_logic;
 
-    HBM_interface : entity work.HBM_axi_tbModel
+    HBM_interface : entity correlator_lib.HBM_axi_tbModel
     generic map (
         AXI_ADDR_WIDTH => HBM_addr_width, 
         AXI_ID_WIDTH => 1, 
@@ -430,6 +447,38 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_init_fname            => init_fname
     );
 
-    
+DUT_2 : entity spead_lib.spead_top generic map ( 
+        DEBUG_ILA           => FALSE
+    )
+    port map ( 
+        -- clock used for all data input and output from this module (300 MHz)
+        i_axi_clk           => clock_300,
+        i_axi_rst           => clock_300_rst,
+
+        i_local_reset       => '0',
+
+        -- streaming AXI to CMAC
+        i_cmac_clk          => clock_322,
+        i_cmac_clk_rst      => clock_322_rst,
+
+        o_tx_axis_tdata     => open,
+        o_tx_axis_tkeep     => open,
+        o_tx_axis_tvalid    => open,
+        o_tx_axis_tlast     => open,
+        o_tx_axis_tuser     => open,
+        i_tx_axis_tready    => (NOT clock_322_rst),
+
+        -- Packed up Correlator Data.
+        i_spead_data        => spead_data,
+        o_spead_data_rd     => spead_data_rd,
+        i_current_array     => current_array,
+        i_spead_data_rdy    => spead_data_rdy,
+        o_enabled_array     => enabled_array,
+        i_freq_index        => freq_index,
+        i_time_ref          => time_ref
+
+        -- ARGs
+
+    );  
 
 end Behavioral;

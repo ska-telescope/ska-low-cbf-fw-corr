@@ -13,7 +13,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, common_lib, axi4_lib, ct_lib, DSP_top_lib;
-library LFAADecode100G_lib, timingcontrol_lib, capture128bit_lib, captureFine_lib, DSP_top_lib, filterbanks_lib, interconnect_lib, bf_lib, PSR_Packetiser_lib, correlator_lib;
+library LFAADecode100G_lib, timingcontrol_lib, capture128bit_lib, captureFine_lib, DSP_top_lib, filterbanks_lib, interconnect_lib, bf_lib, spead_lib, correlator_lib;
 use ct_lib.all;
 use DSP_top_lib.DSP_top_pkg.all;
 --use DSP_top_lib.DSP_top_reg_pkg.all;
@@ -25,8 +25,8 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 USE axi4_lib.axi4_stream_pkg.ALL;
 USE axi4_lib.axi4_full_pkg.ALL;
 
-use PSR_Packetiser_lib.ethernet_pkg.ALL;
-use PSR_Packetiser_lib.CbfPsrHeader_pkg.ALL;
+use spead_lib.ethernet_pkg.ALL;
+use spead_lib.CbfPsrHeader_pkg.ALL;
 
 library technology_lib;
 USE technology_lib.tech_mac_100g_pkg.ALL;
@@ -548,101 +548,101 @@ begin
     -----------------------------------------------------------------------------------------------
     -- 100GE output 
     
-    FB_to_100G_ready <= packet_stream_out(0).data_in_rdy;
+--    FB_to_100G_ready <= packet_stream_out(0).data_in_rdy;
     
-    beamformer_to_packetiser_data.data_clk            <= i_MACE_clk;
-    beamformer_to_packetiser_data.data_in_wr          <= FB_to_100G_valid;
-    beamformer_to_packetiser_data.data(511 downto 128) <= (others =>'0');
-    beamformer_to_packetiser_data.data(127 downto 0)   <= FB_to_100G_data;
-    beamformer_to_packetiser_data.bytes_to_transmit   <= (others =>'0');
+--    beamformer_to_packetiser_data.data_clk            <= i_MACE_clk;
+--    beamformer_to_packetiser_data.data_in_wr          <= FB_to_100G_valid;
+--    beamformer_to_packetiser_data.data(511 downto 128) <= (others =>'0');
+--    beamformer_to_packetiser_data.data(127 downto 0)   <= FB_to_100G_data;
+--    beamformer_to_packetiser_data.bytes_to_transmit   <= (others =>'0');
     
-    -- PST signals are passed with data to make headers on the fly. Zero out for other packet types.
-    beamformer_to_packetiser_data.PST_virtual_channel <= (others => '0');
-    beamformer_to_packetiser_data.PST_beam            <= (others => '0');
-    beamformer_to_packetiser_data.PST_time_ref        <= (others => '0');
+--    -- PST signals are passed with data to make headers on the fly. Zero out for other packet types.
+--    beamformer_to_packetiser_data.PST_virtual_channel <= (others => '0');
+--    beamformer_to_packetiser_data.PST_beam            <= (others => '0');
+--    beamformer_to_packetiser_data.PST_time_ref        <= (others => '0');
     
-    cmac_reset <= NOT i_eth100G_locked;
+--    cmac_reset <= NOT i_eth100G_locked;
     
-    -- lbus inputs, not used (replaced with axi).
-    data_tx_siso.ready <= '1';
-    data_tx_siso.overflow <= '0';
-    data_tx_siso.underflow <= '0';
+--    -- lbus inputs, not used (replaced with axi).
+--    data_tx_siso.ready <= '1';
+--    data_tx_siso.overflow <= '0';
+--    data_tx_siso.underflow <= '0';
     
-    packet_generator : entity PSR_Packetiser_lib.psr_packetiser100G_Top 
-    Generic Map (
-        g_DEBUG_ILA       => g_DEBUG_ILA,
-        Number_of_stream  => 1,
-        packet_type       => 5,   -- 5 = correlator packets
-        CMAC_IS_LBUS      => false  -- "false" to use axi interface to the cmac
-    )
-    Port Map ( 
-        -- ~322 MHz
-        i_cmac_clk => i_clk_100GE,
-        i_cmac_rst => cmac_reset,
+--    packet_generator : entity PSR_Packetiser_lib.psr_packetiser100G_Top 
+--    Generic Map (
+--        g_DEBUG_ILA       => g_DEBUG_ILA,
+--        Number_of_stream  => 1,
+--        packet_type       => 5,   -- 5 = correlator packets
+--        CMAC_IS_LBUS      => false  -- "false" to use axi interface to the cmac
+--    )
+--    Port Map ( 
+--        -- ~322 MHz
+--        i_cmac_clk => i_clk_100GE,
+--        i_cmac_rst => cmac_reset,
         
-        i_packetiser_clk => i_MACE_clk,
-        i_packetiser_rst => '0',
+--        i_packetiser_clk => i_MACE_clk,
+--        i_packetiser_rst => '0',
         
-        -- Lbus to MAC
-        o_data_to_transmit        => open,
-        i_data_to_transmit_ctl    => data_tx_siso,
+--        -- Lbus to MAC
+--        o_data_to_transmit        => open,
+--        i_data_to_transmit_ctl    => data_tx_siso,
         
-        -- AXI to CMAC interface to be implemented
-        o_tx_axis_tdata           => o_axis_tdata,
-        o_tx_axis_tkeep           => o_axis_tkeep,
-        o_tx_axis_tvalid          => o_axis_tvalid,
-        o_tx_axis_tlast           => o_axis_tlast,
-        o_tx_axis_tuser           => o_axis_tuser,
-        i_tx_axis_tready          => i_axis_tready,
+--        -- AXI to CMAC interface to be implemented
+--        o_tx_axis_tdata           => o_axis_tdata,
+--        o_tx_axis_tkeep           => o_axis_tkeep,
+--        o_tx_axis_tvalid          => o_axis_tvalid,
+--        o_tx_axis_tlast           => o_axis_tlast,
+--        o_tx_axis_tuser           => o_axis_tuser,
+--        i_tx_axis_tready          => i_axis_tready,
         
-        -- signals from signal processing/HBM/the moon/etc
-        packet_stream_ctrl        => packetiser_host_bus_ctrl,
+--        -- signals from signal processing/HBM/the moon/etc
+--        packet_stream_ctrl        => packetiser_host_bus_ctrl,
         
-        packet_stream_stats       => packet_stream_stats,
+--        packet_stream_stats       => packet_stream_stats,
                 
-        packet_stream(0)          => beamformer_to_packetiser_data,
-        packet_stream(1)          => null_packetiser_stream_in,
-        packet_stream(2)          => null_packetiser_stream_in,
-        packet_stream_out         => packet_stream_out,
+--        packet_stream(0)          => beamformer_to_packetiser_data,
+--        packet_stream(1)          => null_packetiser_stream_in,
+--        packet_stream(2)          => null_packetiser_stream_in,
+--        packet_stream_out         => packet_stream_out,
         
-        packet_config_in_stream_1 => packetiser_host_bus_in, -- packetiser_host_bus_out.config_data_out,    -- in packetiser_config_in;
-        packet_config_in_stream_2 => null_packetiser_config_in, --  packetiser_config_in_null, --  packetiser_host_bus_out_2.config_data_out,  -- in packetiser_config_in;
-        packet_config_in_stream_3 => null_packetiser_config_in , -- packetiser_config_in_null, -- packetiser_host_bus_out_3.config_data_out,  -- in packetiser_config_in;
+--        packet_config_in_stream_1 => packetiser_host_bus_in, -- packetiser_host_bus_out.config_data_out,    -- in packetiser_config_in;
+--        packet_config_in_stream_2 => null_packetiser_config_in, --  packetiser_config_in_null, --  packetiser_host_bus_out_2.config_data_out,  -- in packetiser_config_in;
+--        packet_config_in_stream_3 => null_packetiser_config_in , -- packetiser_config_in_null, -- packetiser_host_bus_out_3.config_data_out,  -- in packetiser_config_in;
         
-        -- read data from the configuration memory
-        packet_config_stream_1   => packetiser_host_bus_out.config_data_out, -- out std_logic_vector(31 downto 0);
-        packet_config_stream_2   => open, -- out std_logic_vector(31 downto 0);
-        packet_config_stream_3   => open   -- out std_logic_vector(31 downto 0)
+--        -- read data from the configuration memory
+--        packet_config_stream_1   => packetiser_host_bus_out.config_data_out, -- out std_logic_vector(31 downto 0);
+--        packet_config_stream_2   => open, -- out std_logic_vector(31 downto 0);
+--        packet_config_stream_3   => open   -- out std_logic_vector(31 downto 0)
         
-    );
+--    );
     
-    packetiser_host_bus_out.config_data_valid <= '0'; -- unused.
+--    packetiser_host_bus_out.config_data_valid <= '0'; -- unused.
     
-    packetiser_host : entity PSR_Packetiser_lib.cmac_args 
-    generic map (
-        g_NUMBER_OF_STREAMS => 3   -- really we only need 1, but this generic only works when it is 3.
-    ) Port Map ( 
+--    packetiser_host : entity PSR_Packetiser_lib.cmac_args 
+--    generic map (
+--        g_NUMBER_OF_STREAMS => 3   -- really we only need 1, but this generic only works when it is 3.
+--    ) Port Map ( 
     
-        -- ARGS interface
-        -- MACE clock is 300 MHz
-        i_MACE_clk                          => i_MACE_clk,
-        i_MACE_rst                          => i_MACE_rst,
+--        -- ARGS interface
+--        -- MACE clock is 300 MHz
+--        i_MACE_clk                          => i_MACE_clk,
+--        i_MACE_rst                          => i_MACE_rst,
         
-        i_packetiser_clk                    => i_MACE_clk,
+--        i_packetiser_clk                    => i_MACE_clk,
         
-        i_PSR_packetiser_Lite_axi_mosi      => i_packetiser_Lite_axi_mosi,
-        o_PSR_packetiser_Lite_axi_miso      => o_packetiser_Lite_axi_miso,
+--        i_PSR_packetiser_Lite_axi_mosi      => i_packetiser_Lite_axi_mosi,
+--        o_PSR_packetiser_Lite_axi_miso      => o_packetiser_Lite_axi_miso,
         
-        i_PSR_packetiser_Full_axi_mosi      => i_packetiser_Full_axi_mosi,
-        o_PSR_packetiser_Full_axi_miso      => o_packetiser_Full_axi_miso,
+--        i_PSR_packetiser_Full_axi_mosi      => i_packetiser_Full_axi_mosi,
+--        o_PSR_packetiser_Full_axi_miso      => o_packetiser_Full_axi_miso,
         
-        o_packet_stream_ctrl                => packetiser_host_bus_ctrl,  --   out packetiser_stream_ctrl;
+--        o_packet_stream_ctrl                => packetiser_host_bus_ctrl,  --   out packetiser_stream_ctrl;
                 
-        i_packet_stream_stats               => packet_stream_stats,  --  in t_packetiser_stats((g_NUMBER_OF_STREAMS-1) downto 0);
+--        i_packet_stream_stats               => packet_stream_stats,  --  in t_packetiser_stats((g_NUMBER_OF_STREAMS-1) downto 0);
                 
-        o_packet_config                     => packetiser_host_bus_in,  --  out packetiser_config_in;  
-        i_packet_config_out                 => packetiser_host_bus_out  --  in packetiser_config_out 
+--        o_packet_config                     => packetiser_host_bus_in,  --  out packetiser_config_in;  
+--        i_packet_config_out                 => packetiser_host_bus_out  --  in packetiser_config_out 
 
-    );
+--    );
     
 END structure;
