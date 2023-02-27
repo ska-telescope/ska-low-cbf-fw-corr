@@ -152,6 +152,7 @@ architecture Behavioral of correlator_HBM is
     signal SPEAD_trigger_we : std_logic;
     signal SPEAD_trigger_din, SPEAD_trigger_dout : std_logic_vector(54 downto 0);
     signal SPEAD_trigger_rd_Del1, SPEAD_trigger_rd, SPEAD_trigger_full, SPEAD_trigger_empty : std_logic;
+    signal ro_rows_minus1 : std_logic_vector(8 downto 0);
     
 begin
     
@@ -463,6 +464,8 @@ begin
         wr_en => SPEAD_trigger_we   -- 1-bit input: Write Enable: If the FIFO is not full, asserting this signal causes data (on din) to be written to the FIFO 
     );    
     
+    ro_rows_minus1 <= '0' & SPEAD_trigger_dout(39 downto 32);
+    
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
@@ -486,7 +489,7 @@ begin
                 -- The number of columns to read out for the last row in this strip will be (o_row + o_row_count)
                 o_ro_row <= '0' & SPEAD_trigger_dout(31 downto 28) & "00000000";
                 -- The number of rows to read out. Valid range is 1 up to 256.
-                o_ro_row_count <= std_logic_vector(unsigned(SPEAD_trigger_dout(39 downto 32)) + 1); --  out (8:0);               
+                o_ro_row_count <= std_logic_vector(unsigned(ro_rows_minus1) + 1); --  out (8:0);               
                 -- Byte address of the start of the row of tiles in HBM.
                 o_ro_HBM_start_addr <= "0000" & SPEAD_trigger_dout(54 downto 40) & "0000000000000"; -- out (31:0);
 
