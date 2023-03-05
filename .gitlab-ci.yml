@@ -59,3 +59,55 @@ raw-build:
   before_script:
     # we check if the build directory exists because v++ doesn't always run
     - if [ -d build ]; then source common/scripts/util.sh; prepare_package_files raw/ska-low-cbf-fw-corr-u55c "$BUILD_STRING"; fi;
+
+
+####################################################################################################################
+### Repeat the build jobs for the U55C Alveo platform 3
+create project u55_base_2:
+  extends: create project
+  variables:
+    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+    VITIS_VERSION: "2022.2"
+
+fpga lint u55_base_2:
+  extends: fpga lint
+  needs:
+    - create project u55_base_2
+  variables:
+    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+    VITIS_VERSION: "2022.2"
+
+package kernel u55_base_2:
+  extends: package kernel
+  needs:
+    - job: create project u55_base_2
+      artifacts: true
+    - job: fpga lint u55_base_2
+      artifacts: false
+  variables:
+    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+    VITIS_VERSION: "2022.2"
+
+generate xo u55_base_2:
+  extends: generate xo
+  needs:
+    - package kernel u55_base_2
+  variables:
+    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+    VITIS_VERSION: "2022.2"
+
+v++ u55_base_2:
+  extends: v++
+  needs:
+    - generate xo u55_base_2
+  variables:
+    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+    VITIS_VERSION: "2022.2"
+
+publish dev package u55_base_2:
+  extends: publish dev package
+  needs:
+    - v++ u55_base_2
+  variables:
+    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+    VITIS_VERSION: "2022.2"

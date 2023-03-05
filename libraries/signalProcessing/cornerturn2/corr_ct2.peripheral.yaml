@@ -15,6 +15,36 @@ peripherals:
         slave_description : "Correlator output corner turn"
         fields:
           #################################
+          - - field_name        : table_select
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Which of the double buffers to use for the VC_demap and subarray_beam tables"
+          #################################
+          - - field_name        : buf0_subarray_beams_table0
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams stored in the first 1.5 Gbytes of HBM, for the first half of the subarray-beam table (i.e. when table_select = 0)"
+          #################################
+          - - field_name        : buf0_subarray_beams_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams stored in the first 1.5 Gbytes of HBM, for the second half of the subarray-beam table (i.e. when table_select = 1)"
+          #################################
+          - - field_name        : buf1_subarray_beams_table0
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams stored in the second 1.5 Gbytes of HBM, for the first half of the subarray-beam table (i.e. when table_select = 0)"
+          #################################
+          - - field_name        : buf1_subarray_beams_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams stored in the second 1.5 Gbytes of HBM, for the second half of the subarray-beam table (i.e. when table_select = 1)"
+          #################################
           - - field_name        : bufferOverflowError
               width             : 1
               access_mode       : RO
@@ -55,5 +85,37 @@ peripherals:
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Length of the most recent frame in units of 400 MHz clocks at the output of the corner turn"                     
-                 
+              field_description : "Length of the most recent frame in units of 400 MHz clocks at the output of the corner turn"
+          #################################
+          - - field_name        : vc_demap
+              width             : 32
+              access_mode       : RW
+              number_of_fields  : 1024
+              field_description : "Virtual Channel demapping table. Double buffered, 256 entries, 2 words per entry. \
+                                   Index into the table is 2*floor(virtual_channel/4). Table returns the subarray and channel for each virtual channel. \
+                                   The table_select register in this module selects which double buffered version of this table to use.  \
+                                    Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table, \
+                                             bits(19:8) = (sub)station within this subarray. \
+                                             bits(28:20) = channel frequency index \
+                                    word 1 : bits(11:0) = start fine channel for forwarding on the 100GE port, \
+                                             bits(23:12) = End fine channel for forwarding on the 100GE port. \ 
+                                             bits(31:24) = Forwarding address \
+                                   "
+          #################################
+          - - field_name        : subarray_beam
+              width             : 32
+              access_mode       : RW
+              number_of_fields  : 2048
+              field_description : "Subarray Configuration Table. 256 entries of 4 words each. \
+                                   128 entries for each correlator cell. First 128 entries for correlator cell 0, second 128 entries for correlator cell 1. \
+                                   Double buffered with the buffer selected by the table_select register in this module. \
+                                   Each entry has : \
+                                    Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
+                                             bits(31:16) = starting coarse frequency channel, \
+                                    Word 1 : bits (15:0) = starting fine frequency channel \
+                                    word 2 : bits (23:0) = Number of fine channels stored \
+                                             bits (29:24) = Fine channels per integration \
+                                             bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+                                    Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
+                                   "
+          #################################

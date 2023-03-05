@@ -48,7 +48,7 @@ architecture Behavioral of cmac_quad_wrapper is
 
     signal XX_vld, XY_vld, YX_vld, YY_vld : std_logic;
     signal XX_data, XY_data, YX_data, YY_data, XX_hold, XY_hold, YX_hold, YY_hold : std_logic_vector(47 downto 0);
-    signal is_rfi, rfi_first, rfi_last, rfi_vld : std_logic_vector(6 downto 0);
+    signal is_rfi, rfi_first, rfi_last, rfi_vld : std_logic_vector(3 downto 0);
     signal rfi_count : t_slv_8_arr(6 downto 0);
     signal rfi_dv_count, rfi_dv_hold : std_logic_vector(7 downto 0);
     signal rfi_tci_accum, rfi_tci_hold : std_logic_vector(15 downto 0);
@@ -93,7 +93,7 @@ begin
                     when "10" => o_visData <= YX_hold;
                     when others => o_visData <= YY_hold;
                 end case;
-                o_centroid(7 downto 0) <= rfi_dv_count;
+                o_centroid(7 downto 0) <= rfi_dv_hold;
                 o_centroid(23 downto 8) <= rfi_tci_hold;
                 o_visValid <= '1';
             else
@@ -129,24 +129,24 @@ begin
             rfi_vld(0) <= i_col_meta.vld;
             
             -- Delay to match cmac
-            is_rfi(6 downto 1) <= is_rfi(5 downto 0);
-            rfi_first(6 downto 1) <= rfi_first(5 downto 0);
-            rfi_last(6 downto 1) <= rfi_last(5 downto 0);
-            rfi_count(6 downto 1) <= rfi_count(5 downto 0);
-            rfi_vld(6 downto 1) <= rfi_vld(5 downto 0);
+            is_rfi(3 downto 1) <= is_rfi(2 downto 0);
+            rfi_first(3 downto 1) <= rfi_first(2 downto 0);
+            rfi_last(3 downto 1) <= rfi_last(2 downto 0);
+            rfi_count(3 downto 1) <= rfi_count(2 downto 0);
+            rfi_vld(3 downto 1) <= rfi_vld(2 downto 0);
             
-            if rfi_vld(6) = '1' then
-                if is_rfi(6) = '1' then
-                    if rfi_first(6) = '1' then
+            if rfi_vld(3) = '1' then
+                if is_rfi(3) = '1' then
+                    if rfi_first(3) = '1' then
                         rfi_tci_accum <= (others => '0');
                         rfi_dv_count <= (others => '0');
                     end if;
                 else -- not rfi; increment data valid count and time centroid 
-                    if rfi_first(6) = '1' then
-                        rfi_tci_accum <= "00000000" & rfi_count(6);
+                    if rfi_first(3) = '1' then
+                        rfi_tci_accum <= "00000000" & rfi_count(3);
                         rfi_dv_count <= "00000001";
                     else
-                        rfi_tci_accum <= std_logic_vector(unsigned(rfi_tci_accum) + resize(unsigned(rfi_count(6)),16));
+                        rfi_tci_accum <= std_logic_vector(unsigned(rfi_tci_accum) + resize(unsigned(rfi_count(3)),16));
                         rfi_dv_count <= std_logic_vector(unsigned(rfi_dv_count) + 1);
                     end if;
                 end if;
@@ -173,7 +173,7 @@ begin
         i_col_real  => i_col_data(7 downto 0),  --  in std_logic_vector(7 downto 0);
         i_col_imag  => i_col_data(15 downto 8), --  in std_logic_vector(7 downto 0);
 
-        -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
+        -- Readout interface. Readout pulses high 5 clocks after i_<col|row>.last
         o_readout_vld  => XX_vld, -- out std_logic;
         o_readout_data => XX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
     );
@@ -186,15 +186,12 @@ begin
     ) port map (
         i_clk       => i_clk, -- in std_logic;
         i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
-
         i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
-        i_row_real  => i_row_data(23 downto 16),  -- in std_logic_vector(7 downto 0);
-        i_row_imag  => i_row_data(31 downto 24), -- in std_logic_vector(7 downto 0);
-        
+        i_row_real  => i_row_data(7 downto 0),  -- in (7:0);
+        i_row_imag  => i_row_data(15 downto 8), -- in (7:0);
         i_col       => i_col_meta, --  in t_cmac_input_bus;
-        i_col_real  => i_col_data(7 downto 0),  --  in std_logic_vector(7 downto 0);
-        i_col_imag  => i_col_data(15 downto 8), --  in std_logic_vector(7 downto 0);
-
+        i_col_real  => i_col_data(23 downto 16),  --  in (7:0);
+        i_col_imag  => i_col_data(31 downto 24), --  in (7:0);
         -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
         o_readout_vld  => XY_vld, -- out std_logic;
         o_readout_data => XY_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
@@ -208,15 +205,12 @@ begin
     ) port map (
         i_clk       => i_clk, -- in std_logic;
         i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
-
         i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
-        i_row_real  => i_row_data(7 downto 0),  -- in std_logic_vector(7 downto 0);
-        i_row_imag  => i_row_data(15 downto 8), -- in std_logic_vector(7 downto 0);
-        
+        i_row_real  => i_row_data(23 downto 16), -- in (7:0);
+        i_row_imag  => i_row_data(31 downto 24), -- in (7:0); 
         i_col       => i_col_meta, --  in t_cmac_input_bus;
-        i_col_real  => i_col_data(23 downto 16),  --  in std_logic_vector(7 downto 0);
-        i_col_imag  => i_col_data(31 downto 24), --  in std_logic_vector(7 downto 0);
-
+        i_col_real  => i_col_data(7 downto 0),  --  in (7:0);
+        i_col_imag  => i_col_data(15 downto 8), --  in (7:0);
         -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
         o_readout_vld  => YX_vld, -- out std_logic;
         o_readout_data => YX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 

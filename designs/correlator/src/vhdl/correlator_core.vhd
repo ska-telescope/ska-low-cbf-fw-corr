@@ -8,7 +8,7 @@
 --
 -------------------------------------------------------------------------------
 
-LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib, PSR_Packetiser_lib, Timeslave_CMAC_lib;
+LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib, PSR_Packetiser_lib;
 library LFAADecode_lib, timingcontrol_lib, capture128bit_lib;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -20,7 +20,6 @@ USE axi4_lib.axi4_full_pkg.ALL;
 USE technology_lib.tech_mac_100g_pkg.ALL;
 USE technology_lib.technology_pkg.ALL;
 USE technology_lib.technology_select_pkg.all;
-use PSR_Packetiser_lib.ethernet_pkg.ALL;
 
 USE work.correlator_bus_pkg.ALL;
 USE work.correlator_system_reg_pkg.ALL;
@@ -32,70 +31,79 @@ use xpm.vcomponents.all;
 ENTITY correlator_core IS
     generic (
         -- GENERICS for use in the testbench 
-        g_SIMULATION : BOOLEAN := FALSE;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
-        g_USE_META : boolean := FALSE;    -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
+        g_SIMULATION : boolean := FALSE;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
+        g_USE_META   : boolean := FALSE;    -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
         -- GLOBAL GENERICS for PERENTIE LOGIC
-        g_DEBUG_ILA                     : BOOLEAN := FALSE;
-        -- Number of LFAA blocks per first stage corner turn frame; Nominal (and maximum allowed) value is 128;
+        g_DEBUG_ILA                : boolean := FALSE;
+        -- Number of SPS packets per first stage corner turn frame; Nominal (and maximum allowed) value is 128;
         -- Allowed values are 32, 64, 128.
         -- Minimum possible value is 32, since we need enough preload data in a buffer to initialise the filterbanks
-        -- Filterbanks need 11 x 4096 samples for initialisation; That's 22 LFAA frames (since they are 2048 samples).
-        g_LFAA_BLOCKS_PER_FRAME   : integer := 128;  -- Number of LFAA blocks per frame divided by 3; minimum value is 1, i.e. 3 LFAA blocks per frame.
-        g_FIRMWARE_MAJOR_VERSION        : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_MINOR_VERSION        : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_PATCH_VERSION        : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_LABEL                : std_logic_vector(31 downto 0) := x"00000000";
-        g_FIRMWARE_PERSONALITY          : std_logic_vector(31 downto 0) := x"20434F52"; -- ascii " COR"
-        g_FIRMWARE_BUILD_DATE           : std_logic_vector(31 downto 0) := x"00000000";
+        -- Filterbanks need 11 x 4096 samples for initialisation; That's 22 LFAA frames (since they are 2048 samples each).
+        g_SPS_PACKETS_PER_FRAME    : integer := 128;  -- Number of SPS packets per frame.
+        g_FIRMWARE_MAJOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_MINOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_PATCH_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_LABEL           : std_logic_vector(31 downto 0) := x"00000000";
+        g_FIRMWARE_PERSONALITY     : std_logic_vector(31 downto 0) := x"20434F52"; -- ascii " COR"
+        g_FIRMWARE_BUILD_DATE      : std_logic_vector(31 downto 0) := x"00000000";
         -- GENERICS for SHELL INTERACTION
         C_S_AXI_CONTROL_ADDR_WIDTH : integer := 7;
         C_S_AXI_CONTROL_DATA_WIDTH : integer := 32;
         C_M_AXI_ADDR_WIDTH : integer := 64;
         C_M_AXI_DATA_WIDTH : integer := 32;
         C_M_AXI_ID_WIDTH   : integer := 1;
-        -- 
-        g_HBM_INTERFACES    : integer := 5;
+        -- All the HBM interfaces are the same width;
+        -- Actual interfaces used are : 
+        --  M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
+        --  M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
+        --  M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
+        --  M04, 512 Mbytes HBM; visibilities from first correlator instance
+        --  M05, 512 Mbytes HBM; visibilities from second correlator instance
+        g_HBM_INTERFACES : integer := 5;
         g_HBM_AXI_ADDR_WIDTH : integer := 64;
         g_HBM_AXI_DATA_WIDTH : integer := 512;
-        g_HBM_AXI_ID_WIDTH   : integer := 1
-        
-        
---        -- M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
---        M01_AXI_ADDR_WIDTH : integer := 64;
---        M01_AXI_DATA_WIDTH : integer := 512;
---        M01_AXI_ID_WIDTH   : integer := 1;
---        -- M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
---        M02_AXI_ADDR_WIDTH : integer := 64;
---        M02_AXI_DATA_WIDTH : integer := 512; 
---        M02_AXI_ID_WIDTH   : integer := 1;
---        -- M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
---        M03_AXI_ADDR_WIDTH : integer := 64;  
---        M03_AXI_DATA_WIDTH : integer := 512;
---        M03_AXI_ID_WIDTH   : integer := 1
---        -- M04, 2 Gbytes HBM; Visibilities from first correlator instance
---        M04_AXI_ADDR_WIDTH : integer := 64;  
---        M04_AXI_DATA_WIDTH : integer := 512;
---        M04_AXI_ID_WIDTH   : integer := 1;
---        -- M05, 2 Gbytes HBM; Visibilities from second correlator instance
---        M05_AXI_ADDR_WIDTH : integer := 64;  
---        M05_AXI_DATA_WIDTH : integer := 512;
---        M05_AXI_ID_WIDTH   : integer := 1
+        g_HBM_AXI_ID_WIDTH   : integer := 1;
+        -- Number of correlator blocks to instantiate.
+        g_CORRELATORS        : integer := 2
     );
-    PORT (
+    port (
         ap_clk : in std_logic;
         ap_rst_n : in std_logic;
         
-        -----------------------------------------------------------------------
-        -- Ports used for simulation only.
-        --
         -- Received data from 100GE
-        i_eth100_rx_sosi : in t_lbus_sosi;
+        i_axis_tdata : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast : in std_logic;
+        i_axis_tuser : in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid : in std_logic;
+        
         -- Data to be transmitted on 100GE
-        o_eth100_tx_sosi : out t_lbus_sosi;
-        i_eth100_tx_siso : in t_lbus_siso;
-        i_clk_100GE    : in std_logic;
+        o_axis_tdata : out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        o_axis_tkeep : out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        o_axis_tlast : out std_logic;                      
+        o_axis_tuser : out std_logic;  
+        o_axis_tvalid : out std_logic;
+        i_axis_tready : in std_logic;
+        
+        i_eth100g_clk    : in std_logic;
+        i_eth100g_locked : in std_logic;
         -- reset of the valid memory is in progress.
         o_validMemRstActive : out std_logic;
+        -- Other signals to/from the timeslave 
+        i_PTP_time_ARGs_clk  : std_logic_vector(79 downto 0);
+        o_eth100_reset_final : out std_logic;
+        o_fec_enable_322m    : out std_logic;
+        
+        i_eth100G_rx_total_packets : in std_logic_vector(31 downto 0);
+        i_eth100G_rx_bad_fcs       : in std_logic_vector(31 downto 0);
+        i_eth100G_rx_bad_code      : in std_logic_vector(31 downto 0);
+        i_eth100G_tx_total_packets : in std_logic_vector(31 downto 0);
+        
+        -- registers in the timeslave core
+        o_timeslave_mc_lite_mosi : out t_axi4_lite_mosi; 
+        i_timeslave_mc_lite_miso : in t_axi4_lite_miso;
+        o_timeslave_mc_full_mosi : out t_axi4_full_mosi;
+        i_timeslave_mc_full_miso : in t_axi4_full_miso;
         --------------------------------------------------------------------------------------
         --  Note: A minimum subset of AXI4 memory mapped signals are declared.  AXI
         --  signals omitted from these interfaces are automatically inferred with the
@@ -186,42 +194,42 @@ ENTITY correlator_core IS
         --     First half, for fine channels that go to the first correlator instance.
         -- 2 = 3 Gbytes, buffer between the filterbanks and the correlator
         --     second half, for fine channels that go to the second correlator instance.
-        -- 3 = 2 Gbytes, Visibilities from First correlator instance;
-        -- 4 = 2 Gbytes, Visibilities from Second correlator instance;
+        -- 3 = 0.5 Gbytes, Visibilities from First correlator instance;
+        -- 4 = 0.5 Gbytes, Visibilities from Second correlator instance;
         HBM_axi_awvalid  : out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_awready  : in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_awaddr   : out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        HBM_axi_awid     : out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-        HBM_axi_awlen    : out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(7 downto 0);
-        HBM_axi_awsize   : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
-        HBM_axi_awburst  : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
-        HBM_axi_awlock   : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
-        HBM_axi_awcache  : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
-        HBM_axi_awprot   : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
-        HBM_axi_awqos    : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- out std_logic_vector(3 downto 0);
-        HBM_axi_awregion : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+        HBM_axi_awaddr   : out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awid     : out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awlen    : out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awsize   : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awburst  : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awlock   : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awcache  : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awprot   : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awqos    : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_awregion : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
     
         HBM_axi_wvalid    : out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_wready    : in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_wdata     : out t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-        HBM_axi_wstrb     : out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
+        HBM_axi_wdata     : out t_slv_512_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_wstrb     : out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_wlast     : out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_bvalid    : in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_bready    : out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_bresp     : in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
-        HBM_axi_bid       : in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+        HBM_axi_bresp     : in t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_bid       : in t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_arvalid   : out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_arready   : in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-        HBM_axi_araddr    : out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
-        HBM_axi_arid      : out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
-        HBM_axi_arlen     : out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(7 downto 0);
-        HBM_axi_arsize    : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(2 downto 0);
-        HBM_axi_arburst   : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
-        HBM_axi_arlock    : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
-        HBM_axi_arcache   : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
-        HBM_axi_arprot    : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_Vector(2 downto 0);
-        HBM_axi_arqos     : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
-        HBM_axi_arregion  : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+        HBM_axi_araddr    : out t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arid      : out t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arlen     : out t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arsize    : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arburst   : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arlock    : out t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arcache   : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arprot    : out t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arqos     : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+        HBM_axi_arregion  : out t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_rvalid    : in std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_rready    : out std_logic_vector(g_HBM_INTERFACES-1 downto 0);
         HBM_axi_rdata     : in t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
@@ -231,24 +239,34 @@ ENTITY correlator_core IS
         
         -- GT pins
         --- clk_freerun is a 100MHz free running clock.        
-        clk_freerun    : in std_logic; 
-        gt_rxp_in      : in std_logic_vector(3 downto 0);
-        gt_rxn_in      : in std_logic_vector(3 downto 0);
-        gt_txp_out     : out std_logic_vector(3 downto 0);
-        gt_txn_out     : out std_logic_vector(3 downto 0);
-        gt_refclk_p    : in std_logic;
-        gt_refclk_n    : in std_logic
+        clk_freerun    : in std_logic;
+        
+        -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
+        -- used in testing with pre-load of the second corner turn HBM data
+        i_ct2_readout_start  : in std_logic;
+        i_ct2_readout_buffer : in std_logic;
+        ---------------------------------------------------------------
+        -- Copy of the bus taking data to be written to the HBM,
+        -- for the first correlator instance.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      : out std_logic_vector(255 downto 0);
+        o_tb_visValid  : out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  : out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
     );
 END correlator_core;
 
 -------------------------------------------------------------------------------
 ARCHITECTURE structure OF correlator_core IS
 
-    -- 300MHz in, 100 MHz and 450 MHz out.
+    -- 300MHz in, 100 MHz and 425 MHz out.
     component clk_gen100MHz
     port (
         clk100_out : out std_logic;
-        clk450_out : out std_logic;       
+        clk425_out : out std_logic;       
         clk_in1    : in  std_logic);
     end component;
 
@@ -298,30 +316,23 @@ ARCHITECTURE structure OF correlator_core IS
     signal system_fields_ro : t_system_ro;
     signal uptime : std_logic_vector(31 downto 0) := x"00000000";
 
-    signal eth100_rx_sosi : t_lbus_sosi;
-    signal eth100_tx_sosi : t_lbus_sosi;
-    signal eth100_tx_siso : t_lbus_siso;
+    --signal eth100_tx_sosi : t_lbus_sosi;
+    --signal eth100_tx_siso : t_lbus_siso;
     signal eth100_reset : std_logic := '0';
     signal dest_req : std_logic;
     signal eth100G_status_ap_clk : std_logic_vector(128 downto 0);
     signal eth100G_status_eth_clk : std_logic_vector(128 downto 0);
-    signal eth100G_send, eth100G_rcv, eth100G_clk, eth100G_locked : std_logic;
+    signal eth100G_send, eth100G_rcv : std_logic;
     
-    signal eth100G_rx_total_packets : std_logic_vector(31 downto 0);
-    signal eth100G_rx_bad_fcs : std_logic_vector(31 downto 0);
-    signal eth100G_rx_bad_code : std_logic_vector(31 downto 0);
-    signal eth100G_tx_total_packets : std_logic_vector(31 downto 0);
-    signal eth100G_rx_reset : std_logic;
-    signal eth100G_tx_reset : std_logic;
     signal ap_clk_count : std_logic_vector(31 downto 0) := (others => '0');
     
     signal freerunCount : std_logic_vector(31 downto 0) := x"00000000";
     signal freerunSecCount : std_logic_vector(31 downto 0) := x"00000000";
 
-    signal GTY_startup_rst, eth100_reset_final : std_logic := '0';
+    signal GTY_startup_rst : std_logic := '0';
     signal clk100 : std_logic;
     signal clk400 : std_logic;
-    signal clk450 : std_logic;
+    signal clk425 : std_logic;
     signal clk_gt_freerun_use : std_logic;
     
     signal eth100G_uptime : std_logic_vector(31 downto 0) := (others => '0');
@@ -332,7 +343,6 @@ ARCHITECTURE structure OF correlator_core IS
     signal m02_shared : std_logic_vector(63 downto 0);
     signal m03_shared : std_logic_vector(63 downto 0);
     
-    signal fec_enable_322m          : std_logic;
     signal fec_enable_100m          : std_logic;
     signal fec_enable_cache         : std_logic;
     
@@ -340,50 +350,9 @@ ARCHITECTURE structure OF correlator_core IS
     signal fec_enable_reset         : std_logic := '0';
     
     -- PTP Data
-    signal PTP_time_CMAC_clk       : std_logic_vector(79 downto 0);
-    signal PTP_pps_CMAC_clk        : std_logic;
-        
-    signal PTP_time_ARGs_clk       : std_logic_vector(79 downto 0);
-    signal PTP_pps_ARGs_clk        : std_logic;
-    
-    -- streaming AXI to CMAC, Pre_timeslave
-    signal CMAC_rx_axis_tdata       : STD_LOGIC_VECTOR ( 511 downto 0 );
-    signal CMAC_rx_axis_tkeep       : STD_LOGIC_VECTOR ( 63 downto 0 );
-    signal CMAC_rx_axis_tlast       : STD_LOGIC;
-    signal CMAC_rx_axis_tuser       : STD_LOGIC;
-    signal CMAC_rx_axis_tvalid      : STD_LOGIC;
 
-    signal tx_axis_tdata            : STD_LOGIC_VECTOR(511 downto 0);
-    signal tx_axis_tkeep            : STD_LOGIC_VECTOR(63 downto 0);
-    signal tx_axis_tvalid           : STD_LOGIC;
-    signal tx_axis_tlast            : STD_LOGIC;
-    signal tx_axis_tuser            : STD_LOGIC;
-    signal tx_axis_tready           : STD_LOGIC;
-        
-    signal rx_axis_tdata            : STD_LOGIC_VECTOR ( 511 downto 0 );
-    signal rx_axis_tkeep            : STD_LOGIC_VECTOR ( 63 downto 0 );
-    signal rx_axis_tlast            : STD_LOGIC;
-    signal rx_axis_tready           : STD_LOGIC;
-    signal rx_axis_tuser            : STD_LOGIC_VECTOR ( 79 downto 0 );
-    signal rx_axis_tvalid           : STD_LOGIC;
     
-
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
---    signal m01_axi_ar, m01_axi_aw : t_axi4_full_addr;
---    signal m01_axi_b              : t_axi4_full_b;
-    
---    signal m02_axi_r, m02_axi_w   : t_axi4_full_data;
---    signal m02_axi_ar, m02_axi_aw : t_axi4_full_addr;
---    signal m02_axi_b              : t_axi4_full_b;    
-
---    signal m03_axi_r, m03_axi_w   : t_axi4_full_data;
---    signal m03_axi_ar, m03_axi_aw : t_axi4_full_addr;
---    signal m03_axi_b              : t_axi4_full_b;    
-    
-    --signal m01_axi_araddr256Mbytei, m01_axi_awaddr256Mbytei : std_logic_vector(7 downto 0);
-    --signal m02_axi_araddr256Mbytei, m02_axi_awaddr256Mbytei : std_logic_vector(7 downto 0);
-    --signal m03_axi_araddr256Mbytei, m03_axi_awaddr256Mbytei : std_logic_vector(7 downto 0);
-    --signal m01_axi_araddri, m01_axi_awaddri, m02_axi_araddri, m02_axi_awaddri, m03_axi_araddri, m03_axi_awaddri : std_logic_vector(63 downto 0);
 
     signal HBM_axi_araddr256Mbytei, HBM_axi_awaddr256Mbytei : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_aw : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
@@ -496,8 +465,8 @@ begin
     u_get100 : clk_gen100MHz
     port map ( 
         clk100_out => clk100,  -- 100 MHz 
-        clk450_out => clk450,  -- 450 MHz clock, used for some signal processing.
-        clk_in1 => clk_freerun  -- 300 MHz in
+        clk425_out => clk425,  -- 425 MHz clock, used for the correlator.
+        clk_in1 => clk_freerun  -- 100 MHz in
     );
     
     clk_gt_freerun_use <= clk_freerun; -- or use clk_gt_freerun, if we can convince vitis to connect clk_gt_freerun to anything... 
@@ -505,7 +474,7 @@ begin
     u_get400 : clk_gen400MHz
     port map (
         clk400_out => clk400, -- 
-        clk_in1    => clk_freerun  -- 300MHz clock in
+        clk_in1    => clk_freerun  -- 100MHz clock in
     );
     
     ---------------------------------------------------------------------------
@@ -598,6 +567,11 @@ begin
         MSTR_IN_FULL   => mc_full_miso,
         MSTR_OUT_FULL  => mc_full_mosi
     );
+    
+    o_timeslave_mc_lite_mosi <= mc_lite_mosi(c_timeslave_lite_index);
+    mc_lite_miso(c_timeslave_lite_index) <= i_timeslave_mc_lite_miso;
+    o_timeslave_mc_full_mosi <= mc_full_mosi(c_timeslave_full_index);
+    mc_full_miso(c_timeslave_full_index) <= i_timeslave_mc_full_miso;
     
     -- Map the connection to shared memory for register reads and writes.
     m00_axi_awvalid <= mc_full_mosi(c_vitis_shared_full_index).awvalid; -- out std_logic;
@@ -722,8 +696,8 @@ begin
         SRC_INPUT_REG => 1   -- DECIMAL; 0=do not register input, 1=register input
     )
     port map (
-        dest_out => fec_enable_322m, -- 1-bit output: src_in synchronized to the destination clock domain. This output is registered.
-        dest_clk => eth100G_clk, -- 1-bit input: Clock signal for the destination clock domain.
+        dest_out => o_fec_enable_322m, -- 1-bit output: src_in synchronized to the destination clock domain. This output is registered.
+        dest_clk => i_eth100G_clk, -- 1-bit input: Clock signal for the destination clock domain.
         src_clk => ap_clk,   -- 1-bit input: optional; required when SRC_INPUT_REG = 1
         src_in => system_fields_rw.eth100g_fec_enable     -- 1-bit input: Input signal to be synchronized to dest_clk domain.
     );
@@ -754,122 +728,18 @@ begin
     port map (
         dest_out    => system_fields_ro.eth100G_locked,
         dest_clk    => ap_clk,
-        src_clk     => eth100G_clk,   
-        src_in      => eth100G_locked 
+        src_clk     => i_eth100G_clk,   
+        src_in      => i_eth100G_locked 
     );
 
-    system_fields_ro.eth100G_rx_total_packets       <= eth100G_rx_total_packets;
-    system_fields_ro.eth100G_rx_bad_fcs             <= eth100G_rx_bad_fcs;
-    system_fields_ro.eth100G_rx_bad_code            <= eth100G_rx_bad_code;
-    system_fields_ro.eth100G_tx_total_packets       <= eth100G_tx_total_packets;
-    system_fields_ro.eth100g_ptp_nano_seconds       <= PTP_time_ARGs_clk(31 downto 0);
-    system_fields_ro.eth100g_ptp_lower_seconds      <= PTP_time_ARGs_clk(63 downto 32);
-    system_fields_ro.eth100g_ptp_upper_seconds      <= zero_word & PTP_time_ARGs_clk(79 downto 64);
+    system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
+    system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
+    system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
+    system_fields_ro.eth100G_tx_total_packets       <= i_eth100G_tx_total_packets;
+    system_fields_ro.eth100g_ptp_nano_seconds       <= i_PTP_time_ARGs_clk(31 downto 0);
+    system_fields_ro.eth100g_ptp_lower_seconds      <= i_PTP_time_ARGs_clk(63 downto 32);
+    system_fields_ro.eth100g_ptp_upper_seconds      <= x"0000" & i_PTP_time_ARGs_clk(79 downto 64);
     
-    -------------------------------------------------------------------------------------------
-    -- 100G ethernet
-    -------------------------------------------------------------------------------------------
-    
-    u100SimulationGen : if g_SIMULATION generate
-        gt_txp_out <= "0000";
-        gt_txn_out <= "0000";
-        eth100G_clk <= i_clk_100GE;
-        eth100G_locked <= '1';
-        eth100G_rx_reset <= '0';
-        eth100G_tx_reset <= '0';
-        eth100G_rx_total_packets <= x"cafe0000";
-        eth100G_rx_bad_fcs <= x"cafe0001";
-        eth100G_rx_bad_code <= x"cafe0002";
-        eth100G_tx_total_packets <= x"cafe0003";
-        
-        -- Received data from 100GE
-        eth100_rx_sosi <= i_eth100_rx_sosi;
-        -- Data to be transmitted on 100GE
-        eth100_tx_siso <= i_eth100_tx_siso;
-        o_eth100_tx_sosi <= eth100_tx_sosi;
-        
-    end generate;
-    
-    u100Gen : if (not g_SIMULATION) generate
-    
-    -- temp driving
-    rx_axis_tready  <= '1';
-    
-    u_100G_port_a : entity Timeslave_CMAC_lib.CMAC_100G_wrap_w_timeslave
-    Generic map (
-        U55_TOP_QSFP        => TRUE,
-        U55_BOTTOM_QSFP     => FALSE         -- THIS CONFIG IS VALID FOR U50 as well.
-    )
-    Port map(
-        gt_rxp_in   => gt_rxp_in, -- in(3:0);
-        gt_rxn_in   => gt_rxn_in, -- in(3:0);
-        gt_txp_out  => gt_txp_out, -- out(3:0);
-        gt_txn_out  => gt_txn_out, -- out(3:0);
-        gt_refclk_p => gt_refclk_p, -- IN STD_LOGIC;
-        gt_refclk_n => gt_refclk_n, -- IN STD_LOGIC;
-        sys_reset   => eth100_reset_final,   -- IN STD_LOGIC;   -- sys_reset, clocked by dclk.
-        i_dclk_100  => clk_freerun,     --  100MHz supplied by the Alveo platform.       
-        
-        i_fec_enable    => fec_enable_322m,
-        -- All remaining signals are clocked on tx_clk_out
-        tx_clk_out                  => eth100G_clk, -- out std_logic; This is the clock used by the data in and out of the core. 322 MHz.
-        
-        -- User Interface Signals
-        rx_locked                   => eth100G_locked, -- out std_logic; 
-
-        user_rx_reset               => open,
-        user_tx_reset               => open,
-
-        -- Statistics Interface, on eth100_clk
-        rx_total_packets            => eth100G_rx_total_packets, -- out(31:0);
-        rx_bad_fcs                  => eth100G_rx_bad_fcs,       -- out(31:0);
-        rx_bad_code                 => eth100G_rx_bad_code,      -- out(31:0);
-        tx_total_packets            => eth100G_tx_total_packets, -- out(31:0);
-        
-        -----------------------------------------------------------------------
-        -- streaming AXI to CMAC
-        i_tx_axis_tdata     => tx_axis_tdata,
-        i_tx_axis_tkeep     => tx_axis_tkeep,
-        i_tx_axis_tvalid    => tx_axis_tvalid,
-        i_tx_axis_tlast     => tx_axis_tlast,
-        i_tx_axis_tuser     => tx_axis_tuser,
-        o_tx_axis_tready    => tx_axis_tready,
-        
-        -- RX
-        o_rx_axis_tdata     => rx_axis_tdata,
-        o_rx_axis_tkeep     => rx_axis_tkeep,
-        o_rx_axis_tlast     => rx_axis_tlast,
-        i_rx_axis_tready    => rx_axis_tready,
-        o_rx_axis_tuser     => rx_axis_tuser,
-        o_rx_axis_tvalid    => rx_axis_tvalid,
-        
-        -- streaming AXI to CMAC, Pre_timeslave
-        CMAC_rx_axis_tdata  => CMAC_rx_axis_tdata,
-        CMAC_rx_axis_tkeep  => CMAC_rx_axis_tkeep,
-        CMAC_rx_axis_tlast  => CMAC_rx_axis_tlast,
-        CMAC_rx_axis_tuser  => CMAC_rx_axis_tuser,
-        CMAC_rx_axis_tvalid => CMAC_rx_axis_tvalid, 
-        -----------------------------------------------------------------------
-        
-        -- PTP Data
-        PTP_time_CMAC_clk           => PTP_time_CMAC_clk,
-        PTP_pps_CMAC_clk            => PTP_pps_CMAC_clk,
-        
-        PTP_time_ARGs_clk           => PTP_time_ARGs_clk,
-        PTP_pps_ARGs_clk            => PTP_pps_ARGs_clk,
-        
-        -- ARGs Interface
-        i_ARGs_clk                  => ap_clk, -- in std_logic;
-        i_ARGs_rst                  => ap_rst, -- in std_logic;
-        
-        i_CMAC_Lite_axi_mosi        => mc_lite_mosi(c_cmac_lite_index),
-        o_CMAC_Lite_axi_miso        => mc_lite_miso(c_cmac_lite_index),
-        
-        i_Timeslave_Full_axi_mosi   => mc_full_mosi(c_timeslave_full_index),
-        o_Timeslave_Full_axi_miso   => mc_full_miso(c_timeslave_full_index)
-    );
-    end generate;
-
     process(clk_gt_freerun_use)
     begin
         if rising_edge(clk_gt_freerun_use) then
@@ -886,7 +756,7 @@ begin
                 GTY_startup_rst <= '0';
             end if;
             
-            eth100_reset_final <= eth100_reset or GTY_startup_rst or fec_enable_reset;
+            o_eth100_reset_final <= eth100_reset or GTY_startup_rst or fec_enable_reset;
             
         end if;
     end process;
@@ -910,9 +780,9 @@ begin
     end process;
     
     
-    process(eth100G_clk)
+    process(i_eth100G_clk)
     begin
-        if rising_edge(eth100G_clk) then
+        if rising_edge(i_eth100G_clk) then
             if (unsigned(eth100G_uptime) < 322000000) then
                 eth100G_uptime <= std_logic_vector(unsigned(eth100G_uptime) + 1);
             else
@@ -926,70 +796,92 @@ begin
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
---    dsp_topi : entity dsp_top_lib.DSP_top_correlator
---    generic map (
---        g_DEBUG_ILA             => g_DEBUG_ILA,
---        g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME, -- nominal value is 128
---        g_USE_META              => g_USE_META
---    ) port map (
---        -- Received data from 100GE
---        i_data_rx_sosi      => eth100_rx_sosi, -- in t_lbus_sosi;
---        -- Data to be transmitted on 100GE
---        o_data_tx_sosi      => eth100_tx_sosi, -- out t_lbus_sosi;
---        i_data_tx_siso      => eth100_tx_siso, -- in t_lbus_siso;
---        i_clk_100GE         => eth100G_clk,      -- in std_logic;
---        i_eth100G_locked    => eth100G_locked,
---        -- Filterbank processing clock, 450 MHz
---        i_clk450 => clk450,  -- in std_logic;
---        i_clk400 => clk400,  -- in std_logic;
---        -----------------------------------------------------------------------
---        -- reset of the valid memory is in progress.
---        o_validMemRstActive => o_validMemRstActive,
---        -----------------------------------------------------------------------
---        -- AXI slave interfaces for modules
---        i_MACE_clk  => ap_clk, -- in std_logic;
---        i_MACE_rst  => ap_rst, -- in std_logic;
---        -- DSP top lite slave
---        --i_dsptopLite_axi_mosi => mc_lite_mosi(c_dsp_top_lite_index), -- in t_axi4_lite_mosi;
---        --o_dsptopLite_axi_miso => mc_lite_miso(c_dsp_top_lite_index), -- out t_axi4_lite_miso;
---        -- LFAADecode, lite + full slave
---        i_LFAALite_axi_mosi => mc_lite_mosi(c_LFAADecode100g_lite_index), -- in t_axi4_lite_mosi; 
---        o_LFAALite_axi_miso => mc_lite_miso(c_LFAADecode100g_lite_index), -- out t_axi4_lite_miso;
---        i_LFAAFull_axi_mosi => mc_full_mosi(c_lfaadecode100g_full_index), -- in  t_axi4_full_mosi;
---        o_LFAAFull_axi_miso => mc_full_miso(c_lfaadecode100g_full_index), -- out t_axi4_full_miso;
---        -- Timing control
---        i_timing_axi_mosi => mc_lite_mosi(c_timingcontrola_lite_index), -- in t_axi4_lite_mosi;
---        o_timing_axi_miso => mc_lite_miso(c_timingcontrola_lite_index), -- out t_axi4_lite_miso;
---        -- Corner Turn between LFAA Ingest and the filterbanks.
---        i_LFAA_CT_axi_mosi => mc_lite_mosi(c_CT_atomic_cor_in_lite_index), -- in  t_axi4_lite_mosi;
---        o_LFAA_CT_axi_miso => mc_lite_miso(c_CT_atomic_cor_in_lite_index), -- out t_axi4_lite_miso;
---        -- Filterbanks
---        i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
---        o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;
---        -- Corner turn between filterbanks and the correlator
---        i_cor_CT_axi_mosi => mc_lite_mosi(c_ct_atomic_cor_out_lite_index), -- in  t_axi4_lite_mosi;
---        o_cor_CT_axi_miso => mc_lite_miso(c_ct_atomic_cor_out_lite_index), -- out t_axi4_lite_miso;
---        -- correlator
---        i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
---        o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
+    dsp_topi : entity dsp_top_lib.DSP_top_correlator
+    generic map (
+        g_DEBUG_ILA             => g_DEBUG_ILA,
+        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
+        g_USE_META              => g_USE_META,
+        g_CORRELATORS           => g_CORRELATORS  -- number of correlator blocks to instantiate.
+    ) port map (
+        -- Received data from 100GE
+        i_axis_tdata   => i_axis_tdata,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep   => i_axis_tkeep,  -- in (63:0);  one bit per byte in i_axi_tdata
+        i_axis_tlast   => i_axis_tlast,  -- in std_logic;                      
+        i_axis_tuser   => i_axis_tuser,  -- in (79:0);  Timestamp for the packet.
+        i_axis_tvalid  => i_axis_tvalid, -- in std_logic;
+        -- Data to be transmitted on 100GE
+        o_axis_tdata   => o_axis_tdata,  -- out (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        o_axis_tkeep   => o_axis_tkeep,  -- out (63:0);  one bit per byte in o_axis_tdata
+        o_axis_tlast   => o_axis_tlast,  -- out std_logic;                      
+        o_axis_tuser   => o_axis_tuser,  -- out std_logic;
+        o_axis_tvalid  => o_axis_tvalid, -- out std_logic;
+        i_axis_tready  => i_axis_tready, -- in std_logic;
         
---        -- PSR Packetiser interface
---        i_PSR_packetiser_lite_axi_mosi  => mc_lite_mosi(c_packetiser_lite_index),
---        o_PSR_packetiser_lite_axi_miso  => mc_lite_miso(c_packetiser_lite_index),
---        i_PSR_packetiser_full_axi_mosi  => mc_full_mosi(c_packetiser_full_index), 
---        o_PSR_packetiser_full_axi_miso  => mc_full_miso(c_packetiser_full_index), 
---        -----------------------------------------------------------------------
---        -- AXI interfaces to HBM memory
---        o_HBM_axi_aw      => HBM_axi_aw,       -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
---        i_HBM_axi_awready => HBM_axi_awreadyi,  --                     in std_logic_vector(4 downto 0);
---        o_HBM_axi_w       => HBM_axi_w,        -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
---        i_HBM_axi_wready  => HBM_axi_wreadyi,  --              in std_logic_vector(4 downto 0);
---        i_HBM_axi_b       => HBM_axi_b,        -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
---        o_HBM_axi_ar      => HBM_axi_ar,       -- read address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
---        i_HBM_axi_arready => HBM_axi_arreadyi, --                    in std_logic_vector(4 downto 0);
---        i_HBM_axi_r       => HBM_axi_r,        -- r data bus : in t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
---        o_HBM_axi_rready  => HBM_axi_rreadyi   --              out std_logic_vector(4 downto 0);
---    );
+        i_clk_100GE      => i_eth100G_clk,      -- in std_logic;
+        i_eth100G_locked => i_eth100G_locked,
+        -- Filterbank processing clock, 450 MHz
+        i_clk425 => clk425,  -- in std_logic;
+        i_clk400 => clk400,  -- in std_logic;
+        -----------------------------------------------------------------------
+        -- reset of the valid memory is in progress.
+        o_validMemRstActive => o_validMemRstActive,
+        -----------------------------------------------------------------------
+        -- AXI slave interfaces for modules
+        i_MACE_clk  => ap_clk, -- in std_logic;
+        i_MACE_rst  => ap_rst, -- in std_logic;
+        -- LFAADecode, lite + full slave
+        i_LFAALite_axi_mosi => mc_lite_mosi(c_LFAADecode100g_lite_index), -- in t_axi4_lite_mosi; 
+        o_LFAALite_axi_miso => mc_lite_miso(c_LFAADecode100g_lite_index), -- out t_axi4_lite_miso;
+        i_LFAAFull_axi_mosi => mc_full_mosi(c_lfaadecode100g_full_index), -- in  t_axi4_full_mosi;
+        o_LFAAFull_axi_miso => mc_full_miso(c_lfaadecode100g_full_index), -- out t_axi4_full_miso;
+        -- Corner Turn between LFAA Ingest and the filterbanks.
+        i_LFAA_CT_axi_mosi => mc_lite_mosi(c_corr_ct1_lite_index), -- in  t_axi4_lite_mosi;
+        o_LFAA_CT_axi_miso => mc_lite_miso(c_corr_ct1_lite_index), -- out t_axi4_lite_miso;
+        -- Filterbanks
+        i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
+        o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;
+        -- Corner turn between filterbanks and the correlator
+        i_cor_CT_axi_mosi => mc_lite_mosi(c_corr_ct2_lite_index), -- in  t_axi4_lite_mosi;
+        o_cor_CT_axi_miso => mc_lite_miso(c_corr_ct2_lite_index), -- out t_axi4_lite_miso;
+        -- correlator
+        i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
+        o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
+        -- PSR Packetiser interface
+        i_packetiser_lite_axi_mosi  => mc_lite_mosi(c_packetiser_lite_index),
+        o_packetiser_lite_axi_miso  => mc_lite_miso(c_packetiser_lite_index),
+        i_packetiser_full_axi_mosi  => mc_full_mosi(c_packetiser_full_index), 
+        o_packetiser_full_axi_miso  => mc_full_miso(c_packetiser_full_index), 
+        -----------------------------------------------------------------------
+        -- AXI interfaces to HBM memory (5 interfaces used)
+        -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_aw      => HBM_axi_aw,       
+        i_HBM_axi_awready => HBM_axi_awreadyi, -- in std_logic_vector(4:0);
+        -- w data buses : out t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_w       => HBM_axi_w,        
+        i_HBM_axi_wready  => HBM_axi_wreadyi,  -- in std_logic_vector(4:0);
+        -- write response bus : in t_axi4_full_b_arr(4:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_b       => HBM_axi_b,
+        -- read address bus : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_ar      => HBM_axi_ar,
+        i_HBM_axi_arready => HBM_axi_arreadyi, -- in std_logic_vector(4:0);
+        -- r data bus : in t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_r       => HBM_axi_r,
+        o_HBM_axi_rready  => HBM_axi_rreadyi,  -- out std_logic_vector(4:0);
+        -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
+        -- used in testing with pre-load of the second corner turn HBM data
+        i_ct2_readout_start => i_ct2_readout_start,
+        i_ct2_readout_buffer => i_ct2_readout_buffer,
+        ---------------------------------------------------------------
+        -- copy of the bus taking data to be written to the HBM.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      => o_tb_data,     -- out (255:0);
+        o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
+    );
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
@@ -1028,7 +920,7 @@ begin
         HBM_axi_awid(i)(0) <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
         HBM_axi_arid(i)(0) <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
         
-        -- Register slice for the m01 AXI interface
+        -- Register slice for the HBM AXI interfaces
         HBM_reg_slice : axi_reg_slice512_LLFFL
         port map (
             aclk    => ap_clk, --  IN STD_LOGIC;

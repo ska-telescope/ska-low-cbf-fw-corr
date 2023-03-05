@@ -14,7 +14,6 @@ peripherals:
   - peripheral_name        : cor_filterbanks/filterbanks
   - peripheral_name        : corr_ct2/corr_ct2
   - peripheral_name        : cor/config
-  - peripheral_name        : timingControlA/timingControlA  
   - peripheral_name        : Packetiser/Packetiser
   - peripheral_name        : DRP/DRP
   - peripheral_name        : CMAC/CMAC

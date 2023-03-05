@@ -12,7 +12,7 @@ port(
 end sqrt_rom; 
  
 architecture behavioral of sqrt_rom is 
-    type rom_type is array(4095 downto 0) of std_logic_vector(7 downto 0); 
+    type rom_type is array(0 to 4095) of std_logic_vector(7 downto 0); 
     signal rom : rom_type := (
     x"00", 
     x"04", 

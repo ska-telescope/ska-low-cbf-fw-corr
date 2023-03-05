@@ -19,7 +19,35 @@
 --   See comments in the level above, ct_atomic_cor_wrapper.vhd
 --   
 --   
+-- Data from the filterbank comes in 3456 clock long packets, with 3456 fine channels.
+-- Data comes in bursts of 64 packets, for 64 consecutive time samples for a single set of 4 virtual channels.
+-- On receiving the first packet in a burst, we look up the virtual channel in the "vc_demap" table.
+-- This tells us :
+--   First 32-bit word : Info about which subarray-beam this is used for. 
+--          * i_demap_SB_index           = 8-bit subarray-beam id, used to look up the correct entry in the subarray-beam table
+--          * i_demap_station      = 12-bit station within this subarray-beam; this is the index of the station as used by the correlator
+--          * i_demap_skyFrequency = 9-bit sky frequency
+--          * i_demap_valid        = 1-bit valid; if this bit is not set, then these virtual channels will be dropped.
+--   Second 32-bit word : Info about which fine channel data to send out on the 100GE link.
 --   
+-- Once we have the subarray-beam from the vc_demap table, we look it up in the subarray-beam (SB) table, which give us :
+--     * i_SB_stations      : The number of (sub)stations in this subarray-beam.
+--     * i_SB_coarseStart   : The first coarse channel in this subarray-beam in this Alveo
+--     * i_SB_fineStart     : The index of the first fine channel
+--     * i_SB_N_fine        : The number of fine channels to use for this subarray-beam (starting from i_SB_coarseStart, i_SB_fineStart)
+--     * i_SB_HBM_base_Addr : The base address in HBM to write this data to; somewhere in a 1.5 Gbyte block of memory.
+--     * i_SB_valid
+-- We then have to calculate the address to write 512 byte data blocks to, for each fine channel :
+-- 
+--     HBM address = i_SB_HBM_base_Addr + 
+--                   512 * [(demap_station/4) +
+--                          (fine_channel - (i_SB_coarseStart * 3456 + i_SB_fineStart)) * i_SB_stations + 
+--                          time * i_SB_N_fine * i_SB_stations * 512]
+--  where:
+--   fine_channel = demap_skyFrequency + 0:3455
+--           time = 0 to 5, for 6 blocks of 32 time samples each (there are 32 time samples in a 512 byte block written to the HBM).
+--                  Note 6 x 32 = 192 time samples total = 849 ms of data.
+-- i.e. group first by station, then by fine channel, then by time sample.
 ----------------------------------------------------------------------------------
 library IEEE, ct_lib, DSP_top_lib, common_lib, axi4_lib;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -32,43 +60,53 @@ use xpm.vcomponents.all;
 
 entity corr_ct2_din is
     generic (
-        g_USE_META : boolean := FALSE  -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
+        g_USE_META : boolean := FALSE   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
     );
     port(
-        -- Parameters, in the i_axi_clk domain.
-        i_stations : in std_logic_vector(10 downto 0); -- up to 1024 stations
-        i_coarse   : in std_logic_vector(9 downto 0);  -- Number of coarse channels.
-        i_virtualChannels : in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
-        -- Registers AXI Lite Interface (uses i_axi_clk)
-        
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
-        -- 
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is typically 283 ms of data).
+        i_tableSelect  : in std_logic; -- which of the double buffered vc_demap and subarray_beam tables to use.
         -- frame count is the same for all simultaneous output streams.
         -- frameCount is the count of 1st corner turn frames, i.e. 283 ms pieces of data.
         i_frameCount_mod3 : in std_logic_vector(1 downto 0);  -- which of the three first corner turn frames is this, out of the 3 that make up a 849 ms integration. "00", "01", or "10".
-        i_frameCount      : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
-        i_virtualChannel : in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the filterbank data streams.
-        i_HeaderValid : in std_logic_vector(3 downto 0);
-        i_data        : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
-        i_dataValid   : in std_logic;
-        
+        i_frameCount_849ms : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
+        i_virtualChannel  : in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the filterbank data streams.
+        i_HeaderValid     : in std_logic_vector(3 downto 0);
+        i_data            : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
+        i_dataValid       : in std_logic;
+        o_lastTime       : out std_logic; -- Just received the last packet in a frame for a particular virtual channel.
+        --------------------------------------------------------------------
+        -- interface to the demap table 
+        o_vc_demap_rd_addr   : out std_logic_vector(7 downto 0);
+        o_vc_demap_req       : out std_logic;  -- request a read from address o_vc_demap_rd_addr
+        i_demap_data_valid   : in  std_logic;  -- Read data below (i_demap* signals) is valid.
+        i_demap_SB_index     : in std_logic_vector(7 downto 0);  -- index into the subarray-beam table.
+        i_demap_station      : in std_logic_vector(11 downto 0); -- station index within the subarray-beam.
+        i_demap_skyFrequency : in std_logic_vector(8 downto 0);  -- sky frequency.
+        i_demap_valid        : in std_logic;                     -- This entry in the demap table is valid.
+        i_demap_fw_start     : in std_logic_vector(11 downto 0);  -- first fine channel to forward as a packet to the 100GE
+        i_demap_fw_end       : in std_logic_vector(11 downto 0); -- Last fine channel to forward as a packet to the 100GE
+        i_demap_fw_dest      : in std_logic_vector(7 downto 0);  -- Tag for the packet. 
+        -- Interface to the subarray_beam table
+        o_SB_addr           : out std_logic_vector(7 downto 0);  -- 256 entries; first 128 entries for the first HBM interface (=first correlator instance), second 128 entries for the second HBM interface (=second correlator instance).
+        o_SB_req            : out std_logic;
+        i_SB_valid          : in std_logic;
+        -- returned subarray beam ("SB") data :
+        i_SB_stations       : in std_logic_vector(15 downto 0);  -- The number of (sub)stations in this subarray-beam
+        i_SB_coarseStart    : in std_logic_vector(15 downto 0);  -- The first coarse channel in this subarray-beam
+        i_SB_fineStart      : in std_logic_vector(15 downto 0);  -- readout_buf1_fineStart, -- the first fine channel in this subarray-beam
+        i_SB_n_fine         : in std_logic_vector(23 downto 0);  -- The number of fine channels in this subarray-beam
+        i_SB_HBM_base_addr  : in std_logic_vector(31 downto 0);  -- base address in HBM for this subarray-beam.
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         -- two HBM interfaces
         i_axi_clk : in std_logic;
         -- 3 Gbytes for virtual channels 0-511
-        o_HBM0_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM0_axi_awready : in  std_logic;
-        o_HBM0_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM0_axi_wready  : in  std_logic;
-        i_HBM0_axi_b       : in  t_axi4_full_b;     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        -- 3 Gbytes for virtual channels 512-1023
-        o_HBM1_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM1_axi_awready : in  std_logic;
-        o_HBM1_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM1_axi_wready  : in  std_logic;
-        i_HBM1_axi_b       : in  t_axi4_full_b     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM_axi_aw      : out t_axi4_full_addr_arr(1 downto 0); -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_awready : in  std_logic_vector(1 downto 0);
+        o_HBM_axi_w       : out t_axi4_full_data_arr(1 downto 0); -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_wready  : in  std_logic_vector(1 downto 0);
+        i_HBM_axi_b       : in  t_axi4_full_b_arr(1 downto 0)     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
     );
 end corr_ct2_din;
 
@@ -86,18 +124,18 @@ architecture Behavioral of corr_ct2_din is
     signal dataValidDel1, dataValidDel2 : std_logic := '0';
     signal copyToHBM : std_logic := '0';
     
-    type copy_fsm_t is (start, set_aw, wait_HBM1_aw_rdy, wait_HBM0_aw_rdy, get_next_addr, idle);
+    type copy_fsm_t is (start, set_aw, wait_HBM1_aw_rdy, wait_HBM0_aw_rdy, skip_rdy, get_next_addr, idle);
     signal copy_fsm : copy_fsm_t := idle;
     signal copyToHBM_buffer : std_logic;
-    signal copyToHBM_channelGroup : std_logic_vector(7 downto 0);
+   -- signal copyToHBM_channelGroup : std_logic_vector(7 downto 0);
     signal copy_buffer : std_logic := '0';
-    signal copy_channelGroup : std_logic_vector(7 downto 0);
+    --signal copy_channelGroup : std_logic_vector(7 downto 0);
     signal copyToHBM_time : std_logic_vector(2 downto 0);
-    signal copy_time : std_logic_vector(3 downto 0);
+    signal copy_time : std_logic_vector(2 downto 0);
     signal fineChannel : std_logic_vector(11 downto 0);
     signal virtualChannel : std_logic_vector(15 downto 0);
     signal frameCount_mod3 : std_logic_vector(1 downto 0);
-    signal frameCount : std_logic_vector(31 downto 0);
+    signal frameCount_849ms : std_logic_vector(31 downto 0);
     
     signal dataFIFO_valid : std_logic_vector(1 downto 0);
     signal dataFIFO_dout : t_slv_513_arr(1 downto 0);
@@ -108,16 +146,51 @@ architecture Behavioral of corr_ct2_din is
     
     signal fifo_size_plus_pending, fifo_size_plus_pending1, fifo_size_plus_pending0 : std_logic_vector(5 downto 0);
     signal dataFIFO0_wrEn, dataFIFO1_wrEn : std_logic_vector(15 downto 0) := (others => '0');
-    signal HBM_selection : std_logic := '0';
+    
     type copyData_fsm_type is (running, wait_fifo, idle);
     signal copyData_fsm : copyData_fsm_type := idle;
     signal bufRdCount : std_logic_Vector(15 downto 0) := (others => '0');
     signal pending0, pending1 : std_logic_vector(5 downto 0);
     signal last : std_logic_vector(15 downto 0);
+    signal lastTime : std_logic := '0';
+    
+    signal demap_SB_index     : std_logic_vector(7 downto 0);   -- index into the subarray-beam table.
+    signal demap_station, copyToHBM_station, copy_station : std_logic_vector(11 downto 0);  -- station index within the subarray-beam.
+    signal demap_skyFrequency, copyToHBM_skyFrequency, copy_skyFrequency : std_logic_vector(8 downto 0);  -- sky frequency.
+    signal demap_valid        : std_logic;                      -- This entry in the demap table is valid.
+    signal demap_fw_start     : std_logic_vector(11 downto 0);  -- first fine channel to forward as a packet to the 100GE
+    signal demap_fw_end       : std_logic_vector(11 downto 0);  -- Last fine channel to forward as a packet to the 100GE
+    signal demap_fw_dest      : std_logic_vector(7 downto 0);   -- Tag for the packet.
+    signal SB_stations, copyToHBM_SB_stations, copy_SB_stations : std_logic_vector(15 downto 0);  -- The number of (sub)stations in this subarray-beam
+    signal SB_coarseStart, copyToHBM_SB_coarseStart, copy_SB_coarseStart : std_logic_vector(15 downto 0);  -- The first coarse channel in this subarray-beam
+    signal SB_fineStart, copyToHBM_SB_fineStart, copy_SB_fineStart, copy_fineChannel : std_logic_vector(15 downto 0);  -- readout_buf1_fineStart, -- the first fine channel in this subarray-beam
+    signal SB_n_fine, copyToHBM_SB_n_fine, copy_SB_n_fine         : std_logic_vector(23 downto 0);  -- The number of fine channels in this subarray-beam
+    signal SB_HBM_base_addr, copyToHBM_SB_HBM_base_addr, copy_SB_HBM_base_addr : std_logic_vector(31 downto 0);  --
+    
+    signal SB_req : std_logic := '0';
+    signal SB_addr : std_logic_vector(7 downto 0);
+    
+    signal HBM_base_plus_station : std_logic_vector(31 downto 0);
+    signal N_fine_x_stations_full : signed(39 downto 0);
+    signal N_fine_x_stations : std_logic_vector(25 downto 0);
+    signal sof_del1 : std_logic := '0';
+    signal time_block : std_logic_vector(3 downto 0);
+    signal N_fine_x_stations_x_time : signed(29 downto 0);
+    signal N_fine_x_stations_x_time_x512 : std_logic_vector(31 downto 0);
+    signal copy_SB_HBM_sel, copyToHBM_SB_HBM_sel : std_logic;
+    signal get_addr : std_logic;
+    signal HBM_addr : std_logic_vector(31 downto 0);
+    signal HBM_addr_bad, HBM_fine_high, HBM_Addr_valid : std_logic;
+    signal fineChannel_ext : std_logic_vector(23 downto 0);
     
 begin
     
+    o_lastTime <= lastTime;
+    o_SB_req <= SB_req;
+    o_SB_addr <= SB_addr;
+    
     process(i_axi_clk)
+        variable demap_station_x128 : std_logic_vector(31 downto 0);
     begin
         if rising_edge(i_axi_clk) then
             dataValidDel1 <= i_dataValid;
@@ -129,10 +202,46 @@ begin
                 timeStep <= (others => '0');
                 virtualChannel <= i_virtualChannel(0); -- Just use the first filterbanks virtual channel, this module assumes that i_virtualChannel(0), (1), (2), and (3) are consecutive values.
                 frameCount_mod3 <= i_frameCount_mod3;
-                frameCount <= i_frameCount;
+                frameCount_849ms <= i_frameCount_849ms;
+                lastTime <= '0';
             elsif dataValidDel1 = '0' and dataValidDel2 = '1' then
                 timeStep <= std_logic_vector(unsigned(timeStep) + 1);
+                if timeStep = "111111" then
+                    lastTime <= '1';
+                else
+                    lastTime <= '0';
+                end if;
             end if;
+            
+            sof_del1 <= i_sof;
+            if sof_del1 = '1' and i_sof = '0' then
+                o_vc_demap_rd_addr <= virtualChannel(9 downto 2);
+                o_vc_demap_req <= '1';
+            else
+                o_vc_demap_req <= '0'; 
+            end if;
+            
+            if i_demap_Data_valid = '1' then
+                demap_SB_index <= i_demap_SB_index; -- in std_logic_vector(7 downto 0);   -- index into the subarray-beam table.
+                demap_station <= i_demap_station;   -- in std_logic_vector(11 downto 0);  -- station index within the subarray-beam.
+                demap_skyFrequency <= i_demap_skyFrequency; --  in std_logic_vector(8 downto 0);  -- sky frequency.
+                demap_valid <= i_demap_valid;       -- in std_logic;                      -- This entry in the demap table is valid.
+                demap_fw_start <= i_demap_fw_start; -- in std_logic_vector(11 downto 0);  -- first fine channel to forward as a packet to the 100GE
+                demap_fw_end <= i_demap_fw_end;     -- in std_logic_vector(11 downto 0);  -- Last fine channel to forward as a packet to the 100GE
+                demap_fw_dest <= i_demap_fw_dest;   -- in std_logic_vector(7 downto 0);   -- Tag for the packet.
+                SB_req <= '1';
+                SB_addr <= demap_SB_index(7 downto 0);
+            elsif i_SB_valid = '1' then
+                SB_req <= '0';
+                SB_stations <= i_SB_stations;       -- in std_logic_vector(15 downto 0);  -- The number of (sub)stations in this subarray-beam
+                SB_coarseStart <= i_SB_coarseStart; -- in std_logic_vector(15 downto 0);  -- The first coarse channel in this subarray-beam
+                SB_fineStart <= i_SB_fineStart;     -- in std_logic_vector(15 downto 0);  -- readout_buf1_fineStart, -- the first fine channel in this subarray-beam
+                SB_n_fine <= i_SB_n_fine;           -- in std_logic_vector(23 downto 0);  -- The number of fine channels in this subarray-beam
+                SB_HBM_base_addr <= i_SB_HBM_base_addr;  -- in std_logic_vector(31 downto 0);  -- base address in HBM for this subarray-beam.
+                -- this value gets registered at some point just after getting the first 
+                time_block <= '0' & frameCount_mod3 & timeStep(5); -- blocks of 32 times;
+            end if;
+       
             
             bufWrData(15 downto 0) <= i_data(0).Hpol.im & i_data(0).Hpol.re;
             bufWrData(31 downto 16) <= i_data(0).Vpol.im & i_data(0).Vpol.re;
@@ -177,12 +286,24 @@ begin
             
             ------------------------------------------
             -- Trigger copying of data to the HBM.
+            --  This occurs once we have buffered up 32 time samples, for 4 virtual channels, for all 3456 fine channels.
+            --  So we have 3456 blocks of 512 bytes to send to the HBM.
+            
             if i_dataValid = '0' and dataValidDel1 = '1' and timeStep(4 downto 0) = "11111" then
                 copyToHBM <= '1';
-                copyToHBM_buffer <= frameCount(0); -- every 849 ms, alternate 3 Gbyte HBM buffers.
-                copyToHBM_channelGroup <= virtualChannel(9 downto 2); -- up to 256 groups of 4 channels
+                copyToHBM_buffer <= frameCount_849ms(0); -- every 849 ms, alternate halfs within each 3 Gbyte HBM buffer.
+                -- Parameters for this block of data :
                 copyToHBM_time(0) <= timeStep(5); -- first or second half of the 64 time samples per first corner turn frame.
                 copyToHBM_time(2 downto 1) <= frameCount_mod3;
+                copyToHBM_station <= demap_station;
+                copyToHBM_skyFrequency <= demap_skyFrequency;
+                -- Parameters for this subarray-beam.
+                copyToHBM_SB_stations <= SB_stations;
+                copyToHBM_SB_coarseStart <= SB_coarseStart;
+                copyToHBM_SB_fineStart <= SB_fineStart;
+                copyToHBM_SB_n_fine <= SB_n_fine;
+                copyToHBM_SB_HBM_base_addr <= SB_HBM_base_addr;
+                copyToHBM_SB_HBM_sel <= SB_addr(7); -- The top bit of the subarray-beam address selects which correlator instance the data is for.
             else
                 copyToHBM <= '0';
             end if;
@@ -250,13 +371,38 @@ begin
     end generate;
     
     -- At completion of 32 times, copy data from the ultraRAM buffer to the HBM
-    o_HBM0_axi_aw.len <= "00000111";  -- Always 8 x 64 byte words per burst.
-    o_HBM1_axi_aw.len <= "00000111";
-    o_HBM0_axi_aw.addr(39 downto 32) <= "00000000";  -- 3 Gbyte piece of HBM; so bits 39:32 are 0.
-    o_HBM0_axi_aw.addr(8 downto 0)   <= "000000000";
+    HBM_default_gen : for i in 0 to 1 generate
+        o_HBM_axi_aw(i).len <= "00000111";  -- Always 8 x 64 byte words per burst.
+        o_HBM_axi_aw(i).addr(39 downto 32) <= "00000000";  -- 3 Gbyte piece of HBM; so bits 39:32 are 0.
+        o_HBM_axi_aw(i).addr(8 downto 0)   <= "000000000";
+    end generate;
     
-    o_HBM1_axi_aw.addr(39 downto 32) <= "00000000";
-    o_HBM1_axi_aw.addr(8 downto 0)   <= "000000000";
+    
+    hbm_addri : entity ct_lib.get_ct2_HBM_addr
+    port map(
+        i_axi_clk => i_axi_clk, --  in std_logic;
+        -- Values from the Subarray-beam table
+        i_SB_HBM_base_Addr => copy_SB_HBM_base_addr, -- in (31:0); Base address in HBM for this subarray-beam
+        i_SB_coarseStart   => copy_SB_coarseStart(8 downto 0),   -- in (8:0);  First coarse channel for this subarray-beam, x781.25 kHz to get the actual sky frequency 
+        i_SB_fineStart     => copy_SB_fineStart(11 downto 0),     -- in (11:0); First fine channel for this subarray-beam, runs from 0 to 3455
+        i_SB_stations      => copy_SB_stations,      -- in (15:0); Total number of stations in this subarray-beam
+        i_SB_N_fine        => copy_SB_N_fine, -- in (23:0); Total number of fine channels to store for this subarray-beam
+        -- Values for this particular block of 512 bytes. Each block of 512 bytes is 4 stations, 32 time samples ((4stations)*(32timesamples)*(2pol)*(1byte)(2(complex)) = 512 bytes)
+        i_coarse_channel   => copy_skyFrequency, -- in (8:0); Coarse channel for this block, x781.25kHz to get the actual sky frequency (so is comparable to i_SB_coarseStart
+        i_fine_channel     => fineChannel_ext,   -- in (23:0); Fine channel for this block.
+        i_station          => copy_station, -- in (11:0); Index of this station within the subarray
+        i_time_block       => copy_time,    -- in (2:0);  Which time block this is for; 0 to 5. Each time block is 32 time samples.
+        i_buffer           => copy_buffer,  -- in std_logic; -- Which half of the buffer to calculate for (each half is 1.5 Gbytes)
+        -- All above data is valid, do the calculation.
+        i_valid            => get_addr, -- in std_logic;
+        -- Resulting address in the HBM, after 8 cycles latency.
+        o_HBM_addr         => HBM_addr, -- out (31:0);
+        o_out_of_range     => HBM_addr_bad,   -- out std_logic; -- indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
+        o_fine_high        => HBM_fine_high,  -- out std_logic; -- indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
+        o_valid            => HBM_addr_valid  -- out std_logic -- some fixed number of clock cycles after i_valid.
+    );
+    
+    fineChannel_ext <= x"00" & copy_fineChannel;
     
     process(i_axi_clk)
     begin
@@ -264,73 +410,106 @@ begin
             -- fsm to generate write addresses
             if copyToHBM = '1' then
                 copy_fsm <= start;
-                copy_buffer <= copyToHBM_buffer;   -- Which 3Gbyte (= 849ms) buffer to write to in the HBM.
+                copy_buffer <= copyToHBM_buffer;   -- Which half of each 3Gbyte buffer to write to in the HBM. 1.5 Gbytes of data = 849 ms of data for (typically, up to) 512 stations.
                 copy_fine <= (others => '0');
-                copy_channelGroup <= copyToHBM_channelGroup; -- Up to 256 groups of 4 channels
-                copy_time <= '0' & copyToHBM_time;           -- Which group of times within the corner turn (6 possible value, 0 to 5, corresponding to times of (0-31, 32-63, 64-95, 96-127, 128-159, 160-191))
+                copy_time <= copyToHBM_time;           -- Which group of times within the corner turn (6 possible value, 0 to 5, corresponding to times of (0-31, 32-63, 64-95, 96-127, 128-159, 160-191))
+                copy_station <= copyToHBM_station;
+                copy_skyFrequency <= copyToHBM_skyFrequency;
+                if copyToHBM_skyFrequency = copyToHBM_SB_coarseStart(8 downto 0) then
+                    copy_fineChannel <= copyToHBM_SB_fineStart;
+                else
+                    copy_fineChannel <= (others => '0');
+                end if;
+                -- Parameters for this subarray-beam.
+                copy_SB_stations <= copyToHBM_SB_stations;
+                copy_SB_coarseStart <= copyToHBM_SB_coarseStart;
+                copy_SB_fineStart <= copyToHBM_SB_fineStart;
+                copy_SB_n_fine <= copyToHBM_SB_n_fine;
+                copy_SB_HBM_base_addr <= copyToHBM_SB_HBM_base_addr;
+                copy_SB_HBM_sel <= copyToHBM_SB_HBM_sel; -- Get which HBM iterface this is going to. 
+                
             else
                 case copy_fsm is
                     when start => 
                         copy_fsm <= set_aw;
-                        o_HBM0_axi_aw.valid <= '0';
-                        o_HBM1_axi_aw.valid <= '0';
+                        o_HBM_axi_aw(0).valid <= '0';
+                        o_HBM_axi_aw(1).valid <= '0';
+                        get_addr <= '1';
                     
                     when set_aw =>
-                        -- Address :
-                        -- - bits 8:0 = address within a  512 byte data block written in a single burst to the HBM
-                        -- - bits 15:9 = 128 different groups of virtual channels (4 virtual channels in each HBM write)
-                        -- - bits 27:16 = 3456 different fine channels
-                        -- - bits 31:28 = 12 blocks of 32 times (2 buffers) * (192 times per buffer) / (32 times per 512 byte HBM write) 
-                        -- - So bits 31:28 run from 0 to 11, for 3 Gbytes of memory, with 0 to 5 being the first 192 time samples, and 6-11 being the second 192 time samples.
-                        if copy_buffer = '0' then
-                            -- first 1.5 Gbytes within the HBM buffer
-                            o_HBM0_axi_aw.addr(31 downto 28) <= copy_time;
-                            o_HBM1_axi_aw.addr(31 downto 28) <= copy_time;
+                        if HBM_addr_valid = '1' then
+                            -- Address :
+                            -- - bits 8:0 = address within a  512 byte data block written in a single burst to the HBM
+                            -- - bits 15:9 = 128 different groups of virtual channels (4 virtual channels in each HBM write)
+                            -- - bits 27:16 = 3456 different fine channels
+                            -- - bits 31:28 = 12 blocks of 32 times (2 buffers) * (192 times per buffer) / (32 times per 512 byte HBM write) 
+                            -- - So bits 31:28 run from 0 to 11, for 3 Gbytes of memory, with 0 to 5 being the first 192 time samples, and 6-11 being the second 192 time samples.
+                            for i in 0 to 1 loop
+                                o_HBM_axi_aw(i).addr(31 downto 0) <= HBM_addr;
+                            end loop;
+                            
+                            if HBM_fine_high = '0' then
+                                if (copy_SB_HBM_sel = '0') then
+                                    o_HBM_axi_aw(0).valid <= '1'; -- first half of the channels go to the first memory.
+                                    o_HBM_axi_aw(1).valid <= '0';
+                                    copy_fsm <= wait_HBM0_aw_rdy;
+                                else
+                                    o_HBM_axi_aw(1).valid <= '1';
+                                    o_HBM_axi_aw(0).valid <= '0';
+                                    copy_fsm <= wait_HBM1_aw_rdy;
+                                end if;
+                            else
+                                o_HBM_axi_aw(1).valid <= '0';
+                                o_HBM_axi_aw(0).valid <= '0';
+                                copy_fsm <= skip_rdy;
+                            end if;
+                            
+                            -- update for the next address
+                            copy_fine <= std_logic_vector(unsigned(copy_fine) + 1);
+                            if (unsigned(copy_fine) < 3455) then
+                                get_addr <= '1';
+                            else
+                                get_addr <= '0';
+                            end if;
                         else
-                            -- second 1.5 Gbytes within the HBM buffer.
-                            o_HBM0_axi_aw.addr(31 downto 28) <= std_logic_vector(unsigned(copy_time) + 6);
-                            o_HBM1_axi_aw.addr(31 downto 28) <= std_logic_vector(unsigned(copy_time) + 6);
-                        end if;
-                        o_HBM0_axi_aw.addr(27 downto 16) <= copy_fine;
-                        o_HBM0_axi_aw.addr(15 downto 9) <= copy_channelGroup(6 downto 0);
-                        o_HBM1_axi_aw.addr(27 downto 16) <= copy_fine;
-                        o_HBM1_axi_aw.addr(15 downto 9) <= copy_channelGroup(6 downto 0);
-                        
-                        if (copy_channelGroup(7) = '0') then
-                            o_HBM0_axi_aw.valid <= '1'; -- first half of the channels go to the first memory.
-                            o_HBM1_axi_aw.valid <= '0';
-                            copy_fsm <= wait_HBM0_aw_rdy;
-                        else
-                            o_HBM1_axi_aw.valid <= '1';
-                            o_HBM0_axi_aw.valid <= '0';
-                            copy_fsm <= wait_HBM1_aw_rdy;
+                            get_addr <= '0';
                         end if;
                         
                     when wait_HBM0_aw_rdy =>
-                        if i_HBM0_axi_awready = '1' then
-                            o_HBM0_axi_aw.valid <= '0';
+                        get_addr <= '0';
+                        if i_HBM_axi_awready(0) = '1' then
+                            o_HBM_axi_aw(0).valid <= '0';
                             copy_fsm <= get_next_addr;
                         end if;
                     
                     when wait_HBM1_aw_rdy =>
-                        if i_HBM1_axi_awready = '1' then
-                            o_HBM1_axi_aw.valid <= '0';
+                        get_addr <= '0';
+                        if i_HBM_axi_awready(1) = '1' then
+                            o_HBM_axi_aw(1).valid <= '0';
                             copy_fsm <= get_next_addr;
                         end if;
                     
+                    when skip_rdy => -- no request issued to the HBM because the fine channel is not being stored (i.e. HBM_fine_high = '1')
+                        get_Addr <= '0';
+                        o_HBM_axi_aw(1).valid <= '0';
+                        o_HBM_axi_aw(0).valid <= '0';
+                        copy_fsm <= get_next_addr;
+                    
                     when get_next_addr =>
-                        copy_fine <= std_logic_vector(unsigned(copy_fine) + 1);
-                        o_HBM0_axi_aw.valid <= '0';
-                        o_HBM1_axi_aw.valid <= '0';
-                        if (unsigned(copy_fine) = 3455) then
+                        get_addr <= '0';
+                        o_HBM_axi_aw(0).valid <= '0';
+                        o_HBM_axi_aw(1).valid <= '0';
+                        
+                        if (unsigned(copy_fine) = 3456) then
                             copy_fsm <= idle;
                         else
                             copy_fsm <= set_aw;
                         end if;
                         
                     when idle => 
-                        o_HBM0_axi_aw.valid <= '0';
-                        o_HBM1_axi_aw.valid <= '0';
+                        get_Addr <= '0';
+                        o_HBM_axi_aw(0).valid <= '0';
+                        o_HBM_axi_aw(1).valid <= '0';
                         copy_fsm <= idle; -- stay here until we get "copyToHBM" signal
                         
                     when others => 
@@ -343,7 +522,6 @@ begin
             -- Needed to meet the axi interface spec, since we have a large latency on reads from the ultraRAM.
             if copyToHBM = '1' then
                 copyData_fsm <= running;
-                HBM_selection <= copyToHBM_channelGroup(7); -- Which of the two HBM interfaces is this write going to ?
                 if copyToHBM_time(0) = '0' then
                     -- Time blocks 0, 2, 4, 6, 8 and 10 are in the first half of the ultraRAM buffer.
                     bufRdAddr <= (others => '0');
@@ -375,12 +553,12 @@ begin
                 end case;
             end if;
             
-            if (copyData_fsm = running and HBM_selection = '0') then
+            if (copyData_fsm = running and copy_SB_HBM_sel = '0') then
                 dataFIFO0_wrEn(0) <= '1';
             else
                 dataFIFO0_wrEn(0) <= '0';
             end if;
-            if (copyData_fsm = running and HBM_selection = '1') then
+            if (copyData_fsm = running and copy_SB_HBM_sel = '1') then
                 dataFIFO1_wrEn(0) <= '1';
             else
                 dataFIFO1_wrEn(0) <= '0';
@@ -401,20 +579,22 @@ begin
             fifo_size_plus_pending0 <= std_logic_vector(unsigned(pending0) + unsigned(dataFIFO_dataCount(0)));
             fifo_size_plus_pending1 <= std_logic_vector(unsigned(pending1) + unsigned(dataFIFO_dataCount(1)));
             
-            if HBM_selection = '0' then
+            if copy_SB_HBM_sel = '0' then
                 fifo_size_plus_pending <= fifo_size_plus_pending0;
             else
                 fifo_size_plus_pending <= fifo_size_plus_pending1;
             end if;
             
             dataFIFO_wrEn(0) <= dataFIFO0_wrEn(15);
-            dataFIFO_wrEN(1) <= dataFIFO1_wrEn(15);
-            dataFIFO_din <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
+            dataFIFO_wrEn(1) <= dataFIFO1_wrEn(15);
+            dataFIFO_din(0) <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
+            dataFIFO_din(1) <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
             
         end if;
     end process;
 
-    -- number of ones in the wrEN vector is the number of pending writes to the fifo, due to the latency of the ultraRAM buffer.
+    -- Number of ones in the wrEN vector is the number of pending writes to the fifo,
+    -- due to the latency of the ultraRAM buffer.
     one_count1 : entity ct_lib.ones_count16
     port map (
         clk   => i_axi_clk, --  in std_logic;
@@ -487,18 +667,18 @@ begin
     end generate;
     
 
-    o_HBM0_axi_w.data <= dataFIFO_dout(0)(511 downto 0);
-    o_HBM0_axi_w.last <= dataFIFO_dout(0)(512);
-    o_HBM0_axi_w.valid <= dataFIFO_valid(0);
-    o_HBM0_axi_w.resp <= "00";
+    o_HBM_axi_w(0).data <= dataFIFO_dout(0)(511 downto 0);
+    o_HBM_axi_w(0).last <= dataFIFO_dout(0)(512);
+    o_HBM_axi_w(0).valid <= dataFIFO_valid(0);
+    o_HBM_axi_w(0).resp <= "00";
     
-    o_HBM1_axi_w.data <= dataFIFO_dout(1)(511 downto 0);
-    o_HBM1_axi_w.last <= dataFIFO_dout(1)(512);
-    o_HBM1_axi_w.valid <= dataFIFO_valid(1);
-    o_HBM1_axi_w.resp <= "00";
+    o_HBM_axi_w(1).data <= dataFIFO_dout(1)(511 downto 0);
+    o_HBM_axi_w(1).last <= dataFIFO_dout(1)(512);
+    o_HBM_axi_w(1).valid <= dataFIFO_valid(1);
+    o_HBM_axi_w(1).resp <= "00";
     
-    dataFIFO_rden(0) <= dataFIFO_valid(0) and i_HBM0_axi_wready;
-    dataFIFO_rden(1) <= dataFIFO_valid(1) and i_HBM1_axi_wready;
+    dataFIFO_rden(0) <= dataFIFO_valid(0) and i_HBM_axi_wready(0);
+    dataFIFO_rden(1) <= dataFIFO_valid(1) and i_HBM_axi_wready(1);
     
 end Behavioral;
 

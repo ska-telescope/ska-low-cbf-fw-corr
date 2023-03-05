@@ -87,8 +87,8 @@ begin
             USE_MEM_INIT => 1,               -- DECIMAL
             USE_MEM_INIT_MMI => 0,           -- DECIMAL
             WAKEUP_TIME => "disable_sleep",  -- String
-            WRITE_DATA_WIDTH_A => 32,        -- DECIMAL
-            WRITE_MODE_B => "no_change",     -- String
+            WRITE_DATA_WIDTH_A => 16,        -- DECIMAL
+            WRITE_MODE_B => "read_first",    -- String
             WRITE_PROTECT => 1               -- DECIMAL
         ) port map (
             dbiterrb => open,        -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port B.

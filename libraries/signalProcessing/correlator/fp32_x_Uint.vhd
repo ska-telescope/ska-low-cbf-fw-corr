@@ -29,7 +29,7 @@ architecture Behavioral of fp32_x_Uint is
     signal frac_in : std_logic_vector(24 downto 0);
     signal uint_in : std_logic_vector(13 downto 0);
 
-    signal frac_x_uint : signed(40 downto 0);
+    signal frac_x_uint : signed(38 downto 0);
     signal frac_x_uint_del1 : std_logic_vector(37 downto 0);
 
     signal shifted1 : std_logic_vector(26 downto 0);

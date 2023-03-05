@@ -69,7 +69,7 @@
 -- Correlator filterbank output:
 --   Output is in 4096 sample blocks. 
 --
---   For g_LFAA_BLOCKS_PER_FRAME = 32 LFAA blocks:
+--   For g_LFAA_BLOCKS_PER_FRAME = 32 LFAA blocks:    <-- This case requires a higher clock rate due to the higher filterbank preload overhead.
 --     32 LFAA blocks = 32 * 2.2ms = 70.4 ms
 --     32 LFAA blocks = 16 output blocks
 --     Preload samples = 4096 * 11 = 11 output blocks
@@ -104,12 +104,9 @@ Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 
---library UNISIM;
---use UNISIM.VComponents.all;
-
 entity corr_ct1_top is
     generic (
-        -- Number of LFAA blocks per frame for the correlator output.
+        -- Number of SPS packets per frame (for a single virtual channel) for the correlator output.
         -- Each LFAA block is 2048 time samples. 
         -- Default value is 128.
         -- (128 LFAA packets) x (8192 bytes / LFAA packet) x (1024 virtual channels) = 2^30 bytes = 1 Gbyte per buffer.
@@ -119,7 +116,7 @@ entity corr_ct1_top is
         --   - Can use 32 for simulation of the LFAA ingest, 1st corner turn and filterbank
         --     32 is the minimum possible value because otherwise there is insufficient data for the filterbank preload.
         --   - full build must use 128. The second stage corner turn only supports 128.
-        g_LFAA_BLOCKS_PER_FRAME : integer := 128   
+        g_SPS_PACKETS_PER_FRAME : integer := 128   
     );
     port (
         -- shared memory interface clock (300 MHz)
@@ -128,11 +125,8 @@ entity corr_ct1_top is
         -- Registers (uses the shared memory clock)
         i_saxi_mosi       : in  t_axi4_lite_mosi; -- MACE IN
         o_saxi_miso       : out t_axi4_lite_miso; -- MACE OUT
-        --wall time:
-        i_shared_clk_wall_time : in std_logic_vector(63 downto 0); --wall time in input_clk domain           
-        i_FB_clk_wall_time     : in std_logic_vector(63 downto 0); --wall time in output_clk domain
         -- other config (comes from LFAA ingest module).
-        i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
+        i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         o_rst               : out std_logic;  -- reset from the register module, copied out to be used downstream.
         o_validMemRstActive : out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         -- Headers for each valid packet received by the LFAA ingest.
@@ -151,16 +145,16 @@ entity corr_ct1_top is
         o_sofFull : out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
         o_data0  : out t_slv_8_arr(1 downto 0);
         o_data1  : out t_slv_8_arr(1 downto 0);
-        o_meta01 : out t_atomic_CT_pst_META_out; --   - .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        o_meta01 : out t_CT1_META_out; --   - .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
         o_data2  : out t_slv_8_arr(1 downto 0);
         o_data3  : out t_slv_8_arr(1 downto 0);
-        o_meta23 : out t_atomic_CT_pst_META_out;
+        o_meta23 : out t_CT1_META_out;
         o_data4  : out t_slv_8_arr(1 downto 0);
         o_data5  : out t_slv_8_arr(1 downto 0);
-        o_meta45 : out t_atomic_CT_pst_META_out;
+        o_meta45 : out t_CT1_META_out;
         o_data6  : out t_slv_8_arr(1 downto 0);
         o_data7  : out t_slv_8_arr(1 downto 0);
-        o_meta67 : out t_atomic_CT_pst_META_out;
+        o_meta67 : out t_CT1_META_out;
         o_valid : out std_logic;
         -------------------------------------------------------------
         -- AXI bus to the shared memory. 
@@ -177,6 +171,11 @@ entity corr_ct1_top is
         i_m01_axi_r       : in  t_axi4_full_data;
         o_m01_axi_rready  : out std_logic
     );
+    
+    -- prevent optimisation across module boundaries.
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of corr_ct1_top : entity is "yes";    
+    
 end corr_ct1_top;
 
 architecture Behavioral of corr_ct1_top is
@@ -271,7 +270,7 @@ architecture Behavioral of corr_ct1_top is
     signal outputCountWrEn : std_logic;
     type validBlocks_fsm_type is (idle, clear_all_start, clear_all_run, readChan0, readChan0Wait0, readChan0Wait1, readChan0Wait2, writeChan0, readChan1, readChan1Wait0, readChan1Wait1, readChan1Wait2, writeChan1, readChan2, readChan2Wait0, readChan2Wait1, readChan2Wait2, writeChan2);
     signal validBlocks_fsm : validBlocks_fsm_type := idle;
-    signal meta01, meta23, meta45, meta67 : t_atomic_CT_pst_META_out;
+    signal meta01, meta23, meta45, meta67 : t_CT1_META_out;
     signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_8_arr(1 downto 0);
     signal FBClk_rst : std_logic;
     signal haltPacketCountEqZero : std_logic;
@@ -439,10 +438,10 @@ begin
             buf2offset <= std_logic_vector(signed(packetCount) - signed(packetCountBuffer2));
             
             -- Select which of the 4 buffers to use. This is still qualified in the state machine by checks on whether the packet is in range.
-            if ((signed(buf0offset) >= 0) and (signed(buf0offset) < g_LFAA_BLOCKS_PER_FRAME)) then
+            if ((signed(buf0offset) >= 0) and (signed(buf0offset) < g_SPS_PACKETS_PER_FRAME)) then
                 LFAAAddr(31 downto 30) <= "00";
                 LFAAAddr(19 downto 13) <= buf0offset(6 downto 0);
-            elsif ((signed(buf1offset) >= 0) and (signed(buf1offset) < g_LFAA_BLOCKS_PER_FRAME)) then
+            elsif ((signed(buf1offset) >= 0) and (signed(buf1offset) < g_SPS_PACKETS_PER_FRAME)) then
                 LFAAAddr(31 downto 30) <= "01";
                 LFAAAddr(19 downto 13) <= buf1offset(6 downto 0);
             else -- if ((signed(buf2offset) >= 0) and (signed(buf2offset) < g_LFAA_BLOCKS_PER_FRAME)) then
@@ -471,11 +470,11 @@ begin
                 currentWrBuffer <= "00";
                 currentRdBuffer <= "10";   -- although we don't actually do a read out on the first frame
                 packetCountBuffer0 <= scanStartPacketCountExt;
-                packetCountBuffer1 <= std_logic_vector(signed(scanStartPacketCountExt) + g_LFAA_BLOCKS_PER_FRAME);  -- Next frame
-                packetCountBuffer2 <= std_logic_vector(signed(scanStartPacketCountExt) - g_LFAA_BLOCKS_PER_FRAME);  -- Previous frame
-                frameCountReadTrigger <= std_logic_vector(signed(scanStartPacketCountExt) + g_LFAA_BLOCKS_PER_FRAME + signed(untimedFrameCountStart));
+                packetCountBuffer1 <= std_logic_vector(signed(scanStartPacketCountExt) + g_SPS_PACKETS_PER_FRAME);  -- Next frame
+                packetCountBuffer2 <= std_logic_vector(signed(scanStartPacketCountExt) - g_SPS_PACKETS_PER_FRAME);  -- Previous frame
+                frameCountReadTrigger <= std_logic_vector(signed(scanStartPacketCountExt) + g_SPS_PACKETS_PER_FRAME + signed(untimedFrameCountStart));
                 minPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) - 2); -- -2 so that it includes the preload data.
-                maxPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) + 3*g_LFAA_BLOCKS_PER_FRAME - 2); -- -2 so we don't overwrite preload data for the current frame being read out with future data.
+                maxPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) + 3*g_SPS_PACKETS_PER_FRAME - 2); -- -2 so we don't overwrite preload data for the current frame being read out with future data.
                 triggerRead <= '0';
             elsif ((input_fsm = check_range) and (signed(packetCount) >= signed(frameCountReadTrigger))) then 
                 -- Advance to the next frame
@@ -485,25 +484,24 @@ begin
                     when "01" => currentWrBuffer <= "10";
                     when others => currentWrBuffer <= "00";
                 end case;
-                frameCountReadTrigger <= std_logic_vector(unsigned(frameCountReadTrigger) + g_LFAA_BLOCKS_PER_FRAME);
+                frameCountReadTrigger <= std_logic_vector(unsigned(frameCountReadTrigger) + g_SPS_PACKETS_PER_FRAME);
                 if currentWrBuffer = "00" then
                     -- We are far enough into buffer 1 to start reading from buffer 0, with preload data coming from buffer 2.
                     -- For the purpose of writing new LFAA data, advance buffer 2 (although the end of buffer2 is still used for preload data). 
-                    packetCountBuffer2 <= std_logic_vector(unsigned(packetCountBuffer2) + 3 * g_LFAA_BLOCKS_PER_FRAME);
+                    packetCountBuffer2 <= std_logic_vector(unsigned(packetCountBuffer2) + 3 * g_SPS_PACKETS_PER_FRAME);
                 elsif currentWrBuffer = "01" then
-                    packetCountBuffer0 <= std_logic_vector(unsigned(packetCountBuffer0) + 3 * g_LFAA_BLOCKS_PER_FRAME);
+                    packetCountBuffer0 <= std_logic_vector(unsigned(packetCountBuffer0) + 3 * g_SPS_PACKETS_PER_FRAME);
                 else
-                    packetCountBuffer1 <= std_logic_vector(unsigned(packetCountBuffer1) + 3 * g_LFAA_BLOCKS_PER_FRAME);
+                    packetCountBuffer1 <= std_logic_vector(unsigned(packetCountBuffer1) + 3 * g_SPS_PACKETS_PER_FRAME);
                 end if;
-                minPacketCount <= std_logic_vector(unsigned(minPacketCount) + g_LFAA_BLOCKS_PER_FRAME);
-                maxPacketCount <= std_logic_vector(unsigned(maxPacketCount) + g_LFAA_BLOCKS_PER_FRAME);
+                minPacketCount <= std_logic_vector(unsigned(minPacketCount) + g_SPS_PACKETS_PER_FRAME);
+                maxPacketCount <= std_logic_vector(unsigned(maxPacketCount) + g_SPS_PACKETS_PER_FRAME);
                 triggerRead <= '1';
             else
                 triggerRead <= '0';
             end if;
             
             if resetDel1 = '1' and resetDel2 = '0' then
-                --NChannels <= config_rw.totalchannels(11 downto 0);
                 NChannels <= '0' & i_virtualChannels;
                 clocksPerPacket <= config_rw.output_cycles;
             end if;
@@ -692,7 +690,7 @@ begin
     
     readout : entity ct_lib.corr_ct1_readout
     generic map (
-        g_LFAA_BLOCKS_PER_FRAME => g_LFAA_BLOCKS_PER_FRAME
+        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME
     )
     port map (
         shared_clk => i_shared_clk, -- in std_logic; Shared memory clock
@@ -721,20 +719,20 @@ begin
         o_sof   => o_sof,   -- out std_logic; start of frame.
         o_sofFull => o_sofFull, -- out std_logic; -- start of a full frame, i.e. 60ms of data.
         
-        o_HPol0 => data0, -- out t_slv_8_arr(1 downto 0);
-        o_VPol0 => data1, -- out t_slv_8_arr(1 downto 0);
-        o_meta0 => meta01, -- out t_atomic_CT_pst_META_out;
+        o_HPol0 => data0,  -- out t_slv_8_arr(1 downto 0);
+        o_VPol0 => data1,  -- out t_slv_8_arr(1 downto 0);
+        o_meta0 => meta01, -- out t_CT1_META_out;
         
-        o_HPol1 => data2, -- out t_slv_8_arr(1 downto 0);
-        o_VPol1 => data3, -- out t_slv_8_arr(1 downto 0);
-        o_meta1 => meta23, -- out t_atomic_CT_pst_META_out;
+        o_HPol1 => data2,  -- out t_slv_8_arr(1 downto 0);
+        o_VPol1 => data3,  -- out t_slv_8_arr(1 downto 0);
+        o_meta1 => meta23, -- out t_CT1_META_out;
         
-        o_HPol2 => data4, -- out t_slv_8_arr(1 downto 0);
-        o_VPol2 => data5, -- out t_slv_8_arr(1 downto 0);
-        o_meta2 => meta45, -- out t_atomic_CT_pst_META_out;
+        o_HPol2 => data4,  -- out t_slv_8_arr(1 downto 0);
+        o_VPol2 => data5,  -- out t_slv_8_arr(1 downto 0);
+        o_meta2 => meta45, -- out t_CT1_META_out;
         
-        o_HPol3 => data6, -- 
-        o_Vpol3 => data7, --
+        o_HPol3 => data6,  -- 
+        o_Vpol3 => data7,  --
         o_meta3 => meta67, --
         
         o_valid => validOut, -- out std_logic;
@@ -776,25 +774,6 @@ begin
             FBClk_rst <= AWFIFO_rst_del1 and (not AWFIFO_rst_del2);
         end if;
     end process;
-    
---    xpm_cdc_pulse_inst : xpm_cdc_pulse
---    generic map (
---        DEST_SYNC_FF => 3,   -- DECIMAL; range: 2-10
---        INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
---        REG_OUTPUT => 1,     -- DECIMAL; 0=disable registered output, 1=enable registered output
---        RST_USED => 0,       -- DECIMAL; 0=no reset, 1=implement reset
---        SIM_ASSERT_CHK => 0  -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
---    ) port map (
---        dest_pulse => FBClk_rst,  -- 1-bit output: Outputs a pulse the size of one dest_clk period when a pulse transfer is correctly initiated on src_pulse input.
---        dest_clk => FB_clk,       -- 1-bit input: Destination clock.
---        dest_rst => '0',          -- 1-bit input: optional; required when RST_USED = 1
---        src_clk => i_shared_clk,  -- 1-bit input: Source clock.
---        src_pulse => AWFIFO_rst,  -- 1-bit input: Rising edge of this signal initiates a pulse transfer to the destination clock domain.
---        src_rst => '0'            -- 1-bit input: optional; required when RST_USED = 1
---    );
-    
-    
-    
     
     -- Count valid blocks output to the filterbanks for each channel
     process(i_shared_clk)

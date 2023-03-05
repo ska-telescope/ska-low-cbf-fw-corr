@@ -11,6 +11,9 @@ set_max_delay -datapath_only -from [get_clocks -of_objects [get_cells -hierarchi
 #add_cells_to_pblock pblock_dynamic_SLR0 [get_cells [list level0_i/ulp/perentie0/inst/vcore/dsp_topi/BFCT]]
 #add_cells_to_pblock pblock_dynamic_SLR0 [get_cells [list level0_i/ulp/perentie0/inst/vcore/dsp_topi/BFCT/aximux]]
 
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hierarchical *LFAAin]
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hierarchical *LFAA_FB_CT]
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hierarchical *corFB_i]
 ########################################################################################################################
 ## Time constraints if there is only 1 x 100G with TS on the top QSFP port.
 ## Timeslave IP constraints.. derived from reference design
