@@ -49,14 +49,6 @@ signal power_up_rst_clock_322   : std_logic_vector(31 downto 0) := c_ones_dword;
 signal loop_generator           : integer := 0;
 signal loops                    : integer := 0;
 
-signal streaming_data           : std_logic_vector(511 downto 0);
-signal streaming_data_wren      : std_logic;
-
-signal streaming_data_LBUS      : std_logic_vector(511 downto 0);
-signal streaming_data_S_AXI     : std_logic_vector(511 downto 0);
-
-signal streaming_data_header    : std_logic_vector(511 downto 0);
-
 signal rx_packet_size           : std_logic_vector(13 downto 0) := "00" & x"000";   -- MODULO 64!!
 signal rx_enable_capture        : std_logic := '0';
 
@@ -65,13 +57,14 @@ signal HBM_axi_arready          : std_logic;
 signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
 signal HBM_axi_rready           : std_logic;
 
-signal spead_data               : std_logic_vector((256+16-1) downto 0);
+signal spead_data               : std_logic_vector(511 downto 0);
 signal spead_data_rd            : std_logic;                         -- FWFT FIFO
 signal current_array            : std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
 signal spead_data_rdy           : std_logic;
 signal enabled_array            : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
 signal freq_index               : std_logic_vector(16 downto 0) := (others => '0');
 signal time_ref                 : std_logic_vector(63 downto 0) := (others => '0');
+signal byte_count               : std_logic_vector(13 downto 0);
 
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
@@ -146,9 +139,9 @@ signal test_triangle_2          : t_slv_512_arr(0 to 191)   := (zero_256 & x"1A1
                                                                 x"AAABACADAAABACADAAABACADAAABACADAAABACADAAABACADAAABACADAAABACAD" & x"9A9B9C9D9A9B9C9D9A9B9C9D9A9B9C9D9A9B9C9D9A9B9C9D9A9B9C9D9A9B9C9D",
                                                                 zero_512, zero_512, zero_512, zero_512, zero_512, zero_512,
                                                                 -- ROW 5
-                                                                cor_1 & cor_1 , cor_1 & cor_1 , zero_256 & cor_1 , zero_512 , zero_512 , zero_512 , zero_512 , zero_512,
+                                                                cor_2 & cor_1 , cor_4 & cor_3 , zero_256 & cor_5 , zero_512 , zero_512 , zero_512 , zero_512 , zero_512,
                                                                 -- ROW 6
-                                                                cor_2 & cor_2 , cor_2 & cor_2 , cor_2 & cor_2 , zero_512 , zero_512 , zero_512 , zero_512 , zero_512,
+                                                                cor_7 & cor_6 , cor_9 & cor_8 , cor_b & cor_a , zero_512 , zero_512 , zero_512 , zero_512 , zero_512,
                                                                 -- ROW 7
                                                                 cor_3 & cor_3 , cor_3 & cor_3 , cor_3 & cor_3 , zero_256 & cor_3 , zero_512 , zero_512 , zero_512 , zero_512,
                                                                 -- ROW 8
@@ -244,7 +237,7 @@ end process;
 
 
 HBM_axi_r.data  <=  test_meta_triangle_1(j) when meta_data_sel = '0' else
-                    test_triangle_1(i);
+                    test_triangle_2(i);
 
 
 run_proc : process(clock_300)
@@ -282,17 +275,19 @@ begin
                     meta_data_sel <= '1';
                                         
                 elsif meta_data_sel = '1' then
-                    if i < 31 then
+                    if i < 191 then
                         i <= i + 1;  
                     end if;
                 end if;
+
+                j <= j + 1;
             end if;
 
             -- some stimulus for initial triangle testing.
             if testCount_300 = 69 then --AND testCount_300 < 103 then
                 -- META DATA FROM CORRELATOR SIM
                 row         <= 13D"0";
-                row_count   <= 9D"4";
+                row_count   <= 9D"6";
                 data_valid  <= '1';
 
             elsif testCount_300 > 75 then
@@ -368,6 +363,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_spead_data_rd     => spead_data_rd,
         o_current_array     => current_array,
         o_spead_data_rdy    => spead_data_rdy,
+        o_byte_count        => byte_count,
         i_enabled_array     => enabled_array,
         o_freq_index        => freq_index,
         o_time_ref          => time_ref
@@ -473,6 +469,7 @@ DUT_2 : entity spead_lib.spead_top generic map (
         o_spead_data_rd     => spead_data_rd,
         i_current_array     => current_array,
         i_spead_data_rdy    => spead_data_rdy,
+        i_byte_count        => byte_count,
         o_enabled_array     => enabled_array,
         i_freq_index        => freq_index,
         i_time_ref          => time_ref
