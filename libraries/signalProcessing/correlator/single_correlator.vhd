@@ -25,7 +25,7 @@ entity single_correlator is
         -- Number of samples in most packets. Each sample is 34 bytes of data. 
         -- The last packet in a subarray will typically have less samples, since a given subarray 
         -- does not have any particular total length.
-        g_PACKET_SAMPLES_DIV16 : integer  -- Actual number of samples in the packet is this value x16  
+        g_PACKET_SAMPLES_DIV16 : integer   -- Actual number of samples in the packet is this value x16  
     );
     port(
         -- clock used for all data input and output from this module (300 MHz)
@@ -69,9 +69,10 @@ entity single_correlator is
         -- more correlator configuration
         i_cor_tileTotalTimes    : in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
         i_cor_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
-        i_cor_rowstations       : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
-        i_cor_colstations       : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.        
-        
+        i_cor_rowstations       : in std_logic_vector(8 downto 0); -- Number of stations in the row memories to process; up to 256.
+        i_cor_colstations       : in std_logic_vector(8 downto 0); -- Number of stations in the col memories to process; up to 256.        
+        i_cor_totalStations     : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
+        i_cor_subarrayBeam      : in std_logic_vector(7 downto 0);  -- Which entry is this in the subarray-beam table ?
         ---------------------------------------------------------------
         -- Data out to the HBM
         o_HBM_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -91,10 +92,19 @@ entity single_correlator is
         i_packet_ready    : in std_logic;
         ---------------------------------------------------------------
         -- Registers
-        o_HBM_start : out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
         o_HBM_end   : out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-        o_HBM_cells : out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+        o_HBM_errors : out std_logic_vector(3 downto 0);  -- Something has gone wrong.
         
+        ---------------------------------------------------------------
+        -- copy of the bus taking data to be written to the HBM.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      : out std_logic_vector(255 downto 0);
+        o_tb_visValid  : out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  : out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
     );
 end single_correlator;
 
@@ -105,9 +115,20 @@ architecture Behavioral of single_correlator is
     signal TCIValid_del : std_logic_vector(g_PIPELINE_STAGES downto 0);
     signal dcount_del : t_slv_8_arr(g_PIPELINE_STAGES downto 0);
     signal cell_del   : t_slv_8_arr(g_PIPELINE_STAGES downto 0);
+    signal cellLast_del : std_logic_vector(g_PIPELINE_STAGES downto 0);
     signal tile_del   : t_slv_10_arr(g_PIPELINE_STAGES downto 0);
     signal channel_del : t_slv_24_arr(g_PIPELINE_STAGES downto 0);
+    signal totalStations_del : t_slv_16_arr(g_PIPELINE_STAGES downto 0);
+    signal subarrayBeam_del : t_slv_8_arr(g_PIPELINE_STAGES downto 0);
     signal HBM_stop    : std_logic_vector(g_PIPELINE_STAGES downto 0);
+    
+    signal ro_HBM_start_addr : std_logic_vector(31 downto 0);
+    signal ro_subarray : std_logic_vector(7 downto 0);
+    signal ro_freq_index : std_logic_vector(16 downto 0);
+    signal ro_time_ref : std_logic_vector(63 downto 0);
+    signal ro_row : std_logic_vector(12 downto 0);
+    signal ro_row_count : std_logic_vector(8 downto 0);
+    signal ro_valid : std_logic;
     
 begin
 
@@ -163,18 +184,25 @@ begin
         i_cor_tileChannel       => i_cor_tileChannel,       -- in (23:0);
         i_cor_tileTotalTimes    => i_cor_tileTotalTimes,    -- in (7:0); Number of time samples to integrate for this tile.
         i_cor_tiletotalChannels => i_cor_tileTotalChannels, -- in (4:0); Number of frequency channels to integrate for this tile.
-        i_cor_row_stations      => i_cor_rowStations, --  in (8:0); Number of stations in the row memories to process; up to 256.
-        i_cor_col_stations      => i_cor_colStations, -- in (8:0);  Number of stations in the col memories to process; up to 256.
+        i_cor_row_stations      => i_cor_rowStations, -- in (8:0); Number of stations in the row memories to process; up to 256.
+        i_cor_col_stations      => i_cor_colStations, -- in (8:0); Number of stations in the col memories to process; up to 256.
+        i_cor_totalStations     => i_cor_totalStations, -- in (15:0); Total number of stations being processing for this subarray-beam.
+        i_cor_subarrayBeam      => i_cor_subarrayBeam,  -- in (7:0);  -- Which entry is this in the subarray-beam table ?
+        
         -- Data out to the HBM
         -- o_data is a burst of 16*16*4*8 = 8192 bytes = 256 clocks with 256 bits per clock, for one cell of visibilities, when o_dtype = '0'
         -- When o_dtype = '1', centroid data is being sent as a block of 16*16*2 = 512 bytes = 16 clocks with 256 bits per clock.
-        o_data     => data_del(0),     -- out std_logic_vector(255 downto 0);
-        o_visValid => visValid_del(0), -- out std_logic;                     -- o_data is valid visibility data
-        o_TCIvalid => TCIValid_del(0), -- out std_logic;                     -- o_data is valid TCI & DV data
+        o_data     => data_del(0),     -- out (255:0);
+        o_visValid => visValid_del(0), -- out std_logic; o_data is valid visibility data
+        o_TCIvalid => TCIValid_del(0), -- out std_logic; o_data is valid TCI & DV data
         o_dcount   => dcount_del(0),   -- out (7:0); Counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_cell     => cell_del(0),     -- out (7:0); A "cell" is a 16x16 station block of correlations
+        o_cellLast => cellLast_del(0), -- out std_logic; This is the last cell for the tile.
         o_tile     => tile_del(0),     -- out (9:0); A "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
         o_channel  => channel_del(0),  -- out (23:0); First fine channel index for this correlation.
+        o_totalStations => totalStations_del(0), -- out std_logic_vector(15 downto 0); -- total number of stations in this subarray-beam
+        o_subarrayBeam  => subarrayBeam_del(0),  -- out std_logic_vector(7 downto 0);  -- Index into the subarray-beam table.
+        
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     => HBM_stop(g_PIPELINE_STAGES)  -- in std_logic
@@ -191,14 +219,27 @@ begin
             TCIValid_del(g_PIPELINE_STAGES downto 1) <= TCIValid_del(g_PIPELINE_STAGES-1 downto 0);
             dcount_del(g_PIPELINE_STAGES downto 1)   <= dcount_del(g_PIPELINE_STAGES-1 downto 0);
             cell_del(g_PIPELINE_STAGES downto 1)     <= cell_del(g_PIPELINE_STAGES-1 downto 0);
+            cellLast_del(g_PIPELINE_STAGES downto 1) <= cellLast_del(g_PIPELINE_STAGES-1 downto 0);
             tile_del(g_PIPELINE_STAGES downto 1)     <= tile_del(g_PIPELINE_STAGES-1 downto 0);
             channel_del(g_PIPELINE_STAGES downto 1)  <= channel_del(g_PIPELINE_STAGES-1 downto 0);
+            totalStations_del(g_PIPELINE_STAGES downto 1) <= totalStations_del(g_PIPELINE_STAGES-1 downto 0);
+            subarrayBeam_del(g_PIPELINE_STAGES downto 1)  <= subarrayBeam_del(g_PIPELINE_STAGES-1 downto 0);
             
             -- HBM interface back to the correlator array.
             HBM_stop(g_PIPELINE_STAGES downto 1) <= HBM_stop(g_PIPELINE_STAGES-1 downto 0);
             
         end if;
-    end process;
+    end process;   
+    
+    -- Send to top level for comparision with model data in the testbench
+    o_tb_data      <= data_del(g_PIPELINE_STAGES);     -- out (255:0);
+    o_tb_visValid  <= visValid_del(g_PIPELINE_STAGES); -- out std_logic; i_data is valid visibility data
+    o_tb_TCIvalid  <= TCIValid_del(g_PIPELINE_STAGES); -- out std_logic; i_data is valid TCI & DV data
+    o_tb_dcount    <= dcount_del(g_PIPELINE_STAGES);   -- out (7:0); Counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+    o_tb_cell      <= cell_del(g_PIPELINE_STAGES);     -- out (7:0); A "cell" is a 16x16 station block of correlations
+    o_tb_tile      <= tile_del(g_PIPELINE_STAGES);     -- out (9:0); A "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+    o_tb_channel   <= channel_del(g_PIPELINE_STAGES);  --    
+    
     
     -- Dump to HBM
     icdump : entity correlator_lib.correlator_HBM
@@ -215,26 +256,48 @@ begin
         i_data      => data_del(g_PIPELINE_STAGES),     -- in (255:0);
         i_visValid  => visValid_del(g_PIPELINE_STAGES), -- in std_logic; i_data is valid visibility data
         i_TCIvalid  => TCIValid_del(g_PIPELINE_STAGES), -- in std_logic; i_data is valid TCI & DV data
-        i_dcount    => dcount_del(g_PIPELINE_STAGES),   -- in (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
-        i_cell      => cell_del(g_PIPELINE_STAGES),     -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
-        i_tile      => tile_del(g_PIPELINE_STAGES),     -- in (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        i_channel   => channel_del(g_PIPELINE_STAGES),  -- in (23:0); -- first fine channel index for this correlation.
+        i_dcount    => dcount_del(g_PIPELINE_STAGES),   -- in (7:0);  Counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        i_cell      => cell_del(g_PIPELINE_STAGES),     -- in (7:0);  A "cell" is a 16x16 station block of correlations
+        i_cellLast  => cellLast_del(g_PIPELINE_STAGES), -- std_logic; Last cell for this tile.
+        i_tile      => tile_del(g_PIPELINE_STAGES),     -- in (9:0);  A "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        i_channel   => channel_del(g_PIPELINE_STAGES),  -- in (23:0); First fine channel index for this correlation.
+        i_totalStations => totalStations_del(g_PIPELINE_STAGES),
+        i_subarrayBeam => subarrayBeam_del(g_PIPELINE_STAGES),
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         o_stop      => HBM_stop(0),                     --  out std_logic;
         
         -----------------------------------------------------------------------------------------
         -- Status info
-        o_HBM_start => o_HBM_start, -- out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
-        o_HBM_end   => o_HBM_end,   -- out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-        o_HBM_cells => o_HBM_cells, -- out std_logic_vector(15 downto 0); -- Number of cells currently in the circular buffer.
+        o_HBM_end   => o_HBM_end, -- out (31:0); Byte address offset into the HBM buffer where the visibility circular buffer ends.
+        o_errors    => o_HBM_errors,
         -----------------------------------------------------------------------------------------
-        -- Packets for SDP, via 100GE
-        -- Packets are SPEAD, i.e. they contain the SPEAD data and nothing else (no ethernet, udp or ip headers).
-        o_packet_dout  => o_packet_dout,  -- out std_logic_vector(255 downto 0);
-        o_packet_valid => o_packet_valid, -- out std_logic;
-        i_packet_ready => i_packet_ready, -- in std_logic;
+        -- Readout bus "ro"
+        -- Notifies the SPEAD packet generation module that data is available in the HBM to be read out.
+        -- This bus is on the i_axi_clk domain (i.e. same clock as the HBM interface).
         
+        -- Byte address in HBM of the start of a strip from the visibility matrix.
+        -- Start address of the meta data is at (o_HBM_start_addr/16 + 256 Mbytes)
+        o_ro_HBM_start_addr => ro_HBM_start_addr, -- out (31:0);
+        -- Index of the subarray-beam,
+        -- This is the address into the table in the second corner turn. Valid range is 0 up.
+        o_ro_subarray => ro_subarray, -- out (7:0);
+        -- output frequency index. Count of the frequency channels being generated
+        -- by the correlator. Counts from 0.
+        o_ro_freq_index => ro_freq_index, -- out (16:0);
+        -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
+        -- integration time.
+        o_ro_time_ref => ro_time_ref, -- out (63:0);
+        -- The first of the block of rows in the visibility matrix that is now available for readout.
+        -- Counts from 0. 
+        -- The number of columns to read out for the first row will be (o_row + 1).
+        -- The number of columns to read out for the last row in this strip will be (o_row + o_row_count)
+        o_ro_row => ro_row, --  out (12:0);
+        -- The number of rows to read out. Valid range is 1 up to 256.
+        o_ro_row_count => ro_row_count, -- out (8:0);
+        -- valid indicates that the other signals are valid. 
+        -- valid will pulse high for 1 clock cycle when a strip of data from the visibility matrix is available.
+        o_ro_valid => ro_valid, -- out std_logic;
         -----------------------------------------------------------------------------------------
         -- HBM interface
         -- Write to HBM
@@ -242,15 +305,17 @@ begin
         i_axi_awready => i_HBM_axi_awready, -- in  std_logic;
         o_axi_w       => o_HBM_axi_w,       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
         i_axi_wready  => i_HBM_axi_wready,  -- in  std_logic;
-        i_axi_b       => i_HBM_axi_b,       -- in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        -- Reading from HBM
-        o_axi_ar      => o_HBM_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_axi_arready => i_HBM_axi_arready, -- in  std_logic;
-        i_axi_r       => i_HBM_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_axi_rready  => o_HBM_axi_rready   -- out std_logic
+        i_axi_b       => i_HBM_axi_b        -- in  t_axi4_full_b; write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
     );
     
+    -- Read out from the HBM to form packets 
+    -- Dummy assignments at the moment:
+    o_HBM_axi_ar.valid <= '0';      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+    o_HBM_axi_ar.addr <= (others => '0');
+    o_HBM_axi_ar.len <= (others => '0');
+    o_HBM_axi_rready  <= '1';  -- out std_logic
     
+    o_packet_dout <= (others => '0');
+    o_packet_valid <= '0';
     
-
 end Behavioral;

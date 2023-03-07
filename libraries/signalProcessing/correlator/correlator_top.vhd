@@ -16,7 +16,7 @@
 --  Flow :
 --   - Get data for up to 512 stations and 64 time samples.
 --      - i.e. all the data for 1 fine channel for about 1/3 of a second (= minimum integration time).
---             256 stations in each of the row and col memories, can be the same 256 stations, or different 256 stations.
+--        256 stations in each of the row and col memories, can be the same 256 stations, or different 256 stations.
 --      - Each sample is 16+16 = 32 bits, (dual-pol stations, 8+8 bit complex per polarisation), so the memory required for this is :
 --        (256 stations) * (64 times) * (4 bytes) = 65536 kBytes
 --      - The actual memory required is 4x this : 
@@ -168,9 +168,10 @@ entity correlator_top is
         i_cor0_tileChannel : in std_logic_vector(23 downto 0);
         i_cor0_tileTotalTimes    : in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
         i_cor0_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
-        i_cor0_rowstations       : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
-        i_cor0_colstations       : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256. 
-        
+        i_cor0_rowstations       : in std_logic_vector(8 downto 0); -- Number of stations in the row memories to process; up to 256.
+        i_cor0_colstations       : in std_logic_vector(8 downto 0); -- Number of stations in the col memories to process; up to 256.
+        i_cor0_totalStations     : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
+        i_cor0_subarrayBeam      : in std_logic_vector(7 downto 0);  -- Which entry is this in the subarray-beam table ?
         -- Data out to the HBM
         o_cor0_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_cor0_axi_awready : in  std_logic;
@@ -200,6 +201,8 @@ entity correlator_top is
         i_cor1_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
         i_cor1_rowstations       : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
         i_cor1_colstations       : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256. 
+        i_cor1_totalStations     : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
+        i_cor1_subarrayBeam      : in std_logic_vector(7 downto 0);  -- Which entry is this in the subarray-beam table ?
         -- Data out to the HBM
         o_cor1_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_cor1_axi_awready : in  std_logic;
@@ -225,7 +228,19 @@ entity correlator_top is
         
         o_packet1_dout : out std_logic_vector(255 downto 0);
         o_packet1_valid : out std_logic;
-        i_packet1_ready : in std_logic
+        i_packet1_ready : in std_logic;
+        
+        ---------------------------------------------------------------
+        -- Copy of the bus taking data to be written to the HBM,
+        -- for the first correlator instance.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      : out std_logic_vector(255 downto 0);
+        o_tb_visValid  : out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  : out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
         
     );
 end correlator_top;
@@ -241,7 +256,7 @@ architecture Behavioral of correlator_top is
     signal cor1_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
     signal cor1_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
     signal cor1_HBM_cells : std_logic_vector(15 downto 0);
-    
+    signal cor0_HBM_errors, cor1_HBM_errors : std_logic_vector(3 downto 0);
 begin
     
     -- First correlator instance
@@ -295,7 +310,9 @@ begin
         i_cor_tileTotalTimes    => i_cor0_tileTotalTimes,    -- in (7:0) Number of time samples to integrate for this tile.
         i_cor_tiletotalChannels => i_cor0_tileTotalChannels, -- in (4:0) Number of frequency channels to integrate for this tile.
         i_cor_rowstations       => i_cor0_rowStations,       -- in (8:0) Number of stations in the row memories to process; up to 256.
-        i_cor_colstations       => i_cor0_colStations,       -- in (8:0) Number of stations in the col memories to process; up to 256.       
+        i_cor_colstations       => i_cor0_colStations,       -- in (8:0) Number of stations in the col memories to process; up to 256.
+        i_cor_totalStations     => i_cor0_totalStations,     -- in (15:0); Total number of stations being processing for this subarray-beam.
+        i_cor_subarrayBeam      => i_cor0_subarrayBeam,      -- in (7:0);  Which entry is this in the subarray-beam table ?
         ---------------------------------------------------------------
         -- Data out to the HBM
         o_HBM_axi_aw      => o_cor0_axi_aw,      -- out t_axi4_full_addr; write address bus (.valid, .addr(39:0), .len(7:0))
@@ -315,9 +332,19 @@ begin
         i_packet_ready    => i_packet0_ready, --  in std_logic;
         ---------------------------------------------------------------
         -- Registers
-        o_HBM_start => cor0_HBM_start, -- out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
-        o_HBM_end   => cor0_HBM_end,   -- out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-        o_HBM_cells => cor0_HBM_cells  -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+        o_HBM_end    => cor0_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
+        o_HBM_errors => cor0_HBM_errors, -- out (3:0)  -- Number of cells currently in the circular buffer.
+        
+        ---------------------------------------------------------------
+        -- copy of the bus taking data to be written to the HBM.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      => o_tb_data,     -- out (255:0);
+        o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
     );
     
     cor2geni : if (g_CORRELATORS > 1) generate
@@ -357,6 +384,8 @@ begin
             i_cor_tiletotalChannels => i_cor1_tileTotalChannels, -- in (4:0) -- Number of frequency channels to integrate for this tile.
             i_cor_rowstations       => i_cor1_rowStations,       -- in (8:0); -- number of stations in the row memories to process; up to 256.
             i_cor_colstations       => i_cor1_colStations,       -- in (8:0); -- number of stations in the col memories to process; up to 256.  
+            i_cor_totalStations     => i_cor1_totalStations,     -- in (15:0); Total number of stations being processing for this subarray-beam.
+            i_cor_subarrayBeam      => i_cor1_subarrayBeam,      -- in (7:0);  Which entry is this in the subarray-beam table ?
             ---------------------------------------------------------------
             -- Data out to the HBM
             o_HBM_axi_aw      => o_cor1_axi_aw, --  out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -376,9 +405,18 @@ begin
             i_packet_ready    => i_packet1_ready, --  in std_logic;
             ---------------------------------------------------------------
             -- Registers
-            o_HBM_start => cor1_HBM_start, -- out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
-            o_HBM_end   => cor1_HBM_end,   -- out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-            o_HBM_cells => cor1_HBM_cells  -- out std_logic_vector(15 downto 0)  -- Number of cells currently in the circular buffer.
+            o_HBM_end   => cor1_HBM_end,     -- out (31:0); Byte address offset into the HBM buffer where the visibility circular buffer ends.
+            o_HBM_errors => cor1_HBM_errors, -- out (3:0); Number of cells currently in the circular buffer.
+            ---------------------------------------------------------------
+            -- copy of the bus taking data to be written to the HBM.
+            -- Used for simulation only, to check against the model data.
+            o_tb_data      => open, -- out (255:0);
+            o_tb_visValid  => open, -- out std_logic; -- o_tb_data is valid visibility data
+            o_tb_TCIvalid  => open, -- out std_logic; -- i_data is valid TCI & DV data
+            o_tb_dcount    => open, -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+            o_tb_cell      => open, -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+            o_tb_tile      => open, -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+            o_tb_channel   => open  -- out (23:0) -- first fine channel index for this correlation.
         );
     end generate;
     
@@ -415,12 +453,12 @@ begin
         SETUP_FIELDS_RO => config_ro   -- in  t_setup_ro
     );
     
-    config_ro.cor0_HBM_start <= cor0_HBM_start;
+    config_ro.cor0_HBM_start <= (others => '0'); -- TODO - should come from the SPEAD packet readout module
     config_ro.cor0_HBM_end <= cor0_HBM_end;
-    config_ro.cor0_HBM_size <= cor0_HBM_cells;
+    config_ro.cor0_HBM_size <= (others => '0'); -- TODO - calculate from cor0_HBM_end and cor0_HBM_start
     
-    config_ro.cor1_HBM_start <= cor1_HBM_start;
+    config_ro.cor1_HBM_start <= (others => '0'); -- TODO - should come from the SPEAD packet readout module
     config_ro.cor1_HBM_end <= cor1_HBM_end;
-    config_ro.cor1_HBM_size <= cor1_HBM_cells;
+    config_ro.cor1_HBM_size <= (others => '0'); -- TODO - calculate from cor0_HBM_end and cor0_HBM_start
     
 end Behavioral;

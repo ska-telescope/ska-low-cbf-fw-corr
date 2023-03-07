@@ -171,6 +171,11 @@ entity corr_ct1_top is
         i_m01_axi_r       : in  t_axi4_full_data;
         o_m01_axi_rready  : out std_logic
     );
+    
+    -- prevent optimisation across module boundaries.
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of corr_ct1_top : entity is "yes";    
+    
 end corr_ct1_top;
 
 architecture Behavioral of corr_ct1_top is

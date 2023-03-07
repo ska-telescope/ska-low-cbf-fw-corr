@@ -134,6 +134,8 @@ entity corr_ct2_top is
         o_cor_tiletotalChannels : out t_slv_5_arr(g_MAX_CORRELATORS-1 downto 0); -- Number of frequency channels to integrate for this tile.
         o_cor_rowstations       : out t_slv_9_arr(g_MAX_CORRELATORS-1 downto 0); -- number of stations in the row memories to process; up to 256.
         o_cor_colstations       : out t_slv_9_arr(g_MAX_CORRELATORS-1 downto 0); -- number of stations in the col memories to process; up to 256.
+        o_cor_totalStations     : out t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- Total number of stations being processing for this subarray-beam.
+        o_cor_subarrayBeam      : out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  -- Which entry is this in the subarray-beam table ? 
         -----------------------------------------------------------------
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
@@ -326,6 +328,7 @@ begin
             
             -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
             o_SB_req   => dout_SB_req(i),    -- Rising edge gets the parameters for the next subarray-beam to read out.
+            i_SB       => cur_readout_SB(i), -- in (6:0); which subarray-beam are we currently processing from the subarray-beam table.
             i_SB_valid => dout_SB_valid(i),  -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
             i_SB_done  => dout_SB_done(i),   -- Indicates that all the subarray beams for this correlator core has been processed.
             i_stations => dout_SB_stations(i),                 -- in (15:0); The number of (sub)stations in this subarray-beam
@@ -359,6 +362,8 @@ begin
             o_cor_tiletotalChannels => o_cor_tileTotalChannels(i), -- out (4:0); Number of frequency channels to integrate for this tile.
             o_cor_rowstations       => o_cor_rowStations(i), -- out (8:0); Number of stations in the row memories to process; up to 256.
             o_cor_colstations       => o_cor_colStations(i), -- out (8:0); Number of stations in the col memories to process; up to 256.
+            o_cor_subarray_beam     => o_cor_subarrayBeam(i), -- out (7:0); Which entry is this in the subarray-beam table ? 
+            o_cor_totalStations     => o_cor_totalStations(i), -- out (15:0); Total number of stations being processing for this subarray-beam.
             ----------------------------------------------------------------
             -- read interfaces for the HBM
             o_HBM_axi_ar      => o_HBM_axi_ar(i),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))

@@ -71,6 +71,11 @@ entity FB_Top_correlator is
         o_packetValid : out std_logic;
         i_packetReady : in std_logic
     );
+
+    -- prevent optimisation across module boundaries.
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of FB_Top_correlator : entity is "yes";
+    
 end FB_Top_correlator;
 
 architecture Behavioral of FB_Top_correlator is

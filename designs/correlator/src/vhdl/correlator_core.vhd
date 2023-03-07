@@ -244,18 +244,29 @@ ENTITY correlator_core IS
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start  : in std_logic;
-        i_ct2_readout_buffer : in std_logic
+        i_ct2_readout_buffer : in std_logic;
+        ---------------------------------------------------------------
+        -- Copy of the bus taking data to be written to the HBM,
+        -- for the first correlator instance.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      : out std_logic_vector(255 downto 0);
+        o_tb_visValid  : out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  : out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
     );
 END correlator_core;
 
 -------------------------------------------------------------------------------
 ARCHITECTURE structure OF correlator_core IS
 
-    -- 300MHz in, 100 MHz and 450 MHz out.
+    -- 300MHz in, 100 MHz and 425 MHz out.
     component clk_gen100MHz
     port (
         clk100_out : out std_logic;
-        clk450_out : out std_logic;       
+        clk425_out : out std_logic;       
         clk_in1    : in  std_logic);
     end component;
 
@@ -321,7 +332,7 @@ ARCHITECTURE structure OF correlator_core IS
     signal GTY_startup_rst : std_logic := '0';
     signal clk100 : std_logic;
     signal clk400 : std_logic;
-    signal clk450 : std_logic;
+    signal clk425 : std_logic;
     signal clk_gt_freerun_use : std_logic;
     
     signal eth100G_uptime : std_logic_vector(31 downto 0) := (others => '0');
@@ -454,7 +465,7 @@ begin
     u_get100 : clk_gen100MHz
     port map ( 
         clk100_out => clk100,  -- 100 MHz 
-        clk450_out => clk450,  -- 450 MHz clock, used for some signal processing.
+        clk425_out => clk425,  -- 425 MHz clock, used for the correlator.
         clk_in1 => clk_freerun  -- 100 MHz in
     );
     
@@ -809,7 +820,7 @@ begin
         i_clk_100GE      => i_eth100G_clk,      -- in std_logic;
         i_eth100G_locked => i_eth100G_locked,
         -- Filterbank processing clock, 450 MHz
-        i_clk450 => clk450,  -- in std_logic;
+        i_clk425 => clk425,  -- in std_logic;
         i_clk400 => clk400,  -- in std_logic;
         -----------------------------------------------------------------------
         -- reset of the valid memory is in progress.
@@ -859,7 +870,17 @@ begin
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start => i_ct2_readout_start,
-        i_ct2_readout_buffer => i_ct2_readout_buffer
+        i_ct2_readout_buffer => i_ct2_readout_buffer,
+        ---------------------------------------------------------------
+        -- copy of the bus taking data to be written to the HBM.
+        -- Used for simulation only, to check against the model data.
+        o_tb_data      => o_tb_data,     -- out (255:0);
+        o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+        o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+        o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+        o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+        o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
     );
     
     ---------------------------------------------------------------------

@@ -71,7 +71,12 @@ entity LFAADecodeTop100G is
         o_totalChannels  : out std_logic_vector(11 downto 0);
         -- debug ports
         o_dbg            : out std_logic_vector(13 downto 0)
-   );
+    );
+    
+    -- prevent optimisation across module boundaries.
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of LFAADecodeTop100G : entity is "yes";   
+   
 end LFAADecodeTop100G;
 
 architecture Behavioral of LFAADecodeTop100G is

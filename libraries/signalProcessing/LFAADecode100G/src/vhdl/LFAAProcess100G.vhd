@@ -64,7 +64,7 @@ entity LFAAProcess100G is
         o_reg_count        : out t_statctrl_count;
         -- Virtual channel table memory in the registers
         o_searchAddr       : out std_logic_vector(11 downto 0); -- read address to the VCTable_ram in the registers.
-        i_VCTable_rd_data  : in std_logic_vector(31 downto 0); -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
+        i_VCTable_rd_data  : in std_logic_vector(31 downto 0); -- read data from VCTable_ram in the registers; assumed valid 1 clock after searchAddr.
         -- Virtual channel stats in the registers.
         o_statsWrData      : out std_logic_vector(31 downto 0);
         o_statsWE          : out std_logic;
@@ -252,7 +252,7 @@ architecture Behavioral of LFAAProcess100G is
 
     signal searchMax, searchMin, searchInterval : std_logic_vector(15 downto 0);
     signal upperIntervalCenter, lowerIntervalCenter : std_logic_vector(15 downto 0);
-    type lookup_fsm_type is (search_failure, search_success, wait_rd_VC1, wait_rd_VC2, wait_rd_VC3, check_rd_data, wait_rd3, wait_rd2, wait_rd1, start, idle);
+    type lookup_fsm_type is (search_failure, search_success, wait_rd_VC1, wait_rd_VC2, check_rd_data, wait_rd3, wait_rd2, wait_rd1, start, idle);
     signal lookup_fsm : lookup_fsm_type;
     signal VCTableMatch : std_logic;
     signal wdFIFO_empty : std_logic;
@@ -411,8 +411,8 @@ begin
                     -- Copy the bytes into the actualValues array
                     for j in 0 to (c_fieldmatch_loc(i).bytes-1) loop
                         actualValues(i)(((j+1) * 8 - 1) downto (j*8)) <=
-                            dataAligned((c_fieldmatch_loc(i).byteOffset * 8 + c_fieldmatch_loc(i).bytes * 8 + j*8 + 7) downto
-                                        (c_fieldmatch_loc(i).byteOffset * 8 + c_fieldmatch_loc(i).bytes * 8 + j*8));
+                            dataAligned((c_fieldmatch_loc(i).byteOffset * 8 + (c_fieldmatch_loc(i).bytes-1)*8 - j*8 + 7) downto
+                                        (c_fieldmatch_loc(i).byteOffset * 8 + (c_fieldmatch_loc(i).bytes-1)*8 - j*8));
                     end loop;
                 end if;
             end loop;
@@ -535,11 +535,8 @@ begin
                         lookup_fsm <= wait_rd_VC2;
                         
                     when wait_rd_VC2 =>
-                        lookup_fsm <= wait_rd_VC3;
-                        
-                    when wait_rd_VC3 =>
                         -- The virtual channel to be assigned to this packet is read from the second word in the virtual channel table.
-                        virtualChannel <= i_VCTable_rd_data(10 downto 0); 
+                        virtualChannel <= VCTable_rd_data_del1(10 downto 0); 
                         searchDone <= '1';
                         NoMatch <= '0';
                         lookup_fsm <= idle;
@@ -1204,24 +1201,13 @@ begin
     )
     port map (
         dest_out => hdrCDC_dest_out, -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
-        dest_req => o_valid, -- 1-bit output: Assertion of this signal indicates that new dest_out data has been
-                            -- received and is ready to be used or captured by the destination logic. When
-                            -- DEST_EXT_HSK = 1, this signal will deassert once the source handshake
-                            -- acknowledges that the destination clock domain has received the transferred
-                            -- data. When DEST_EXT_HSK = 0, this signal asserts for one clock period when
-                            -- dest_out bus is valid. This output is registered.
-      src_rcv => hdrCDC_src_rcv,   -- 1-bit output: Acknowledgement from destination logic that src_in has been
-                            -- received. This signal will be deasserted once destination handshake has fully
-                            -- completed, thus completing a full data transfer. This output is registered.
-      dest_ack => '1',   -- 1-bit input: optional; required when DEST_EXT_HSK = 1
-      dest_clk => i_ap_clk,   -- 1-bit input: Destination clock.
-      src_clk => i_data_clk,  -- 1-bit input: Source clock.
-      src_in => hdrCDC_src_in,     -- WIDTH-bit input: Input bus that will be synchronized to the destination clock domain.
-      src_send => hdrCDC_src_send  -- 1-bit input: Assertion of this signal allows the src_in bus to be synchronized
-                            -- to the destination clock domain. This signal should only be asserted when
-                            -- src_rcv is deasserted, indicating that the previous data transfer is complete.
-                            -- This signal should only be deasserted once src_rcv is asserted, acknowledging
-                            -- that the src_in has been received by the destination logic.
+        dest_req => o_valid, -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic.
+        src_rcv => hdrCDC_src_rcv,   -- 1-bit output: Acknowledgement from destination logic that src_in has been received. 
+        dest_ack => '1',   -- 1-bit input: optional; required when DEST_EXT_HSK = 1
+        dest_clk => i_ap_clk,   -- 1-bit input: Destination clock.
+        src_clk => i_data_clk,  -- 1-bit input: Source clock.
+        src_in => hdrCDC_src_in,     -- WIDTH-bit input: Input bus that will be synchronized to the destination clock domain.
+        src_send => hdrCDC_src_send  -- 1-bit input: Assertion of this signal allows the src_in bus to be synchronized to the destination clock domain. 
     );
     
     o_virtualChannel <= hdrCDC_dest_out(47 downto 32);
