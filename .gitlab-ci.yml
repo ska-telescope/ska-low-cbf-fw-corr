@@ -17,7 +17,7 @@ variables:
   EXTRA_VPP_ARGS: "--user_ip_repo_paths $${BASEDIR}/pub-timeslave/hw/cores"
   EXTRA_XSIM_DIR: "$${BASEDIR}/sim"  # set to "" downstream if no sim exists
   EXTRA_MODEL_DIR: "" #"low-cbf-model"  # used as path for artifacts from xsim job
-  EXTRA_MATLAB_MODEL_DIR: "$${BASEDIR}/${EXTRA_MODEL_DIR}/src_atomic"  # set to "" downstream to skip matlab job
+  EXTRA_MATLAB_MODEL_DIR: "" #"$${BASEDIR}/${EXTRA_MODEL_DIR}/src_atomic"  # set to "" downstream to skip matlab job
   COMPARE_SIM_TO_MODEL: "FALSE" 
 
 
@@ -62,52 +62,53 @@ raw-build:
 
 
 ####################################################################################################################
-### Repeat the build jobs for the U55C Alveo platform 3
-create project u55_base_2:
-  extends: create project
-  variables:
-    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-    VITIS_VERSION: "2022.2"
+### Example of how to add jobs to build for a different platform/card.
+### Update & un-comment to enable the next generation card for testing.
+# create project u55_base_2:
+#   extends: create project
+#   variables:
+#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+#     VITIS_VERSION: "2022.2"
 
-fpga lint u55_base_2:
-  extends: fpga lint
-  needs:
-    - create project u55_base_2
-  variables:
-    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-    VITIS_VERSION: "2022.2"
+# fpga lint u55_base_2:
+#   extends: fpga lint
+#   needs:
+#     - create project u55_base_2
+#   variables:
+#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+#     VITIS_VERSION: "2022.2"
 
-package kernel u55_base_2:
-  extends: package kernel
-  needs:
-    - job: create project u55_base_2
-      artifacts: true
-    - job: fpga lint u55_base_2
-      artifacts: false
-  variables:
-    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-    VITIS_VERSION: "2022.2"
+# package kernel u55_base_2:
+#   extends: package kernel
+#   needs:
+#     - job: create project u55_base_2
+#       artifacts: true
+#     - job: fpga lint u55_base_2
+#       artifacts: false
+#   variables:
+#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+#     VITIS_VERSION: "2022.2"
 
-generate xo u55_base_2:
-  extends: generate xo
-  needs:
-    - package kernel u55_base_2
-  variables:
-    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-    VITIS_VERSION: "2022.2"
+# generate xo u55_base_2:
+#   extends: generate xo
+#   needs:
+#     - package kernel u55_base_2
+#   variables:
+#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+#     VITIS_VERSION: "2022.2"
 
-v++ u55_base_2:
-  extends: v++
-  needs:
-    - generate xo u55_base_2
-  variables:
-    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-    VITIS_VERSION: "2022.2"
+# v++ u55_base_2:
+#   extends: v++
+#   needs:
+#     - generate xo u55_base_2
+#   variables:
+#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+#     VITIS_VERSION: "2022.2"
 
-publish dev package u55_base_2:
-  extends: publish dev package
-  needs:
-    - v++ u55_base_2
-  variables:
-    XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-    VITIS_VERSION: "2022.2"
+# publish dev package u55_base_2:
+#   extends: publish dev package
+#   needs:
+#     - v++ u55_base_2
+#   variables:
+#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
+#     VITIS_VERSION: "2022.2"
