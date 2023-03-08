@@ -425,6 +425,8 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add_dsp.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
 ]
 
 set_property library correlator_lib [get_files {\
@@ -457,7 +459,12 @@ set_property library correlator_lib [get_files {\
   *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add.vhd \
   *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add_dsp.vhd \
   *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
+  *libraries/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  *libraries/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \  
 }]
+
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd]
 
 source $RLIBRARIES_PATH/signalProcessing/correlator/LTA.tcl
 
@@ -523,7 +530,7 @@ set_property library correlator_lib [get_files {\
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead.vhd]
-#set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd]
 
 set_property top tb_cor_spead [get_filesets sim_cor_read_spead]

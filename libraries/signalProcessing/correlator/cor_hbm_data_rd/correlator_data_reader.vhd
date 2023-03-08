@@ -50,7 +50,6 @@ use spead_lib.ethernet_pkg.ALL;
 entity correlator_data_reader is
     Generic ( 
         DEBUG_ILA           : BOOLEAN := FALSE;
-        SPEAD_DATA_WIDTH    : INTEGER := 256;
         HBM_META_DEPTH      : INTEGER := 16;
         HBM_DATA_DEPTH      : INTEGER := 128
 
