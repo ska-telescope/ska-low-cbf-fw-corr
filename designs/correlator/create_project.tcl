@@ -515,6 +515,38 @@ $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_ma
 $RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead_behav.wcfg \
 ]
 
+add_files -fileset sim_cor_read_spead [glob \
+ $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
+ $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg.vhd \
+ $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+ $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
+ $COMMON_PATH/Packetiser100G/src/vhdl/packet_player.vhd \
+ $COMMON_PATH/spead/src/spead_packet_pkg.vhd \
+ $COMMON_PATH/spead/src/spead_packet.vhd \
+ $COMMON_PATH/spead/src/spead_registers.vhd \
+ $COMMON_PATH/spead/src/spead_top.vhd \
+]
+set_property library spead_lib [get_files {\
+ *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
+ *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg.vhd \
+ *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+ *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
+ *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
+ *libraries/spead/src/spead_packet_pkg.vhd \
+ *libraries/spead/src/spead_packet.vhd \
+ *libraries/spead/src/spead_registers.vhd \
+ *libraries/spead/src/spead_top.vhd \
+}]
+
+add_files -fileset sim_cor_read_spead [glob \
+ $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
+ $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
+]
+set_property library signal_processing_common [get_files {\
+ */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
+ */common/src/vhdl/xpm_fifo_wrapper.vhd \
+}]
+
 set_property library spead_lib [get_files {\
  */signalProcessing/correlator/tb/tb_cor_spead.vhd \
 }]

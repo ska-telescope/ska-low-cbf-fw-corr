@@ -326,6 +326,7 @@ architecture Behavioral of HBM_axi_tbModel is
             for n in 0 to (2**(DATAWIDTHLOG2-2) - 1) loop
                 Data((32*n + 31) downto 32*n) := std_logic_vector(to_signed(memArray(BlockAddr)(WordAddr+n), 32));
             end loop;
+            --report "memread : read value " & to_hstring(Data) & "memread : read Addr " & to_hstring(Addr); 
             
         end procedure MemRead;
         
@@ -377,7 +378,7 @@ architecture Behavioral of HBM_axi_tbModel is
                 hread(line_in,memAddr,good);
                 
                 -- Where we start within a 4 kByte block.
-                lineBase := to_integer(unsigned(memAddr(9 downto 0)));
+                lineBase := to_integer(unsigned(memAddr(9 downto 2)));
                 -- Which 4 kByte block.
                 memAddrInt4096 := to_integer(unsigned(memAddr(31 downto 10)));
                 
@@ -393,6 +394,8 @@ architecture Behavioral of HBM_axi_tbModel is
                         assert ((lineBase+wordCount) < 4096) report "Single line in the initialisation file cannot cross a 4096 byte boundary" severity failure;
                         memArray(memAddrInt4096)(lineBase + wordCount) := to_integer(signed(memData));
                         wordCount := wordCount + 1;
+
+                        --report "meminit : data " & to_hstring(memData) & "|| Addr 4K || " & to_hstring(memAddr) & " || linebase offset || " & integer'image(lineBase)  & " || wordcount offset || " & integer'image(wordCount); 
                     end if;
                 end loop;
                 

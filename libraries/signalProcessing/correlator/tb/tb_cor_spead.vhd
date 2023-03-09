@@ -27,8 +27,11 @@ end tb_cor_spead;
 
 architecture Behavioral of tb_cor_spead is
 constant fname          : string := "";
-constant init_fname     : string := "";
+-- assuming stim in base of repo for the moment.
+constant init_fname     : string := "../../../../../../../LTA_vis_check.txt";
 constant HBM_addr_width         : integer := 32;
+
+signal init_mem     : std_logic     := '0';
 
 signal clock_300 : std_logic := '0';    -- 3.33ns
 signal clock_400 : std_logic := '0';    -- 2.50ns
@@ -57,14 +60,14 @@ signal HBM_axi_arready          : std_logic;
 signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
 signal HBM_axi_rready           : std_logic;
 
-signal spead_data               : std_logic_vector(511 downto 0);
-signal spead_data_rd            : std_logic;                         -- FWFT FIFO
-signal current_array            : std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-signal spead_data_rdy           : std_logic;
-signal enabled_array            : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-signal freq_index               : std_logic_vector(16 downto 0) := (others => '0');
-signal time_ref                 : std_logic_vector(63 downto 0) := (others => '0');
-signal byte_count               : std_logic_vector(13 downto 0);
+signal spead_data               : t_slv_512_arr(1 downto 0);
+signal spead_data_rd            : std_logic_vector(1 downto 0); 
+signal current_array            : t_slv_8_arr(1 downto 0); 
+signal spead_data_rdy           : std_logic_vector(1 downto 0);
+signal byte_count               : t_slv_14_arr(1 downto 0); 
+signal enabled_array            : t_slv_8_arr(1 downto 0); 
+signal freq_index               : t_slv_17_arr(1 downto 0);
+signal time_ref                 : t_slv_64_arr(1 downto 0);
 
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
@@ -195,9 +198,11 @@ begin
             power_up_rst_clock_300(31 downto 0) <= power_up_rst_clock_300(30 downto 0) & '0';
             clock_300_rst   <= '1';
             testCount_300   <= 0;
+            
         else
             clock_300_rst   <= '0';
             testCount_300   <= testCount_300 + 1;
+            
         end if;
     end if;
 end process;
@@ -249,10 +254,18 @@ begin
             j <= 0;
             meta_data_sel <= '0';
             test_meta_done <= '0';
+            init_mem        <= '0';
         else
-            freq_index      <= (others => '0');
+            
+            if testCount_300 = 1 then
+                init_mem    <= '1';
+            else
+                init_mem    <= '0';
+            end if;
+
+            freq_index(0)   <= (others => '0');
             sub_array       <= (others => '0');
-            hbm_start_addr  <= x"00002000";
+            hbm_start_addr  <= x"00000000";
 
             if testCount_300 = 50 then
                 row         <= 5D"0" & zero_byte;
@@ -329,8 +342,7 @@ begin
 end process;
 
 DUT : entity correlator_lib.correlator_data_reader generic map ( 
-        DEBUG_ILA           => FALSE,
-        SPEAD_DATA_WIDTH    => 256
+        DEBUG_ILA           => FALSE
     )
     Port map ( 
         -- clock used for all data input and output from this module (300 MHz)
@@ -359,14 +371,14 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         o_HBM_axi_rready    => HBM_axi_rready,
         
         -- Packed up Correlator Data.
-        o_spead_data        => spead_data,
-        i_spead_data_rd     => spead_data_rd,
-        o_current_array     => current_array,
-        o_spead_data_rdy    => spead_data_rdy,
-        o_byte_count        => byte_count,
-        i_enabled_array     => enabled_array,
-        o_freq_index        => freq_index,
-        o_time_ref          => time_ref
+        o_spead_data        => spead_data(0),
+        i_spead_data_rd     => spead_data_rd(0),
+        o_current_array     => current_array(0),
+        o_spead_data_rdy    => spead_data_rdy(0),
+        o_byte_count        => byte_count(0),
+        i_enabled_array     => enabled_array(0),
+        o_freq_index        => freq_index(0),
+        o_time_ref          => time_ref(0)
 
     );
 
@@ -426,7 +438,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         axi_arid       => "0",
 	    axi_arregion   => "0000",
         axi_rdata      => open, --HBM_axi_r.data,
-        axi_rresp      => open,
+        axi_rresp      => HBM_axi_r.resp,
         axi_rlast      => HBM_axi_r.last,
         axi_rvalid     => HBM_axi_r.valid,
         axi_rready     => HBM_axi_rready,
@@ -439,7 +451,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         -- Initialisation of the memory
         -- The memory is loaded with the contents of the file i_init_fname in 
         -- any clock cycle where i_init_mem is high.
-        i_init_mem              => '0',
+        i_init_mem              => init_mem,
         i_init_fname            => init_fname
     );
 
