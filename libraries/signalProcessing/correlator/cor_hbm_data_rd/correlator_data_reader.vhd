@@ -582,34 +582,39 @@ align_64b_proc : process(clk)
 begin
     if rising_edge(clk) then
         if cor_triangle_fsm = idle OR reset = '1' then
-            pack_counter            <= (others => '0');
-            packed_fifo_data_d1     <= (others => '0');
-            packed_fifo_data_d2     <= (others => '0');
-            packed_fifo_data_d3     <= (others => '0');
-            packed_wr_enable        <= "00";
-            trigger_final_write     <= '0';
-        elsif packed_fifo_wr = '1' then
-            packed_fifo_data_d1     <= packed_fifo_data;
-            packed_fifo_data_d2     <= packed_fifo_data_d1;
-            packed_fifo_data_d3     <= packed_fifo_data_d2;
-            pack_counter            <= pack_counter + 1;
-
-            packed_wr_enable(0)     <= '1';
-            packed_wr_enable(1)     <= packed_wr_enable(0);
-        elsif reset_cache_fifos = '1' then
-            pack_counter            <= pack_counter + 2;
-            packed_fifo_data_d1     <= (others => '0');
-            packed_fifo_data_d2     <= packed_fifo_data;
-            packed_fifo_data_d3     <= packed_fifo_data_d1;
-            trigger_final_write     <= '1';
+            pack_counter                <= (others => '0');
+            pack_counter_d              <= (others => '0');
+            packed_fifo_data_d1         <= (others => '0');
+            packed_fifo_data_d2         <= (others => '0');
+            packed_fifo_data_d3         <= (others => '0');
+            aligned_packed_fifo_data_d  <= (others => '0');
+            packed_wr_enable            <= "00";
+            trigger_final_write         <= '0';
+            aligned_packed_wr_d         <= '0';
         else
-            trigger_final_write     <= '0';
+            if packed_fifo_wr = '1' then
+                packed_fifo_data_d1     <= packed_fifo_data;
+                packed_fifo_data_d2     <= packed_fifo_data_d1;
+                packed_fifo_data_d3     <= packed_fifo_data_d2;
+                pack_counter            <= pack_counter + 1;
+
+                packed_wr_enable(0)     <= '1';
+                packed_wr_enable(1)     <= packed_wr_enable(0);
+            elsif reset_cache_fifos = '1' then
+                pack_counter            <= pack_counter + 2;
+                packed_fifo_data_d1     <= (others => '0');
+                packed_fifo_data_d2     <= packed_fifo_data;
+                packed_fifo_data_d3     <= packed_fifo_data_d1;
+                trigger_final_write     <= '1';
+            else
+                trigger_final_write     <= '0';
+            end if;
+
+            pack_counter_d              <= pack_counter;
+
+            aligned_packed_wr_d         <= aligned_packed_wr AND packed_wr_enable(1);
+            aligned_packed_fifo_data_d  <= aligned_packed_fifo_data;
         end if;
-
-        pack_counter_d              <= pack_counter;
-
-        aligned_packed_wr_d         <= aligned_packed_wr AND packed_wr_enable(1);
-        aligned_packed_fifo_data_d  <= aligned_packed_fifo_data;
     end if;
 end process;
 
@@ -707,7 +712,9 @@ aligned_packed_wr           <= '1' when (pack_wr = '1' OR trigger_final_write = 
                     send_spead_data <= send_spead_data(0) & '0';
                 end if;
 
-                if packed_fifo_rd = '1' then
+                if (pack_it_fsm = IDLE)  then
+                    bytes_to_process <= ( others => '0');
+                elsif packed_fifo_rd = '1' then
                     bytes_to_process <= bytes_to_process - 64;
                 elsif packed_fifo_wr = '1' then
                     bytes_to_process <= bytes_to_process + 34;

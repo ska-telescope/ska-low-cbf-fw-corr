@@ -205,7 +205,10 @@ architecture Behavioral of tb_correlatorCore is
 
     signal setupDone : std_logic;
     signal eth100G_clk : std_logic := '0';
-    
+    signal eth100G_locked : std_logic := '0';
+
+    signal power_up_rst_eth100G_clk : std_logic_vector(31 downto 0);
+
     signal m00_bram_we : STD_LOGIC_VECTOR(3 DOWNTO 0);
     signal m00_bram_en : STD_LOGIC;
     signal m00_bram_addr : STD_LOGIC_VECTOR(16 DOWNTO 0);
@@ -330,6 +333,19 @@ begin
     ap_clk <= not ap_clk after 1.666 ns; -- 300 MHz clock.
     clk100 <= not clk100 after 5 ns; -- 100 MHz clock
     eth100G_clk <= not eth100G_clk after 1.553 ns; -- 322 MHz
+
+    eth100G_locking_proc: process(eth100G_clk)
+    begin
+        if rising_edge(eth100G_clk) then
+            -- power up reset logic
+            if power_up_rst_eth100G_clk(31) = '1' then
+                power_up_rst_eth100G_clk(31 downto 0) <= power_up_rst_eth100G_clk(30 downto 0) & '0';
+                eth100G_locked  <= '0';
+            else
+                eth100G_locked  <= '1';
+            end if;
+        end if;
+end process;
 
     process
         file RegCmdfile: TEXT;
@@ -792,8 +808,8 @@ begin
         o_axis_tvalid => eth100_tx_axi_tvalid, -- out std_logic;
         i_axis_tready    => '1',
         
-        i_eth100g_clk  => eth100G_clk, --  in std_logic;
-        i_eth100g_locked => '1',       -- in std_logic;
+        i_eth100g_clk       => eth100G_clk, --  in std_logic;
+        i_eth100g_locked    => eth100G_locked,       -- in std_logic;
         -- reset of the valid memory is in progress.
         o_validMemRstActive => validMemRstActive, -- out std_logic;
 

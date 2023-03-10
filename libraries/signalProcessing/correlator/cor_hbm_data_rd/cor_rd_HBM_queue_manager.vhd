@@ -201,6 +201,7 @@ begin
             meta_data_addr      <= (others => '0');
             meta_data_quantity  <= (others => '0');
             vis_data_addr       <= (others => '0');
+            o_HBM_curr_addr     <= (others => '0');
             
             hbm_axi_ar_valid    <= '0';
             hbm_addr_sel        <= '0';
@@ -214,7 +215,9 @@ begin
             case HBM_reader_fsm is
                 when IDLE =>
                     if i_begin = '1' then
-                        HBM_reader_fsm <= CALC;
+                        HBM_reader_fsm  <= CALC;
+                        -- report back current HBM address in use.
+                        o_HBM_curr_addr <= std_logic_vector(i_hbm_base_addr);
                     end if;
                     hbm_rd_loop_cnt     <= x"0";
                     -- META data always stored in upper half of HBM segment.

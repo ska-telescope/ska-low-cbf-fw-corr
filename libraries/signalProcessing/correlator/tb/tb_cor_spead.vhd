@@ -28,7 +28,7 @@ end tb_cor_spead;
 architecture Behavioral of tb_cor_spead is
 constant fname          : string := "";
 -- assuming stim in base of repo for the moment.
-constant init_fname     : string := "../../../../../../../LTA_vis_check.txt";
+constant init_fname     : string := "../../../../../../../LTA_HBM_dbg_check.txt";
 constant HBM_addr_width         : integer := 32;
 
 signal init_mem     : std_logic     := '0';
@@ -241,8 +241,8 @@ end process;
 -------------------------------------------------------------------------------------------------------------
 
 
-HBM_axi_r.data  <=  test_meta_triangle_1(j) when meta_data_sel = '0' else
-                    test_triangle_2(i);
+-- HBM_axi_r.data  <=  test_meta_triangle_1(j) when meta_data_sel = '0' else
+--                     test_triangle_2(i);
 
 
 run_proc : process(clock_300)
@@ -437,7 +437,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         axi_arqos      => "0000",
         axi_arid       => "0",
 	    axi_arregion   => "0000",
-        axi_rdata      => open, --HBM_axi_r.data,
+        axi_rdata      => HBM_axi_r.data,
         axi_rresp      => HBM_axi_r.resp,
         axi_rlast      => HBM_axi_r.last,
         axi_rvalid     => HBM_axi_r.valid,

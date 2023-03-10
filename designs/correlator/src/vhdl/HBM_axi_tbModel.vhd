@@ -378,7 +378,7 @@ architecture Behavioral of HBM_axi_tbModel is
                 hread(line_in,memAddr,good);
                 
                 -- Where we start within a 4 kByte block.
-                lineBase := to_integer(unsigned(memAddr(9 downto 2)));
+                lineBase := to_integer(unsigned(memAddr(9 downto 0)));
                 -- Which 4 kByte block.
                 memAddrInt4096 := to_integer(unsigned(memAddr(31 downto 10)));
                 
