@@ -8,7 +8,7 @@
 --
 -------------------------------------------------------------------------------
 
-LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib, PSR_Packetiser_lib;
+LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib;
 library LFAADecode_lib, timingcontrol_lib, capture128bit_lib;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -847,10 +847,11 @@ begin
         i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
         o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
         -- PSR Packetiser interface
-        i_packetiser_lite_axi_mosi  => mc_lite_mosi(c_packetiser_lite_index),
-        o_packetiser_lite_axi_miso  => mc_lite_miso(c_packetiser_lite_index),
-        i_packetiser_full_axi_mosi  => mc_full_mosi(c_packetiser_full_index), 
-        o_packetiser_full_axi_miso  => mc_full_miso(c_packetiser_full_index), 
+        i_spead_lite_axi_mosi  => mc_lite_mosi(c_spead_reg_lite_index),
+        o_spead_lite_axi_miso  => mc_lite_miso(c_spead_reg_lite_index),
+        i_spead_full_axi_mosi  => mc_full_mosi(c_spead_reg_full_index), 
+        o_spead_full_axi_miso  => mc_full_miso(c_spead_reg_full_index),
+
         -----------------------------------------------------------------------
         -- AXI interfaces to HBM memory (5 interfaces used)
         -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))

@@ -49,6 +49,8 @@ signal power_up_rst_clock_400   : std_logic_vector(31 downto 0) := c_ones_dword;
 signal power_up_rst_clock_300   : std_logic_vector(31 downto 0) := c_ones_dword;
 signal power_up_rst_clock_322   : std_logic_vector(31 downto 0) := c_ones_dword;
 
+signal cmac_ready               : std_logic;
+
 signal loop_generator           : integer := 0;
 signal loops                    : integer := 0;
 
@@ -68,6 +70,10 @@ signal byte_count               : t_slv_14_arr(1 downto 0);
 signal enabled_array            : t_slv_8_arr(1 downto 0); 
 signal freq_index               : t_slv_17_arr(1 downto 0);
 signal time_ref                 : t_slv_64_arr(1 downto 0);
+signal packetiser_enable        : std_logic_vector(1 downto 0); 
+
+signal i_spead_lite_axi_mosi    : t_axi4_lite_mosi; 
+signal o_spead_lite_axi_miso    : t_axi4_lite_miso;
 
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
@@ -249,12 +255,13 @@ run_proc : process(clock_300)
 begin
     if rising_edge(clock_300) then
         if clock_300_rst = '1' then
-            data_valid  <= '0';
+            data_valid      <= '0';
             i <= 0;
             j <= 0;
-            meta_data_sel <= '0';
-            test_meta_done <= '0';
+            meta_data_sel   <= '0';
+            test_meta_done  <= '0';
             init_mem        <= '0';
+            cmac_ready      <= '0';
         else
             
             if testCount_300 = 1 then
@@ -303,7 +310,8 @@ begin
                 row_count   <= 9D"6";
                 data_valid  <= '1';
 
-            elsif testCount_300 > 75 then
+            elsif testCount_300 > 380 then
+                cmac_ready  <= '0';
             -- elsif testCount_300 > 200 AND testCount_300 < 392 then
             --     i <= i + 1;
             --     HBM_axi_r.data  <= test_triangle_2(i);
@@ -333,6 +341,7 @@ begin
                 --HBM_axi_r.data  <= zero_512;
                 meta_data_sel <= '0';
                 --HBM_axi_r.valid <= '0';
+                cmac_ready  <= '1';
             end if;
                 HBM_axi_r.resp  <= "00";
                 --HBM_axi_r.last  <= '0';
@@ -349,7 +358,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_axi_clk           => clock_300,
         i_axi_rst           => clock_300_rst,
 
-        i_local_reset       => clock_300_rst,
+        i_local_reset       => NOT packetiser_enable(0),
 
         -- config of current sub/freq data read
         i_hbm_start_addr    => hbm_start_addr,
@@ -474,7 +483,7 @@ DUT_2 : entity spead_lib.spead_top generic map (
         o_tx_axis_tvalid    => open,
         o_tx_axis_tlast     => open,
         o_tx_axis_tuser     => open,
-        i_tx_axis_tready    => (NOT clock_322_rst),
+        i_tx_axis_tready    => cmac_ready,
 
         -- Packed up Correlator Data.
         i_spead_data        => spead_data,
@@ -484,10 +493,12 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_byte_count        => byte_count,
         o_enabled_array     => enabled_array,
         i_freq_index        => freq_index,
-        i_time_ref          => time_ref
+        i_time_ref          => time_ref,
+        o_packetiser_enable => packetiser_enable,
 
         -- ARGs
-
+        i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,
+        o_spead_lite_axi_miso   => o_spead_lite_axi_miso
     );  
 
 end Behavioral;

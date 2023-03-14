@@ -95,6 +95,8 @@ entity single_correlator is
         i_enabled_array     : in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
         o_freq_index        : out std_logic_vector(16 downto 0);
         o_time_ref          : out std_logic_vector(63 downto 0);
+
+        i_packetiser_enable : in std_logic;
         ---------------------------------------------------------------
         -- Registers
         o_HBM_end   : out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
@@ -137,6 +139,7 @@ architecture Behavioral of single_correlator is
     signal ro_row_count : std_logic_vector(8 downto 0);
     signal ro_valid : std_logic;
     
+    signal packetiser_reset : std_logic;
 begin
 
     ----------------------------------------------------------------------------------
@@ -316,6 +319,8 @@ begin
     );
     
 
+    packetiser_reset    <= NOT i_packetiser_enable;
+
     HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
         DEBUG_ILA           => FALSE
     )
@@ -324,7 +329,7 @@ begin
         i_axi_clk           => i_axi_clk,
         i_axi_rst           => i_axi_rst,
 
-        i_local_reset       => '0',
+        i_local_reset       => packetiser_reset,
 
         -- config of current sub/freq data read
         i_hbm_start_addr    => ro_HBM_start_addr,

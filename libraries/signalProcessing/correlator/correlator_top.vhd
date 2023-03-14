@@ -225,6 +225,8 @@ entity correlator_top is
         i_cor_enabled_array     : in t_slv_8_arr(1 downto 0); --in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
         o_cor_freq_index        : out t_slv_17_arr(1 downto 0); --out std_logic_vector(16 downto 0);
         o_cor_time_ref          : out t_slv_64_arr(1 downto 0); --out std_logic_vector(63 downto 0)
+
+        i_packetiser_enable     : in std_logic;
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi : in t_axi4_lite_mosi;
@@ -349,6 +351,8 @@ begin
         i_enabled_array     => i_cor_enabled_array(0),
         o_freq_index        => o_cor_freq_index(0),
         o_time_ref          => o_cor_time_ref(0),
+
+        i_packetiser_enable => i_packetiser_enable(0),
         ---------------------------------------------------------------
         -- Registers
         o_HBM_end           => cor0_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
@@ -427,6 +431,8 @@ begin
             i_enabled_array     => i_cor_enabled_array(1),
             o_freq_index        => o_cor_freq_index(1),
             o_time_ref          => o_cor_time_ref(1),
+
+            i_packetiser_enable => i_packetiser_enable(1),
             ---------------------------------------------------------------
             -- Registers
             o_HBM_end           => cor1_HBM_end,     -- out (31:0); Byte address offset into the HBM buffer where the visibility circular buffer ends.

@@ -266,8 +266,8 @@ source $ARGS_PATH/LFAADecode100G/lfaadecode100g/ip_LFAADecode100G_lfaadecode100g
 # SPEAD
 
 add_files -fileset sources_1 [glob \
- $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
- $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg.vhd \
+ $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
+ $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -275,10 +275,11 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/spead_packet.vhd \
  $COMMON_PATH/spead/src/spead_registers.vhd \
  $COMMON_PATH/spead/src/spead_top.vhd \
+ $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
 ]
 set_property library spead_lib [get_files {\
- *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
- *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg.vhd \
+ *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
+ *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -287,6 +288,7 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_packet.vhd \
  *libraries/spead/src/spead_registers.vhd \
  *libraries/spead/src/spead_top.vhd \
+ *libraries/spead/src/memory_tdp_spead.vhd \
 }]
 
 ## tcl scripts for ip generation
@@ -300,12 +302,14 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
  $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
+ $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
  */common/src/vhdl/sync_vector.vhd \
  */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  */common/src/vhdl/xpm_fifo_wrapper.vhd \
+ */common/src/vhdl/memory_tdp_wrapper.vhd \
 }]
 
 #############################################################
@@ -516,8 +520,8 @@ $RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead_behav.wcfg \
 ]
 
 add_files -fileset sim_cor_read_spead [glob \
- $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
- $ARGS_PATH/spead/spead_stream/spead_spead_stream_reg.vhd \
+ $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
+ $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -525,10 +529,11 @@ add_files -fileset sim_cor_read_spead [glob \
  $COMMON_PATH/spead/src/spead_packet.vhd \
  $COMMON_PATH/spead/src/spead_registers.vhd \
  $COMMON_PATH/spead/src/spead_top.vhd \
+ $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
 ]
 set_property library spead_lib [get_files {\
- *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg_pkg.vhd \
- *build/ARGS/correlator/spead/spead_stream/spead_spead_stream_reg.vhd \
+ *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
+ *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -536,15 +541,18 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_packet.vhd \
  *libraries/spead/src/spead_registers.vhd \
  *libraries/spead/src/spead_top.vhd \
+ *libraries/spead/src/memory_tdp_spead.vhd \
 }]
 
 add_files -fileset sim_cor_read_spead [glob \
  $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
+ $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  */common/src/vhdl/xpm_fifo_wrapper.vhd \
+ */common/src/vhdl/memory_tdp_wrapper.vhd \
 }]
 
 set_property library spead_lib [get_files {\

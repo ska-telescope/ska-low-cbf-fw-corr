@@ -98,10 +98,10 @@ entity DSP_top_correlator is
         i_cor_axi_mosi : in  t_axi4_lite_mosi;
         o_cor_axi_miso : out t_axi4_lite_miso;
         -- Output packetiser
-        i_packetiser_Lite_axi_mosi : in t_axi4_lite_mosi; 
-        o_packetiser_Lite_axi_miso : out t_axi4_lite_miso;
-        i_packetiser_Full_axi_mosi : in  t_axi4_full_mosi;
-        o_packetiser_Full_axi_miso : out t_axi4_full_miso;
+        i_spead_lite_axi_mosi : in t_axi4_lite_mosi; 
+        o_spead_lite_axi_miso : out t_axi4_lite_miso;
+        i_spead_full_axi_mosi : in  t_axi4_full_mosi;
+        o_spead_full_axi_miso : out t_axi4_full_miso;
         -----------------------------------------------------------------------
         -- AXI interfaces to shared memory
         -- Uses the same clock as MACE (300MHz)
@@ -217,6 +217,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_enabled_array     : t_slv_8_arr(1 downto 0); --in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
     signal cor_freq_index        : t_slv_17_arr(1 downto 0); --out std_logic_vector(16 downto 0);
     signal cor_time_ref          : t_slv_64_arr(1 downto 0); --out std_logic_vector(63 downto 0)
+    signal packetiser_enable     : std_logic_vector(1 downto 0); 
 
     -- 100G reset
     signal eth100G_rst           : std_logic := '0';
@@ -555,7 +556,7 @@ begin
         i_cor_enabled_array     => cor_enabled_array,
         o_cor_freq_index        => cor_freq_index,
         o_cor_time_ref          => cor_time_ref,
-
+        o_packetiser_enable     => packetiser_enable,
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi => i_cor_axi_mosi, -- in t_axi4_lite_mosi;
@@ -617,10 +618,12 @@ begin
         i_byte_count        => cor_byte_count,
         o_enabled_array     => cor_enabled_array,
         i_freq_index        => cor_freq_index,
-        i_time_ref          => cor_time_ref
+        i_time_ref          => cor_time_ref,
+        i_packetiser_enable => packetiser_enable,
 
-        -- ARGs
-
+        -- ARGs interface.
+        i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,
+        o_spead_lite_axi_miso   => o_spead_lite_axi_miso
     );  
 
     CMAC_100G_reset_proc : process(i_clk_100GE)
