@@ -556,7 +556,7 @@ begin
         i_cor_enabled_array     => cor_enabled_array,
         o_cor_freq_index        => cor_freq_index,
         o_cor_time_ref          => cor_time_ref,
-        o_packetiser_enable     => packetiser_enable,
+        i_packetiser_enable     => packetiser_enable,
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi => i_cor_axi_mosi, -- in t_axi4_lite_mosi;
@@ -619,7 +619,7 @@ begin
         o_enabled_array     => cor_enabled_array,
         i_freq_index        => cor_freq_index,
         i_time_ref          => cor_time_ref,
-        i_packetiser_enable => packetiser_enable,
+        o_packetiser_enable => packetiser_enable,
 
         -- ARGs interface.
         i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,

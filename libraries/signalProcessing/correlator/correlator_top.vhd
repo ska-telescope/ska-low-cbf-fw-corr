@@ -226,7 +226,7 @@ entity correlator_top is
         o_cor_freq_index        : out t_slv_17_arr(1 downto 0); --out std_logic_vector(16 downto 0);
         o_cor_time_ref          : out t_slv_64_arr(1 downto 0); --out std_logic_vector(63 downto 0)
 
-        i_packetiser_enable     : in std_logic;
+        i_packetiser_enable     : in std_logic_vector(1 downto 0);
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi : in t_axi4_lite_mosi;
