@@ -76,7 +76,8 @@ signal i_spead_lite_axi_mosi    : t_axi4_lite_mosi;
 signal o_spead_lite_axi_miso    : t_axi4_lite_miso;
 
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
-signal sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
+signal stim_sub_array           : std_logic_vector(7 downto 0); 
+signal stim_freq_index          : std_logic_vector(16 downto 0);
 
 signal data_valid               : std_logic := '0';
 
@@ -270,8 +271,6 @@ begin
                 init_mem    <= '0';
             end if;
 
-            freq_index(0)   <= (others => '0');
-            sub_array       <= (others => '0');
             hbm_start_addr  <= x"00000000";
 
             if testCount_300 = 50 then
@@ -306,9 +305,12 @@ begin
             -- some stimulus for initial triangle testing.
             if testCount_300 = 69 then --AND testCount_300 < 103 then
                 -- META DATA FROM CORRELATOR SIM
-                row         <= 13D"0";
-                row_count   <= 9D"6";
-                data_valid  <= '1';
+                row             <= 13D"0";
+                row_count       <= 9D"6";
+                data_valid      <= '1';
+
+                stim_freq_index <= 17D"0";
+                stim_sub_array  <= 8D"4";
 
             elsif testCount_300 > 380 then
                 cmac_ready  <= '0';
@@ -363,8 +365,8 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         -- config of current sub/freq data read
         i_hbm_start_addr    => hbm_start_addr,
                                                                     -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
-        i_sub_array         => sub_array,
-        i_freq_index        => (others => '0'),
+        i_sub_array         => stim_sub_array,
+        i_freq_index        => stim_freq_index,
         i_data_valid        => data_valid,
         i_time_ref          => (others => '0'),
                             

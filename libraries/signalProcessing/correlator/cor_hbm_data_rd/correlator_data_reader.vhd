@@ -240,6 +240,10 @@ begin
     clk                     <= i_axi_clk;
     reset                   <= i_axi_rst OR i_local_reset;
 
+    o_current_array         <= cor_tri_sub_array;
+    o_freq_index            <= cor_tri_freq_index;
+    o_time_ref              <= cor_tri_time_ref;
+    
     ---------------------------------------------------------------------------
     meta_reg_proc : process(clk)
     begin
