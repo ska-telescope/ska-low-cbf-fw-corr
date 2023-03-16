@@ -18,12 +18,15 @@ constant c_ones_byte 	: std_logic_vector(7 downto 0) 	:= c_ones_nibble & c_ones_
 constant c_ones_word 	: std_logic_vector(15 downto 0) := c_ones_byte & c_ones_byte;
 constant c_ones_dword 	: std_logic_vector(31 downto 0) := c_ones_word & c_ones_word;
 constant c_ones_qword 	: std_logic_vector(63 downto 0) := c_ones_dword & c_ones_dword;
+constant c_ones_512 	: std_logic_vector(511 downto 0) := ( others => '1');
 
 constant zero_nibble    : std_logic_vector(3 downto 0) 	:= "0000";
 constant zero_byte 	    : std_logic_vector(7 downto 0) 	:= zero_nibble & zero_nibble;
 constant zero_word 	    : std_logic_vector(15 downto 0) := zero_byte & zero_byte;
 constant zero_dword 	: std_logic_vector(31 downto 0) := zero_word & zero_word;
 constant zero_qword 	: std_logic_vector(63 downto 0) := zero_dword & zero_dword;
+constant zero_32 	    : std_logic_vector(31 downto 0) := zero_word & zero_word;
+constant zero_64    	: std_logic_vector(63 downto 0) := zero_dword & zero_dword;
 constant zero_128 	    : std_logic_vector(127 downto 0):= zero_qword & zero_qword;
 constant zero_256 	    : std_logic_vector(255 downto 0):= zero_128 & zero_128;
 constant zero_512       : std_logic_vector(511 downto 0):= zero_256 & zero_256;

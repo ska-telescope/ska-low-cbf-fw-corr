@@ -86,14 +86,23 @@ entity single_correlator is
         i_HBM_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
         o_HBM_axi_rready  : out std_logic;
         ---------------------------------------------------------------
-        -- data out to the 100GE
-        o_packet_dout     : out std_logic_vector(255 downto 0);
-        o_packet_valid    : out std_logic;
-        i_packet_ready    : in std_logic;
+        -- data out to SPEAD Packetiser
+        o_spead_data        : out std_logic_vector(511 downto 0);
+        i_spead_data_rd     : in std_logic;                         -- FWFT FIFO
+        o_current_array     : out std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
+        o_spead_data_rdy    : out std_logic;
+        o_byte_count        : out std_logic_vector(13 downto 0);
+        i_enabled_array     : in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
+        o_freq_index        : out std_logic_vector(16 downto 0);
+        o_time_ref          : out std_logic_vector(63 downto 0);
+
+        i_packetiser_enable : in std_logic;
         ---------------------------------------------------------------
         -- Registers
         o_HBM_end   : out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
         o_HBM_errors : out std_logic_vector(3 downto 0);  -- Something has gone wrong.
+
+        o_HBM_curr_rd_addr  : out std_logic_vector(31 downto 0);
         
         ---------------------------------------------------------------
         -- copy of the bus taking data to be written to the HBM.
@@ -130,6 +139,7 @@ architecture Behavioral of single_correlator is
     signal ro_row_count : std_logic_vector(8 downto 0);
     signal ro_valid : std_logic;
     
+    signal packetiser_reset : std_logic;
 begin
 
     ----------------------------------------------------------------------------------
@@ -308,14 +318,50 @@ begin
         i_axi_b       => i_HBM_axi_b        -- in  t_axi4_full_b; write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
     );
     
-    -- Read out from the HBM to form packets 
-    -- Dummy assignments at the moment:
-    o_HBM_axi_ar.valid <= '0';      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-    o_HBM_axi_ar.addr <= (others => '0');
-    o_HBM_axi_ar.len <= (others => '0');
-    o_HBM_axi_rready  <= '1';  -- out std_logic
-    
-    o_packet_dout <= (others => '0');
-    o_packet_valid <= '0';
+
+    packetiser_reset    <= NOT i_packetiser_enable;
+
+    HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
+        DEBUG_ILA           => FALSE
+    )
+    Port map ( 
+        -- clock used for all data input and output from this module (300 MHz)
+        i_axi_clk           => i_axi_clk,
+        i_axi_rst           => i_axi_rst,
+
+        i_local_reset       => packetiser_reset,
+
+        -- config of current sub/freq data read
+        i_hbm_start_addr    => ro_HBM_start_addr,
+                                                                    -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
+        i_sub_array         => ro_subarray,
+        i_freq_index        => ro_freq_index,
+        i_time_ref          => ro_time_ref,
+                            
+        i_row               => ro_row,
+        i_row_count         => ro_row_count,
+        i_data_valid        => ro_valid,
+
+        o_HBM_curr_addr     => o_HBM_curr_rd_addr,
+
+        -- HBM read interface
+        o_HBM_axi_ar        => o_HBM_axi_ar,
+        i_HBM_axi_arready   => i_HBM_axi_arready,
+        i_HBM_axi_r         => i_HBM_axi_r,
+        o_HBM_axi_rready    => o_HBM_axi_rready,
+        
+        -- Packed up Correlator Data.
+        o_spead_data        => o_spead_data,
+        i_spead_data_rd     => i_spead_data_rd,
+        o_current_array     => o_current_array,
+        o_spead_data_rdy    => o_spead_data_rdy,
+        o_byte_count        => o_byte_count,
+        i_enabled_array     => i_enabled_array,
+        o_freq_index        => o_freq_index,
+        o_time_ref          => o_time_ref
+
+    );
+
+
     
 end Behavioral;
