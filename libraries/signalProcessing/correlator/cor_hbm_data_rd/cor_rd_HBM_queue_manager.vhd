@@ -69,6 +69,9 @@ entity cor_rd_HBM_queue_manager is
         -- feedback to pass to Correlator
         o_HBM_curr_addr             : out std_logic_vector(31 downto 0);     -- current start HBM address being processed, feedback bus for correlator logic.
 
+        -- debug
+        o_hbm_reader_fsm_debug      : out std_logic_vector(3 downto 0);
+
         -- HBM read interface
         o_HBM_axi_ar                : out t_axi4_full_addr;                 -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_HBM_axi_arready           : in  std_logic;
@@ -117,6 +120,8 @@ type HBM_reader_fsm_type is     (IDLE, CALC, RD_META, RD_META_UPDATE,
                                 RD_DATA, RD_DATA_UPDATE, DATA_2, CHECK, COMPLETE);
 signal HBM_reader_fsm : HBM_reader_fsm_type;
 
+signal hbm_reader_fsm_debug : std_logic_vector(3 downto 0)  := x"0";
+
 -- 512 byte rds
 signal meta_data_addr       : unsigned(31 downto 0) := (others => '0');
 signal meta_data_quantity   : unsigned(13 downto 0) := (others => '0');
@@ -148,6 +153,9 @@ o_HBM_axi_ar.len                <= hbm_axi_ar_len;
 hbm_axi_ar_rdy                  <= i_HBM_axi_arready;
 
 o_HBM_axi_rready                <= '1';
+
+
+o_hbm_reader_fsm_debug          <= hbm_reader_fsm_debug;
 
 ---------------------------------------------------------------------------    
 -- Visibility Data FIFO RD interface
@@ -198,6 +206,7 @@ begin
     if rising_edge(clk) then
         if reset = '1' then
             HBM_reader_fsm      <= IDLE;
+            hbm_reader_fsm_debug    <= x"F";
             meta_data_addr      <= (others => '0');
             meta_data_quantity  <= (others => '0');
             vis_data_addr       <= (others => '0');
@@ -214,6 +223,7 @@ begin
             
             case HBM_reader_fsm is
                 when IDLE =>
+                    hbm_reader_fsm_debug    <= x"0";
                     if i_begin = '1' then
                         HBM_reader_fsm  <= CALC;
                         -- report back current HBM address in use.
@@ -227,6 +237,7 @@ begin
                     meta_data_quantity  <= i_number_of_64b_rds(16 downto 3);
 
                 when CALC =>
+                    hbm_reader_fsm_debug    <= x"1";
                     -- assume 1 rd of meta data and 2 of data per 16x16
                     if meta_data_quantity < 8 then
                         meta_data_quantity  <= (others => '0');
@@ -236,6 +247,7 @@ begin
                     HBM_reader_fsm      <= RD_META;
 
                 when RD_META =>
+                    hbm_reader_fsm_debug    <= x"2";
                     hbm_axi_ar_addr     <=  std_logic_vector(meta_data_addr);
                     hbm_axi_ar_valid    <= '1';
                     -- if HBM is ready, RD requested and done.
@@ -245,6 +257,7 @@ begin
                     end if;
 
                 when RD_DATA =>
+                    hbm_reader_fsm_debug    <= x"3";
                     hbm_axi_ar_addr     <=  std_logic_vector(vis_data_addr);
                     hbm_axi_ar_valid    <= '1';
                     hbm_addr_sel        <= '1';
@@ -258,6 +271,7 @@ begin
                     end if;
 
                 when DATA_2 => 
+                    hbm_reader_fsm_debug    <= x"4";
                     -- request 8k of data and wait until it is drain to 25% before next loop.
                     if unsigned(hbm_data_fifo_rd_count) < 2048 then
                         HBM_reader_fsm      <= CHECK;
@@ -265,6 +279,7 @@ begin
 
 
                 when CHECK =>
+                    hbm_reader_fsm_debug    <= x"5";
                     if meta_data_quantity = 0 then
                         HBM_reader_fsm      <= COMPLETE;
                     else
@@ -272,7 +287,7 @@ begin
                     end if;
 
                 when COMPLETE =>
-
+                    hbm_reader_fsm_debug    <= x"6";
                     if hbm_retrieval_trac = x"00" then
                         HBM_reader_fsm <= IDLE;
                     end if;
@@ -400,33 +415,5 @@ end process;
         );
 
 ---------------------------------------------------------------------------
----------------------------------------------------------------------------
---     hbm_meta_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper
---     Generic map (
---         FIFO_MEMORY_TYPE    => "block",
---         READ_MODE           => "fwft",
---         FIFO_DEPTH          => hbm_meta_depth,
---         DATA_WIDTH          => hbm_data_width
---     )
---     Port map ( 
---         fifo_reset          => reset,
---         fifo_clk            => clk,
---         fifo_in_reset       => hbm_meta_fifo_in_reset,
---         -- RD    
---         fifo_rd             => hbm_meta_fifo_rd,
---         fifo_q              => hbm_meta_fifo_q,
---         fifo_q_valid        => hbm_meta_fifo_q_valid,
---         fifo_empty          => hbm_meta_fifo_empty,
---         fifo_rd_count       => hbm_meta_fifo_rd_count,
---         -- WR        
---         fifo_wr             => hbm_meta_fifo_wr,
---         fifo_data           => hbm_meta_fifo_data,
---         fifo_full           => hbm_meta_fifo_full,
---         fifo_wr_count       => hbm_meta_fifo_wr_count
---     );
-
-
-
-
 
 end;

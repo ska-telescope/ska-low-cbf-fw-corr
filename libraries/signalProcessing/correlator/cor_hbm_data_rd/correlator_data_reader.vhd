@@ -80,7 +80,8 @@ entity correlator_data_reader is
         i_HBM_axi_r         : in  t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
         o_HBM_axi_rready    : out std_logic;
         
-        -- Packed up Correlator Data.
+        -- Packed up Correlator Data + debug
+        o_fsm_debugs        : out t_slv_4_arr(2 downto 0);
         o_spead_data        : out std_logic_vector(511 downto 0);
         i_spead_data_rd     : in std_logic;                         -- FWFT FIFO
         o_current_array     : out std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
@@ -192,9 +193,10 @@ signal cor_read_meta            : unsigned(16 downto 0);
 signal hbm_rq_complete          : std_logic;
 
 --------------------------------------------------------------------------------
--- HBM wr signals
-type HBM_wr_tracker_fsm_type is (idle, load, check, complete);
-signal HBM_wr_tracker_fsm : HBM_wr_tracker_fsm_type;
+-- sm debug
+signal pack_it_fsm_debug        : std_logic_vector(3 downto 0)  := x"0";
+signal cor_tri_fsm_debug        : std_logic_vector(3 downto 0)  := x"0";
+signal hbm_reader_fsm_debug     : std_logic_vector(3 downto 0);
 
 --------------------------------------------------------------------------------
 -- Pack SM signals
@@ -243,7 +245,10 @@ begin
     o_current_array         <= cor_tri_sub_array;
     o_freq_index            <= cor_tri_freq_index;
     o_time_ref              <= cor_tri_time_ref;
-    
+
+    o_fsm_debugs(0)         <= pack_it_fsm_debug;
+    o_fsm_debugs(1)         <= cor_tri_fsm_debug;
+    o_fsm_debugs(2)         <= hbm_reader_fsm_debug;
     ---------------------------------------------------------------------------
     meta_reg_proc : process(clk)
     begin
@@ -289,6 +294,7 @@ begin
     begin
         if rising_edge(clk) then
             if reset = '1' then
+                cor_tri_fsm_debug   <= x"F";
                 cor_triangle_fsm    <= idle;
                 meta_cache_fifo_rd  <= '0';
                 pack_start          <= '0';
@@ -298,6 +304,7 @@ begin
             else
                 case cor_triangle_fsm is
                     when idle => 
+                        cor_tri_fsm_debug       <= x"0";
                         meta_cache_fifo_rd      <= '0';
                         cor_read_data           <= ( others => '0' );
                         cor_read_meta           <= ( others => '0' );
@@ -314,6 +321,7 @@ begin
                         end if;
 
                     when check_enable =>
+                        cor_tri_fsm_debug   <= x"1";
                         -- TODO !!!!!!!
                         -- code for RAM lookup for sub array enable.
                         -- skip if not enabled, after checking if the last pass through was for different sub array.
@@ -321,6 +329,7 @@ begin
                         cor_triangle_fsm        <= calculate_reads;
 
                     when calculate_reads => 
+                        cor_tri_fsm_debug   <= x"2";
                         -- cor_tri_row_count is indicating where the edge of the triangle is, ie how many rows,
                         -- 512 bytes per row. 64 bytes per read on the interface so 8 per line.
                         -- so row_count needs to << 3.
@@ -341,6 +350,7 @@ begin
                         end if;
                                            
                     when complete => 
+                        cor_tri_fsm_debug       <= x"3";
                         hbm_start               <= '0';
                         cor_tri_row             <= unsigned(meta_cache_fifo_q(133 downto 121));
                         pack_start              <= '1';
@@ -350,6 +360,7 @@ begin
                     
                     
                     when pop_instruction => 
+                        cor_tri_fsm_debug       <= x"4";
                         last_instruct_subarray  <= cor_tri_sub_array;
 
                         if pack_it_fsm = COMPLETE then
@@ -358,6 +369,7 @@ begin
                         end if;
 
                     when cleanup => 
+                        cor_tri_fsm_debug       <= x"5";
                         -- not ready until all data passed off to the packetiser.
                         if packed_fifo_empty = '1' then
                             meta_cache_fifo_rd      <= '0';
@@ -415,6 +427,9 @@ begin
             -- feedback to pass to Correlator
             o_HBM_curr_addr             => o_HBM_curr_addr,
     
+            -- debug
+            o_hbm_reader_fsm_debug      => hbm_reader_fsm_debug,
+
             -- HBM read interface
             o_HBM_axi_ar                => o_HBM_axi_ar,
             i_HBM_axi_arready           => i_HBM_axi_arready,
@@ -444,6 +459,7 @@ begin
     begin
         if rising_edge(clk) then
             if reset = '1' then
+                pack_it_fsm_debug   <= x"F";
                 pack_it_fsm         <= IDLE;
                 packed_fifo_wr      <= '0';
                 meta_data_rd        <= x"F";
@@ -460,6 +476,7 @@ begin
 
                 case pack_it_fsm is
                     when IDLE =>
+                        pack_it_fsm_debug   <= x"0";
                         --if pack_start = '1' and hbm_meta_fifo_empty = '0' and hbm_data_fifo_empty = '0' then
                         if pack_start = '1' and hbm_data_fifo_empty = '0' then
                             pack_it_fsm         <= LOOPS;
@@ -473,6 +490,7 @@ begin
                         hbm_data_rd_en      <= '0';
 
                     when LOOPS =>
+                        pack_it_fsm_debug   <= x"1";
                         if unsigned(hbm_data_fifo_rd_count) > 120 then
                             -- chop up the cell into 16 row lots.
                             -- if less then process remaining and set exit condition of 0.
@@ -493,6 +511,7 @@ begin
                         end if;
 
                     when CALC =>
+                        pack_it_fsm_debug   <= x"2";
                         if unsigned(packed_fifo_wr_count) < 256 then
                             -- Mux into vector the starting row number and add to end the number of reads for the triangle on 16x16 basis.
                             data_rd_counter(12 downto 0)    <= matrix_tracker(9 downto 0) & read_keep_per_line(strut_counter)(2 downto 0);
@@ -504,6 +523,7 @@ begin
 
                     -- READING data to be packed along a ROW.
                     when PROCESSING =>
+                        pack_it_fsm_debug   <= x"3";
                         packed_fifo_wr      <= '1';
                         
                         hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
@@ -539,6 +559,7 @@ begin
                         
                     -- DRAIN the remaining elements in the last 512 bytes of the row that are not used.
                     when RD_DRAIN =>
+                        pack_it_fsm_debug   <= x"4";
                         packed_fifo_wr      <= '0';
                         hbm_data_cache_sel  <= '0';
                         if data_rd_counter = 0 then
@@ -563,7 +584,8 @@ begin
                         end if;
                         
                     when COMPLETE =>
-                        reset_cache_fifos        <= '0';
+                        pack_it_fsm_debug   <= x"5";
+                        reset_cache_fifos   <= '0';
                         
                         if (cache_fifos_in_reset = '0') AND (reset_cache_fifos = '0') then
                             pack_it_fsm         <= IDLE;
