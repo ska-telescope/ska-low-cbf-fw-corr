@@ -205,7 +205,7 @@ signal pack_it_fsm : pack_it_fsm_type;
 
 signal meta_data_cache          : std_logic_vector(15 downto 0);
 signal hbm_data_cache           : std_logic_vector(255 downto 0);
-signal hbm_data_cache_2         : std_logic_vector(255 downto 0);
+signal hbm_data_cache_le        : std_logic_vector(255 downto 0);
 
 signal packed                   : std_logic_vector(255 downto 0);
 signal pack_count               : unsigned(7 downto 0) := (others => '0');
@@ -600,8 +600,23 @@ begin
         end if;
     end process;
 
-    packed_fifo_data    <= hbm_data_cache & meta_data_cache;
-    ---------------------------------------------------------------------------
+    --packed_fifo_data    <= hbm_data_cache & meta_data_cache;
+    packed_fifo_data    <= hbm_data_cache_le & meta_data_cache;
+---------------------------------------------------------------------------
+-- LE swapping of the vis_data
+-- data is lots of single precision floats, bring lowest 32 bits to the top and then LE swap that.
+-- repeat across the 256 bits.
+
+hbm_data_cache_le   <=  hbm_data_cache(7 downto 0) &        hbm_data_cache(15 downto 8) &       hbm_data_cache(23 downto 16) &      hbm_data_cache(31 downto 24) & 
+                        hbm_data_cache(39 downto 32) &      hbm_data_cache(47 downto 40) &      hbm_data_cache(55 downto 48) &      hbm_data_cache(63 downto 56) & 
+                        hbm_data_cache(71 downto 64) &      hbm_data_cache(79 downto 72) &      hbm_data_cache(87 downto 80) &      hbm_data_cache(95 downto 88) & 
+                        hbm_data_cache(103 downto 96) &     hbm_data_cache(111 downto 104) &    hbm_data_cache(119 downto 112) &    hbm_data_cache(127 downto 120) & 
+                        hbm_data_cache(135 downto 128) &    hbm_data_cache(143 downto 136) &    hbm_data_cache(151 downto 144) &    hbm_data_cache(159 downto 152) & 
+                        hbm_data_cache(167 downto 160) &    hbm_data_cache(175 downto 168) &    hbm_data_cache(183 downto 176) &    hbm_data_cache(191 downto 184) & 
+                        hbm_data_cache(199 downto 192) &    hbm_data_cache(207 downto 200) &    hbm_data_cache(215 downto 208) &    hbm_data_cache(223 downto 216) & 
+                        hbm_data_cache(231 downto 224) &    hbm_data_cache(239 downto 232) &    hbm_data_cache(247 downto 240) &    hbm_data_cache(255 downto 248); 
+
+---------------------------------------------------------------------------
 -- align the data to 64bytes, from 2 x 34 bytes
 
 align_64b_proc : process(clk)
