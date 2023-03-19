@@ -139,8 +139,8 @@ entity corr_ct1_readout is
         --   - .virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
         --   - .valid                = Number of virtual channels being processed may not be a multiple of 3, so there is also a valid qualifier.
         --FB_clk  : in std_logic;  -- interface runs off shared_clk
-        o_sof   : out std_logic; -- start of frame.
-        o_sofFull : out std_logic; -- start of a full frame, i.e. 60ms of data.
+        o_sof   : out std_logic; -- start of frame for a particular set of 4 virtual channels.
+        o_sofFull : out std_logic; -- start of a full frame, i.e. 283 ms of data.
         o_HPol0 : out t_slv_8_arr(1 downto 0);
         o_VPol0 : out t_slv_8_arr(1 downto 0);
         o_meta0 : out t_CT1_META_out;  -- defined in DSP_top_pkg.vhd; 
@@ -219,14 +219,14 @@ architecture Behavioral of corr_ct1_readout is
     signal ARFIFO_wrBeats : std_logic_vector(10 downto 0);
     
     signal bufBuffer : t_slv_2_arr(3 downto 0);
-    signal bufSample : t_slv_18_arr(3 downto 0);  -- 128 LFAA packets per buffer, 2048 samples per LFAA packet = 2^18 samples per buffer.
+    signal bufSample : t_slv_20_arr(3 downto 0);  -- 128 LFAA packets per buffer, 2048 samples per LFAA packet = 2^18 samples per buffer.
     signal bufLen : t_slv_3_arr(3 downto 0);
-    signal bufSamplesRemaining : t_slv_18_arr(3 downto 0);
+    signal bufSamplesRemaining : t_slv_20_arr(3 downto 0);
     signal bufSamplesToRead : t_slv_8_arr(3 downto 0);
-    signal bufLen_ext : t_slv_16_arr(3 downto 0);
+    signal bufLen_ext : t_slv_20_arr(3 downto 0);
     
     signal bufVirtualChannel : t_slv_10_arr(3 downto 0);
-    signal bufCoarseDelay : t_slv_18_arr(3 downto 0);
+    signal bufCoarseDelay : t_slv_20_arr(3 downto 0);
     signal bufHpolDeltaP : t_slv_16_arr(3 downto 0);
     signal bufVpolDeltaP : t_slv_16_arr(3 downto 0);
     signal bufDeltaDeltaP : t_slv_16_arr(3 downto 0);
@@ -234,7 +234,7 @@ architecture Behavioral of corr_ct1_readout is
     signal bufHasMoreSamples : std_logic_vector(3 downto 0); -- one bit for each buffer.
     signal bufFirstRead, bufLastRead : std_logic_Vector(3 downto 0);
     
-    signal bufSampleRelative : t_slv_22_arr(3 downto 0);
+    signal bufSampleRelative : t_slv_24_arr(3 downto 0);
     signal fineDelayPacketOffset : std_logic_vector(31 downto 0);
     
     signal rdata_beats : std_logic_vector(2 downto 0);
@@ -276,8 +276,8 @@ architecture Behavioral of corr_ct1_readout is
     signal axi_arlen   : std_logic_vector(2 downto 0);
 
     signal ARFIFO_dinDel1, ARFIFO_dinDel2, ARFIFO_dinDel3 : std_logic_vector(157 downto 0);
-    signal ARFIFO_dinDel4 : std_logic_vector(157 downto 0);
-    signal ARFIFO_wrEnDel1, ARFIFO_wrEnDel2, ARFIFO_wrEnDel3, ARFIFO_wrEnDel4 : std_logic;
+    signal ARFIFO_dinDel4, ARFIFO_dinDel5, ARFIFO_dinDel6 : std_logic_vector(157 downto 0);
+    signal ARFIFO_wrEnDel1, ARFIFO_wrEnDel2, ARFIFO_wrEnDel3, ARFIFO_wrEnDel4, ARFIFO_wrEnDel5, ARFIFO_wrEnDel6 : std_logic;
     signal rdata_dvalid : std_logic;
     signal bufWrData : std_logic_vector(511 downto 0);
     
@@ -309,7 +309,7 @@ architecture Behavioral of corr_ct1_readout is
     signal bufFIFOHalfFull : std_logic_vector(3 downto 0);
     signal allPacketsSent : std_logic;
     
-    signal readoutStartDel : std_logic_vector(15 downto 0) := x"0000";
+    signal readoutStartDel : std_logic_vector(27 downto 0) := x"0000000";
     signal readoutStart : std_logic := '0';
     signal readPacket : std_logic := '0';
     signal clockCount : std_logic_vector(15 downto 0);
@@ -362,10 +362,10 @@ begin
     o_validMemReadAddr <= axi_araddr(31 downto 13);
     
     process(shared_clk)
-        variable bufSampleTemp : t_slv_18_arr(3 downto 0);
-        variable bufSampleRelative_v : t_slv_18_arr(3 downto 0);
-        variable bufSamplesToRead18bit : t_slv_18_arr(3 downto 0);
-        variable bufLenx16 : t_slv_22_arr(3 downto 0);
+        variable bufSampleTemp : t_slv_20_arr(3 downto 0);
+        variable bufSampleRelative_v : t_slv_20_arr(3 downto 0);
+        variable bufSamplesToRead20bit : t_slv_20_arr(3 downto 0);
+        variable bufLenx16 : t_slv_24_arr(3 downto 0);
         variable bufSampleTemp8bit : t_slv_8_arr(3 downto 0);
         variable fineDelaySampleOffset, sampleRelative : std_logic_vector(31 downto 0);
         variable LFAABlock_v : std_logic_vector(6 downto 0);
@@ -591,7 +591,7 @@ begin
             for i in 0 to 3 loop
                 if ((ar_fsmDel4 = getDelayFirstWord) and (unsigned(ar_fsm_bufferDel4) = i)) then
                     bufVirtualChannel(i) <= ar_virtualChannelDel4;
-                    bufCoarseDelay(i) <= "0000000" & i_delayTableData(10 downto 0);
+                    bufCoarseDelay(i) <= "000000000" & i_delayTableData(10 downto 0);
                     bufHpolDeltaP(i) <= i_delayTableData(31 downto 16);
                     bufFirstRead(i) <= '1';
                     bufLastRead(i) <= '0';
@@ -606,9 +606,10 @@ begin
                     bufSampleTemp(i) := std_logic_vector((g_SPS_PACKETS_PER_FRAME * 2048) - 47104 + unsigned(bufCoarseDelay(i)));
                     bufSampleTemp8bit(i) := '0' & bufSampleTemp(i)(6 downto 0);
                     -- Round it down so we have 64 byte aligned accesses to the HBM. Note buf0Sample is the sample within the buffer for this particular virtual channel
-                    bufSample(i) <= bufSampleTemp(i)(17 downto 4) & "0000"; -- This gets multiplied by 4 to get the byte address, so the byte address will be 64 byte aligned.
+                    bufSample(i) <= bufSampleTemp(i)(19 downto 4) & "0000"; -- This gets multiplied by 4 to get the byte address, so the byte address will be 64 byte aligned.
                     bufSampleRelative_v(i) := std_logic_vector(unsigned(bufCoarseDelay(i)) - 47104); -- Index of the sample to be read relative to the first sample in the buffer.
-                    bufSampleRelative(i) <= bufSampleRelative_v(i)(17) & bufSampleRelative_v(i)(17) & bufSampleRelative_v(i)(17) & bufSampleRelative_v(i)(17) & bufSampleRelative_v(i);
+                    bufSampleRelative(i) <= bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & 
+                                            bufSampleRelative_v(i)(19) & bufSampleRelative_v(i);
                     -- Number of 64 byte words to read.
                     -- First read is chosen such that the remaining reads are aligned to a 512 byte boundary (i.e. 8*64 bytes).
                     -- The 64 byte word we are reading within the current 512 byte block is buf0SampleTemp(6 downto 4)
@@ -620,17 +621,17 @@ begin
                     bufSamplesToRead(i) <= std_logic_vector(128 - unsigned(bufSampleTemp8bit(i)));
                     --buf0SamplesToRead <= std_logic_vector(unsigned((not buf0SampleTemp8bit)) + 1);  -- Number of valid samples that actually get read in the AXI memory transaction. 
                     -- total number of samples per frame is g_LFAA_BLOCKS_PER_FRAME * 2048, plus the preload of 11*4096 = 45056 samples
-                    bufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME * 2048 + 45056,18)); 
+                    bufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME * 2048 + 45056,20)); 
                 end if;
                     
                 if ((ar_fsm = getBufData) and (unsigned(ar_fsm_buffer) = i)) then
                     bufSample(i) <= std_logic_vector(unsigned(bufSample(i)) + unsigned(bufLen_ext(i)) + 16);
-                    bufSamplesToRead18bit(i) := "0000000000" & bufSamplesToRead(i);
-                    bufLenx16(i) := "000000000000000" & bufLen(i) & "0000";
+                    bufSamplesToRead20bit(i) := "000000000000" & bufSamplesToRead(i);
+                    bufLenx16(i) := "00000000000000000" & bufLen(i) & "0000";
                     -- bufSampleRelative is the index of the sample corresponding to a 16 sample boundary in the readout in the first data word returned from the HBM
                     -- It is used to determine the fine delay to use. Note +16 here because bufLen is 1 less than the number of beats, and each beat is 16 samples.
                     bufSampleRelative(i) <= std_logic_vector(signed(bufSampleRelative(i)) + signed(bufLenx16(i)) + 16);  
-                    bufSamplesRemaining(i) <= std_logic_vector(unsigned(bufSamplesRemaining(i)) - unsigned(bufSamplesToRead18bit(i)));
+                    bufSamplesRemaining(i) <= std_logic_vector(unsigned(bufSamplesRemaining(i)) - unsigned(bufSamplesToRead20bit(i)));
                     bufFirstRead(i) <= '0';
                 elsif ((ar_fsmDel1 = getBufData) and (unsigned(ar_fsm_bufferDel1) = i)) then  -- Second of two steps to update buf0Sample when we issue a read request
                     if (unsigned(bufSample(i)) = (g_SPS_PACKETS_PER_FRAME * 2048)) then -- i.e. if we have hit the end of the preload buffer, then go to the start of the next buffer.
@@ -746,12 +747,19 @@ begin
             ARFIFO_dinDel3 <= ARFIFO_dinDel2;
             ARFIFO_wrEnDel3 <= ARFIFO_wrEnDel2;
             
-            ARFIFO_dinDel4(95 downto 0) <= ARFIFO_dinDel3(95 downto 0);
-            ARFIFO_dinDel4(96) <= i_validMemReadData;
-            ARFIFO_dinDel4(157 downto 97) <= ARFIFO_dinDel3(157 downto 97);
+            ARFIFO_dinDel4 <= ARFIFO_dinDel3;
             ARFIFO_wrEnDel4 <= ARFIFO_wrEnDel3;
             
-            if i_validMemReadData = '0' and ARFIFO_wrEnDel3 = '1' then
+            ARFIFO_dinDel5 <= ARFIFO_dinDel4;
+            ARFIFO_wrEnDel5 <= ARFIFO_wrEnDel4;
+            
+            ARFIFO_dinDel6(95 downto 0) <= ARFIFO_dinDel5(95 downto 0);
+            ARFIFO_dinDel6(96) <= i_validMemReadData;
+            ARFIFO_dinDel6(157 downto 97) <= ARFIFO_dinDel5(157 downto 97);
+            ARFIFO_wrEnDel6 <= ARFIFO_wrEnDel5;
+            if i_validMemReadData = '0' and ARFIFO_wrEnDel5 = '1' then
+                -- 5 cycle latency to read the valid memory;
+                -- Read address is taken from HBM read address, valid when ARFIFO_wrEn = '1'
                 o_dataMissing <= '1'; -- we are reading from somewhere in memory that we haven't written data to.
             else
                 o_dataMissing <= '0';
@@ -760,10 +768,10 @@ begin
         end if;
     end process;
     
-    bufLen_ext(0) <= "000000000" & bufLen(0) & "0000";
-    bufLen_ext(1) <= "000000000" & bufLen(1) & "0000";
-    bufLen_ext(2) <= "000000000" & bufLen(2) & "0000";
-    bufLen_ext(3) <= "000000000" & bufLen(3) & "0000";
+    bufLen_ext(0) <= "0000000000000" & bufLen(0) & "0000";
+    bufLen_ext(1) <= "0000000000000" & bufLen(1) & "0000";
+    bufLen_ext(2) <= "0000000000000" & bufLen(2) & "0000";
+    bufLen_ext(3) <= "0000000000000" & bufLen(3) & "0000";
     
     ARFIFO_wrBeats <= "0000000" & ARFIFO_din(11 downto 8);
     
@@ -792,12 +800,13 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
-        READ_DATA_WIDTH => 158,      -- DECIMAL
+        READ_DATA_WIDTH => 158,     -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
-        USE_ADV_FEATURES => "0404", -- String  -- bit 2 and bit 10 enables write data count and read data count
+        USE_ADV_FEATURES => "1404", -- String  -- bit 2 and bit 10 enables write data count and read data count
+                                               -- bit 12 enables the data_valid output.
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 158,     -- DECIMAL
+        WRITE_DATA_WIDTH => 158,    -- DECIMAL
         WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
     )
     port map (
@@ -818,14 +827,14 @@ begin
         wr_ack => open,           -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => ARFIFO_WrDataCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
         wr_rst_busy => open,      -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
-        din => ARFIFO_dinDel4,    -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+        din => ARFIFO_dinDel6,    -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
         injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
         injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection: 
         rd_en => ARFIFO_rdEn,     -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
         rst => ARFIFO_rst,        -- 1-bit input: Reset: Must be synchronous to wr_clk.
         sleep => '0',             -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
         wr_clk => shared_clk,     -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
-        wr_en => ARFIFO_wrEnDel4  -- 1-bit input: Write Enable: 
+        wr_en => ARFIFO_wrEnDel6  -- 1-bit input: Write Enable: 
     );
     
     ARFIFO_rst <= rstFIFOs;
@@ -1095,12 +1104,12 @@ begin
             din => bufFIFO_din,       -- Same for all FIFOs, since we only write to one fifo at a time. WRITE_DATA_WIDTH-bit input: Write Data; 
             injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
             injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection
-            rd_clk => shared_clk,         -- 1-bit input: Read clock: Used for read operation. 
-            rd_en => bufFIFO_rdEn(i),  -- 1-bit input: Read Enable.
-            rst => rstFIFOsDel1,       -- 1-bit input: Reset: Must be synchronous to wr_clk
+            rd_clk => shared_clk,     -- 1-bit input: Read clock: Used for read operation. 
+            rd_en => bufFIFO_rdEn(i), -- 1-bit input: Read Enable.
+            rst => rstFIFOsDel1,      -- 1-bit input: Reset: Must be synchronous to wr_clk
             sleep => '0',             -- 1-bit input: Dynamic power saving:
             wr_clk => shared_clk,     -- 1-bit input: Write clock:
-            wr_en => bufFIFO_wrEn(i)   -- 1-bit input: Write Enable:
+            wr_en => bufFIFO_wrEn(i)  -- 1-bit input: Write Enable:
         );
     end generate;
     
@@ -1298,9 +1307,9 @@ begin
                         sof <= '0';
                         sofFull <= '0';
                     
-                    when rd_start => -- start of reading for a particular group of 3 channels.
+                    when rd_start => -- start of reading for a particular group of 4 channels.
                         -- wait until data is available in the buffer, and get the start address from the FIFOs
-                        if bufFIFOHalfFull = "1111" then -- all three fifos have plenty of data; so readout won't result in underflow.
+                        if bufFIFOHalfFull = "1111" then -- all four fifos have plenty of data; so readout won't result in underflow.
                             sof <= '1';
                             -- The buffer is 64 bytes wide, so to align the data 
                             -- we have to choose which of the 16 samples in a 64-byte word to start at
@@ -1416,14 +1425,16 @@ begin
                         buf1RdEnable <= '0';                    
                         buf2RdEnable <= '0';
                     
-                    when rd_wait => -- tightest loop involves rd_buf0 -> rd_buf1 -> rd_buf2 -> rd_buf3 -> rd_wait -> rd_buf0 ... . The rd_wait state is needed to ensure we don't send data to the output fifos more than 1 in every 16 clocks.
+                    when rd_wait => 
+                        -- Tightest loop involves rd_buf0 -> rd_buf1 -> rd_buf2 -> rd_buf3 -> rd_wait -> rd_buf0 ... .
+                        -- The rd_wait state is needed to ensure we don't send data to the output fifos more than 1 in every 16 clocks.
                         sof <= '0';
                         sofFull <= '0';
                         if rd_wait_count /= "0000" then
                             rd_wait_count <= std_logic_vector(unsigned(rd_wait_count) - 1);
                         else
                             if (buf0ReadDone = '1' and buf1ReadDone = '1' and buf2ReadDone = '1' and buf3ReadDone = '1' and allPacketsSent = '1') then 
-                                -- Finished a full coarse channel (actually 4 coarse channels, since 4 channels at sent at a time).
+                                -- Finished a full coarse channel (actually 4 coarse channels, since 4 channels are sent at a time).
                                 -- Wait here until all the output packets have been sent so we can reset the output FIFOs before starting the next coarse channel.
                                 rd_fsm <= reset_output_fifos;
                             elsif ((rdStop(0) = '0' and buf0ReadDone = '0') or 
@@ -1558,7 +1569,7 @@ begin
             end if;
             
             readoutStartDel(0) <= readoutStart;
-            readoutStartDel(15 downto 1) <= readoutStartDel(14 downto 0);
+            readoutStartDel(27 downto 1) <= readoutStartDel(26 downto 0);
             
             FBClocksPerPacketMinusTwo <= std_logic_vector(unsigned(FBClocksPerPacket) - 2);
             if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusTwo))) then
@@ -1567,7 +1578,10 @@ begin
                 clockCountIncrement <= '0';
             end if;
             
-            if readoutStartDel(15) = '1' then
+            -- 16 clocks to copy data into the FIFO in corr_ct1_readout_32bit
+            -- plus some extra delay for read latency of the buffer in this module 
+            -- and read latency of the FIFO.
+            if readoutStartDel(27) = '1' then
                 -- Packets are 4096 samples; Number of packets in a burst is 11 preload packets plus half the number of LFAA blocks per frame, since LFAA blocks are 2048 samples.
                 packetsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME /2 + 11,16));
                 packetCount <= FBpacketCount;  -- packet count output in the meta data

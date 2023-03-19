@@ -260,15 +260,18 @@ architecture Behavioral of corr_ct1_top is
     signal running : std_logic := '0';
     signal startPacket : std_logic_vector(31 downto 0);
     
-    signal chan0, chan1, chan2 : std_logic_vector(9 downto 0);
-    signal ok0, ok1, ok2 : std_logic;
+    signal chan0, chan1, chan2, chan3 : std_logic_vector(9 downto 0);
+    signal ok0, ok1, ok2, ok3 : std_logic := '0';
     signal validOut : std_logic;
     signal validOutDel : std_logic;
     signal outputCountAddr : std_logic_vector(9 downto 0);
     signal outputCountWrData : std_logic_vector(31 downto 0);
     signal outputCountRdDat : std_logic_vector(31 downto 0);
     signal outputCountWrEn : std_logic;
-    type validBlocks_fsm_type is (idle, clear_all_start, clear_all_run, readChan0, readChan0Wait0, readChan0Wait1, readChan0Wait2, writeChan0, readChan1, readChan1Wait0, readChan1Wait1, readChan1Wait2, writeChan1, readChan2, readChan2Wait0, readChan2Wait1, readChan2Wait2, writeChan2);
+    type validBlocks_fsm_type is (idle, clear_all_start, clear_all_run, readChan0, readChan0Wait0, readChan0Wait1, 
+        readChan0Wait2, writeChan0, readChan1, readChan1Wait0, readChan1Wait1, readChan1Wait2, writeChan1, 
+        readChan2, readChan2Wait0, readChan2Wait1, readChan2Wait2, writeChan2,
+        readChan3, readChan3Wait0, readChan3Wait1, readChan3Wait2, writeChan3);
     signal validBlocks_fsm : validBlocks_fsm_type := idle;
     signal meta01, meta23, meta45, meta67 : t_CT1_META_out;
     signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_8_arr(1 downto 0);
@@ -793,7 +796,10 @@ begin
                             chan0 <= meta01.virtualChannel(9 downto 0);
                             chan1 <= meta23.virtualChannel(9 downto 0);
                             chan2 <= meta45.virtualChannel(9 downto 0);
+                            chan3 <= meta67.virtualChannel(9 downto 0);
                             if data0(0) = "10000000" then
+                                -- first sample in the packet is flagged,
+                                -- either data was missing or it is RFI
                                 ok0 <= '0';
                             else
                                 ok0 <= '1';
@@ -807,6 +813,11 @@ begin
                                 ok2 <= '0';
                             else
                                 ok2 <= '1';
+                            end if;
+                            if data6(0) = "10000000" then
+                                ok3 <= '0';
+                            else
+                                ok3 <= '1';
                             end if;
                             validBlocks_fsm <= readChan0;
                         end if;
@@ -887,9 +898,31 @@ begin
                         outputCountWrEn <= '0';
                     
                     when writeChan2 =>
-                        validBlocks_fsm <= idle;
+                        validBlocks_fsm <= readChan3;
                         outputCountWrData <= std_logic_vector(unsigned(outputCountRdDat) + 1);
                         outputCountWrEn <= ok2;
+                    
+                    when readChan3 =>
+                        validBlocks_fsm <= readChan3Wait0;
+                        outputCountWrEn <= '0';
+                        outputCountAddr <= chan3;
+                    
+                    when readChan3Wait0 =>
+                        validBlocks_fsm <= readChan3Wait1;
+                        outputCountWrEn <= '0';
+                    
+                    when readChan3Wait1 =>
+                        validBlocks_fsm <= readChan3Wait2;
+                        outputCountWrEn <= '0';
+                    
+                    when readChan3Wait2 =>
+                        validBlocks_fsm <= writeChan3;
+                        outputCountWrEn <= '0';
+                    
+                    when writeChan3 =>
+                        validBlocks_fsm <= idle;
+                        outputCountWrData <= std_logic_vector(unsigned(outputCountRdDat) + 1);
+                        outputCountWrEn <= ok3;
                         
                     when others =>
                         validBlocks_fsm <= idle;

@@ -45,6 +45,7 @@ entity get_ct2_HBM_addr is
         o_HBM_addr     : out std_logic_vector(31 downto 0); -- Always 512-byte aligned.
         o_out_of_range : out std_logic; -- indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
         o_fine_high    : out std_logic; -- indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
+        o_fine_remaining : out std_logic_vector(11 downto 0); -- Number of fine channels remaining to send for this coarse channel.
         o_valid        : out std_logic -- some fixed number of clock cycles after i_valid.
     );
 end get_ct2_HBM_addr;
@@ -52,7 +53,7 @@ end get_ct2_HBM_addr;
 architecture Behavioral of get_ct2_HBM_addr is
     
     signal SB_N_fine, coarse_diff_x_3456_p_fine_m_fstart_ext : std_logic_vector(24 downto 0);
-    signal SB_N_fine_del1, SB_N_fine_del2, SB_N_fine_del3, SB_N_fine_del4 : std_logic_vector(24 downto 0);
+    signal SB_N_fine_del1, SB_N_fine_del2, SB_N_fine_del3, SB_N_fine_del4, fine_remaining : std_logic_vector(24 downto 0);
     signal demap_station_x128 : std_logic_vector(31 downto 0);
     signal HBM_base_plus_station : std_logic_vector(31 downto 0);
     signal coarse_diff : std_logic_vector(8 downto 0);
@@ -81,6 +82,7 @@ architecture Behavioral of get_ct2_HBM_addr is
     signal buffer_del1 : std_logic;
     constant c_buffer_offset : std_logic_vector(31 downto 0) := x"60000000"; -- 1.5 Gbytes; second half of the buffer is 1.5 Gbytes on.
     signal fine_high_del6, fine_high_del7 : std_logic;
+    signal fine_remaining_del6, fine_remaining_del7 : std_logic_vector(11 downto 0);
     
 begin
     
@@ -136,12 +138,19 @@ begin
             else
                 fine_high <= '0';
             end if;
+            fine_remaining <= std_logic_vector(unsigned(SB_N_Fine_del4) - unsigned(coarse_diff_x_3456_p_fine_m_fstart_ext));
             
             bad_del6 <= bad_del5;
             fine_high_del6 <= fine_high;
+            if (unsigned(fine_remaining) > 3456) then
+                fine_remaining_del6 <= x"D80"; -- 3456 decimal, i.e. all of the current coarse channel.
+            else
+                fine_remaining_del6 <= fine_remaining(11 downto 0);
+            end if;
             
-            fine_high_del7 <= fine_high;
+            fine_high_del7 <= fine_high_del6;
             bad_del7 <= bad_del6;
+            fine_remaining_del7 <= fine_remaining_del6;
             
             ------------------------------------------
             --  The address for this data in the HBM is derived from the inputs to this module according to :
@@ -213,6 +222,7 @@ begin
             o_valid <= valid_del(6); -- valid_del(6) instead of valid_del(7), since valid_del(0) = "del1"
             o_out_of_range <= bad_del7;
             o_fine_high <= fine_high_del7;
+            o_fine_remaining <= fine_remaining_del7;
             
             valid_del(0) <= i_valid;
             valid_del(7 downto 1) <= valid_del(6 downto 0);

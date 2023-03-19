@@ -240,6 +240,8 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_packet_valid : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
     signal totalChannels : std_logic_vector(11 downto 0);
     signal data_tx_siso : t_lbus_siso;
+    signal FB_out_sof : std_logic;
+    signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
     
 begin
     
@@ -375,6 +377,11 @@ begin
         o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
         o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
         o_DataValid      => FD_dataValid,      -- out std_logic
+        -- i_SOF delayed by 16384 clocks;
+        -- i_sof occurs at the start of each new block of 4 virtual channels.
+        -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+        -- between data packets at the filterbank output that occurs due to the filterbank preload.
+        o_sof => FB_out_sof, -- out std_logic;
         -- Correlator filterbank output as packets
         -- Each output packet contains all the data for:
         --  - Single time step
@@ -388,6 +395,14 @@ begin
 
     );
     
+    process(i_MACE_clk)
+    begin
+        if rising_edge(i_MACE_clk) then
+            ct_rst_del1 <= ct_rst;
+            ct_rst_del2 <= ct_rst_del1;
+        end if;
+    end process;
+    
     -- Corner turn between filterbanks and correlator
     ct_cor_out_inst : entity CT_lib.corr_ct2_top
     generic map (
@@ -400,24 +415,24 @@ begin
         o_axi_miso  => o_cor_CT_axi_miso, -- out t_axi4_lite_miso;
         i_axi_rst   => i_MACE_rst, -- in std_logic;
         -- pipelined reset from first stage corner turn ?
-        i_rst  => '0',  --  in std_logic;
+        i_rst  => ct_rst_del2,  --  in std_logic;
         --
         i_virtualChannels => totalChannels(10 downto 0),  
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
-        i_sof             => FB_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 283 ms of data).
-        i_frameCount      => FD_frameCount,     -- in (31:0); -- frame count is the same for all simultaneous output streams.
-        i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the PST data streams.
+        i_sof             => FB_out_sof,        -- in std_logic; Pulse high at the start of every new group of virtual channels. (1 frame is typically 283 ms of data).
+        i_frameCount      => FD_frameCount,     -- in (31:0); Frame count is the same for all simultaneous output streams.
+        i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); 4 virtual channels, one for each of the PST data streams.
         i_HeaderValid     => FD_headerValid,    -- in (3:0);
-        i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
+        i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
         i_dataValid       => FD_dataValid,      -- in std_logic;
         --------------------------------------------------------------------------
         -- Data out to the correlators
         i_cor_ready             => cor_ready,     -- in std_logic; 
         o_cor_data              => cor_data,      -- out (255:0); 
-        o_cor_time              => cor_time,      -- out (7:0); -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
-        o_cor_station           => cor_station,   -- out (8:0); -- first of the 4 stations in i_cor0_data
-        o_cor_tileType          => cor_tileType,  -- out slv();
+        o_cor_time              => cor_time,      -- out (7:0); time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        o_cor_station           => cor_station,   -- out (8:0); first of the 4 stations in i_cor0_data
+        o_cor_tileType          => cor_tileType,  -- out slv(); 
         o_cor_valid             => cor_valid,     -- out slv();  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
         o_cor_first             => cor_first,     -- out slv();  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
         o_cor_last              => cor_last,      -- out slv();  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.

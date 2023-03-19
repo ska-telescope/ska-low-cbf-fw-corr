@@ -83,28 +83,10 @@ architecture Behavioral of LFAADecodeTop100G is
 
     signal reg_rw    : t_statctrl_rw;
     signal LFAAreg_count, testReg_count, reg_count : t_statctrl_count;
-    
-    signal LFAAData_out, testdata_out, data_out : std_logic_vector(127 downto 0);
-    signal LFAAValid_out, testValid_out, valid_out : std_logic;
-    signal LFAAStationSel_out : std_logic;
-
-    signal data_out_del1, data_out_del2, data_out_del3 : std_logic_vector(127 downto 0);
-    signal stationSel_out_del1, stationSel_out_del2, stationSel_out_del3 : std_logic;
-    signal valid_out_del1, valid_out_del2, valid_out_del3 : std_logic;
-    signal count_out_del1, count_out_del2, count_out_del3 : std_logic_vector(2 downto 0);
-    signal data_sum0_del1, data_sum1_del1, data_sum_del2, data_sum_del3 : std_logic_vector(31 downto 0);
-    
-    signal ptp_hold, ptp_out : std_logic_vector(58 downto 0);
-    signal ptp_send : std_logic := '0';
-    signal ptp_rcv : std_logic;
-    signal ptp_valid : std_logic;
     signal data_clk_vec : std_logic_vector(0 downto 0);
     
     -- One only of the "LFAAProcess" and the "TestProcess" modules controls the memories in the registers.
     signal LFAAVCTable_addr : std_logic_vector(11 downto 0);
-    signal LFAAstats_wr_data, testStats_wr_data : std_logic_vector(31 downto 0);
-    signal LFAAstats_we, testStats_we : std_logic;
-    signal LFAAstats_addr, testStats_addr : std_logic_vector(12 downto 0); 
     signal VCTable_ram_in : t_statctrl_vctable_ram_in;
     signal VCTable_ram_out : t_statctrl_vctable_ram_out;
     
@@ -113,7 +95,6 @@ architecture Behavioral of LFAADecodeTop100G is
     signal VCStats_ram_in_adr : std_logic_vector(12 downto 0);
     signal VCStats_ram_out_rd_dat : std_logic_vector(31 downto 0);
     
-    signal stationSel_out, testStationSel_out : std_logic;
     signal cdcSendCount : std_logic_vector(3 downto 0) := "0000";
     signal cdcSend : std_logic := '0';
     signal cdcSrcIn, cdcDestOut : std_logic_vector(11 downto 0);
@@ -204,9 +185,8 @@ begin
     );
     
     -----------------------------------------------------------------------------------------------------
-    -- Convert to the AXI clock domain and do a division to find the total number of coarse channels.
-    -- This generates o_totalStations(10:0), o_totalCoarse(9:0), o_totalChannels(10:0)
-    -- from reg_rw.total_stations(15:0) and reg_rw.total_channels(15:0)
+    -- Convert to the AXI clock domain 
+    -- This generates o_totalChannels(11:0)
     process(i_data_clk)
     begin
         if rising_edge(i_data_clk) then

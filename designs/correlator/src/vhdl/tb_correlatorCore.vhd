@@ -31,6 +31,7 @@ USE technology_lib.tech_mac_100g_pkg.ALL;
 entity tb_correlatorCore is
     generic (
         g_SPS_PACKETS_PER_FRAME : integer := 128;
+        g_CORRELATORS : integer := 0; -- Number of correlator instances to instantiate (0, 1, 2)
         -- Location of the test case; All the other filenames in generics here are in this directory
         g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
         -- text file with SPS packets
@@ -770,7 +771,7 @@ begin
         g_HBM_AXI_DATA_WIDTH => 512, -- integer := 512;
         g_HBM_AXI_ID_WIDTH   => 1,   -- integer := 1
         -- Number of correlator blocks to instantiate.
-        g_CORRELATORS        => 1    -- integer := 2
+        g_CORRELATORS        => g_CORRELATORS -- integer := 2
     ) port map (
         ap_clk   => ap_clk, --  in std_logic;
         ap_rst_n => ap_rst_n, -- in std_logic;

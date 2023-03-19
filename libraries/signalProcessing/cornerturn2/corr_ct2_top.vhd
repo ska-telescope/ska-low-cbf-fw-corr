@@ -161,7 +161,7 @@ architecture Behavioral of corr_ct2_top is
     signal statctrl_ro : t_statctrl_ro;
     signal statctrl_rw : t_statctrl_rw;
     signal frameCount_mod3 : std_logic_vector(1 downto 0) := "00";
-    signal frameCount_849ms : std_logic_vector(31 downto 0);
+    signal frameCount_849ms : std_logic_vector(31 downto 0) := (others => '0');
     signal frameCount_startup : std_logic := '1';
     signal previous_framecount : std_logic_vector(11 downto 0) := "000000000000";
     signal buf0_fineIntegrations, buf1_fineIntegrations : std_logic_vector(4 downto 0);
