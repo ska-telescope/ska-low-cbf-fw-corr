@@ -214,7 +214,19 @@ entity correlator_top is
         i_cor1_axi_arready : in  std_logic;
         i_cor1_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
         o_cor1_axi_rready  : out std_logic;
-        
+
+        ------------------------------------------------------------------        
+        -- spead packet interface
+        o_cor_spead_data        : out t_slv_512_arr(1 downto 0); --out std_logic_vector(511 downto 0);
+        i_cor_spead_data_rd     : in std_logic_vector(1 downto 0); --in std_logic;                         -- FWFT FIFO
+        o_cor_current_array     : out t_slv_8_arr(1 downto 0); --out std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
+        o_cor_spead_data_rdy    : out std_logic_vector(1 downto 0); --out std_logic;
+        o_cor_byte_count        : out t_slv_14_arr(1 downto 0); --out std_logic_vector(13 downto 0);
+        i_cor_enabled_array     : in t_slv_8_arr(1 downto 0); --in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
+        o_cor_freq_index        : out t_slv_17_arr(1 downto 0); --out std_logic_vector(16 downto 0);
+        o_cor_time_ref          : out t_slv_64_arr(1 downto 0); --out std_logic_vector(63 downto 0)
+
+        i_packetiser_enable     : in std_logic_vector(1 downto 0);
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi : in t_axi4_lite_mosi;
@@ -257,11 +269,14 @@ architecture Behavioral of correlator_top is
     signal cor1_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
     signal cor1_HBM_cells : std_logic_vector(15 downto 0);
     signal cor0_HBM_errors, cor1_HBM_errors : std_logic_vector(3 downto 0);
+
+    signal cor0_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
+    signal cor1_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
+
 begin
     
     -- First correlator instance
     cor1geni : if (g_CORRELATORS > 0) generate
-    
         icor1 : entity correlator_lib.single_correlator
         generic map (
             g_PIPELINE_STAGES => 2, -- integer
@@ -328,15 +343,22 @@ begin
             i_HBM_axi_r       => i_cor0_axi_r,       -- in  t_axi4_full_data; r data bus (.valid, .data(511:0), .last, .resp(1:0))
             o_HBM_axi_rready  => o_cor0_axi_rready,  -- out std_logic;
             ---------------------------------------------------------------
-            -- data out to the 100GE
-            o_packet_dout     => o_packet0_dout,  --  out std_logic_vector(255 downto 0);
-            o_packet_valid    => o_packet0_valid, --  out std_logic;
-            i_packet_ready    => i_packet0_ready, --  in std_logic;
+            -- data out to SPEAD Packetiser        
+            o_spead_data        => o_cor_spead_data(0),
+            i_spead_data_rd     => i_cor_spead_data_rd(0),
+            o_current_array     => o_cor_current_array(0),
+            o_spead_data_rdy    => o_cor_spead_data_rdy(0),
+            o_byte_count        => o_cor_byte_count(0),
+            i_enabled_array     => i_cor_enabled_array(0),
+            o_freq_index        => o_cor_freq_index(0),
+            o_time_ref          => o_cor_time_ref(0),
+    
+            i_packetiser_enable => i_packetiser_enable(0),
             ---------------------------------------------------------------
             -- Registers
-            o_HBM_end    => cor0_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
-            o_HBM_errors => cor0_HBM_errors, -- out (3:0)  -- Number of cells currently in the circular buffer.
-            
+            o_HBM_end           => cor0_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
+            o_HBM_errors        => cor0_HBM_errors, -- out (3:0)  -- Number of cells currently in the circular buffer.
+            o_HBM_curr_rd_addr  => cor0_HBM_curr_rd_base,
             ---------------------------------------------------------------
             -- copy of the bus taking data to be written to the HBM.
             -- Used for simulation only, to check against the model data.
@@ -421,14 +443,22 @@ begin
             i_HBM_axi_r       => i_cor1_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
             o_HBM_axi_rready  => o_cor1_axi_rready,  -- out std_logic;
             ---------------------------------------------------------------
-            -- data out to the 100GE
-            o_packet_dout     => o_packet1_dout,  --  out std_logic_vector(255 downto 0);
-            o_packet_valid    => o_packet1_valid, --  out std_logic;
-            i_packet_ready    => i_packet1_ready, --  in std_logic;
+            -- data out to SPEAD Packetiser        
+            o_spead_data        => o_cor_spead_data(1),
+            i_spead_data_rd     => i_cor_spead_data_rd(1),
+            o_current_array     => o_cor_current_array(1),
+            o_spead_data_rdy    => o_cor_spead_data_rdy(1),
+            o_byte_count        => o_cor_byte_count(1),
+            i_enabled_array     => i_cor_enabled_array(1),
+            o_freq_index        => o_cor_freq_index(1),
+            o_time_ref          => o_cor_time_ref(1),
+
+            i_packetiser_enable => i_packetiser_enable(1),
             ---------------------------------------------------------------
             -- Registers
-            o_HBM_end   => cor1_HBM_end,     -- out (31:0); Byte address offset into the HBM buffer where the visibility circular buffer ends.
-            o_HBM_errors => cor1_HBM_errors, -- out (3:0); Number of cells currently in the circular buffer.
+            o_HBM_end           => cor1_HBM_end,     -- out (31:0); Byte address offset into the HBM buffer where the visibility circular buffer ends.
+            o_HBM_errors        => cor1_HBM_errors, -- out (3:0); Number of cells currently in the circular buffer.
+            o_HBM_curr_rd_addr  => cor1_HBM_curr_rd_base,
             ---------------------------------------------------------------
             -- copy of the bus taking data to be written to the HBM.
             -- Used for simulation only, to check against the model data.
@@ -475,11 +505,11 @@ begin
         SETUP_FIELDS_RO => config_ro   -- in  t_setup_ro
     );
     
-    config_ro.cor0_HBM_start <= (others => '0'); -- TODO - should come from the SPEAD packet readout module
+    config_ro.cor0_HBM_start <= cor0_HBM_curr_rd_base; --(others => '0'); -- TODO - should come from the SPEAD packet readout module
     config_ro.cor0_HBM_end <= cor0_HBM_end;
     config_ro.cor0_HBM_size <= (others => '0'); -- TODO - calculate from cor0_HBM_end and cor0_HBM_start
     
-    config_ro.cor1_HBM_start <= (others => '0'); -- TODO - should come from the SPEAD packet readout module
+    config_ro.cor1_HBM_start <= cor1_HBM_curr_rd_base; --(others => '0'); -- TODO - should come from the SPEAD packet readout module
     config_ro.cor1_HBM_end <= cor1_HBM_end;
     config_ro.cor1_HBM_size <= (others => '0'); -- TODO - calculate from cor0_HBM_end and cor0_HBM_start
     
