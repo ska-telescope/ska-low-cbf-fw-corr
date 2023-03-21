@@ -261,11 +261,11 @@ begin
             end if;
             
             if setclear_fsm = set_bit and (dina(to_integer(unsigned(addra(6 downto 0)))) = '1') then
+                -- i.e. setting the bit, but the bit was already set.
                 o_duplicate <= '1';
             else
                 o_duplicate <= '0';
             end if;
-            
             
             rstDel1 <= i_rst;
             rstDel2 <= rstDel1;
@@ -294,15 +294,6 @@ begin
             
             o_rstActive <= i_rst or rstDel1 or rstDel2 or rstActive;
             
-            -- report duplicates
-            setValidDel1 <= i_setValid;
-            setValidDel2 <= setValidDel1;
-            setValidDel3 <= setValidDel2;
-            if setValidDel3 = '1' and douta(0) = '1' then
-                o_duplicate <= '1';
-            else
-                o_duplicate <= '0';
-            end if;
         end if;
     end process;
     

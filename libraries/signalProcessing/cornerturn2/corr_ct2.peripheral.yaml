@@ -81,11 +81,17 @@ peripherals:
               reset_value       : 0x0
               field_description : "Interval between the start of one frame and the start of the next frame in units of 300 MHz clocks at the input to the corner turn."
           #################################
-          - - field_name        : readOutClocks
+          - - field_name        : readOutBursts
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Length of the most recent frame in units of 400 MHz clocks at the output of the corner turn"
+              field_description : "Number of bursts of data output to the correlators (each burst is 32 times x 4 stations)"
+          #################################
+          - - field_name        : readOutFrames
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of (849ms) frames triggered to readout to the correlators"
           #################################
           - - field_name        : vc_demap
               width             : 32

@@ -59,7 +59,11 @@ entity FB_Top_correlator is
         o_HeaderValid : out std_logic_vector(3 downto 0);
         o_Data        : out t_ctc_output_payload_arr(3 downto 0);
         o_DataValid   : out std_logic;
-        
+        -- i_SOF delayed by 16384 clocks;
+        -- i_sof occurs at the start of each new block of 4 virtual channels.
+        -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+        -- between data packets at the filterbank output that occurs due to the filterbank preload.
+        o_sof : out std_logic;
         -- Correlator filterbank output as packets
         -- Each output packet contains all the data for:
         --  - Single time step
@@ -135,13 +139,15 @@ architecture Behavioral of FB_Top_correlator is
     signal config_ro : t_config_ro;
     signal output_disable_i : t_config_output_disable_ram_in;
     signal output_disable_o : t_config_output_disable_ram_out;
-    signal tx_packet_count, tx_packet_count_ct : std_logic_vector(31 downto 0);
+    signal tx_packet_count, tx_packet_count_ct : std_logic_vector(31 downto 0) := x"00000000";
     signal packetValidDel1, packetValid, FDcorDataValidDel : std_logic;
     signal output_disabled : std_logic;
     signal output_disable_addr : std_logic_vector(9 downto 0);
     signal reg_reset_del1, reg_reset : std_logic;
     signal config_rw : t_config_rw;
     signal HeaderValid : std_logic_vector(3 downto 0);
+    signal sof_out, sof_del1 : std_logic := '0';
+    signal sof_out_count : std_logic_vector(13 downto 0) := (others => '0');
     
 begin
     
@@ -224,8 +230,24 @@ begin
                 end if;
             end loop;
             DataValid <= i_DataValid;
+            
+            -- Generate o_sof from i_sof, taking into account the latency of the filterbank processing.
+            sof_del1 <= i_sof;
+            if i_sof = '1' and sof_del1 = '0' then
+                sof_out_count <= (others => '1'); -- 16383
+            elsif (unsigned(sof_out_count) /= 0) then
+                sof_out_count <= std_logic_vector(unsigned(sof_out_count) - 1);
+            end if;
+            if (unsigned(sof_out_count) = 1) then
+                sof_out <= '1';
+            else
+                sof_out <= '0';
+            end if;
+            o_sof <= sof_out;
         end if;
     end process;
+    
+
     
         
     corfbi : entity filterbanks_lib.correlatorFBTop25
