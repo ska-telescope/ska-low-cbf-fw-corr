@@ -71,10 +71,12 @@ entity corr_ct2_din is
         i_frameCount_mod3 : in std_logic_vector(1 downto 0);  -- which of the three first corner turn frames is this, out of the 3 that make up a 849 ms integration. "00", "01", or "10".
         i_frameCount_849ms : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
         i_virtualChannel  : in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the filterbank data streams.
+        i_lastChannel     : in std_logic_vector(15 downto 0);
         i_HeaderValid     : in std_logic_vector(3 downto 0);
         i_data            : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
         i_dataValid       : in std_logic;
-        o_lastTime       : out std_logic; -- Just received the last packet in a frame for a particular virtual channel.
+        o_trigger_readout : out std_logic; -- Just received the last packet in a frame for a particular virtual channel.
+        o_trigger_buffer  : out std_logic;
         --------------------------------------------------------------------
         -- interface to the demap table 
         o_vc_demap_rd_addr   : out std_logic_vector(7 downto 0);
@@ -138,9 +140,10 @@ architecture Behavioral of corr_ct2_din is
     signal frameCount_849ms : std_logic_vector(31 downto 0);
     
     signal dataFIFO_valid : std_logic_vector(1 downto 0);
-    signal dataFIFO_dout : t_slv_513_arr(1 downto 0);
+    type t_slv_515_arr     is array (integer range <>) of std_logic_vector(514 downto 0);
+    signal dataFIFO_dout : t_slv_515_arr(1 downto 0);
     signal dataFIFO_dataCount : t_slv_6_arr(1 downto 0);
-    signal dataFIFO_din : t_slv_513_arr(1 downto 0);
+    signal dataFIFO_din : t_slv_515_arr(1 downto 0);
     signal dataFIFO_rdEn : std_logic_vector(1 downto 0);
     signal dataFIFO_wrEn : std_logic_vector(1 downto 0);
     
@@ -189,10 +192,14 @@ architecture Behavioral of corr_ct2_din is
     signal copyData_fineChannel_Start : std_logic_vector(15 downto 0);
     signal copyData_NFine_Start, copyData_fineRemaining : std_logic_vector(11 downto 0);
     signal copyData_fineChannel_Start_x8 : std_logic_vector(15 downto 0);
+    signal trigger_readout, last_virtual_channel : std_logic := '0';
+    signal last_word_in_frame : std_logic_vector(15 downto 0) := x"0000";
+    signal copyData_trigger, copy_trigger, copyToHBM_trigger, trigger_buffer : std_logic := '0';
+    signal cbuffer : std_logic_vector(15 downto 0);
+    signal copydata_buffer : std_logic := '0';
     
 begin
     
-    o_lastTime <= lastTime;
     o_SB_req <= SB_req;
     o_SB_addr <= SB_addr;
     
@@ -213,7 +220,12 @@ begin
                 sof_hold <= '0';
                 -- Just use the first filterbanks virtual channel.
                 -- This module assumes that i_virtualChannel(0), (1), (2), and (3) are consecutive values.
-                virtualChannel <= i_virtualChannel(0); 
+                virtualChannel <= i_virtualChannel(0);
+                if (unsigned(i_virtualChannel(3)) >= unsigned(i_lastchannel)) then
+                    last_virtual_channel <= '1';
+                else
+                    last_virtual_channel <= '0';
+                end if;
                 frameCount_mod3 <= i_frameCount_mod3;
                 frameCount_849ms <= i_frameCount_849ms;
                 trigger_demap_rd <= '1';
@@ -320,6 +332,12 @@ begin
                 copyToHBM_SB_n_fine <= SB_n_fine;
                 copyToHBM_SB_HBM_base_addr <= SB_HBM_base_addr;
                 copyToHBM_SB_HBM_sel <= SB_addr(7); -- The top bit of the subarray-beam address selects which correlator instance the data is for.
+                if (timeStep(5) = '1' and frameCount_mod3 = "10" and last_virtual_channel = '1') then
+                    -- trigger readout to the correlators once this data is written to the HBM
+                    copyToHBM_trigger <= '1';
+                else
+                    copyToHBM_trigger <= '0';
+                end if;
             else
                 copyToHBM <= '0';
             end if;
@@ -426,7 +444,8 @@ begin
                 -- Which group of times within the corner turn 
                 -- 6 possible values, 0 to 5, corresponding to times of 
                 -- (0-31, 32-63, 64-95, 96-127, 128-159, 160-191)
-                copy_time <= copyToHBM_time;  
+                copy_time <= copyToHBM_time;
+                copy_trigger <= copyToHBM_trigger;
                 copy_station <= copyToHBM_station;
                 copy_skyFrequency <= copyToHBM_skyFrequency;
                 if copyToHBM_skyFrequency = copyToHBM_SB_coarseStart(8 downto 0) then
@@ -548,7 +567,8 @@ begin
             -- Needed to meet the axi interface spec, since we have a large latency on reads from the ultraRAM.
             if trigger_copyData_fsm = '1' then
                 copyData_fsm <= running;
-                
+                copyData_trigger <= copy_trigger;
+                copyData_buffer <= copy_buffer;
                 -- Only copy the fine channels that we are using.
                 copyData_fineRemaining <= copyData_NFine_Start;
                 
@@ -603,10 +623,19 @@ begin
             
             if copyData_fsm = running and bufRdCount(2 downto 0) = "111" then
                 last(0) <= '1'; -- last word in an 8 word HBM burst.
+                if ((unsigned(copyData_fineRemaining) = 1) and (copyData_trigger = '1')) then
+                    last_word_in_frame(0) <= '1';
+                else
+                    last_word_in_frame(0) <= '0';
+                end if;
+                cbuffer(0) <= copydata_buffer;
             else
                 last(0) <= '0';
+                last_word_in_frame(0) <= '0';
             end if;
             last(15 downto 1) <= last(14 downto 0);
+            last_word_in_frame(15 downto 1) <= last_word_in_frame(14 downto 0);
+            cbuffer(15 downto 1) <= cbuffer(14 downto 0);
             
             -- 16 clock latency to read the ultraRAM buffer.
             dataFIFO0_wrEn(15 downto 1) <= dataFIFO0_wrEn(14 downto 0);
@@ -624,8 +653,8 @@ begin
             
             dataFIFO_wrEn(0) <= dataFIFO0_wrEn(15);
             dataFIFO_wrEn(1) <= dataFIFO1_wrEn(15);
-            dataFIFO_din(0) <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
-            dataFIFO_din(1) <= last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
+            dataFIFO_din(0) <= cbuffer(15) & last_word_in_frame(15) & last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
+            dataFIFO_din(1) <= cbuffer(15) & last_word_in_frame(15) & last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
             
         end if;
     end process;
@@ -652,9 +681,10 @@ begin
     dfifoGen : for i in 0 to 1 generate
         -- data FIFOs to interface to the HBM axi bus
         -- Accounts for the long read latency from the big ultraRAM memory.
-        -- 513 wide :
+        -- 514 wide :
         --   511:0  = data
         --   512    = last in axi transaction
+        --   513    = last in the frame, on readout this triggers read of the data.
         xpm_fifo_sync_inst : xpm_fifo_sync
         generic map (
             CASCADE_HEIGHT => 0,        -- DECIMAL
@@ -667,12 +697,12 @@ begin
             PROG_EMPTY_THRESH => 10,    -- DECIMAL
             PROG_FULL_THRESH => 10,     -- DECIMAL
             RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
-            READ_DATA_WIDTH => 513,     -- DECIMAL
+            READ_DATA_WIDTH => 515,     -- DECIMAL
             READ_MODE => "fwft",        -- String
             SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
             WAKEUP_TIME => 0,           -- DECIMAL
-            WRITE_DATA_WIDTH => 513,    -- DECIMAL
+            WRITE_DATA_WIDTH => 515,    -- DECIMAL
             WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
         )
         port map (
@@ -680,27 +710,27 @@ begin
             almost_full => open,      -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
             data_valid => dataFIFO_valid(i), -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
             dbiterr => open,          -- 1-bit output: Double Bit Error: Indicates that the ECC decoder detected a double-bit error and data in the FIFO core is corrupted.
-            dout => dataFIFO_dout(i),                   -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
-            empty => open,                 -- 1-bit output: Empty Flag: When asserted, this signal indicates that- the FIFO is empty.
-            full => open,                   -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full.
-            overflow => open,           -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
+            dout => dataFIFO_dout(i), -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
+            empty => open,            -- 1-bit output: Empty Flag: When asserted, this signal indicates that- the FIFO is empty.
+            full => open,             -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full.
+            overflow => open,         -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
             prog_empty => open,       -- 1-bit output: Programmable Empty: This signal is asserted when the number of words in the FIFO is less than or equal to the programmable empty threshold value.
-            prog_full => open,         -- 1-bit output: Programmable Full: This signal is asserted when the number of words in the FIFO is greater than or equal to the programmable full threshold value.
+            prog_full => open,        -- 1-bit output: Programmable Full: This signal is asserted when the number of words in the FIFO is greater than or equal to the programmable full threshold value.
             rd_data_count => open, -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
-            rd_rst_busy => open,     -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
-            sbiterr => open,             -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
-            underflow => open,         -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
-            wr_ack => open,               -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
+            rd_rst_busy => open,   -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
+            sbiterr => open,       -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
+            underflow => open,     -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
+            wr_ack => open,        -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
             wr_data_count => dataFIFO_dataCount(i), -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
             wr_rst_busy => open,     -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
-            din => dataFIFO_din(i),                     -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+            din => dataFIFO_din(i),  -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
             injectdbiterr => '0', -- 1-bit input: Double Bit Error Injection
             injectsbiterr => '0', -- 1-bit input: Single Bit Error Injection: 
-            rd_en => dataFIFO_RdEn(i),       -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
+            rd_en => dataFIFO_RdEn(i), -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
             rst => '0',           -- 1-bit input: Reset: Must be synchronous to wr_clk.
             sleep => '0',         -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
-            wr_clk => i_axi_clk,     -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
-            wr_en => dataFIFO_wrEn(i)     -- 1-bit input: Write Enable: 
+            wr_clk => i_axi_clk,  -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
+            wr_en => dataFIFO_wrEn(i) -- 1-bit input: Write Enable: 
         );
     
     end generate;
@@ -729,5 +759,24 @@ begin
     dataFIFO_rden(0) <= dataFIFO_valid(0) and i_HBM_axi_wready(0);
     dataFIFO_rden(1) <= dataFIFO_valid(1) and i_HBM_axi_wready(1);
     
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            if ((dataFIFO_valid(0) = '1' and dataFIFO_dout(0)(513) = '1') or 
+                (dataFIFO_valid(1) = '1' and dataFIFO_dout(1)(513) = '1')) then
+                trigger_readout <= '1';
+                if dataFIFO_valid(0) = '1' then
+                    trigger_buffer <= dataFIFO_dout(0)(514);
+                else
+                    trigger_buffer <= dataFIFO_dout(1)(514);
+                end if;
+            else
+                trigger_readout <= '0';
+            end if;
+        end if;
+    end process;
+    
+    o_trigger_readout <= trigger_readout;
+    o_trigger_buffer <= trigger_buffer;
+    
 end Behavioral;
-

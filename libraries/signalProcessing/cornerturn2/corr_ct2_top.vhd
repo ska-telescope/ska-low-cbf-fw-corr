@@ -162,8 +162,7 @@ architecture Behavioral of corr_ct2_top is
     signal statctrl_rw : t_statctrl_rw;
     signal frameCount_mod3 : std_logic_vector(1 downto 0) := "00";
     signal frameCount_849ms : std_logic_vector(31 downto 0) := (others => '0');
-    signal frameCount_startup : std_logic := '1';
-    signal previous_framecount : std_logic_vector(11 downto 0) := "000000000000";
+    --signal frameCount_startup : std_logic := '1';
     signal buf0_fineIntegrations, buf1_fineIntegrations : std_logic_vector(4 downto 0);
     signal vc_demap_in : t_statctrl_vc_demap_ram_in;
     signal subarray_beam_in : t_statctrl_subarray_beam_ram_in;
@@ -199,7 +198,7 @@ architecture Behavioral of corr_ct2_top is
     signal din_tableSelect : std_logic := '0';
     signal last_channel : std_logic_vector(10 downto 0);
     signal recent_virtualChannel : std_logic_vector(15 downto 0);
-    signal lastTime : std_logic;
+    --signal lastTime : std_logic;
     
     signal vc_demap_req : std_logic;  -- request a read from address o_vc_demap_rd_addr
     signal vc_demap_data_valid   : std_logic;  -- Read data below (i_demap* signals) is valid.
@@ -212,25 +211,38 @@ architecture Behavioral of corr_ct2_top is
     signal vc_demap_fw_dest      : std_logic_vector(7 downto 0);  -- Tag for the packet.
     signal vc_demap_req_del1, vc_demap_req_del2 : std_logic;
     
-    signal readout_start_int, readout_start, readout_buffer_int, readout_buffer : std_logic := '0';
+    signal readout_start, readout_buffer_int, readout_buffer : std_logic := '0';
+    signal readout_start_pulse, readout_start_del1, readout_buffer_del1 : std_logic := '0';
+    
+    signal readout_frame_count, readout_clock_count, readout_interval : std_logic_vector(31 downto 0) := (others => '0');
+    signal readout_clock_count_counting : std_logic := '0';
+    signal last_channel_16bit : std_logic_vector(15 downto 0);
+    signal trigger_readout, trigger_buffer : std_logic := '0';
+    signal sof_hold : std_logic := '0';
+    signal readInClocks_count, readInClocks : std_logic_vector(31 downto 0) := x"00000000";
+    signal readin_clock_count_counting, sof_full : std_logic := '0';
+    signal cor_valid_int : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+    signal readoutBursts : std_logic_vector(31 downto 0);
+    signal cor0_valid_del1, cor0_valid_del2 : std_logic;
     
 begin
     
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
+            if i_sof = '1' then
+                sof_hold <= '1';
+            elsif i_dataValid = '1' then
+                sof_hold <= '0';
+            end if;
+            
             if i_rst = '1' then
                 frameCount_mod3 <= "00";
                 frameCount_849ms <= (others => '0');
-                frameCount_startup <= '1';
-            elsif (i_sof = '1') then
+            elsif (sof_hold = '1' and i_dataValid = '1') then
                 -- This picks up the framecount for the first packet in the frame = 283ms of data.
-                -- If the framecount is the same as the framecount for the first frame from the previous i_sof,
-                -- then we are just going to the next virtual channel; if different, then we have moved on to the next 283ms block.
-                -- Maybe we could also just check that i_virtualChannel(0) = 0 ?
-                previous_framecount <= i_frameCount(11 downto 0);  -- just 12 bits, since we don't need to check every bit of framecount to see if it has changed.
-                frameCount_startup <= '0';
-                if (previous_frameCount /= i_frameCount(11 downto 0)) and frameCount_Startup = '0' then
+                -- If i_virtualChannel(0) = 0 then this is the start of a new block of 283 ms.
+                if (unsigned(i_virtualChannel(0)) = 0) then
                     case frameCount_mod3 is
                         when "00" => frameCount_mod3 <= "01";
                         when "01" => frameCount_mod3 <= "10";
@@ -241,29 +253,112 @@ begin
                 end if;
             end if;
             
+            if (sof_hold = '1' and i_dataValid = '1' and (unsigned(i_virtualChannel(0)) = 0)) then
+                sof_full <= '1';
+            else
+                sof_full <= '0';
+            end if;
+            
             last_channel <= std_logic_vector(unsigned(i_virtualChannels) - 1);
             
             if i_headerValid(0) = '1' then
                 recent_virtualChannel <= i_virtualChannel(3);
             end if;
             
-            if (frameCount_mod3 = "10" and (unsigned(recent_virtualChannel) = unsigned(last_channel)) and (lastTime = '1')) then
-                readout_start_int <= '1';
-                readout_buffer_int <= frameCount_849ms(0);
-            else
-                readout_start_int <= '0';
-            end if;
-            
             if i_readout_start = '1' then
+                -- This is used in the testbench to readout preloaded data from the HBM
                 readout_start <= '1';
                 readout_buffer <= i_readout_buffer;
             else
-                readout_start <= readout_start_int;
-                readout_buffer <= readout_buffer_int;
+                -- Normal functionality in the hardware
+                readout_start <= trigger_readout;
+                readout_buffer <= trigger_buffer;
+            end if;
+            
+            readout_start_del1 <= readout_start;
+            readout_buffer_del1 <= readout_buffer;
+            if readout_start = '1' and readout_start_del1 = '0' then
+                readout_start_pulse <= '1';
+            else
+                readout_start_pulse <= '0';
+            end if;
+            
+            ---------------------------------------------------------------------
+            -- Monitoring
+            ---------------------------------------------------------------------
+            
+            -- Count the number of frames that have been triggered to read out
+            if i_rst = '1' then
+                readout_frame_count <= (others => '0');
+            elsif readout_start_pulse = '1' then
+                readout_frame_count <= std_logic_vector(unsigned(readout_frame_count) + 1);
+            end if;
+            
+            -- Count the clock cycles between read out triggers
+            if i_rst = '1' then
+                readout_clock_count <= (others => '0');
+                readout_interval <= (others => '0');
+                readout_clock_count_counting <= '0';
+            elsif readout_start_pulse = '1' then
+                readout_clock_count <= (others => '0');
+                readout_interval <= readout_clock_count;
+                readout_clock_count_counting <= '1';
+            elsif readout_clock_count_counting = '1' then
+                readout_clock_count <= std_logic_vector(unsigned(readout_clock_count) + 1);
+                if readout_clock_count = x"fffffffe" then
+                    readout_clock_count_counting <= '0';
+                end if;
+            end if;
+            
+            -- count the number of clock cycles between 283 ms frames from the filterbank
+            if sof_full = '1' then
+                readInClocks_count <= (others => '0');
+                readInClocks <= readInClocks_count;
+                readin_clock_count_counting <= '1';
+            elsif readin_clock_count_counting = '1' then
+                readInClocks_count <= std_logic_vector(unsigned(readInClocks_count) + 1);
+                if readInClocks_count = x"fffffffe" then
+                    readin_clock_count_counting <= '0';
+                end if;
+            end if;
+            
+            -- Count the number of bursts of data output to the correlators
+            cor0_valid_del1 <= cor_valid_int(0);
+            cor0_valid_del2 <= cor0_valid_del1;
+            if i_rst = '1' then
+                readoutBursts <= (others => '0');
+            elsif cor0_valid_del1 = '1' and cor0_valid_del2 = '0' then
+                readoutBursts <= std_logic_vector(unsigned(readoutBursts) + 1);
             end if;
             
         end if;
     end process;
+    
+    last_channel_16bit <= "00000" & last_channel;
+    
+--          - - field_name        : readInClocks
+--              width             : 32
+--              access_mode       : RO
+--              reset_value       : 0x0
+--              field_description : "Length of the most recent frame in units of 300 MHz clocks at the input to the corner turn."
+--          #################################
+--          - - field_name        : readInAllClocks
+--              width             : 32
+--              access_mode       : RO
+--              reset_value       : 0x0
+--              field_description : "Interval between the start of one frame and the start of the next frame in units of 300 MHz clocks at the input to the corner turn."
+--          #################################
+--          - - field_name        : readOutClocks
+--              width             : 32
+--              access_mode       : RO
+--              reset_value       : 0x0
+--              field_description : "Length of the most recent frame in units of 300 MHz clocks at the output of the corner turn"    
+    
+    statctrl_ro.readinclocks <= readInClocks;
+    statctrl_ro.readInAllClocks <= readout_interval;
+    statctrl_ro.readoutBursts <= readoutBursts;
+    statctrl_ro.readoutFrames <= readout_frame_count;
+    
     
     -- corr_ct2_din has buffers and logic for 1024 virtual channels = two correlator cells.
     din_inst : entity ct_lib.corr_ct2_din
@@ -277,11 +372,12 @@ begin
         i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
         i_frameCount_849ms => frameCount_849ms, -- in (31:0)
         i_virtualChannel   => i_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the data streams.
+        i_lastChannel      => last_channel_16bit,     -- in (15:0)
         i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
         i_dataValid        => i_dataValid,      -- in std_logic;
-        o_lastTime         => lastTime,         -- out std_logic; last time sample for a particular virtual channel received.
-        
+        o_trigger_readout  => trigger_readout,  -- out std_logic; All data has been written to the HBM, can start reading out to the correlator.
+        o_trigger_buffer   => trigger_buffer,   -- out std_logic;
         -- interface to the demap table
         o_vc_demap_rd_addr   => vc_demap_rd_Addr,    -- out (7:0);  address into the demap table, 0-255 = floor(virtual_channel / 4)
         o_vc_demap_req       => vc_demap_req,        -- out std_logic;  -- request a read from address o_vc_demap_rd_addr
@@ -316,15 +412,70 @@ begin
         i_HBM_axi_b       => i_HBM_axi_b(1 downto 0)        -- in  t_axi4_full_b_arr     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.       
     );
     
+    -- Always instantiate at least one correlator readout module.
+    cori : entity ct_lib.corr_ct2_dout
+    port map (
+        -- Only uses the 300 MHz clock.
+        i_axi_clk   => i_axi_clk, --  in std_logic;
+        i_start     => readout_start_pulse, --  in std_logic; -- start reading out data to the correlators
+        i_buffer    => readout_buffer_del1, --  in std_logic; -- which of the double buffers to read out ?
+        
+        -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
+        o_SB_req   => dout_SB_req(0),    -- Rising edge gets the parameters for the next subarray-beam to read out.
+        i_SB       => cur_readout_SB(0), -- in (6:0); which subarray-beam are we currently processing from the subarray-beam table.
+        i_SB_valid => dout_SB_valid(0),  -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
+        i_SB_done  => dout_SB_done(0),   -- Indicates that all the subarray beams for this correlator core has been processed.
+        i_stations => dout_SB_stations(0),                 -- in (15:0); The number of (sub)stations in this subarray-beam
+        i_coarseStart => dout_SB_coarseStart(0),           -- in (15:0); The first coarse channel in this subarray-beam
+        i_fineStart => dout_SB_fineStart(0),               -- in (15:0); The first fine channel in this subarray-beam
+        i_n_fine => dout_SB_n_fine(0),                     -- in (23:0); The number of fine channels in this subarray-beam
+        i_fineIntegrations => dout_SB_fineIntegrations(0), -- in (5:0);  Number of fine channels to integrate
+        i_timeIntegrations => dout_SB_timeIntegrations(0), -- in (1:0);  Number of time samples per integration.
+        i_HBM_base_addr    => dout_SB_HBM_base_addr(0),    -- in (31:0)  Base address in HBM for this subarray-beam.
+        ---------------------------------------------------------------
+        -- Data out to the correlator arrays
+        --
+        -- correlator 0 is ready to receive a new block of data. This will go low once data starts to be received.
+        -- A block of data consists of data for 64 times, and up to 512 virtual channels.
+        i_cor_ready => i_cor_ready(0), -- in std_logic;  
+        -- Each 256 bit word : two time samples, 4 consecutive virtual channels
+        -- (31:0) = time 0, virtual channel 0; (63:32) = time 0, virtual channel 1; (95:64) = time 0, virtual channel 2; (127:96) = time 0, virtual channel 3;
+        -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
+        o_cor_data  => o_cor_data(0), --  out (255:0); 
+        -- meta data
+        o_cor_time => o_cor_time(0),       -- out (7:0); Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+        o_cor_station => o_cor_station(0), -- out (11:0); First of the 4 virtual channels in o_cor0_data
+        o_cor_valid => cor_valid_int(0),     -- out std_logic;
+        o_cor_last  => o_cor_last(0),      -- out std_logic; Last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+        o_cor_final => o_cor_final(0),     -- out std_logic; Indicates that at the completion of processing the last block of correlator data, the integration is complete.
+        o_cor_tileType => o_cor_tileType(0), -- out std_logic;
+        o_cor_first    => o_cor_first(0),    -- out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+        o_cor_tile_location => o_cor_tileLocation(0), -- out (9:0);
+        o_cor_tileChannel => o_cor_tileChannel(0),    -- out (23:0);
+        o_cor_tileTotalTimes => o_cor_tileTotalTimes(0), -- out (7:0);  Number of time samples to integrate for this tile.
+        o_cor_tiletotalChannels => o_cor_tileTotalChannels(0), -- out (4:0); Number of frequency channels to integrate for this tile.
+        o_cor_rowstations       => o_cor_rowStations(0), -- out (8:0); Number of stations in the row memories to process; up to 256.
+        o_cor_colstations       => o_cor_colStations(0), -- out (8:0); Number of stations in the col memories to process; up to 256.
+        o_cor_subarray_beam     => o_cor_subarrayBeam(0), -- out (7:0); Which entry is this in the subarray-beam table ? 
+        o_cor_totalStations     => o_cor_totalStations(0), -- out (15:0); Total number of stations being processing for this subarray-beam.
+        ----------------------------------------------------------------
+        -- read interfaces for the HBM
+        o_HBM_axi_ar      => o_HBM_axi_ar(0),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_arready => i_HBM_axi_arready(0), -- in  std_logic;
+        i_HBM_axi_r       => i_HBM_axi_r(0),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_rready  => o_HBM_axi_rready(0)   -- out std_logic
+    );
     
-    corrgen : for i in 0 to (g_CORRELATORS-1) generate
+    o_cor_valid <= cor_valid_int;
+    
+    corrgen : for i in 1 to (g_CORRELATORS-1) generate
     
         cori : entity ct_lib.corr_ct2_dout
         port map (
             -- Only uses the 300 MHz clock.
             i_axi_clk   => i_axi_clk, --  in std_logic;
-            i_start     => readout_start, --  in std_logic; -- start reading out data to the correlators
-            i_buffer    => readout_buffer, --  in std_logic; -- which of the double buffers to read out ?
+            i_start     => readout_start_pulse, --  in std_logic; -- start reading out data to the correlators
+            i_buffer    => readout_buffer_del1, --  in std_logic; -- which of the double buffers to read out ?
             
             -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
             o_SB_req   => dout_SB_req(i),    -- Rising edge gets the parameters for the next subarray-beam to read out.
@@ -351,7 +502,7 @@ begin
             -- meta data
             o_cor_time => o_cor_time(i),       -- out (7:0); Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
             o_cor_station => o_cor_station(i), -- out (11:0); First of the 4 virtual channels in o_cor0_data
-            o_cor_valid => o_cor_valid(i),     -- out std_logic;
+            o_cor_valid => cor_valid_int(i),     -- out std_logic;
             o_cor_last  => o_cor_last(i),      -- out std_logic; Last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
             o_cor_final => o_cor_final(i),     -- out std_logic; Indicates that at the completion of processing the last block of correlator data, the integration is complete.
             o_cor_tileType => o_cor_tileType(i), -- out std_logic;
@@ -374,30 +525,30 @@ begin
     
     end generate;
     
-    corrNoGen : for i in g_CORRELATORS to (g_MAX_CORRELATORS-1) generate
+    --corrNoGen : for i in g_CORRELATORS to (g_MAX_CORRELATORS-1) generate
+    corrNoGen : if (g_CORRELATORS < 2) generate
+        o_cor_data(1) <= (others => '0');
+        o_cor_time(1) <= (others => '0');
+        o_cor_station(1) <= (others => '0');
+        cor_valid_int(1) <= '0';
+        o_cor_last(1) <= '0';
+        o_cor_final(1) <= '0';
+        o_cor_tileType(1) <= '0';
+        o_cor_first(1) <= '0';
+        o_cor_tileLocation(1) <= (others => '0');
+        o_cor_tileChannel(1) <= (others => '0');
+        o_cor_tileTotalTimes(1) <= (others => '0');
+        o_cor_tileTotalChannels(1) <= (others => '0');
+        o_cor_rowStations(1) <= (others => '0');
+        o_cor_colStations(1) <= (others => '0');
         
-        o_cor_data(i) <= (others => '0');
-        o_cor_time(i) <= (others => '0');
-        o_cor_station(i) <= (others => '0');
-        o_cor_valid(i) <= '0';
-        o_cor_last(i) <= '0';
-        o_cor_final(i) <= '0';
-        o_cor_tileType(i) <= '0';
-        o_cor_first(i) <= '0';
-        o_cor_tileLocation(i) <= (others => '0');
-        o_cor_tileChannel(i) <= (others => '0');
-        o_cor_tileTotalTimes(i) <= (others => '0');
-        o_cor_tileTotalChannels(i) <= (others => '0');
-        o_cor_rowStations(i) <= (others => '0');
-        o_cor_colStations(i) <= (others => '0');
+        o_HBM_axi_ar(1).valid <= '0';
+        o_HBM_axi_ar(1).addr <= (others => '0');
+        o_HBM_axi_ar(1).len <= (others => '0');
+        o_HBM_axi_rready(1) <= '1';
+        dout_SB_req(1) <= '0';
         
-        o_HBM_axi_ar(i).valid <= '0';
-        o_HBM_axi_ar(i).addr <= (others => '0');
-        o_HBM_axi_ar(i).len <= (others => '0');
-        o_HBM_axi_rready(i) <= '1';
-        dout_SB_req(i) <= '0';
-        
-    end generate;     
+    end generate;
     
     ------------------------------------------------------------------------------
     -- Registers
@@ -419,8 +570,6 @@ begin
     statctrl_ro.readouterror <= '0';
     statctrl_ro.hbmbuf0packetcount <= (others => '0');
     statctrl_ro.hbmbuf1packetcount <= (others => '0');
-    statctrl_ro.readinclocks <= (others => '0');
-    statctrl_ro.readoutclocks <= (others => '0');
     
     vc_demap_in.adr(9 downto 1) <= din_tableSelect & vc_demap_rd_addr; -- full address is 10 bits
     vc_demap_in.adr(0) <= '0' when vc_demap_req = '1' else '1';

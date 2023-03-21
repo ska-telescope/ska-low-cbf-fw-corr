@@ -64,7 +64,8 @@ ENTITY correlator_core IS
         g_HBM_AXI_DATA_WIDTH : integer := 512;
         g_HBM_AXI_ID_WIDTH   : integer := 1;
         -- Number of correlator blocks to instantiate.
-        g_CORRELATORS        : integer := 1
+        g_CORRELATORS        : integer := 1;
+        g_USE_DUMMY_FB       : boolean := FALSE
     );
     port (
         ap_clk : in std_logic;
@@ -801,7 +802,8 @@ begin
         g_DEBUG_ILA             => g_DEBUG_ILA,
         g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
         g_USE_META              => g_USE_META,
-        g_CORRELATORS           => g_CORRELATORS  -- number of correlator blocks to instantiate.
+        g_CORRELATORS           => g_CORRELATORS,  -- number of correlator blocks to instantiate.
+        g_USE_DUMMY_FB          => g_USE_DUMMY_FB
     ) port map (
         -- Received data from 100GE
         i_axis_tdata   => i_axis_tdata,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.

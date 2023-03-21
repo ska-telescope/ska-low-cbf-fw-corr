@@ -48,7 +48,8 @@ entity DSP_top_correlator is
         -- There are 34 bytes per sample : 4 x 8 byte visibilites, + 1 byte TCI + 1 byte DV
         g_PACKET_SAMPLES_DIV16   : integer := 64;  -- Actual number of samples in a correlator SPEAD packet is this value x 16; each sample is 34 bytes; default value => 64*34 = 2176 bytes of data per packet.
         g_CORRELATORS            : integer := 2;
-        g_MAX_CORRELATORS        : integer := 2
+        g_MAX_CORRELATORS        : integer := 2;
+        g_USE_DUMMY_FB           : boolean := FALSE
     );
     port (
         -----------------------------------------------------------------------
@@ -348,56 +349,113 @@ begin
     );
     
     -- Correlator filterbank and fine delay.
-    corFB_i : entity filterbanks_lib.FB_top_correlator
-    port map (
-        i_data_rst => FB_sof, -- in std_logic;
-        -- Register interface
-        i_axi_clk => i_MACE_clk,    -- in std_logic;
-        i_axi_rst => i_MACE_rst,    -- in std_logic;
-        i_axi_mosi => i_FB_axi_mosi, -- in t_axi4_lite_mosi;
-        o_axi_miso => o_FB_axi_miso, -- out t_axi4_lite_miso;
-        -- Configuration (on i_data_clk)
-        i_fineDelayDisable => '0',     -- in std_logic;
-        i_RFIScale         => "10011", -- in(4:0);
-        -- Data input, common valid signal, expects packets of 4096 samples
-        i_SOF    => FB_sof,
-        i_data0  => FB_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        i_data1  => FB_data1, -- in t_slv_8_arr(1 downto 0);
-        i_meta01 => FB_meta01,
-        i_data2  => FB_data2, -- in t_slv_8_arr(1 downto 0);
-        i_data3  => FB_data3, -- in t_slv_8_arr(1 downto 0);
-        i_meta23 => FB_meta23,
-        i_data4  => FB_data4, -- in t_slv_8_arr(1 downto 0);
-        i_data5  => FB_data5, -- in t_slv_8_arr(1 downto 0);
-        i_meta45 => FB_meta45,
-        i_data6  => FB_data6, -- in t_slv_8_arr(1 downto 0);
-        i_data7  => FB_data7, -- in t_slv_8_arr(1 downto 0);
-        i_meta67 => FB_meta67,
-        i_dataValid => FB_valid, -- in std_logic;
-        -- Data out; bursts of 3456 clocks for each channel.
-        -- Correlator filterbank data output
-        o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
-        o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-        o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
-        o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
-        o_DataValid      => FD_dataValid,      -- out std_logic
-        -- i_SOF delayed by 16384 clocks;
-        -- i_sof occurs at the start of each new block of 4 virtual channels.
-        -- Delay of 16384 is enough to ensure that o_sof falls in the gap
-        -- between data packets at the filterbank output that occurs due to the filterbank preload.
-        o_sof => FB_out_sof, -- out std_logic;
-        -- Correlator filterbank output as packets
-        -- Each output packet contains all the data for:
-        --  - Single time step
-        --  - Single polarisation
-        --  - single coarse channel
-        -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
-        -- The data is transferred in bursts of 433 clocks.
-        o_packetData  => FB_to_100G_data, -- out std_logic_vector(127 downto 0);
-        o_packetValid => FB_to_100G_valid, -- out std_logic;
-        i_packetReady => FB_to_100G_ready  -- in std_logic
+    FBreali : if (not g_USE_DUMMY_FB) generate
 
-    );
+        corFB_i : entity filterbanks_lib.FB_top_correlator
+        port map (
+            i_data_rst => FB_sof, -- in std_logic;
+            -- Register interface
+            i_axi_clk => i_MACE_clk,    -- in std_logic;
+            i_axi_rst => i_MACE_rst,    -- in std_logic;
+            i_axi_mosi => i_FB_axi_mosi, -- in t_axi4_lite_mosi;
+            o_axi_miso => o_FB_axi_miso, -- out t_axi4_lite_miso;
+            -- Configuration (on i_data_clk)
+            i_fineDelayDisable => '0',     -- in std_logic;
+            i_RFIScale         => "10011", -- in(4:0);
+            -- Data input, common valid signal, expects packets of 4096 samples
+            i_SOF    => FB_sof,
+            i_data0  => FB_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            i_data1  => FB_data1, -- in t_slv_8_arr(1 downto 0);
+            i_meta01 => FB_meta01,
+            i_data2  => FB_data2, -- in t_slv_8_arr(1 downto 0);
+            i_data3  => FB_data3, -- in t_slv_8_arr(1 downto 0);
+            i_meta23 => FB_meta23,
+            i_data4  => FB_data4, -- in t_slv_8_arr(1 downto 0);
+            i_data5  => FB_data5, -- in t_slv_8_arr(1 downto 0);
+            i_meta45 => FB_meta45,
+            i_data6  => FB_data6, -- in t_slv_8_arr(1 downto 0);
+            i_data7  => FB_data7, -- in t_slv_8_arr(1 downto 0);
+            i_meta67 => FB_meta67,
+            i_dataValid => FB_valid, -- in std_logic;
+            -- Data out; bursts of 3456 clocks for each channel.
+            -- Correlator filterbank data output
+            o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+            o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
+            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
+            o_DataValid      => FD_dataValid,      -- out std_logic
+            -- i_SOF delayed by 16384 clocks;
+            -- i_sof occurs at the start of each new block of 4 virtual channels.
+            -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+            -- between data packets at the filterbank output that occurs due to the filterbank preload.
+            o_sof => FB_out_sof, -- out std_logic;
+            -- Correlator filterbank output as packets
+            -- Each output packet contains all the data for:
+            --  - Single time step
+            --  - Single polarisation
+            --  - single coarse channel
+            -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
+            -- The data is transferred in bursts of 433 clocks.
+            o_packetData  => FB_to_100G_data, -- out std_logic_vector(127 downto 0);
+            o_packetValid => FB_to_100G_valid, -- out std_logic;
+            i_packetReady => FB_to_100G_ready  -- in std_logic
+        );
+    
+    end generate;
+    
+    FBdummyi : if g_USE_DUMMY_FB generate
+
+        corFB_i : entity filterbanks_lib.FB_top_correlator_dummy
+        port map (
+            i_data_rst => FB_sof, -- in std_logic;
+            -- Register interface
+            i_axi_clk => i_MACE_clk,    -- in std_logic;
+            i_axi_rst => i_MACE_rst,    -- in std_logic;
+            i_axi_mosi => i_FB_axi_mosi, -- in t_axi4_lite_mosi;
+            o_axi_miso => o_FB_axi_miso, -- out t_axi4_lite_miso;
+            -- Configuration (on i_data_clk)
+            i_fineDelayDisable => '0',     -- in std_logic;
+            i_RFIScale         => "10011", -- in(4:0);
+            -- Data input, common valid signal, expects packets of 4096 samples
+            i_SOF    => FB_sof,
+            i_data0  => FB_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            i_data1  => FB_data1, -- in t_slv_8_arr(1 downto 0);
+            i_meta01 => FB_meta01,
+            i_data2  => FB_data2, -- in t_slv_8_arr(1 downto 0);
+            i_data3  => FB_data3, -- in t_slv_8_arr(1 downto 0);
+            i_meta23 => FB_meta23,
+            i_data4  => FB_data4, -- in t_slv_8_arr(1 downto 0);
+            i_data5  => FB_data5, -- in t_slv_8_arr(1 downto 0);
+            i_meta45 => FB_meta45,
+            i_data6  => FB_data6, -- in t_slv_8_arr(1 downto 0);
+            i_data7  => FB_data7, -- in t_slv_8_arr(1 downto 0);
+            i_meta67 => FB_meta67,
+            i_dataValid => FB_valid, -- in std_logic;
+            -- Data out; bursts of 3456 clocks for each channel.
+            -- Correlator filterbank data output
+            o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+            o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
+            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
+            o_DataValid      => FD_dataValid,      -- out std_logic
+            -- i_SOF delayed by 16384 clocks;
+            -- i_sof occurs at the start of each new block of 4 virtual channels.
+            -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+            -- between data packets at the filterbank output that occurs due to the filterbank preload.
+            o_sof => FB_out_sof, -- out std_logic;
+            -- Correlator filterbank output as packets
+            -- Each output packet contains all the data for:
+            --  - Single time step
+            --  - Single polarisation
+            --  - single coarse channel
+            -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
+            -- The data is transferred in bursts of 433 clocks.
+            o_packetData  => FB_to_100G_data, -- out std_logic_vector(127 downto 0);
+            o_packetValid => FB_to_100G_valid, -- out std_logic;
+            i_packetReady => FB_to_100G_ready  -- in std_logic
+        );
+    end generate;
+    
     
     process(i_MACE_clk)
     begin

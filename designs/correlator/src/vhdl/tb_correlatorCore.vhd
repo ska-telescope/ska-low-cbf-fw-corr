@@ -32,6 +32,7 @@ entity tb_correlatorCore is
     generic (
         g_SPS_PACKETS_PER_FRAME : integer := 128;
         g_CORRELATORS : integer := 0; -- Number of correlator instances to instantiate (0, 1, 2)
+        g_USE_DUMMY_FB : boolean := FALSE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
         g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
         -- text file with SPS packets
@@ -346,7 +347,7 @@ begin
                 eth100G_locked  <= '1';
             end if;
         end if;
-end process;
+    end process;
 
     process
         file RegCmdfile: TEXT;
@@ -478,7 +479,11 @@ end process;
         wait UNTIL RISING_EDGE(ap_clk);
         wait UNTIL RISING_EDGE(ap_clk);
         wait UNTIL RISING_EDGE(ap_clk);
-        ct2_readout_start <= '1';
+        if (g_LOAD_CT2_HBM_CORR1 or g_LOAD_CT2_HBM_CORR2) then
+            ct2_readout_start <= '1';
+        else
+            ct2_readout_start <= '0';
+        end if;
         wait UNTIL RISING_EDGE(ap_clk);
         ct2_readout_start <= '0';
 
@@ -787,7 +792,8 @@ end process;
         g_HBM_AXI_DATA_WIDTH => 512, -- integer := 512;
         g_HBM_AXI_ID_WIDTH   => 1,   -- integer := 1
         -- Number of correlator blocks to instantiate.
-        g_CORRELATORS        => g_CORRELATORS -- integer := 2
+        g_CORRELATORS        => g_CORRELATORS,  -- integer := 2
+        g_USE_DUMMY_FB       => g_USE_DUMMY_FB
     ) port map (
         ap_clk   => ap_clk, --  in std_logic;
         ap_rst_n => ap_rst_n, -- in std_logic;
