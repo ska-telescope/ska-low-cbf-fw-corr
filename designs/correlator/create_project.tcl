@@ -266,6 +266,8 @@ source $ARGS_PATH/LFAADecode100G/lfaadecode100g/ip_LFAADecode100G_lfaadecode100g
 # SPEAD
 
 add_files -fileset sources_1 [glob \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
  $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
@@ -280,6 +282,8 @@ add_files -fileset sources_1 [glob \
 set_property library spead_lib [get_files {\
  *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
  *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg.vhd \
+ *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -525,6 +529,8 @@ $RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead_behav.wcfg \
 ]
 
 add_files -fileset sim_cor_read_spead [glob \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
  $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
@@ -539,6 +545,8 @@ add_files -fileset sim_cor_read_spead [glob \
 set_property library spead_lib [get_files {\
  *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
  *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg.vhd \
+ *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/packet_player.vhd \

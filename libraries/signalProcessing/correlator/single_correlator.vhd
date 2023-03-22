@@ -97,6 +97,9 @@ entity single_correlator is
         o_time_ref          : out std_logic_vector(63 downto 0);
 
         i_packetiser_enable : in std_logic;
+        
+        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
+        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
         ---------------------------------------------------------------
         -- Registers
         o_HBM_end   : out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
@@ -330,6 +333,10 @@ begin
         i_axi_rst           => i_axi_rst,
 
         i_local_reset       => packetiser_reset,
+        
+        -- ARGs Debug
+        i_spead_hbm_rd_lite_axi_mosi =>  i_spead_hbm_rd_lite_axi_mosi,
+        o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,
 
         -- config of current sub/freq data read
         i_hbm_start_addr    => ro_HBM_start_addr,

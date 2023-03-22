@@ -46,6 +46,7 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 USE common_lib.common_pkg.ALL;
 use spead_lib.ethernet_pkg.ALL;
+use spead_lib.hbm_read_hbm_rd_debug_reg_pkg.ALL;
 
 entity correlator_data_reader is
     Generic ( 
@@ -60,6 +61,10 @@ entity correlator_data_reader is
         i_axi_rst           : in std_logic;
 
         i_local_reset       : in std_logic;
+
+        -- debug
+        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
+        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
 
         -- config of current sub/freq data read
         i_hbm_start_addr    : in std_logic_vector(31 downto 0);     -- Byte address in HBM of the start of a strip from the visibility matrix.
@@ -198,6 +203,9 @@ signal pack_it_fsm_debug        : std_logic_vector(3 downto 0)  := x"0";
 signal cor_tri_fsm_debug        : std_logic_vector(3 downto 0)  := x"0";
 signal hbm_reader_fsm_debug     : std_logic_vector(3 downto 0);
 
+signal debug_instruction_writes : unsigned(31 downto 0)         := (others => '0');
+
+signal hbm_rd_debug_ro          : t_hbm_rd_debug_ro;
 --------------------------------------------------------------------------------
 -- Pack SM signals
 type pack_it_fsm_type is   (IDLE, LOOPS, CALC, MATH, PROCESSING, RD_DRAIN, COMPLETE);
@@ -767,5 +775,42 @@ aligned_packed_wr           <= '1' when (pack_wr = '1' OR trigger_final_write = 
 
     o_spead_data_rdy    <= send_spead_data(1);
     o_byte_count        <= std_logic_vector(bytes_to_packetise);
+
+    ---------------------------------------------------------------------------
+    -- debug
+    
+
+    debug_proc : process(clk)
+    begin
+        if rising_edge(clk) then
+            if reset = '1' then
+                debug_instruction_writes    <= (others => '0');
+            else
+                if meta_cache_fifo_wr = '1' then
+                    debug_instruction_writes    <= debug_instruction_writes + 1;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- ARGs
+    ARGS_register_Packetiser : entity spead_lib.hbm_read_hbm_rd_debug_reg 
+    PORT MAP (
+        -- AXI Lite signals, 300 MHz Clock domain
+        MM_CLK                          => i_axi_clk,
+        MM_RST                          => i_axi_rst,
+        
+        SLA_IN                          => i_spead_hbm_rd_lite_axi_mosi,
+        SLA_OUT                         => o_spead_hbm_rd_lite_axi_miso,
+
+        HBM_RD_DEBUG_FIELDS_RO          => hbm_rd_debug_ro
+    
+    );
+
+    hbm_rd_debug_ro.debug_pack_it_fsm           <= pack_it_fsm_debug;
+    hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;
+    hbm_rd_debug_ro.debug_hbm_reader_fsm		<= hbm_reader_fsm_debug;
+    hbm_rd_debug_ro.subarray_instruction_writes	<= std_logic_vector(debug_instruction_writes);
+    
 
 end Behavioral;
