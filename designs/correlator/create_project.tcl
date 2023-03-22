@@ -278,6 +278,7 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/spead_registers.vhd \
  $COMMON_PATH/spead/src/spead_top.vhd \
  $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
+ $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \ 
 ]
 set_property library spead_lib [get_files {\
  *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
@@ -293,6 +294,7 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_registers.vhd \
  *libraries/spead/src/spead_top.vhd \
  *libraries/spead/src/memory_tdp_spead.vhd \
+ *libraries/spead/src/spead_axi_bram_wrapper.vhd \ 
 }]
 
 ## tcl scripts for ip generation
@@ -541,6 +543,7 @@ add_files -fileset sim_cor_read_spead [glob \
  $COMMON_PATH/spead/src/spead_registers.vhd \
  $COMMON_PATH/spead/src/spead_top.vhd \
  $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
+ $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \ 
 ]
 set_property library spead_lib [get_files {\
  *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
@@ -555,6 +558,7 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_registers.vhd \
  *libraries/spead/src/spead_top.vhd \
  *libraries/spead/src/memory_tdp_spead.vhd \
+ *libraries/spead/src/spead_axi_bram_wrapper.vhd \ 
 }]
 
 add_files -fileset sim_cor_read_spead [glob \

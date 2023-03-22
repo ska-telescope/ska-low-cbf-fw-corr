@@ -703,7 +703,9 @@ begin
 
         -- ARGs interface.
         i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,
-        o_spead_lite_axi_miso   => o_spead_lite_axi_miso
+        o_spead_lite_axi_miso   => o_spead_lite_axi_miso,
+        i_spead_full_axi_mosi   => i_spead_full_axi_mosi,
+        o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
 
     CMAC_100G_reset_proc : process(i_clk_100GE)
