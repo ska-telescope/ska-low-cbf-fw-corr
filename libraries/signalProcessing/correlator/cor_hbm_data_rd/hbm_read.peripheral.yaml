@@ -1,0 +1,41 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : hbm_read
+hdl_library_description: "Readout of Visbility data from HBM"
+
+peripherals:
+  - peripheral_name        : hbm_rd_debug
+    peripheral_description : "debug and statistic registers"
+    slave_ports:
+      #########################################################################################                            
+      - slave_name        : hbm_rd_debug
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "debug and statistic registers"
+        dual_clock        : false
+        fields            :
+          - - field_name        : debug_pack_it_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state."
+         #################################
+          - - field_name        : debug_cor_tri_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state." 
+         #################################
+          - - field_name        : debug_hbm_reader_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state." 
+         #################################
+          - - field_name        : subarray_instruction_writes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of meta data writes for HBM read out passed from Correlator." 

@@ -848,6 +848,9 @@ begin
         -- correlator
         i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
         o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
+        -- Output HBM
+        i_spead_hbm_rd_lite_axi_mosi => mc_lite_mosi(c_hbm_rd_debug_lite_index),
+        o_spead_hbm_rd_lite_axi_miso => mc_lite_miso(c_hbm_rd_debug_lite_index),
         -- PSR Packetiser interface
         i_spead_lite_axi_mosi  => mc_lite_mosi(c_spead_reg_lite_index),
         o_spead_lite_axi_miso  => mc_lite_miso(c_spead_reg_lite_index),
