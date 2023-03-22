@@ -854,8 +854,8 @@ begin
         -- PSR Packetiser interface
         i_spead_lite_axi_mosi  => mc_lite_mosi(c_spead_reg_lite_index),
         o_spead_lite_axi_miso  => mc_lite_miso(c_spead_reg_lite_index),
-        i_spead_full_axi_mosi  => mc_full_mosi(c_spead_reg_full_index), 
-        o_spead_full_axi_miso  => mc_full_miso(c_spead_reg_full_index),
+        i_spead_full_axi_mosi  => mc_full_mosi(c_spead_sdp_full_index), 
+        o_spead_full_axi_miso  => mc_full_miso(c_spead_sdp_full_index),
 
         -----------------------------------------------------------------------
         -- AXI interfaces to HBM memory (5 interfaces used)

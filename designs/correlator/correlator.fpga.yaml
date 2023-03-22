@@ -15,7 +15,7 @@ peripherals:
   - peripheral_name        : corr_ct2/corr_ct2
   - peripheral_name        : cor/config
   - peripheral_name        : spead/spead_reg
-  - peripheral_name        : spead_init/spead_data
+  - peripheral_name        : spead_sdp/spead_sdp
   - peripheral_name        : hbm_read/hbm_rd_debug
   - peripheral_name        : CMAC/CMAC
   - peripheral_name        : Timeslave/Timeslave  
