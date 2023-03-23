@@ -93,6 +93,30 @@ peripherals:
               reset_value       : 0x0
               field_description : "Number of (849ms) frames triggered to readout to the correlators"
           #################################
+          - - field_name        : frameCountIn
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of (849ms) frames received from filterbanks"
+          #################################
+          - - field_name        : status0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "CT2 debug status"
+          #################################
+          - - field_name        : din_status1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "din debug status1"
+          #################################
+          - - field_name        : din_status2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "din debug status2"
+          #################################
           - - field_name        : vc_demap
               width             : 32
               access_mode       : RW

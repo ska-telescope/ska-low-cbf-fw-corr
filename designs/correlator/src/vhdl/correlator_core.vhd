@@ -64,8 +64,9 @@ ENTITY correlator_core IS
         g_HBM_AXI_DATA_WIDTH : integer := 512;
         g_HBM_AXI_ID_WIDTH   : integer := 1;
         -- Number of correlator blocks to instantiate.
-        g_CORRELATORS        : integer := 1;
-        g_USE_DUMMY_FB       : boolean := FALSE
+        -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
+        g_CORRELATORS        : integer := 1;  -- 1 or 2
+        g_USE_DUMMY_FB       : boolean := FALSE -- Should be FALSE for normal operation.
     );
     port (
         ap_clk : in std_logic;
