@@ -362,6 +362,10 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
 
         i_local_reset       => NOT packetiser_enable(0),
 
+        -- ARGs Debug
+        i_spead_hbm_rd_lite_axi_mosi => c_axi4_lite_mosi_rst,
+        o_spead_hbm_rd_lite_axi_miso => open,
+        
         -- config of current sub/freq data read
         i_hbm_start_addr    => hbm_start_addr,
                                                                     -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)

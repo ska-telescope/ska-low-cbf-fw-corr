@@ -98,6 +98,9 @@ entity DSP_top_correlator is
         -- correlator
         i_cor_axi_mosi : in  t_axi4_lite_mosi;
         o_cor_axi_miso : out t_axi4_lite_miso;
+        -- Output HBM
+        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
+        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
         -- Output packetiser
         i_spead_lite_axi_mosi : in t_axi4_lite_mosi; 
         o_spead_lite_axi_miso : out t_axi4_lite_miso;
@@ -630,6 +633,10 @@ begin
         o_cor_freq_index        => cor_freq_index,
         o_cor_time_ref          => cor_time_ref,
         i_packetiser_enable     => packetiser_enable,
+        
+        -- ARGs Debug
+        i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
+        o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi => i_cor_axi_mosi, -- in t_axi4_lite_mosi;
@@ -696,7 +703,9 @@ begin
 
         -- ARGs interface.
         i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,
-        o_spead_lite_axi_miso   => o_spead_lite_axi_miso
+        o_spead_lite_axi_miso   => o_spead_lite_axi_miso,
+        i_spead_full_axi_mosi   => i_spead_full_axi_mosi,
+        o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
 
     CMAC_100G_reset_proc : process(i_clk_100GE)
