@@ -54,6 +54,12 @@ peripherals:
               field_description : "Reading of a buffer will start when a packet count with this offset within a buffer or greater \
                                    is received for the next buffer." 
           
+          - - field_name        : input_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of input packet notifications received from LFAA ingest module"
+          
           - - field_name        : frame_count_buffer0
               width             : 32
               access_mode       : RO

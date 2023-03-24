@@ -224,22 +224,36 @@ architecture Behavioral of corr_ct2_top is
     signal cor_valid_int : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal readoutBursts : std_logic_vector(31 downto 0);
     signal cor0_valid_del1, cor0_valid_del2 : std_logic;
+    signal din_status1_del1, din_status2_del1, din_status1, din_status2, cur_status0 : std_logic_vector(31 downto 0);
+    
+    signal rst_del1, rst_del2 : std_logic;
+    signal module_enable : std_logic := '0';
+    signal dataValid : std_logic;
     
 begin
+    
+    dataValid <= i_dataValid and module_enable;
     
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
             if i_sof = '1' then
                 sof_hold <= '1';
-            elsif i_dataValid = '1' then
+            elsif dataValid = '1' then
                 sof_hold <= '0';
+            end if;
+            
+            rst_del1 <= i_rst;
+            rst_del2 <= rst_del1;
+            if rst_del1 = '0' and rst_del2 = '1' then
+                -- falling edge of rst enables this module.
+                module_enable <= '1';
             end if;
             
             if i_rst = '1' then
                 frameCount_mod3 <= "00";
                 frameCount_849ms <= (others => '0');
-            elsif (sof_hold = '1' and i_dataValid = '1') then
+            elsif (sof_hold = '1' and dataValid = '1') then
                 -- This picks up the framecount for the first packet in the frame = 283ms of data.
                 -- If i_virtualChannel(0) = 0 then this is the start of a new block of 283 ms.
                 if (unsigned(i_virtualChannel(0)) = 0) then
@@ -253,7 +267,7 @@ begin
                 end if;
             end if;
             
-            if (sof_hold = '1' and i_dataValid = '1' and (unsigned(i_virtualChannel(0)) = 0)) then
+            if (sof_hold = '1' and dataValid = '1' and (unsigned(i_virtualChannel(0)) = 0)) then
                 sof_full <= '1';
             else
                 sof_full <= '0';
@@ -331,34 +345,30 @@ begin
                 readoutBursts <= std_logic_vector(unsigned(readoutBursts) + 1);
             end if;
             
+            -- General status
+            cur_status0(0) <= i_rst;
+            cur_status0(1) <= i_dataValid;
+            cur_Status0(2) <= sof_hold;
+            cur_Status0(4 downto 3) <= frameCount_mod3;
+            cur_status0(15 downto 5) <= "00000000000";
+            cur_status0(31 downto 16) <= recent_virtualChannel;
+            
+            din_status1_del1 <= din_status1;
+            din_status2_del1 <= din_status2;
+            
         end if;
     end process;
     
-    last_channel_16bit <= "00000" & last_channel;
-    
---          - - field_name        : readInClocks
---              width             : 32
---              access_mode       : RO
---              reset_value       : 0x0
---              field_description : "Length of the most recent frame in units of 300 MHz clocks at the input to the corner turn."
---          #################################
---          - - field_name        : readInAllClocks
---              width             : 32
---              access_mode       : RO
---              reset_value       : 0x0
---              field_description : "Interval between the start of one frame and the start of the next frame in units of 300 MHz clocks at the input to the corner turn."
---          #################################
---          - - field_name        : readOutClocks
---              width             : 32
---              access_mode       : RO
---              reset_value       : 0x0
---              field_description : "Length of the most recent frame in units of 300 MHz clocks at the output of the corner turn"    
+    last_channel_16bit <= "00000" & last_channel;   
     
     statctrl_ro.readinclocks <= readInClocks;
     statctrl_ro.readInAllClocks <= readout_interval;
     statctrl_ro.readoutBursts <= readoutBursts;
     statctrl_ro.readoutFrames <= readout_frame_count;
-    
+    statctrl_ro.frameCountIn <= frameCount_849ms;
+    statctrl_ro.status0  <= cur_status0;
+    statctrl_ro.din_status1 <= din_status1_del1;
+    statctrl_ro.din_status2 <= din_status2_del1;
     
     -- corr_ct2_din has buffers and logic for 1024 virtual channels = two correlator cells.
     din_inst : entity ct_lib.corr_ct2_din
@@ -367,6 +377,7 @@ begin
     ) port map (
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
+        i_rst              => rst_del1,         -- in std_logic;
         i_sof              => i_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 60ms of data).
         i_tableSelect      => statctrl_rw.table_select, -- in std_logic;
         i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
@@ -375,7 +386,7 @@ begin
         i_lastChannel      => last_channel_16bit,     -- in (15:0)
         i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
-        i_dataValid        => i_dataValid,      -- in std_logic;
+        i_dataValid        => dataValid,      -- in std_logic;
         o_trigger_readout  => trigger_readout,  -- out std_logic; All data has been written to the HBM, can start reading out to the correlator.
         o_trigger_buffer   => trigger_buffer,   -- out std_logic;
         -- interface to the demap table
@@ -399,6 +410,10 @@ begin
         i_SB_fineStart     => din_SB_fineStart,     -- in (15:0); The first fine channel in this subarray-beam
         i_SB_n_fine        => din_SB_n_fine,        -- in (23:0); The number of fine channels in this subarray-beam
         i_SB_HBM_base_addr => din_SB_HBM_base_addr, -- in (31:0); Base address in HBM for this subarray-beam.
+        
+        -- Status
+        o_status1 => din_status1,
+        o_status2 => din_status2,
         
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
