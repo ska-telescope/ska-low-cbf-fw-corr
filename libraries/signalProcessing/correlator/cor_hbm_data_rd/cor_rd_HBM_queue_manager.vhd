@@ -70,7 +70,8 @@ entity cor_rd_HBM_queue_manager is
         o_HBM_curr_addr             : out std_logic_vector(31 downto 0);     -- current start HBM address being processed, feedback bus for correlator logic.
 
         -- debug
-        o_hbm_reader_fsm_debug      : out std_logic_vector(3 downto 0);
+        o_hbm_reader_fsm_debug          : out std_logic_vector(3 downto 0);
+        o_hbm_reader_fsm_debug_cache    : out std_logic_vector(3 downto 0);
 
         -- HBM read interface
         o_HBM_axi_ar                : out t_axi4_full_addr;                 -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -116,11 +117,16 @@ signal hbm_data_sel           : std_logic;
 
 ----------------------------------------------------------------------------
 -- hbm rd signals
-type HBM_reader_fsm_type is     (IDLE, CALC, RD_META, RD_META_UPDATE, 
-                                RD_DATA, RD_DATA_UPDATE, DATA_2, CHECK, COMPLETE);
+type HBM_reader_fsm_type is     (IDLE, CALC, 
+                                RD_META, RD_META_AR, 
+                                RD_DATA, RD_DATA_AR, 
+                                DATA_2, 
+                                CHECK, COMPLETE);
 signal HBM_reader_fsm : HBM_reader_fsm_type;
 
-signal hbm_reader_fsm_debug : std_logic_vector(3 downto 0)  := x"0";
+signal hbm_reader_fsm_debug         : std_logic_vector(3 downto 0)  := x"0";
+signal hbm_reader_fsm_debug_d       : std_logic_vector(3 downto 0)  := x"0";
+signal hbm_reader_fsm_debug_cache   : std_logic_vector(3 downto 0)  := x"0";
 
 -- 512 byte rds
 signal meta_data_addr       : unsigned(31 downto 0) := (others => '0');
@@ -156,6 +162,7 @@ o_HBM_axi_rready                <= '1';
 
 
 o_hbm_reader_fsm_debug          <= hbm_reader_fsm_debug;
+o_hbm_reader_fsm_debug_cache    <= hbm_reader_fsm_debug_cache;
 
 ---------------------------------------------------------------------------    
 -- Visibility Data FIFO RD interface
@@ -207,6 +214,7 @@ begin
         if reset = '1' then
             HBM_reader_fsm      <= IDLE;
             hbm_reader_fsm_debug    <= x"F";
+            hbm_reader_fsm_debug_d  <= x"F";
             meta_data_addr      <= (others => '0');
             meta_data_quantity  <= (others => '0');
             vis_data_addr       <= (others => '0');
@@ -220,7 +228,14 @@ begin
         else
             hbm_axi_ar_valid    <= '0';
             hbm_addr_sel        <= '0';
-            
+
+            hbm_reader_fsm_debug_d <= hbm_reader_fsm_debug;
+
+            if (hbm_reader_fsm_debug_d /= hbm_reader_fsm_debug) then
+                hbm_reader_fsm_debug_cache <= hbm_reader_fsm_debug_d;
+            end if;
+
+
             case HBM_reader_fsm is
                 when IDLE =>
                     hbm_reader_fsm_debug    <= x"0";
@@ -248,30 +263,47 @@ begin
 
                 when RD_META =>
                     hbm_reader_fsm_debug    <= x"2";
-                    hbm_axi_ar_addr     <=  std_logic_vector(meta_data_addr);
-                    hbm_axi_ar_valid    <= '1';
+                    hbm_axi_ar_addr         <=  std_logic_vector(meta_data_addr);
+                    hbm_axi_ar_valid        <= '1';
+                    meta_data_addr          <= meta_data_addr + 512;
                     -- if HBM is ready, RD requested and done.
+                        
+                    HBM_reader_fsm          <= RD_META_AR;
+
+
+                when RD_META_AR =>
+                    hbm_reader_fsm_debug    <= x"3";
                     if hbm_axi_ar_rdy = '1' then
-                        meta_data_addr      <= meta_data_addr + 512;
+                        hbm_axi_ar_valid    <= '0';
                         HBM_reader_fsm      <= RD_DATA;
                     end if;
 
                 when RD_DATA =>
-                    hbm_reader_fsm_debug    <= x"3";
-                    hbm_axi_ar_addr     <=  std_logic_vector(vis_data_addr);
-                    hbm_axi_ar_valid    <= '1';
-                    hbm_addr_sel        <= '1';
+                    hbm_reader_fsm_debug    <= x"4";
+                    hbm_axi_ar_addr         <=  std_logic_vector(vis_data_addr);
+                    hbm_axi_ar_valid        <= '1';
+                    hbm_addr_sel            <= '1';
+
+                    vis_data_addr           <= vis_data_addr + 512;
+
+                    HBM_reader_fsm          <= RD_DATA_AR;
+
+
+                when RD_DATA_AR =>
+                    hbm_reader_fsm_debug    <= x"5";
                     if hbm_axi_ar_rdy = '1' then
-                        hbm_rd_loop_cnt <= hbm_rd_loop_cnt + 1;
-                        vis_data_addr   <= vis_data_addr + 512;
+                        hbm_axi_ar_valid    <= '0';
+                        hbm_rd_loop_cnt     <= hbm_rd_loop_cnt + 1;
                         if hbm_rd_loop_cnt = x"F" then
                             HBM_reader_fsm      <= DATA_2;
+                        else
+                            HBM_reader_fsm      <= RD_DATA;
                         end if;
 
                     end if;
 
                 when DATA_2 => 
-                    hbm_reader_fsm_debug    <= x"4";
+                    hbm_reader_fsm_debug    <= x"6";
                     -- request 8k of data and wait until it is drain to 25% before next loop.
                     if unsigned(hbm_data_fifo_rd_count) < 2048 then
                         HBM_reader_fsm      <= CHECK;
@@ -279,7 +311,7 @@ begin
 
 
                 when CHECK =>
-                    hbm_reader_fsm_debug    <= x"5";
+                    hbm_reader_fsm_debug    <= x"7";
                     if meta_data_quantity = 0 then
                         HBM_reader_fsm      <= COMPLETE;
                     else
@@ -287,7 +319,7 @@ begin
                     end if;
 
                 when COMPLETE =>
-                    hbm_reader_fsm_debug    <= x"6";
+                    hbm_reader_fsm_debug    <= x"8";
                     if hbm_retrieval_trac = x"00" then
                         HBM_reader_fsm <= IDLE;
                     end if;

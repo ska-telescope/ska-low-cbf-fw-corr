@@ -199,9 +199,11 @@ signal hbm_rq_complete          : std_logic;
 
 --------------------------------------------------------------------------------
 -- sm debug
-signal pack_it_fsm_debug        : std_logic_vector(3 downto 0)  := x"0";
-signal cor_tri_fsm_debug        : std_logic_vector(3 downto 0)  := x"0";
-signal hbm_reader_fsm_debug     : std_logic_vector(3 downto 0);
+signal pack_it_fsm_debug            : std_logic_vector(3 downto 0)  := x"0";
+signal cor_tri_fsm_debug            : std_logic_vector(3 downto 0)  := x"0";
+
+signal hbm_reader_fsm_debug         : std_logic_vector(3 downto 0);
+signal hbm_reader_fsm_debug_cache   : std_logic_vector(3 downto 0);
 
 signal debug_instruction_writes : unsigned(31 downto 0)         := (others => '0');
 
@@ -436,7 +438,8 @@ begin
             o_HBM_curr_addr             => o_HBM_curr_addr,
     
             -- debug
-            o_hbm_reader_fsm_debug      => hbm_reader_fsm_debug,
+            o_hbm_reader_fsm_debug          => hbm_reader_fsm_debug,
+            o_hbm_reader_fsm_debug_cache    => hbm_reader_fsm_debug_cache,
 
             -- HBM read interface
             o_HBM_axi_ar                => o_HBM_axi_ar,
@@ -810,6 +813,7 @@ aligned_packed_wr           <= '1' when (pack_wr = '1' OR trigger_final_write = 
     hbm_rd_debug_ro.debug_pack_it_fsm           <= pack_it_fsm_debug;
     hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;
     hbm_rd_debug_ro.debug_hbm_reader_fsm		<= hbm_reader_fsm_debug;
+    hbm_rd_debug_ro.debug_hbm_reader_fsm_cache  <= hbm_reader_fsm_debug_cache;
     hbm_rd_debug_ro.subarray_instruction_writes	<= std_logic_vector(debug_instruction_writes);
     
 
