@@ -196,7 +196,6 @@ architecture Behavioral of corr_ct1_top is
     --signal global_config_fields_rw_del : config_fields_rw_v;
     signal freeMax : std_logic_vector(23 downto 0);
     
-
     signal hbm_ready : std_logic;
     signal fullReset, fullResetDel1, fullResetDel2, fullResetDel3, fullResetDel4, fullResetDel5, fullResetDel6 : std_logic;
     signal useNewConfig, useNewConfigDel1, useNewConfigDel2, loadNewConfig : std_logic := '0';
@@ -287,6 +286,9 @@ architecture Behavioral of corr_ct1_top is
         probe0 : in std_logic_vector(119 downto 0)); 
     end component;
     
+    signal valid_del1 : std_logic;
+    signal input_packets : std_logic_vector(31 downto 0) := x"00000000";
+    signal startup_enable : std_logic := '0';
     
 begin
     
@@ -344,12 +346,18 @@ begin
     config_ro.missing_blocks <= missingCount(19 downto 4); -- std_logic_vector(15 downto 0); Drop low 4 bits since each missing block is reported 16 times.
     config_ro.error_input_overflow <= '0'; -- std_logic;
     config_ro.error_ctc_underflow <= '0'; -- std_logic;
+    config_ro.input_packets <= input_packets;
     
     --------------------------------------------------------------------------------------------
     -- Processing of input headers (i_virtualChannel, i_packetCount, i_valid) to generate write addresses
     process(i_shared_clk)
     begin
         if rising_edge(i_shared_clk) then
+            
+            valid_del1 <= i_valid;
+            if valid_del1 = '1' then
+                input_packets <= std_logic_vector(unsigned(input_packets) + 1);
+            end if;
             
             case input_fsm is
                 when idle =>
@@ -516,7 +524,9 @@ begin
             else
                 AWFIFO_rst <= '0';
             end if;
-            
+            if resetDel1 = '0' and resetDel2 = '1' then
+                startup_enable <= '1';
+            end if;
             o_rst <= resetDel2;
             
             if AWFIFO_rst = '1' then
@@ -556,9 +566,15 @@ begin
             end if;
             
             -- Control signals to the readout module
-            readStart <= triggerRead and running;
+            readStart <= triggerRead and running and startup_enable;
             readBuffer <= currentRdBuffer;
-            previousBuffer <= std_logic_vector(unsigned(currentRdBuffer) - 1);
+            case currentRdBuffer is
+                -- 3 buffers, "00","01" and "10", so prior to "00" was "10".
+                when "00" => previousBuffer <= "10";
+                when "01" => previousBuffer <= "00";
+                when "10" => previousBuffer <= "01";
+                when others => previousBuffer <= "00";  -- should be impossible.
+            end case;
             if currentRdBuffer = "00" then
                 packetCountRdBuffer <= packetCountBuffer0(31 downto 0);
             elsif currentRdBuffer = "01" then
