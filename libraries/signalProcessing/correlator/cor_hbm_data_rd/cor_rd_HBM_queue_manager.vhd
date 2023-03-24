@@ -221,13 +221,13 @@ begin
             o_HBM_curr_addr     <= (others => '0');
             
             hbm_axi_ar_valid    <= '0';
-            hbm_addr_sel        <= '0';
+            --hbm_addr_sel        <= '0';
             hbm_axi_ar_addr     <= x"00000000";
             hbm_rd_loop_cnt     <= x"0";
 
         else
-            hbm_axi_ar_valid    <= '0';
-            hbm_addr_sel        <= '0';
+            --hbm_axi_ar_valid    <= '0';
+            --hbm_addr_sel        <= '0';
 
             hbm_reader_fsm_debug_d <= hbm_reader_fsm_debug;
 
@@ -282,7 +282,7 @@ begin
                     hbm_reader_fsm_debug    <= x"4";
                     hbm_axi_ar_addr         <=  std_logic_vector(vis_data_addr);
                     hbm_axi_ar_valid        <= '1';
-                    hbm_addr_sel            <= '1';
+                    --hbm_addr_sel            <= '1';
 
                     vis_data_addr           <= vis_data_addr + 512;
 
