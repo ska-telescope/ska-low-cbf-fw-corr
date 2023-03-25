@@ -84,6 +84,12 @@ end cor_rd_HBM_queue_manager;
 
 architecture Behavioral of cor_rd_HBM_queue_manager is
 
+COMPONENT ila_0
+PORT (
+    clk : IN STD_LOGIC;
+    probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
+END COMPONENT; 
+
 constant META_OFFSET_256MB  : unsigned(31 downto 0) := x"10000000";
 
 -- HBM data from correlator.
@@ -114,6 +120,8 @@ signal hbm_meta_fifo_wr_count : std_logic_vector(((ceil_log2(META_FIFO_WRITE_DEP
 
 signal hbm_addr_sel           : std_logic;
 signal hbm_data_sel           : std_logic;
+
+signal hbm_data_sel_cnt       : unsigned(5 downto 0);
 
 ----------------------------------------------------------------------------
 -- hbm rd signals
@@ -221,14 +229,12 @@ begin
             o_HBM_curr_addr     <= (others => '0');
             
             hbm_axi_ar_valid    <= '0';
-            --hbm_addr_sel        <= '0';
+            
             hbm_axi_ar_addr     <= x"00000000";
             hbm_rd_loop_cnt     <= x"0";
 
         else
-            --hbm_axi_ar_valid    <= '0';
-            --hbm_addr_sel        <= '0';
-
+            
             hbm_reader_fsm_debug_d <= hbm_reader_fsm_debug;
 
             if (hbm_reader_fsm_debug_d /= hbm_reader_fsm_debug) then
@@ -266,7 +272,6 @@ begin
                     hbm_axi_ar_addr         <=  std_logic_vector(meta_data_addr);
                     hbm_axi_ar_valid        <= '1';
                     meta_data_addr          <= meta_data_addr + 512;
-                    -- if HBM is ready, RD requested and done.
                         
                     HBM_reader_fsm          <= RD_META_AR;
 
@@ -282,7 +287,6 @@ begin
                     hbm_reader_fsm_debug    <= x"4";
                     hbm_axi_ar_addr         <=  std_logic_vector(vis_data_addr);
                     hbm_axi_ar_valid        <= '1';
-                    --hbm_addr_sel            <= '1';
 
                     vis_data_addr           <= vis_data_addr + 512;
 
@@ -343,14 +347,17 @@ begin
     if rising_edge(clk) then
         if (reset = '1') then
             hbm_data_sel        <= '0';
+            hbm_data_sel_cnt    <= (others => '0');
         else
             HBM_axi_data_valid  <= i_HBM_axi_r.valid;
             HBM_axi_data_last   <= i_HBM_axi_r.last;
 
-            if  (HBM_reader_fsm = CHECK) OR (HBM_reader_fsm = IDLE) then
+            if  (HBM_reader_fsm = IDLE) OR (hbm_data_sel_cnt = 17) then
                 hbm_data_sel        <= '0';
+                hbm_data_sel_cnt    <= (others => '0');
             elsif (HBM_axi_data_valid = '1' AND HBM_axi_data_last = '1') then
                 hbm_data_sel        <= '1'; 
+                hbm_data_sel_cnt    <=  hbm_data_sel_cnt + 1;
             end if;
         end if;
     end if;
@@ -447,5 +454,34 @@ end process;
         );
 
 ---------------------------------------------------------------------------
+-- debug
+
+hbm_rd_debug : ila_0 PORT MAP (
+    clk                     => clk,
+   	probe0(3 downto 0)      => hbm_reader_fsm_debug,
+    probe0(35 downto 4)     => hbm_axi_ar_addr,
+    probe0(43 downto 36)    => hbm_axi_ar_len,
+    probe0(44)              => hbm_axi_ar_valid,
+    probe0(45)              => i_HBM_axi_arready,
+
+    probe0(46)              => i_HBM_axi_r.valid,
+    probe0(47)              => i_HBM_axi_r.last,
+    probe0(49 downto 48)    => i_HBM_axi_r.resp,
+    probe0(81 downto 50)    => i_HBM_axi_r.data(31 downto 0),
+
+    probe0(89 downto 82)    => std_logic_vector(hbm_retrieval_trac),
+    probe0(97 downto 90)    => hbm_data_fifo_rd_count,
+    probe0(98)              => hbm_data_fifo_rd,
+    probe0(99)              => hbm_data_fifo_wr,
+    
+    probe0(100)             => hbm_data_sel,
+    probe0(106 downto 101)  => std_logic_vector(hbm_data_sel_cnt),
+    probe0(107)             => hbm_meta_fifo_rd,
+    probe0(108)             => hbm_meta_fifo_wr,
+
+    probe0(191 downto 109)  => (others => '0')
+    );
+    
+
 
 end;

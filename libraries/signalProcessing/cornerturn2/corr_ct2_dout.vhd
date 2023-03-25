@@ -156,6 +156,12 @@ end corr_ct2_dout;
 
 architecture Behavioral of corr_ct2_dout is
 
+    COMPONENT ila_0
+    PORT (
+        clk : IN STD_LOGIC;
+        probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
+    END COMPONENT;
+
     type ar_fsm_type is (check_arFIFO, get_SB_data, wait_SB_data, set_ar, set_ar2, wait_ar, update_addr, next_fine, next_tile, check_fineBase, next_fineBase, next_timeBase, done);
     signal ar_fsm, ar_fsm_del1 : ar_fsm_type := done;
     signal readBuffer : std_logic := '0';
@@ -836,4 +842,17 @@ begin
     o_cor_last <= cor_last_int;
     o_cor_first <= cor_first_int;
     
+----------------------------------------------------------------------------------------
+-- ILA debug
+    hbm_rd_debug : ila_0 PORT MAP (
+        clk                     => i_axi_clk,
+        probe0(63 downto 0)     => i_HBM_axi_r.data(63 downto 0),
+        probe0(64)              => i_HBM_axi_r.valid,
+        probe0(65)              => i_HBM_axi_r.last,
+        probe0(67 downto 66)    => i_HBM_axi_r.resp,
+    
+        probe0(191 downto 68)   => (others => '0')
+        );
+        
+        
 end Behavioral;
