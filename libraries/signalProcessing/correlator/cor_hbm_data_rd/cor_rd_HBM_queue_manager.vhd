@@ -479,7 +479,9 @@ hbm_rd_debug : ila_0 PORT MAP (
     probe0(107)             => hbm_meta_fifo_rd,
     probe0(108)             => hbm_meta_fifo_wr,
 
-    probe0(191 downto 109)  => (others => '0')
+    probe0(172 downto 109)  => i_HBM_axi_r.data(319 downto 256),
+    
+    probe0(191 downto 173)  => (others => '0')
     );
     
 

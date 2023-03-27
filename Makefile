@@ -19,6 +19,8 @@ CI_ENVIRONMENT_SLUG ?= ska-low-cbf-fw-corr
 # Hook into SKA release logic to sync .release label with our VHDL code
 post-set-release:
 	common/scripts/vhdl_set_version.sh "$(VERSION)" "designs/correlator/src/vhdl/version_pkg.vhd"
+	echo -e "\n*** Setting version in YAML is too hard ***"
+	echo "- please update designs/correlator/correlator.peripheral.yaml"
 
 # Include the required modules from the SKA makefile submodule
 include .make/release.mk

@@ -74,6 +74,9 @@ Library xpm;
 use xpm.vcomponents.all;
 
 entity corr_ct2_dout is
+    Generic(
+        GENERATE_ILA    : BOOLEAN := FALSE
+    );
     Port(
         -- Only uses the 300 MHz clock.
         i_axi_clk   : in std_logic;
@@ -844,6 +847,9 @@ begin
     
 ----------------------------------------------------------------------------------------
 -- ILA debug
+
+debug_ila : IF GENERATE_ILA GENERATE
+
     hbm_rd_debug : ila_0 PORT MAP (
         clk                     => i_axi_clk,
         probe0(63 downto 0)     => i_HBM_axi_r.data(63 downto 0),
@@ -854,5 +860,6 @@ begin
         probe0(191 downto 68)   => (others => '0')
         );
         
+END GENERATE;
         
 end Behavioral;
