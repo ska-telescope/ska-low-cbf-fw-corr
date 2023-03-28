@@ -34,6 +34,12 @@ peripherals:
               reset_value       : 0x0
               field_description : "State machine current state." 
          #################################
+          - - field_name        : debug_hbm_reader_fsm_cache
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "preceeding state of the State machine."      
+         #################################
           - - field_name        : subarray_instruction_writes
               width             : 32
               access_mode       : RO
