@@ -41,7 +41,7 @@ ENTITY correlator_core IS
         -- Filterbanks need 11 x 4096 samples for initialisation; That's 22 LFAA frames (since they are 2048 samples each).
         g_SPS_PACKETS_PER_FRAME    : integer := 128;  -- Number of SPS packets per frame.
         g_FIRMWARE_MAJOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_MINOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_MINOR_VERSION   : std_logic_vector(15 downto 0) := x"0001";
         g_FIRMWARE_PATCH_VERSION   : std_logic_vector(15 downto 0) := x"0000";
         g_FIRMWARE_LABEL           : std_logic_vector(31 downto 0) := x"00000000";
         g_FIRMWARE_PERSONALITY     : std_logic_vector(31 downto 0) := x"434F5252"; -- ascii "CORR"
