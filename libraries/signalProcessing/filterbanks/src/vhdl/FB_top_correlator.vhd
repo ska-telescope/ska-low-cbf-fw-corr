@@ -317,22 +317,22 @@ begin
     );
     
     -- Pack the filterbank output into a structure for input to the fine delay module.
-    corDout_arr(0).vpol.re <= corFBDout0(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(0).vpol.im <= corFBDout0(1);
-    corDout_arr(0).hpol.re <= corFBDout1(0);
-    corDout_arr(0).hpol.im <= corFBDout1(1);
-    corDout_arr(1).vpol.re <= corFBDout2(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(1).vpol.im <= corFBDout2(1);
-    corDout_arr(1).hpol.re <= corFBDout3(0);
-    corDout_arr(1).hpol.im <= corFBDout3(1);
-    corDout_arr(2).vpol.re <= corFBDout4(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(2).vpol.im <= corFBDout4(1);
-    corDout_arr(2).hpol.re <= corFBDout5(0);
-    corDout_arr(2).hpol.im <= corFBDout5(1);
-    corDout_arr(3).vpol.re <= corFBDout6(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(3).vpol.im <= corFBDout6(1);
-    corDout_arr(3).hpol.re <= corFBDout7(0);
-    corDout_arr(3).hpol.im <= corFBDout7(1);
+    corDout_arr(0).hpol.re <= corFBDout0(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(0).hpol.im <= corFBDout0(1);
+    corDout_arr(0).vpol.re <= corFBDout1(0);
+    corDout_arr(0).vpol.im <= corFBDout1(1);
+    corDout_arr(1).hpol.re <= corFBDout2(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(1).hpol.im <= corFBDout2(1);
+    corDout_arr(1).vpol.re <= corFBDout3(0);
+    corDout_arr(1).vpol.im <= corFBDout3(1);
+    corDout_arr(2).hpol.re <= corFBDout4(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(2).hpol.im <= corFBDout4(1);
+    corDout_arr(2).vpol.re <= corFBDout5(0);
+    corDout_arr(2).vpol.im <= corFBDout5(1);
+    corDout_arr(3).hpol.re <= corFBDout6(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(3).hpol.im <= corFBDout6(1);
+    corDout_arr(3).vpol.re <= corFBDout7(0);
+    corDout_arr(3).vpol.im <= corFBDout7(1);
     
     --o_CorDataValid <= CorValidOut;
     corFBHeader(0).HDeltaP <= corMetaOut(15 downto 0);

@@ -132,7 +132,10 @@ entity DSP_top_correlator is
         o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+        -- Start of a burst of data through the filterbank, 
+        -- Used in the testbench to trigger download of the data written into the CT2 memory.
+        o_FB_out_sof   : out std_logic
     );
 end DSP_top_correlator;
 
@@ -364,7 +367,7 @@ begin
             o_axi_miso => o_FB_axi_miso, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
-            i_RFIScale         => "10011", -- in(4:0);
+            i_RFIScale         => "10000", -- in(4:0);
             -- Data input, common valid signal, expects packets of 4096 samples
             i_SOF    => FB_sof,
             i_data0  => FB_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
@@ -418,7 +421,7 @@ begin
             o_axi_miso => o_FB_axi_miso, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
-            i_RFIScale         => "10011", -- in(4:0);
+            i_RFIScale         => "10000", -- in(4:0);
             -- Data input, common valid signal, expects packets of 4096 samples
             i_SOF    => FB_sof,
             i_data0  => FB_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
@@ -459,6 +462,7 @@ begin
         );
     end generate;
     
+    o_FB_out_sof <= FB_out_sof;
     
     process(i_MACE_clk)
     begin

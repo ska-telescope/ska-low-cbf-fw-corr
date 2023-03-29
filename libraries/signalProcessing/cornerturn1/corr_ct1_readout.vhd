@@ -708,7 +708,8 @@ begin
             --  ar_packetCount is the packet count for the first packet in the current buffer.
             -- So the number we want is 
             --  bufXSampleRelative + ar_packetCount * 2048 - ar_startPacket* 2048;
-            fineDelayPacketOffset <= std_logic_vector(unsigned(ar_packetCount) - unsigned(ar_startPacket)); -- the packet count of the first packet in the buffer relative to the packet count that the fine timing is referenced to.
+            -- This is the packet count of the first packet in the buffer relative to the packet count that the fine timing is referenced to.
+            fineDelayPacketOffset <= std_logic_vector(unsigned(ar_packetCount) - unsigned(ar_startPacket)); 
             fineDelaySampleOffset := fineDelayPacketOffset(20 downto 0) & "00000000000"; -- x2048 samples per packet
             
             if ar_fsm = getBufData then

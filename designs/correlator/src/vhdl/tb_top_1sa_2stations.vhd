@@ -24,7 +24,7 @@ begin
     generic map (
         g_SPS_PACKETS_PER_FRAME => 128, -- : integer := 128;
         g_CORRELATORS => 0, -- : integer := 0; -- Number of correlator instances to instantiate (0, 1, 2)
-        g_USE_DUMMY_FB => TRUE, -- boolean := FALSE
+        g_USE_DUMMY_FB => FALSE, -- boolean := FALSE
         -- Location of the test case; All the other filenames in generics here are in this directory
         g_TEST_CASE => "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_2stations_cof/", --  string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
         -- text file with SPS packets
@@ -46,7 +46,11 @@ begin
         -- Text file to use to check against the visibility data going to the HBM from the correlator.
         g_VIS_CHECK_FILE => "LTA_vis_check.txt", --  : string := "LTA_vis_check.txt";
         -- Text file to use to check the meta data going to the HBM from the correlator
-        g_META_CHECK_FILE => "LTA_TCI_FD_check.txt" -- : string := "LTA_TCI_FD_check.txt"
+        g_META_CHECK_FILE => "LTA_TCI_FD_check.txt", -- : string := "LTA_TCI_FD_check.txt"
+        -- Number of bytes to dump from the filterbank output
+        g_CT2_HBM_DUMP_SIZE => 2097152, -- 2 Mbytes, enough to get a whole coarse channel for 4 stations
+        g_CT2_HBM_DUMP_ADDR => 0, -- : integer := 0; -- Address to start the memory dump at.
+        g_CT2_HBM_DUMP_FNAME => "ct2_hbm_dump.txt"
     );
     -- port map ();
 

@@ -66,14 +66,8 @@
 --   So:
 --     - 32 bit address needed to address 3 Gbytes:
 --      - bits 8:0 = address within a  512 byte data block written in a single burst to the HBM
---      - bits 15:9 = 128 different groups of virtual channels (4 virtual channels in each HBM write)
---          *!! Using these address bits is critical, since it allows the readout to read multiple 512-byte blocks at a time.
---           !! Readout can thus read at the full HBM rate, close to 100Gb/sec.
---           !! Write data rate is 25.6Gb/sec, so this means the readout can read the data 3 or 4 times.
---           !! Multiple reads of the same data reduces the buffer memory required in the correlator long term accumulator.
---      - bits 27:16 = 3456 different fine channels
---      - bits 31:28 = 12 blocks of 32 times (2 buffers) * (192 times per buffer) / (32 times per 512 byte HBM write) 
---          - So bits 31:28 run from 0 to 11, for 3 Gbytes of memory, with 0 to 5 being the first 192 time samples, and 6-11 being the second 192 time samples.
+--      - Higher order address bits are determined depending on the subarray-beam table entries.
+--        Data is packed into HBM first by station, then by fine channel, then by time block (1 time block = 32 time samples)
 ----------------------------------------------------------------------------------
 library IEEE, ct_lib, DSP_top_lib, common_lib, axi4_lib;
 use IEEE.STD_LOGIC_1164.ALL;
