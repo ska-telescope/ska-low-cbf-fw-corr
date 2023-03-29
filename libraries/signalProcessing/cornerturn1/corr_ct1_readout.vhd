@@ -110,7 +110,9 @@ entity corr_ct1_readout is
     generic (
         -- Number of SPS PACKETS per frame. 128 = 283 ms corner turn frame.
         -- 32 is also supported by this module, for use in simulation only.
-        g_SPS_PACKETS_PER_FRAME : integer := 128
+        g_SPS_PACKETS_PER_FRAME : integer := 128;
+        -- center tap of the filterbank FIR filter.
+        g_FILTER_CENTER : integer := 23598
     );
     Port(
         shared_clk : in std_logic; -- Shared memory clock
@@ -607,7 +609,28 @@ begin
                     bufSampleTemp8bit(i) := '0' & bufSampleTemp(i)(6 downto 0);
                     -- Round it down so we have 64 byte aligned accesses to the HBM. Note buf0Sample is the sample within the buffer for this particular virtual channel
                     bufSample(i) <= bufSampleTemp(i)(19 downto 4) & "0000"; -- This gets multiplied by 4 to get the byte address, so the byte address will be 64 byte aligned.
-                    bufSampleRelative_v(i) := std_logic_vector(unsigned(bufCoarseDelay(i)) - 47104); -- Index of the sample to be read relative to the first sample in the buffer.
+                    ----------------------------------------
+                    -- bufSampleRelative 
+                    --  - This is the sample count that is used to calculate the fine delay.
+                    --  - Because of the filterbank preload, this sample count will be incremented
+                    --    by 11*4096 when it is first used for the filterbank output.
+                    --  - So it looks like this :
+                    --
+                    --                                      sampleOffset used in the
+                    --                                      calculation of fine delay
+                    --                                             parameters 
+                    --                                                 |
+                    --                                                 |  11*4096-g_FILTER_CENTER = 
+                    --                                                 |<-# of samples to subtract->|
+                    --         |<-----------------------------11x4096------------------------------>|       | 
+                    --         |<--------g_FILTER_CENTER-------------->|                                    |
+                    --         |                                                                            |
+                    --         |<---------- 12*4096 samples used in first filterbank output --------------->|
+                    --         |
+                    -- First Sample sent
+                    -- (= bufCoarseDelay - 47104)
+                    --
+                    bufSampleRelative_v(i) := std_logic_vector(unsigned(bufCoarseDelay(i)) - 47104 - (11*4096 - g_FILTER_CENTER)); -- Index of the sample to be read relative to the first sample in the buffer.
                     bufSampleRelative(i) <= bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & 
                                             bufSampleRelative_v(i)(19) & bufSampleRelative_v(i);
                     -- Number of 64 byte words to read.

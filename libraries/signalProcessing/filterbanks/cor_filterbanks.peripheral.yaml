@@ -19,7 +19,15 @@ peripherals:
               access_mode       : RW
               reset_value       : 0x0
               field_description : "bit 0 = reset counters in this module"
-              
+          
+          - - field_name        : scaling
+              width             : 6
+              access_mode       : RW
+              reset_value       : 0x10
+              field_description : "right bit shift used to convert 16 bit filterbank output to 8 bit data stored in HBM. \
+                                   Default is 0x10, which is appropriate for wideband noise. \
+                                   Use larger values to accomodate data with large dynamic range in the fine channels."
+          
           - - field_name        : status
               width             : 32
               access_mode       : RO

@@ -367,7 +367,6 @@ begin
             o_axi_miso => o_FB_axi_miso, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
-            i_RFIScale         => "10000", -- in(4:0);
             -- Data input, common valid signal, expects packets of 4096 samples
             i_SOF    => FB_sof,
             i_data0  => FB_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
