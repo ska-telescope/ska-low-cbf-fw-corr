@@ -452,7 +452,7 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            RFI_scale <= config_rw.scaling(4 downto 0);
+            RFIScale <= config_rw.scaling(4 downto 0);
             reg_reset <= config_rw.config(0);
             reg_reset_del1 <= reg_reset;
             
