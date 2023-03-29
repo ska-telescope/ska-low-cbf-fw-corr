@@ -27,7 +27,7 @@
 -- Since 114 = 64 + 50, there are 2 x 64-byte words in the header, with the data part starting at byte 50 in the second word.
 ----------------------------------------------------------------------------------
 
-library IEEE, axi4_lib, xpm, LFAADecode100G_lib, ctc_lib, dsp_top_lib;
+library IEEE, axi4_lib, xpm, LFAADecode100G_lib, dsp_top_lib;
 library technology_lib;
 USE technology_lib.tech_mac_100g_pkg.ALL;
 use DSP_top_lib.DSP_top_pkg.all;
