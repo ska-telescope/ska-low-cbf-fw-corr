@@ -484,6 +484,23 @@ hbm_rd_debug : ila_0 PORT MAP (
     probe0(191 downto 173)  => (others => '0')
     );
     
+hbm_wide_rd_ila_debug : ila_0 PORT MAP (
+    clk                     => clk,
+   	    
+    probe0(127 downto 0)    => i_HBM_axi_r.data(127 downto 0),
+    probe0(128)             => i_HBM_axi_r.valid,
+    probe0(129)             => i_HBM_axi_r.last,
+    probe0(131 downto 130)  => i_HBM_axi_r.resp,
+
+    
+    probe0(163 downto 132)  => hbm_axi_ar_addr,
+    probe0(164)             => hbm_axi_ar_valid,
+    probe0(165)             => i_HBM_axi_arready,
+    probe0(169 downto 166)  => hbm_reader_fsm_debug,
+    probe0(170)             => hbm_data_sel,
+   
+    probe0(191 downto 171)  => (others => '0')
+    );    
 
 
 end;
