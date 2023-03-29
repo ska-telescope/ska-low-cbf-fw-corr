@@ -143,7 +143,10 @@ set_property top tb_correlatorCore [get_filesets sim_1]
 # vivado_xci_files: Importing IP to the project
 # tcl scripts for ip generation
 source $DESIGN_PATH/src/ip/vitisAccelCore.tcl
+
+
 ############################################################
+
 
 # Technology select package
 add_files -fileset sources_1 [glob \
@@ -597,3 +600,34 @@ update_compile_order -fileset sim_cor_read_spead
 
 # End of SPEAD SIM setup
 ##############################################################
+
+############################################################
+# create riviera sim set
+create_fileset -simset sim_riv
+set_property SOURCE_SET sources_1 [get_filesets sim_riv]
+
+add_files -fileset sim_riv [glob \
+$DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd \
+$DESIGN_PATH/src/vhdl/tb_correlatorCore.vhd \
+]
+
+set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
+update_compile_order -fileset sim_riv
+
+set_property library correlator_lib [get_files {\
+ */src/vhdl/HBM_axi_tbModel.vhd \
+ */src/vhdl/tb_correlatorCore.vhd \
+}]
+
+
+# top level testbench
+set_property top tb_correlatorCore [get_filesets sim_riv]
+
+set_property target_simulator Riviera [current_project]
+set_property -name {riviera.simulate.asim.more_options} -value {-ieee_nowarn} -objects [get_filesets sim_riv]
+set_property -name {riviera.compile.vhdl_syntax} -value {2008} -objects [get_filesets sim_riv]
+set_property -name {riviera.compile.vhdl_relax} -value {true} -objects [get_filesets sim_riv]
+set_property -name {riviera.simulate.runtime} -value {2000us} -objects [get_filesets sim_riv]
+set_property simulator_language VHDL [current_project]
+
+

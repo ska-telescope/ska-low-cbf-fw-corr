@@ -12,8 +12,8 @@
 --     ARGs. 
 --
 ----------------------------------------------------------------------------------------------------------
-library IEEE, axi4_lib, ctc_lib, common_lib, filterbanks_lib, dsp_top_lib;
---use ctc_lib.ctc_pkg.all;
+library IEEE, axi4_lib, common_lib, filterbanks_lib, dsp_top_lib;
+
 use dsp_top_lib.dsp_top_pkg.all;
 use common_lib.common_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;

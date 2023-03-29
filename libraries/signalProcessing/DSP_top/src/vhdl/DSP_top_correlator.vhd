@@ -13,7 +13,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, common_lib, axi4_lib, ct_lib, DSP_top_lib;
-library LFAADecode100G_lib, timingcontrol_lib, capture128bit_lib, captureFine_lib, DSP_top_lib, filterbanks_lib, interconnect_lib, bf_lib, spead_lib, correlator_lib;
+library LFAADecode100G_lib, DSP_top_lib, filterbanks_lib, spead_lib, correlator_lib;
 use ct_lib.all;
 use DSP_top_lib.DSP_top_pkg.all;
 --use DSP_top_lib.DSP_top_reg_pkg.all;
