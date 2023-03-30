@@ -672,45 +672,128 @@ end process;
 
 pack_wr     <= '1' when pack_counter_d /= pack_counter else '0';
 
+reg_512_align_proc : process(clk)
+begin
+    if rising_edge(clk) then
+        if reset = '1' then
+            aligned_packed_wr               <= '0';
+            aligned_packed_fifo_data        <= (others => '0');
+        else
+            aligned_packed_wr               <= '0';
 
-aligned_packed_fifo_data    <=                                        packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 32)  when pack_counter = 2 else
-                                packed_fifo_data_d3(31 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 64)  when pack_counter = 4 else
-                                packed_fifo_data_d3(63 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 96)  when pack_counter = 6 else
-                                packed_fifo_data_d3(95 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 128) when pack_counter = 8 else
-                                packed_fifo_data_d3(127 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 160) when pack_counter = 10 else
-                                packed_fifo_data_d3(159 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 192) when pack_counter = 12 else
-                                packed_fifo_data_d3(191 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 224) when pack_counter = 14 else
-                                packed_fifo_data_d3(223 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 256) when pack_counter = 16 else
-                                packed_fifo_data_d3(255 downto 0)   & packed_fifo_data_d2(271 downto 16)                                            when pack_counter = 18 else
+            if (pack_counter = 2) then
+                aligned_packed_fifo_data    <=                                       packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 32);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 4) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(31 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 64);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 6) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(63 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 96);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 8) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(95 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 128);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 10) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(127 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 160);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 12) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(159 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 192);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 14) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(191 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 224);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 16) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(223 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 256);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 18) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(255 downto 0)   & packed_fifo_data_d2(271 downto 16);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 19) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(15 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 48);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 21) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(47 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 80);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 23) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(79 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 112);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 25) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(111 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 144);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 27) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(143 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 176);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 29) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(175 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 208);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 31) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(207 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 240);
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+            if (pack_counter = 1) then
+                aligned_packed_fifo_data    <= packed_fifo_data_d3(239 downto 0)   & packed_fifo_data_d2;
+                aligned_packed_wr           <= pack_wr OR trigger_final_write ;
+            end if;
+        end if;
+    end if;
+end process;
 
-                                packed_fifo_data_d3(15 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 48)  when pack_counter = 19 else
+-- pack_wr     <= '1' when pack_counter_d /= pack_counter else '0';
 
-                                packed_fifo_data_d3(47 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 80)  when pack_counter = 21 else
-                                packed_fifo_data_d3(79 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 112) when pack_counter = 23 else
-                                packed_fifo_data_d3(111 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 144) when pack_counter = 25 else
-                                packed_fifo_data_d3(143 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 176) when pack_counter = 27 else
-                                packed_fifo_data_d3(175 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 208) when pack_counter = 29 else
-                                packed_fifo_data_d3(207 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 240) when pack_counter = 31 else
-                                packed_fifo_data_d3(239 downto 0)   & packed_fifo_data_d2                                                           when pack_counter = 1;
 
-aligned_packed_wr           <= '1' when (pack_wr = '1' OR trigger_final_write = '1') AND    (pack_counter = 2 OR
-                                                                                                pack_counter = 4 OR
-                                                                                                pack_counter = 6 OR
-                                                                                                pack_counter = 8 OR
-                                                                                                pack_counter = 10 OR
-                                                                                                pack_counter = 12 OR
-                                                                                                pack_counter = 14 OR
-                                                                                                pack_counter = 16 OR
-                                                                                                pack_counter = 18 OR
-                                                                                                pack_counter = 19 OR
-                                                                                                pack_counter = 21 OR
-                                                                                                pack_counter = 23 OR
-                                                                                                pack_counter = 25 OR
-                                                                                                pack_counter = 27 OR
-                                                                                                pack_counter = 29 OR
-                                                                                                pack_counter = 31 OR
-                                                                                                pack_counter = 1) else
-                                '0';
+-- aligned_packed_fifo_data    <=                                        packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 32)  when pack_counter = 2 else
+--                                 packed_fifo_data_d3(31 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 64)  when pack_counter = 4 else
+--                                 packed_fifo_data_d3(63 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 96)  when pack_counter = 6 else
+--                                 packed_fifo_data_d3(95 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 128) when pack_counter = 8 else
+--                                 packed_fifo_data_d3(127 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 160) when pack_counter = 10 else
+--                                 packed_fifo_data_d3(159 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 192) when pack_counter = 12 else
+--                                 packed_fifo_data_d3(191 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 224) when pack_counter = 14 else
+--                                 packed_fifo_data_d3(223 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 256) when pack_counter = 16 else
+--                                 packed_fifo_data_d3(255 downto 0)   & packed_fifo_data_d2(271 downto 16)                                            when pack_counter = 18 else
+
+--                                 packed_fifo_data_d3(15 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 48)  when pack_counter = 19 else
+
+--                                 packed_fifo_data_d3(47 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 80)  when pack_counter = 21 else
+--                                 packed_fifo_data_d3(79 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 112) when pack_counter = 23 else
+--                                 packed_fifo_data_d3(111 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 144) when pack_counter = 25 else
+--                                 packed_fifo_data_d3(143 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 176) when pack_counter = 27 else
+--                                 packed_fifo_data_d3(175 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 208) when pack_counter = 29 else
+--                                 packed_fifo_data_d3(207 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 240) when pack_counter = 31 else
+--                                 packed_fifo_data_d3(239 downto 0)   & packed_fifo_data_d2                                                           when pack_counter = 1;
+
+-- aligned_packed_wr           <= '1' when (pack_wr = '1' OR trigger_final_write = '1') AND    (pack_counter = 2 OR
+--                                                                                                 pack_counter = 4 OR
+--                                                                                                 pack_counter = 6 OR
+--                                                                                                 pack_counter = 8 OR
+--                                                                                                 pack_counter = 10 OR
+--                                                                                                 pack_counter = 12 OR
+--                                                                                                 pack_counter = 14 OR
+--                                                                                                 pack_counter = 16 OR
+--                                                                                                 pack_counter = 18 OR
+--                                                                                                 pack_counter = 19 OR
+--                                                                                                 pack_counter = 21 OR
+--                                                                                                 pack_counter = 23 OR
+--                                                                                                 pack_counter = 25 OR
+--                                                                                                 pack_counter = 27 OR
+--                                                                                                 pack_counter = 29 OR
+--                                                                                                 pack_counter = 31 OR
+--                                                                                                 pack_counter = 1) else
+--                                 '0';
 
 
     ---------------------------------------------------------------------------
