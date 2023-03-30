@@ -36,7 +36,7 @@ use IEEE.NUMERIC_STD.ALL;
 entity LTA_urams is
     port( 
         i_clk : in std_logic;
-        i_wrBuffer : in std_logic; -- selects which buffer is used for accumulation (and thus which buffer is used for readout).
+        i_wrBuffer : in std_logic; -- Selects which buffer is used for accumulation
         ----------------------------------------------------------------------------------------
         -- read-modify-write interface for the accumulator functionality: 
         -- read address
@@ -202,8 +202,8 @@ begin
                 buf0_wrEn(0)(0) <= "0"; buf0_wrEn(0)(1) <= "0"; buf0_wrEn(0)(2) <= "0"; buf0_wrEn(0)(3) <= "0";
             end if;
             
-            if valid_del6 = '1' and wrBuffer_del6 = '1' then
-                case readCount_del6(1 downto 0) is
+            if valid_del7 = '1' and wrBuffer_del7 = '1' then
+                case readCount_del7 is
                     when "00" => buf1_wrEn(0)(0) <= "1"; buf1_wrEn(0)(1) <= "0"; buf1_wrEn(0)(2) <= "0"; buf1_wrEn(0)(3) <= "0";
                     when "01" => buf1_wrEn(0)(0) <= "0"; buf1_wrEn(0)(1) <= "1"; buf1_wrEn(0)(2) <= "0"; buf1_wrEn(0)(3) <= "0";
                     when "10" => buf1_wrEn(0)(0) <= "0"; buf1_wrEn(0)(1) <= "0"; buf1_wrEn(0)(2) <= "1"; buf1_wrEn(0)(3) <= "0";
