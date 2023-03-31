@@ -35,10 +35,6 @@ ENTITY correlator_core IS
         g_USE_META   : boolean := FALSE;    -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
         -- GLOBAL GENERICS for PERENTIE LOGIC
         g_DEBUG_ILA                : boolean := FALSE;
-        -- Number of SPS packets per first stage corner turn frame; Nominal (and maximum allowed) value is 128;
-        -- Allowed values are 32, 64, 128.
-        -- Minimum possible value is 32, since we need enough preload data in a buffer to initialise the filterbanks
-        -- Filterbanks need 11 x 4096 samples for initialisation; That's 22 LFAA frames (since they are 2048 samples each).
         g_SPS_PACKETS_PER_FRAME    : integer := 128;  -- Number of SPS packets per frame.
         g_FIRMWARE_MAJOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
         g_FIRMWARE_MINOR_VERSION   : std_logic_vector(15 downto 0) := x"0001";

@@ -345,7 +345,6 @@ begin
                         end if;
                     end if;
                 
-                
                 when wait_fifo =>
                     -- fifo has space for 512 words, each 288 bits wide.
                     -- There are 256 words per cell. (256 * 32 bytes = 8192 bytes = 32 rows * 32 cols * (4+4) bytes

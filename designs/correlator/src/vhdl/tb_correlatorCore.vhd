@@ -56,7 +56,10 @@ entity tb_correlatorCore is
         -- Text file to use to check the meta data going to the HBM from the correlator
         g_META_CHECK_FILE : string := "LTA_TCI_FD_check.txt";
         -- Number of bytes to dump from the filterbank output
-        g_CT2_HBM_DUMP_SIZE : integer := 65536;
+        -- Default 8 Mbytes; 
+        -- Needs to be at least = 
+        --  ceil(virtual_channels/4) * (512 bytes) * (3456 fine channels) * (2 timegroups (of 32 times each))
+        g_CT2_HBM_DUMP_SIZE : integer := 8388608;  
         g_CT2_HBM_DUMP_ADDR : integer := 0; -- Address to start the memory dump at.
         g_CT2_HBM_DUMP_FNAME : string := "ct2_hbm_dump.txt"
     );
@@ -785,7 +788,7 @@ begin
                 sof_count <= sof_count + 1;
             end if;
             
-            if sof_count = 1 and FB_out_sof = '1' then
+            if sof_count = 2 and FB_out_sof = '1' then
                 -- Wait about 50 us for the copy to HBM to be complete, then trigger dump of the HBM contents to a file.
                 dump_trigger_count <= 65535;
             elsif (dump_trigger_count /= 0) then
