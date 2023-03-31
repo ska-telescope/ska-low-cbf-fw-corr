@@ -155,6 +155,8 @@ signal hbm_rd_loop_cnt      : unsigned(3 downto 0);
 signal HBM_axi_data_valid   : std_logic;
 signal HBM_axi_data_last    : std_logic;
 
+signal received_64b         : std_logic;
+
 begin
 ---------------------------------------------------------------------------
 -- port mappings
@@ -355,23 +357,17 @@ end process;
 -- meta data comes first (512 bytes) then 8182 bytes of correlator data.
 --
 
+received_64b    <= '1' when i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1' else '0';
+
 hbm_sel_proc : process(clk)
 begin
     if rising_edge(clk) then
-        if (reset = '1') then
+        if  (HBM_reader_fsm = IDLE) OR (hbm_data_sel_cnt = 16 AND received_64b = '1') then
             hbm_data_sel        <= '0';
             hbm_data_sel_cnt    <= (others => '0');
-        else
-            HBM_axi_data_valid  <= i_HBM_axi_r.valid;
-            HBM_axi_data_last   <= i_HBM_axi_r.last;
-
-            if  (HBM_reader_fsm = IDLE) OR (hbm_data_sel_cnt = 17) then
-                hbm_data_sel        <= '0';
-                hbm_data_sel_cnt    <= (others => '0');
-            elsif (HBM_axi_data_valid = '1' AND HBM_axi_data_last = '1') then
-                hbm_data_sel        <= '1'; 
-                hbm_data_sel_cnt    <=  hbm_data_sel_cnt + 1;
-            end if;
+        elsif (received_64b = '1') then
+            hbm_data_sel        <= '1'; 
+            hbm_data_sel_cnt    <=  hbm_data_sel_cnt + 1;
         end if;
     end if;
 end process;
