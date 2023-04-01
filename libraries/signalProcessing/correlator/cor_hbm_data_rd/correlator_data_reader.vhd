@@ -502,7 +502,7 @@ begin
 
                     when LOOPS =>
                         pack_it_fsm_debug   <= x"1";
-                        if unsigned(hbm_data_fifo_rd_count) > 120 then
+                        if unsigned(hbm_data_fifo_rd_count) >= 128 then
                             -- chop up the cell into 16 row lots.
                             -- if less then process remaining and set exit condition of 0.
                             if row_count_rd_out(8 downto 0) > 16 then
