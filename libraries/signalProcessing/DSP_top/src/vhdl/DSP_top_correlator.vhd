@@ -673,7 +673,7 @@ begin
     
     spead_packetiser_top : entity spead_lib.spead_top 
     generic map ( 
-        DEBUG_ILA           => FALSE
+        g_DEBUG_ILA         => FALSE
     )
     port map ( 
         -- clock used for all data input and output from this module (300 MHz)

@@ -464,54 +464,54 @@ end process;
 
 ---------------------------------------------------------------------------
 -- debug
+gen_debug_ila : IF DEBUG_ILA GENERATE
+    hbm_rd_debug : ila_0 PORT MAP (
+        clk                     => clk,
+        probe0(3 downto 0)      => hbm_reader_fsm_debug,
+        probe0(35 downto 4)     => hbm_axi_ar_addr,
+        probe0(43 downto 36)    => hbm_axi_ar_len,
+        probe0(44)              => hbm_axi_ar_valid,
+        probe0(45)              => i_HBM_axi_arready,
 
-hbm_rd_debug : ila_0 PORT MAP (
-    clk                     => clk,
-   	probe0(3 downto 0)      => hbm_reader_fsm_debug,
-    probe0(35 downto 4)     => hbm_axi_ar_addr,
-    probe0(43 downto 36)    => hbm_axi_ar_len,
-    probe0(44)              => hbm_axi_ar_valid,
-    probe0(45)              => i_HBM_axi_arready,
+        probe0(46)              => i_HBM_axi_r.valid,
+        probe0(47)              => i_HBM_axi_r.last,
+        probe0(49 downto 48)    => i_HBM_axi_r.resp,
+        probe0(81 downto 50)    => i_HBM_axi_r.data(31 downto 0),
 
-    probe0(46)              => i_HBM_axi_r.valid,
-    probe0(47)              => i_HBM_axi_r.last,
-    probe0(49 downto 48)    => i_HBM_axi_r.resp,
-    probe0(81 downto 50)    => i_HBM_axi_r.data(31 downto 0),
+        probe0(89 downto 82)    => std_logic_vector(hbm_retrieval_trac),
+        probe0(97 downto 90)    => hbm_data_fifo_rd_count,
+        probe0(98)              => hbm_data_fifo_rd,
+        probe0(99)              => hbm_data_fifo_wr,
+        
+        probe0(100)             => hbm_data_sel,
+        probe0(106 downto 101)  => std_logic_vector(hbm_data_sel_cnt),
+        probe0(107)             => hbm_meta_fifo_rd,
+        probe0(108)             => hbm_meta_fifo_wr,
 
-    probe0(89 downto 82)    => std_logic_vector(hbm_retrieval_trac),
-    probe0(97 downto 90)    => hbm_data_fifo_rd_count,
-    probe0(98)              => hbm_data_fifo_rd,
-    probe0(99)              => hbm_data_fifo_wr,
-    
-    probe0(100)             => hbm_data_sel,
-    probe0(106 downto 101)  => std_logic_vector(hbm_data_sel_cnt),
-    probe0(107)             => hbm_meta_fifo_rd,
-    probe0(108)             => hbm_meta_fifo_wr,
+        probe0(172 downto 109)  => i_HBM_axi_r.data(319 downto 256),
+        
+        probe0(191 downto 173)  => (others => '0')
+        );
+        
+    hbm_wide_rd_ila_debug : ila_0 PORT MAP (
+        clk                     => clk,
+            
+        probe0(127 downto 0)    => i_HBM_axi_r.data(127 downto 0),
+        probe0(128)             => i_HBM_axi_r.valid,
+        probe0(129)             => i_HBM_axi_r.last,
+        probe0(131 downto 130)  => i_HBM_axi_r.resp,
 
-    probe0(172 downto 109)  => i_HBM_axi_r.data(319 downto 256),
-    
-    probe0(191 downto 173)  => (others => '0')
-    );
-    
-hbm_wide_rd_ila_debug : ila_0 PORT MAP (
-    clk                     => clk,
-   	    
-    probe0(127 downto 0)    => i_HBM_axi_r.data(127 downto 0),
-    probe0(128)             => i_HBM_axi_r.valid,
-    probe0(129)             => i_HBM_axi_r.last,
-    probe0(131 downto 130)  => i_HBM_axi_r.resp,
-
-    
-    probe0(163 downto 132)  => hbm_axi_ar_addr,
-    probe0(164)             => hbm_axi_ar_valid,
-    probe0(165)             => i_HBM_axi_arready,
-    probe0(169 downto 166)  => hbm_reader_fsm_debug,
-    probe0(170)             => hbm_data_sel,
-    probe0(178 downto 171)  => hbm_data_fifo_wr_count,
-    probe0(186 downto 179)  => std_logic_vector(hbm_returned_trac),
-    probe0(187)             => hbm_data_fifo_wr,
-    probe0(191 downto 188)  => std_logic_vector(hbm_data_sel_cnt(3 downto 0))
-    );    
-
+        
+        probe0(163 downto 132)  => hbm_axi_ar_addr,
+        probe0(164)             => hbm_axi_ar_valid,
+        probe0(165)             => i_HBM_axi_arready,
+        probe0(169 downto 166)  => hbm_reader_fsm_debug,
+        probe0(170)             => hbm_data_sel,
+        probe0(178 downto 171)  => hbm_data_fifo_wr_count,
+        probe0(186 downto 179)  => std_logic_vector(hbm_returned_trac),
+        probe0(187)             => hbm_data_fifo_wr,
+        probe0(191 downto 188)  => std_logic_vector(hbm_data_sel_cnt(3 downto 0))
+        );    
+END GENERATE;
 
 end;
