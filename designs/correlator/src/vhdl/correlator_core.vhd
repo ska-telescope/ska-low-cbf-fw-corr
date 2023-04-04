@@ -8,8 +8,8 @@
 --
 -------------------------------------------------------------------------------
 
-LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib;
-library LFAADecode_lib, timingcontrol_lib, capture128bit_lib;
+LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib;
+
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
 USE common_lib.common_pkg.ALL;
@@ -35,16 +35,12 @@ ENTITY correlator_core IS
         g_USE_META   : boolean := FALSE;    -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
         -- GLOBAL GENERICS for PERENTIE LOGIC
         g_DEBUG_ILA                : boolean := FALSE;
-        -- Number of SPS packets per first stage corner turn frame; Nominal (and maximum allowed) value is 128;
-        -- Allowed values are 32, 64, 128.
-        -- Minimum possible value is 32, since we need enough preload data in a buffer to initialise the filterbanks
-        -- Filterbanks need 11 x 4096 samples for initialisation; That's 22 LFAA frames (since they are 2048 samples each).
         g_SPS_PACKETS_PER_FRAME    : integer := 128;  -- Number of SPS packets per frame.
         g_FIRMWARE_MAJOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
-        g_FIRMWARE_MINOR_VERSION   : std_logic_vector(15 downto 0) := x"0000";
+        g_FIRMWARE_MINOR_VERSION   : std_logic_vector(15 downto 0) := x"0001";
         g_FIRMWARE_PATCH_VERSION   : std_logic_vector(15 downto 0) := x"0000";
         g_FIRMWARE_LABEL           : std_logic_vector(31 downto 0) := x"00000000";
-        g_FIRMWARE_PERSONALITY     : std_logic_vector(31 downto 0) := x"20434F52"; -- ascii " COR"
+        g_FIRMWARE_PERSONALITY     : std_logic_vector(31 downto 0) := x"434F5252"; -- ascii "CORR"
         g_FIRMWARE_BUILD_DATE      : std_logic_vector(31 downto 0) := x"00000000";
         -- GENERICS for SHELL INTERACTION
         C_S_AXI_CONTROL_ADDR_WIDTH : integer := 7;
@@ -257,7 +253,10 @@ ENTITY correlator_core IS
         o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+        -- Start of a burst of data through the filterbank, 
+        -- Used in the testbench to trigger download of the data written into the CT2 memory.
+        o_FB_out_sof   : out std_logic
     );
 END correlator_core;
 
@@ -887,7 +886,10 @@ begin
         o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
+        o_tb_channel   => o_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
+        -- Start of a burst of data through the filterbank, 
+        -- Used in the testbench to trigger download of the data written into the CT2 memory.
+        o_FB_out_sof   => o_FB_out_sof   -- out std_logic
     );
     
     ---------------------------------------------------------------------

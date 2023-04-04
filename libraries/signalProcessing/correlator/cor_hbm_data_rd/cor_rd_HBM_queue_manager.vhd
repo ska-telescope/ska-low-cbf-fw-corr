@@ -143,7 +143,7 @@ signal meta_data_quantity   : unsigned(13 downto 0) := (others => '0');
 signal vis_data_addr        : unsigned(31 downto 0) := (others => '0');
 
 signal hbm_retrieval_trac   : unsigned(7 downto 0) := (others => '0');
-signal hbm_enable_sel_cnt   : unsigned(7 downto 0) := (others => '0');
+signal hbm_returned_trac    : unsigned(7 downto 0) := (others => '0');
 
 signal hbm_axi_ar_valid     : std_logic := '0';
 signal hbm_axi_ar_addr      : std_logic_vector(31 downto 0);
@@ -154,6 +154,8 @@ signal hbm_rd_loop_cnt      : unsigned(3 downto 0);
 
 signal HBM_axi_data_valid   : std_logic;
 signal HBM_axi_data_last    : std_logic;
+
+signal received_64b         : std_logic;
 
 begin
 ---------------------------------------------------------------------------
@@ -206,12 +208,25 @@ hbm_axi_ar_len      <= x"07";
 hbm_req_track_proc : process(clk)
 begin
     if rising_edge(clk) then
-        if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') AND (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
-            hbm_retrieval_trac <= hbm_retrieval_trac;
-        elsif (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') then
-            hbm_retrieval_trac <= hbm_retrieval_trac + 8;
-        elsif (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
-            hbm_retrieval_trac <= hbm_retrieval_trac - 8;
+        -- if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') AND (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
+        --     hbm_retrieval_trac <= hbm_retrieval_trac;
+        -- elsif (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') then
+        --     hbm_retrieval_trac <= hbm_retrieval_trac + 8;
+        -- elsif (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
+        --     hbm_retrieval_trac <= hbm_retrieval_trac - 8;
+        -- end if;
+
+        if (HBM_reader_fsm = IDLE) or (reset = '1') then
+            hbm_retrieval_trac  <= (others => '0');
+            hbm_returned_trac   <= (others => '0');
+        else
+            if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') then
+                hbm_retrieval_trac  <= hbm_retrieval_trac + 8;
+            end if;
+
+            if (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
+                hbm_returned_trac   <= hbm_returned_trac + 8;
+            end if;
         end if;
     end if;
 end process;
@@ -324,7 +339,7 @@ begin
 
                 when COMPLETE =>
                     hbm_reader_fsm_debug    <= x"8";
-                    if hbm_retrieval_trac = x"00" then
+                    if hbm_retrieval_trac = hbm_returned_trac then
                         HBM_reader_fsm <= IDLE;
                     end if;
 
@@ -342,23 +357,17 @@ end process;
 -- meta data comes first (512 bytes) then 8182 bytes of correlator data.
 --
 
+received_64b    <= '1' when i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1' else '0';
+
 hbm_sel_proc : process(clk)
 begin
     if rising_edge(clk) then
-        if (reset = '1') then
+        if  (HBM_reader_fsm = IDLE) OR (hbm_data_sel_cnt = 16 AND received_64b = '1') then
             hbm_data_sel        <= '0';
             hbm_data_sel_cnt    <= (others => '0');
-        else
-            HBM_axi_data_valid  <= i_HBM_axi_r.valid;
-            HBM_axi_data_last   <= i_HBM_axi_r.last;
-
-            if  (HBM_reader_fsm = IDLE) OR (hbm_data_sel_cnt = 17) then
-                hbm_data_sel        <= '0';
-                hbm_data_sel_cnt    <= (others => '0');
-            elsif (HBM_axi_data_valid = '1' AND HBM_axi_data_last = '1') then
-                hbm_data_sel        <= '1'; 
-                hbm_data_sel_cnt    <=  hbm_data_sel_cnt + 1;
-            end if;
+        elsif (received_64b = '1') then
+            hbm_data_sel        <= '1'; 
+            hbm_data_sel_cnt    <=  hbm_data_sel_cnt + 1;
         end if;
     end if;
 end process;
@@ -455,35 +464,54 @@ end process;
 
 ---------------------------------------------------------------------------
 -- debug
+gen_debug_ila : IF DEBUG_ILA GENERATE
+    hbm_rd_debug : ila_0 PORT MAP (
+        clk                     => clk,
+        probe0(3 downto 0)      => hbm_reader_fsm_debug,
+        probe0(35 downto 4)     => hbm_axi_ar_addr,
+        probe0(43 downto 36)    => hbm_axi_ar_len,
+        probe0(44)              => hbm_axi_ar_valid,
+        probe0(45)              => i_HBM_axi_arready,
 
-hbm_rd_debug : ila_0 PORT MAP (
-    clk                     => clk,
-   	probe0(3 downto 0)      => hbm_reader_fsm_debug,
-    probe0(35 downto 4)     => hbm_axi_ar_addr,
-    probe0(43 downto 36)    => hbm_axi_ar_len,
-    probe0(44)              => hbm_axi_ar_valid,
-    probe0(45)              => i_HBM_axi_arready,
+        probe0(46)              => i_HBM_axi_r.valid,
+        probe0(47)              => i_HBM_axi_r.last,
+        probe0(49 downto 48)    => i_HBM_axi_r.resp,
+        probe0(81 downto 50)    => i_HBM_axi_r.data(31 downto 0),
 
-    probe0(46)              => i_HBM_axi_r.valid,
-    probe0(47)              => i_HBM_axi_r.last,
-    probe0(49 downto 48)    => i_HBM_axi_r.resp,
-    probe0(81 downto 50)    => i_HBM_axi_r.data(31 downto 0),
+        probe0(89 downto 82)    => std_logic_vector(hbm_retrieval_trac),
+        probe0(97 downto 90)    => hbm_data_fifo_rd_count,
+        probe0(98)              => hbm_data_fifo_rd,
+        probe0(99)              => hbm_data_fifo_wr,
+        
+        probe0(100)             => hbm_data_sel,
+        probe0(106 downto 101)  => std_logic_vector(hbm_data_sel_cnt),
+        probe0(107)             => hbm_meta_fifo_rd,
+        probe0(108)             => hbm_meta_fifo_wr,
 
-    probe0(89 downto 82)    => std_logic_vector(hbm_retrieval_trac),
-    probe0(97 downto 90)    => hbm_data_fifo_rd_count,
-    probe0(98)              => hbm_data_fifo_rd,
-    probe0(99)              => hbm_data_fifo_wr,
-    
-    probe0(100)             => hbm_data_sel,
-    probe0(106 downto 101)  => std_logic_vector(hbm_data_sel_cnt),
-    probe0(107)             => hbm_meta_fifo_rd,
-    probe0(108)             => hbm_meta_fifo_wr,
+        probe0(172 downto 109)  => i_HBM_axi_r.data(319 downto 256),
+        
+        probe0(191 downto 173)  => (others => '0')
+        );
+        
+    hbm_wide_rd_ila_debug : ila_0 PORT MAP (
+        clk                     => clk,
+            
+        probe0(127 downto 0)    => i_HBM_axi_r.data(127 downto 0),
+        probe0(128)             => i_HBM_axi_r.valid,
+        probe0(129)             => i_HBM_axi_r.last,
+        probe0(131 downto 130)  => i_HBM_axi_r.resp,
 
-    probe0(172 downto 109)  => i_HBM_axi_r.data(319 downto 256),
-    
-    probe0(191 downto 173)  => (others => '0')
-    );
-    
-
+        
+        probe0(163 downto 132)  => hbm_axi_ar_addr,
+        probe0(164)             => hbm_axi_ar_valid,
+        probe0(165)             => i_HBM_axi_arready,
+        probe0(169 downto 166)  => hbm_reader_fsm_debug,
+        probe0(170)             => hbm_data_sel,
+        probe0(178 downto 171)  => hbm_data_fifo_wr_count,
+        probe0(186 downto 179)  => std_logic_vector(hbm_returned_trac),
+        probe0(187)             => hbm_data_fifo_wr,
+        probe0(191 downto 188)  => std_logic_vector(hbm_data_sel_cnt(3 downto 0))
+        );    
+END GENERATE;
 
 end;

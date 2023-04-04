@@ -12,8 +12,8 @@
 --     ARGs. 
 --
 ----------------------------------------------------------------------------------------------------------
-library IEEE, axi4_lib, ctc_lib, common_lib, filterbanks_lib, dsp_top_lib;
---use ctc_lib.ctc_pkg.all;
+library IEEE, axi4_lib, common_lib, filterbanks_lib, dsp_top_lib;
+
 use dsp_top_lib.dsp_top_pkg.all;
 use common_lib.common_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -34,7 +34,6 @@ entity FB_Top_correlator is
         o_axi_miso  : out t_axi4_lite_miso;
         -- Configuration (on i_data_clk)
         i_fineDelayDisable : in std_logic;
-        i_RFIScale         : in std_logic_vector(4 downto 0);
         -----------------------------------------
         -- data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
@@ -148,6 +147,7 @@ architecture Behavioral of FB_Top_correlator is
     signal HeaderValid : std_logic_vector(3 downto 0);
     signal sof_out, sof_del1 : std_logic := '0';
     signal sof_out_count : std_logic_vector(13 downto 0) := (others => '0');
+    signal RFIScale : std_logic_vector(4 downto 0);
     
 begin
     
@@ -317,22 +317,22 @@ begin
     );
     
     -- Pack the filterbank output into a structure for input to the fine delay module.
-    corDout_arr(0).vpol.re <= corFBDout0(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(0).vpol.im <= corFBDout0(1);
-    corDout_arr(0).hpol.re <= corFBDout1(0);
-    corDout_arr(0).hpol.im <= corFBDout1(1);
-    corDout_arr(1).vpol.re <= corFBDout2(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(1).vpol.im <= corFBDout2(1);
-    corDout_arr(1).hpol.re <= corFBDout3(0);
-    corDout_arr(1).hpol.im <= corFBDout3(1);
-    corDout_arr(2).vpol.re <= corFBDout4(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(2).vpol.im <= corFBDout4(1);
-    corDout_arr(2).hpol.re <= corFBDout5(0);
-    corDout_arr(2).hpol.im <= corFBDout5(1);
-    corDout_arr(3).vpol.re <= corFBDout6(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(3).vpol.im <= corFBDout6(1);
-    corDout_arr(3).hpol.re <= corFBDout7(0);
-    corDout_arr(3).hpol.im <= corFBDout7(1);
+    corDout_arr(0).hpol.re <= corFBDout0(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(0).hpol.im <= corFBDout0(1);
+    corDout_arr(0).vpol.re <= corFBDout1(0);
+    corDout_arr(0).vpol.im <= corFBDout1(1);
+    corDout_arr(1).hpol.re <= corFBDout2(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(1).hpol.im <= corFBDout2(1);
+    corDout_arr(1).vpol.re <= corFBDout3(0);
+    corDout_arr(1).vpol.im <= corFBDout3(1);
+    corDout_arr(2).hpol.re <= corFBDout4(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(2).hpol.im <= corFBDout4(1);
+    corDout_arr(2).vpol.re <= corFBDout5(0);
+    corDout_arr(2).vpol.im <= corFBDout5(1);
+    corDout_arr(3).hpol.re <= corFBDout6(0);  -- 16 bit data into the fine delay module.
+    corDout_arr(3).hpol.im <= corFBDout6(1);
+    corDout_arr(3).vpol.re <= corFBDout7(0);
+    corDout_arr(3).vpol.im <= corFBDout7(1);
     
     --o_CorDataValid <= CorValidOut;
     corFBHeader(0).HDeltaP <= corMetaOut(15 downto 0);
@@ -403,7 +403,7 @@ begin
             --   i_RFIScale < 16  ==> Amplify the output of the filterbanks.
             --   i_RFIScale = 16  ==> Amplitude of the filterbank output is unchanged.
             --   i_RFIScale > 16  ==> Amplitude of the filterbank output is reduced.
-            i_RFIScale    => i_RFIScale, -- in std_logic_vector(4 downto 0); 
+            i_RFIScale    => RFIScale, -- in std_logic_vector(4 downto 0); 
             -- For monitoring of the output level.
             -- Higher level should keep track of : 
             --   * The total number of frames processed.
@@ -452,6 +452,7 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
+            RFIScale <= config_rw.scaling(4 downto 0);
             reg_reset <= config_rw.config(0);
             reg_reset_del1 <= reg_reset;
             

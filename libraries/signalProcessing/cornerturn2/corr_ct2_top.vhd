@@ -66,14 +66,8 @@
 --   So:
 --     - 32 bit address needed to address 3 Gbytes:
 --      - bits 8:0 = address within a  512 byte data block written in a single burst to the HBM
---      - bits 15:9 = 128 different groups of virtual channels (4 virtual channels in each HBM write)
---          *!! Using these address bits is critical, since it allows the readout to read multiple 512-byte blocks at a time.
---           !! Readout can thus read at the full HBM rate, close to 100Gb/sec.
---           !! Write data rate is 25.6Gb/sec, so this means the readout can read the data 3 or 4 times.
---           !! Multiple reads of the same data reduces the buffer memory required in the correlator long term accumulator.
---      - bits 27:16 = 3456 different fine channels
---      - bits 31:28 = 12 blocks of 32 times (2 buffers) * (192 times per buffer) / (32 times per 512 byte HBM write) 
---          - So bits 31:28 run from 0 to 11, for 3 Gbytes of memory, with 0 to 5 being the first 192 time samples, and 6-11 being the second 192 time samples.
+--      - Higher order address bits are determined depending on the subarray-beam table entries.
+--        Data is packed into HBM first by station, then by fine channel, then by time block (1 time block = 32 time samples)
 ----------------------------------------------------------------------------------
 library IEEE, ct_lib, DSP_top_lib, common_lib, axi4_lib;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -229,6 +223,8 @@ architecture Behavioral of corr_ct2_top is
     signal rst_del1, rst_del2 : std_logic;
     signal module_enable : std_logic := '0';
     signal dataValid : std_logic;
+    signal rst_hold : std_logic := '1';
+    signal update_table : std_logic := '0';
     
 begin
     
@@ -252,19 +248,36 @@ begin
             
             if i_rst = '1' then
                 frameCount_mod3 <= "00";
+                rst_hold <= '1';
+                update_table <= '1';
                 frameCount_849ms <= (others => '0');
             elsif (sof_hold = '1' and dataValid = '1') then
                 -- This picks up the framecount for the first packet in the frame = 283ms of data.
                 -- If i_virtualChannel(0) = 0 then this is the start of a new block of 283 ms.
-                if (unsigned(i_virtualChannel(0)) = 0) then
-                    case frameCount_mod3 is
-                        when "00" => frameCount_mod3 <= "01";
-                        when "01" => frameCount_mod3 <= "10";
-                        when others => 
-                            frameCount_mod3 <= "00";
-                            frameCount_849ms <= std_logic_vector(unsigned(frameCount_849ms) + 1);
-                    end case;
+                -- Note : i_virtualChannel is only valid when i_dataValid = '1'.
+                rst_hold <= '0';
+                if rst_hold = '0' then
+                    if (unsigned(i_virtualChannel(0)) = 0) then
+                        case frameCount_mod3 is
+                            when "00" => 
+                                frameCount_mod3 <= "01";
+                                update_table <= '0';
+                            when "01" => 
+                                frameCount_mod3 <= "10";
+                                update_table <= '0';
+                            when others => 
+                                frameCount_mod3 <= "00";
+                                update_table <= '1';
+                                frameCount_849ms <= std_logic_vector(unsigned(frameCount_849ms) + 1);
+                        end case;
+                    else
+                        update_table <= '0';
+                    end if;
+                else
+                    update_table <= '0';
                 end if;
+            else
+                update_table <= '0';
             end if;
             
             if (sof_hold = '1' and dataValid = '1' and (unsigned(i_virtualChannel(0)) = 0)) then
@@ -380,10 +393,11 @@ begin
         i_rst              => rst_del1,         -- in std_logic;
         i_sof              => i_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 60ms of data).
         i_tableSelect      => statctrl_rw.table_select, -- in std_logic;
+        -- i_frameCount_mod3 and i_frameCount_849ms are captured on the SECOND cycle of i_datavalid after i_sof
         i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
         i_frameCount_849ms => frameCount_849ms, -- in (31:0)
         i_virtualChannel   => i_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the data streams.
-        i_lastChannel      => last_channel_16bit,     -- in (15:0)
+        i_lastChannel      => last_channel_16bit, -- in (15:0)
         i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
         i_dataValid        => dataValid,      -- in std_logic;
@@ -630,7 +644,9 @@ begin
             ----------------------------------------------------------------------------------------
             -- Logic for reading the subarray-beam table
             --
-            if i_sof = '1' and frameCount_mod3 = "00" then
+            if update_table = '1' then
+                -- First frame after reset, frameCount_mod3 at i_sof='1' is "00", but in subsequent frames, 
+                -- frameCount_mod3 for the frame will be updated after i_sof, so this detects 
                 -- Set the subarray-beam table that is used for writing data into the HBM.
                 -- Set at the start of data input for the frame, so it is fixed through the frame.
                 din_tableSelect <= statctrl_rw.table_select; 

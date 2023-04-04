@@ -28,7 +28,7 @@
 --  - ptpBlock : transfer ptp time to the data_clk domain.
 ------------------------------------------------------------------------------------
 
-library IEEE, axi4_lib, xpm, LFAADecode100G_lib, ctc_lib, dsp_top_lib, technology_lib;
+library IEEE, axi4_lib, xpm, LFAADecode100G_lib, dsp_top_lib, technology_lib;
 --use ctc_lib.ctc_pkg.all;
 use DSP_top_lib.DSP_top_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;

@@ -127,7 +127,6 @@ architecture Behavioral of corr_ct2_din is
     signal bufWrData, bufWrDataFinal : std_logic_vector(127 downto 0);
     signal bufRdAddr : std_logic_vector(15 downto 0);
     
-    signal copy_fine : std_logic_vector(11 downto 0);
     signal timeStep : std_logic_vector(5 downto 0);
     signal dataValidDel1, dataValidDel2 : std_logic := '0';
     signal copyToHBM : std_logic := '0';
@@ -210,6 +209,7 @@ architecture Behavioral of corr_ct2_din is
     signal copy_fsm_dbg_at_start : std_logic_vector(3 downto 0) := "1111";
     signal in_set_aw_count : std_logic_vector(7 downto 0) := x"00";
     signal copy_fsm_stuck : std_logic;
+    signal virtualChannel0Del1, virtualChannel3Del1 : std_logic_vector(15 downto 0);
     
     COMPONENT ila_0
     PORT (
@@ -269,6 +269,9 @@ begin
             dataValidDel1 <= i_dataValid;
             dataValidDel2 <= dataValidDel1;
             
+            virtualChannel0Del1 <= i_virtualChannel(0);
+            virtualChannel3Del1 <= i_virtualChannel(3);
+            
             if i_rst = '1' then
                 timeStep <= (others => '0');
                 trigger_demap_rd <= '0';
@@ -280,12 +283,12 @@ begin
                 -- (There are 64 time samples per first stage corner turn frame)
                 timeStep <= (others => '0');
                 trigger_demap_rd <= '0';
-            elsif sof_hold = '1' and i_dataValid = '1' then
+            elsif sof_hold = '1' and dataValidDel1 = '1' then
                 sof_hold <= '0';
                 -- Just use the first filterbanks virtual channel.
                 -- This module assumes that i_virtualChannel(0), (1), (2), and (3) are consecutive values.
-                virtualChannel <= i_virtualChannel(0);
-                if (unsigned(i_virtualChannel(3)) >= unsigned(i_lastchannel)) then
+                virtualChannel <= virtualChannel0Del1;
+                if (unsigned(virtualChannel3Del1) >= unsigned(i_lastchannel)) then
                     last_virtual_channel <= '1';
                 else
                     last_virtual_channel <= '0';
@@ -634,7 +637,7 @@ begin
                         HBM_axi_aw(0).valid <= '0';
                         HBM_axi_aw(1).valid <= '0';
                         trigger_copyData_fsm <= '0';
-                        if (unsigned(copy_fine) = 3456) then
+                        if (unsigned(copy_fineChannel) = 3456) then
                             copy_fsm <= idle;
                             get_addr <= '0';
                         else

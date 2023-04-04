@@ -12,21 +12,21 @@ library IEEE, correlator_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use correlator_lib.all;
 
-entity tb_top_1sa_2stations is
+entity tb_top_1sa_6stations is
 --  Port ( );
-end tb_top_1sa_2stations;
+end tb_top_1sa_6stations;
 
-architecture Behavioral of tb_top_1sa_2stations is
+architecture Behavioral of tb_top_1sa_6stations is
 
 begin
 
     tbinst : entity correlator_lib.tb_correlatorCore
     generic map (
         g_SPS_PACKETS_PER_FRAME => 128, -- : integer := 128;
-        g_CORRELATORS => 0, -- : integer := 0; -- Number of correlator instances to instantiate (0, 1, 2)
-        g_USE_DUMMY_FB => FALSE, -- boolean := FALSE
+        g_CORRELATORS => 1, -- : integer := 0; -- Number of correlator instances to instantiate (0, 1, 2)
+        g_USE_DUMMY_FB => TRUE, -- boolean := FALSE
         -- Location of the test case; All the other filenames in generics here are in this directory
-        g_TEST_CASE => "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_2stations_cof/", --  string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        g_TEST_CASE => "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/", --  string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
         -- text file with SPS packets
         g_SPS_DATA_FILENAME => "sps_axi_tb_input.txt", -- string := "sps_axi_tb_input.txt";
         -- Register initialisation
@@ -37,8 +37,8 @@ begin
         g_LOAD_CT1_HBM => False, -- : boolean := False;
         g_CT1_INIT_FILENAME => "", -- : string := "";
         -- initialisation of corner turn 2 HBM
-        g_LOAD_CT2_HBM_CORR1 => False, -- : boolean := True;
-        g_CT2_HBM_CORR1_FILENAME => "", -- : string := "ct2_init.txt";
+        g_LOAD_CT2_HBM_CORR1 => True, -- : boolean := True;
+        g_CT2_HBM_CORR1_FILENAME => "ct2_init.txt", -- : string := "ct2_init.txt";
         g_LOAD_CT2_HBM_CORR2 => False, -- : boolean := False;
         g_CT2_HBM_CORR2_FILENAME => "", -- : string := "";
         --

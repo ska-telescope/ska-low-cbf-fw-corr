@@ -31,8 +31,8 @@ USE technology_lib.tech_mac_100g_pkg.ALL;
 entity tb_correlatorCore is
     generic (
         g_SPS_PACKETS_PER_FRAME : integer := 128;
-        g_CORRELATORS : integer := 0; -- Number of correlator instances to instantiate (0, 1, 2)
-        g_USE_DUMMY_FB : boolean := FALSE;  -- use a dummy version of the filterbank to speed up simulation.
+        g_CORRELATORS : integer := 1; -- Number of correlator instances to instantiate (0, 1, 2)
+        g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
         g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
         -- text file with SPS packets
@@ -54,7 +54,14 @@ entity tb_correlatorCore is
         -- Text file to use to check against the visibility data going to the HBM from the correlator.
         g_VIS_CHECK_FILE : string := "LTA_vis_check.txt";
         -- Text file to use to check the meta data going to the HBM from the correlator
-        g_META_CHECK_FILE : string := "LTA_TCI_FD_check.txt"
+        g_META_CHECK_FILE : string := "LTA_TCI_FD_check.txt";
+        -- Number of bytes to dump from the filterbank output
+        -- Default 8 Mbytes; 
+        -- Needs to be at least = 
+        --  ceil(virtual_channels/4) * (512 bytes) * (3456 fine channels) * (2 timegroups (of 32 times each))
+        g_CT2_HBM_DUMP_SIZE : integer := 8388608;  
+        g_CT2_HBM_DUMP_ADDR : integer := 0; -- Address to start the memory dump at.
+        g_CT2_HBM_DUMP_FNAME : string := "ct2_hbm_dump.txt"
     );
 end tb_correlatorCore;
 
@@ -279,6 +286,12 @@ architecture Behavioral of tb_correlatorCore is
     signal visCheckDone, visMetaCheckDone : std_logic;
     --signal visCheckData : std_logic_vector(255 downto 0);
     signal visCheckData, visMetaCheckData : t_slv_32_arr(7 downto 0);
+    
+    signal ct2_HBM_dump_trigger : std_logic := '0';
+    signal dump_trigger_count : integer := 0;
+    signal sof_count : integer := 0;
+    signal FB_out_sof : std_logic := '0';
+    
     
     -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
     -- +bid buser
@@ -767,6 +780,30 @@ begin
         wait;
     end process;
     
+    -- Trigger dump of the CT2 data after it has been written from the filterbank
+    process(ap_clk)
+    begin
+        if rising_edge(ap_clk) then
+            if FB_out_sof = '1' then
+                sof_count <= sof_count + 1;
+            end if;
+            
+            if sof_count = 2 and FB_out_sof = '1' then
+                -- Wait about 50 us for the copy to HBM to be complete, then trigger dump of the HBM contents to a file.
+                dump_trigger_count <= 65535;
+            elsif (dump_trigger_count /= 0) then
+                dump_trigger_count <= dump_trigger_count - 1;
+            end if;
+            
+            if dump_trigger_count = 1 then
+                ct2_HBM_dump_trigger <= '1';
+            else
+                ct2_HBM_dump_trigger <= '0';
+            end if;
+            
+        end if;
+    end process;
+    
     
     dut : entity correlator_lib.correlator_core
     generic map (
@@ -981,7 +1018,10 @@ begin
         o_tb_dcount    => cor0_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      => cor0_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      => cor0_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   => cor0_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
+        o_tb_channel   => cor0_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
+       -- Start of a burst of data through the filterbank, 
+        -- Used in the testbench to trigger download of the data written into the CT2 memory.
+        o_FB_out_sof   => FB_out_sof        -- out std_logic
     );
     
     ----------------------------------------------------------------------------------
@@ -1101,10 +1141,10 @@ begin
         axi_rlast    => HBM_axi_rlast(1),
         axi_rvalid   => HBM_axi_rvalid(1),
         axi_rready   => HBM_axi_rready(1),
-        i_write_to_disk => '0', -- in std_logic;
-        i_fname         => "",  -- in string
-        i_write_to_disk_addr => 0, -- in integer; -- address to start the memory dump at.
-        i_write_to_disk_size => 0, --in integer; -- size in bytes
+        i_write_to_disk => ct2_HBM_dump_trigger, -- in std_logic;
+        i_fname         => g_TEST_CASE & g_CT2_HBM_DUMP_FNAME,  -- in string
+        i_write_to_disk_addr => g_CT2_HBM_DUMP_ADDR,     -- in integer; Address to start the memory dump at.
+        i_write_to_disk_size => g_CT2_HBM_DUMP_SIZE, -- in integer; Size in bytes
         -- Initialisation of the memory
         -- The memory is loaded with the contents of the file i_init_fname in 
         -- any clock cycle where i_init_mem is high.

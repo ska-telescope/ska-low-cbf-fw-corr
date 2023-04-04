@@ -28,7 +28,7 @@ end tb_cor_spead;
 architecture Behavioral of tb_cor_spead is
 constant fname          : string := "";
 -- assuming stim in base of repo for the moment.
-constant init_fname     : string := "../../../../../../../LTA_HBM_dbg_check.txt";
+constant init_fname     : string := "../../../../../../../LTA_vis_check.txt";
 constant HBM_addr_width         : integer := 32;
 
 signal init_mem     : std_logic     := '0';
@@ -74,6 +74,9 @@ signal packetiser_enable        : std_logic_vector(1 downto 0);
 
 signal i_spead_lite_axi_mosi    : t_axi4_lite_mosi; 
 signal o_spead_lite_axi_miso    : t_axi4_lite_miso;
+
+signal i_spead_full_axi_mosi    : t_axi4_full_mosi;
+signal o_spead_full_axi_miso    : t_axi4_full_miso;
 
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal stim_sub_array           : std_logic_vector(7 downto 0); 
@@ -504,7 +507,9 @@ DUT_2 : entity spead_lib.spead_top generic map (
 
         -- ARGs
         i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,
-        o_spead_lite_axi_miso   => o_spead_lite_axi_miso
+        o_spead_lite_axi_miso   => o_spead_lite_axi_miso,
+        i_spead_full_axi_mosi   => i_spead_full_axi_mosi,
+        o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
 
 end Behavioral;
