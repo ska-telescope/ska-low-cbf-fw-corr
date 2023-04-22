@@ -703,6 +703,8 @@ begin
         i_freq_index        => cor_freq_index,
         i_time_ref          => cor_time_ref,
         o_packetiser_enable => packetiser_enable,
+        
+        i_debug             => (others => '0'),
 
         -- ARGs interface.
         i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,

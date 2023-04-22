@@ -271,8 +271,8 @@ source $ARGS_PATH/LFAADecode100G/lfaadecode100g/ip_LFAADecode100G_lfaadecode100g
 add_files -fileset sources_1 [glob \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
- $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
- $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -281,11 +281,13 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/spead_registers.vhd \
  $COMMON_PATH/spead/src/spead_top.vhd \
  $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
- $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \ 
+ $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \
+ $COMMON_PATH/spead/src/spead_init_memspace.vhd \
 ]
+
 set_property library spead_lib [get_files {\
- *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
- *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg.vhd \
+ *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg.vhd \
  *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
  *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
@@ -297,12 +299,20 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_registers.vhd \
  *libraries/spead/src/spead_top.vhd \
  *libraries/spead/src/memory_tdp_spead.vhd \
- *libraries/spead/src/spead_axi_bram_wrapper.vhd \ 
+ *libraries/spead/src/spead_axi_bram_wrapper.vhd \
+ *libraries/spead/src/spead_init_memspace.vhd \
 }]
 
 ## tcl scripts for ip generation
 source $COMMON_PATH/spead/spead.tcl
 
+add_files -fileset sources_1 [glob \
+ $COMMON_PATH/spead/src/dest_ip_preload.mem \
+ $COMMON_PATH/spead/src/dest_udp_preload.mem \
+ $COMMON_PATH/spead/src/no_of_freq_chan_preload.mem \
+ $COMMON_PATH/spead/src/init_mem_preload.mem \
+ $COMMON_PATH/spead/src/heap_size_preload.mem \
+]
 
 #############################################################
 # Signal_processing_common
@@ -536,8 +546,8 @@ $RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead_behav.wcfg \
 add_files -fileset sim_cor_read_spead [glob \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
- $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
- $ARGS_PATH/spead/spead_reg/spead_spead_reg_reg.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -546,11 +556,11 @@ add_files -fileset sim_cor_read_spead [glob \
  $COMMON_PATH/spead/src/spead_registers.vhd \
  $COMMON_PATH/spead/src/spead_top.vhd \
  $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
- $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \ 
+ $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \
 ]
 set_property library spead_lib [get_files {\
- *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg_pkg.vhd \
- *build/ARGS/correlator/spead/spead_reg/spead_spead_reg_reg.vhd \
+ *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg.vhd \
  *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
  *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
@@ -561,7 +571,7 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_registers.vhd \
  *libraries/spead/src/spead_top.vhd \
  *libraries/spead/src/memory_tdp_spead.vhd \
- *libraries/spead/src/spead_axi_bram_wrapper.vhd \ 
+ *libraries/spead/src/spead_axi_bram_wrapper.vhd \
 }]
 
 add_files -fileset sim_cor_read_spead [glob \
