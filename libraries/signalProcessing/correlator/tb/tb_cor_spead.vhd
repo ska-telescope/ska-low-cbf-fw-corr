@@ -84,6 +84,9 @@ signal stim_freq_index          : std_logic_vector(16 downto 0);
 
 signal data_valid               : std_logic := '0';
 
+constant DEBUG_VEC_SIZE         : integer := 11;
+signal tb_debug                 : std_logic_vector((DEBUG_VEC_SIZE-1) downto 0);
+
 signal row                      : std_logic_vector(12 downto 0);     -- The index of the first row that is available, counts from zero.
 signal row_count                : std_logic_vector(8 downto 0);      -- The number of rows available to be read out. Valid range is 1 to 256.
 signal HBM_curr_addr            : std_logic_vector(31 downto 0);
@@ -266,10 +269,14 @@ begin
             test_meta_done  <= '0';
             init_mem        <= '0';
             cmac_ready      <= '0';
+            tb_debug        <= (others => '0');
         else
             
             if testCount_300 = 1 then
                 init_mem    <= '1';
+
+                -- enable packetiser
+                tb_debug(10)<= '1';
             else
                 init_mem    <= '0';
             end if;
@@ -286,11 +293,18 @@ begin
                 data_valid  <= '0';
             end if;
 
-            -- if meta_data_sel = '0' then 
-            --     HBM_axi_r.data  <=  test_meta_triangle_1;
-            -- else
-            --     HBM_axi_r.data  <=  test_triangle_1(i);
-            -- end if;
+            -- using defaul values send end packets.
+            if testCount_300 = 1500 then
+                tb_debug(3)        <= '1';
+            end if;
+
+            if testCount_300 = 13500 then
+                tb_debug(3)        <= '0';
+            end if;
+
+            if testCount_300 = 14000 then
+                tb_debug(2)        <= '1';
+            end if;
             
             if HBM_axi_r.valid = '1' then
                 if HBM_axi_r.last = '1' AND meta_data_sel = '0' then
@@ -316,40 +330,15 @@ begin
                 stim_sub_array  <= 8D"4";
 
             elsif testCount_300 > 380 then
-                cmac_ready  <= '0';
-            -- elsif testCount_300 > 200 AND testCount_300 < 392 then
-            --     i <= i + 1;
-            --     HBM_axi_r.data  <= test_triangle_2(i);
-            --     --HBM_axi_r.valid <= '1';
-
-            --     row         <= 13D"0";
-            --     row_count   <= 9D"20";
-            --     data_valid  <= '1';
-            -- elsif testCount_300 > 800 AND testCount_300 < 992 then
-            --     i <= i + 1;
-            --     HBM_axi_r.data  <= test_triangle_2(i);
-            --     --HBM_axi_r.valid <= '1';
-
-            --     row         <= 13D"0";
-            --     row_count   <= 9D"256";
-            --     data_valid  <= '1';
-            -- elsif testCount_300 > 36800 AND testCount_300 < 36992 then
-            --     i <= i + 1;
-            --     HBM_axi_r.data  <= test_triangle_2(i);
-            --     --HBM_axi_r.valid <= '1';
-
-            --     row         <= 13D"256";
-            --     row_count   <= 9D"20";
-            --     data_valid  <= '1';
+                --cmac_ready  <= '0';
+            
             else
                 i <= 0;
-                --HBM_axi_r.data  <= zero_512;
                 meta_data_sel <= '0';
-                --HBM_axi_r.valid <= '0';
                 cmac_ready  <= '1';
             end if;
                 HBM_axi_r.resp  <= "00";
-                --HBM_axi_r.last  <= '0';
+
         end if;
 
     end if;
@@ -474,7 +463,8 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
     );
 
 DUT_2 : entity spead_lib.spead_top generic map ( 
-        DEBUG_ILA           => FALSE
+        g_DEBUG_VEC_SIZE    => DEBUG_VEC_SIZE,
+        g_DEBUG_ILA         => FALSE
     )
     port map ( 
         -- clock used for all data input and output from this module (300 MHz)
@@ -505,6 +495,8 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_time_ref          => time_ref,
         o_packetiser_enable => packetiser_enable,
 
+        i_debug             => tb_debug,
+
         -- ARGs
         i_spead_lite_axi_mosi   => i_spead_lite_axi_mosi,
         o_spead_lite_axi_miso   => o_spead_lite_axi_miso,
@@ -512,4 +504,5 @@ DUT_2 : entity spead_lib.spead_top generic map (
         o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
 
+    
 end Behavioral;
