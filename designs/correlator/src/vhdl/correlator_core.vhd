@@ -654,7 +654,8 @@ begin
     system_fields_ro.firmware_personality	<= g_FIRMWARE_PERSONALITY;
     system_fields_ro.build_date             <= x"66666666";             -- Now under CI/CD, rely on the ARGs generation
     
-   
+    system_fields_ro.no_of_correlator_instances <= std_logic_vector(to_unsigned(g_CORRELATORS , 4));
+    
     -- Uptime counter
     process(ap_clk)
     begin

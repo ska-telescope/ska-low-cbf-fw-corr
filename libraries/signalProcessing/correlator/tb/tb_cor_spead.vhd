@@ -320,7 +320,7 @@ begin
             end if;
 
             -- some stimulus for initial triangle testing.
-            if testCount_300 = 69 then --AND testCount_300 < 103 then
+            if testCount_300 = 69 then 
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";
                 row_count       <= 9D"6";
@@ -329,9 +329,14 @@ begin
                 stim_freq_index <= 17D"0";
                 stim_sub_array  <= 8D"4";
 
-            elsif testCount_300 > 380 then
-                --cmac_ready  <= '0';
-            
+            elsif testCount_300 = 43000 then
+                -- META DATA FROM CORRELATOR SIM
+                row             <= 13D"0";
+                row_count       <= 9D"6";
+                data_valid      <= '1';
+
+                stim_freq_index <= 17D"1";
+                stim_sub_array  <= 8D"4";
             else
                 i <= 0;
                 meta_data_sel <= '0';

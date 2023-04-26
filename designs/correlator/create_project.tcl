@@ -312,6 +312,7 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/no_of_freq_chan_preload.mem \
  $COMMON_PATH/spead/src/init_mem_preload.mem \
  $COMMON_PATH/spead/src/heap_size_preload.mem \
+ $COMMON_PATH/spead/src/heap_counter_preload.mem \
 ]
 
 #############################################################
