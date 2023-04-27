@@ -598,7 +598,7 @@ begin
                         pack_it_fsm_debug   <= x"5";
                         reset_cache_fifos   <= '0';
                         
-                        if (cache_fifos_in_reset = '0') AND (reset_cache_fifos = '0') then
+                        if (cache_fifos_in_reset = '0') AND (reset_cache_fifos = '0') AND (packed_fifo_empty = '1')then
                             pack_it_fsm         <= IDLE;
                         end if;
 
@@ -799,10 +799,9 @@ end process;
                     send_spead_data     <= "01";
                     bytes_to_packetise  <= 14D"8704";           -- stream out 256 reads of 34 bytes.
                 elsif (pack_it_fsm = COMPLETE)  then            -- force drain
-                    send_spead_data     <= "01";
                     bytes_to_packetise  <= bytes_to_process;
                 else
-                    send_spead_data <= send_spead_data(0) & '0';
+                    send_spead_data     <= "00";
                 end if;
 
                 if (pack_it_fsm = IDLE)  then
@@ -817,7 +816,10 @@ end process;
         end if;
     end process;
 
-    o_spead_data_rdy    <= send_spead_data(1);
+    o_spead_data_rdy    <= (NOT packed_fifo_empty) when (pack_it_fsm = COMPLETE) else 
+                            '1' when send_spead_data(0) = '1' else
+                            '0';
+
     o_byte_count        <= std_logic_vector(bytes_to_packetise);
 
     ---------------------------------------------------------------------------
@@ -855,7 +857,9 @@ end process;
     hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;
     hbm_rd_debug_ro.debug_hbm_reader_fsm		<= hbm_reader_fsm_debug;
     hbm_rd_debug_ro.debug_hbm_reader_fsm_cache  <= hbm_reader_fsm_debug_cache;
-    hbm_rd_debug_ro.subarray_instruction_writes	<= std_logic_vector(debug_instruction_writes);
+    hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
+
+    hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
     
 
 end Behavioral;

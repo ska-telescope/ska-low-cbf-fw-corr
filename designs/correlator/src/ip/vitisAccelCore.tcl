@@ -7,9 +7,9 @@ create_ip_run [get_ips axi_cdma_0]
 #create_ip_run [get_ips cmac_usplus_0]
 
 # 128Kbyte BRAM with AXI interface to use as external memory for the testbench.
-create_ip -name axi_bram_ctrl -vendor xilinx.com -library ip -version 4.1 -module_name axi_bram_ctrl_0
-set_property -dict [list CONFIG.SINGLE_PORT_BRAM {1} CONFIG.BMG_INSTANCE {INTERNAL} CONFIG.MEM_DEPTH {32768}] [get_ips axi_bram_ctrl_0]
-create_ip_run [get_ips axi_bram_ctrl_0]
+# create_ip -name axi_bram_ctrl -vendor xilinx.com -library ip -version 4.1 -module_name axi_bram_ctrl_0
+# set_property -dict [list CONFIG.SINGLE_PORT_BRAM {1} CONFIG.BMG_INSTANCE {INTERNAL} CONFIG.MEM_DEPTH {32768}] [get_ips axi_bram_ctrl_0]
+# create_ip_run [get_ips axi_bram_ctrl_0]
 
 # 1MByte BRAM with 512 bit AXI interface to use as HBM external memory for the testbench
 #create_ip -name axi_bram_ctrl -vendor xilinx.com -library ip -version 4.1 -module_name axi_bram_ctrl_1mbyte

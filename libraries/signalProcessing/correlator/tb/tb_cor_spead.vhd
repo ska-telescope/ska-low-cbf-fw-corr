@@ -72,11 +72,11 @@ signal freq_index               : t_slv_17_arr(1 downto 0);
 signal time_ref                 : t_slv_64_arr(1 downto 0);
 signal packetiser_enable        : std_logic_vector(1 downto 0); 
 
-signal i_spead_lite_axi_mosi    : t_axi4_lite_mosi; 
-signal o_spead_lite_axi_miso    : t_axi4_lite_miso;
+signal i_spead_lite_axi_mosi    : t_axi4_lite_mosi_arr(1 downto 0); 
+signal o_spead_lite_axi_miso    : t_axi4_lite_miso_arr(1 downto 0);
 
-signal i_spead_full_axi_mosi    : t_axi4_full_mosi;
-signal o_spead_full_axi_miso    : t_axi4_full_miso;
+signal i_spead_full_axi_mosi    : t_axi4_full_mosi_arr(1 downto 0);
+signal o_spead_full_axi_miso    : t_axi4_full_miso_arr(1 downto 0);
 
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal stim_sub_array           : std_logic_vector(7 downto 0); 
@@ -298,11 +298,11 @@ begin
                 tb_debug(3)        <= '1';
             end if;
 
-            if testCount_300 = 13500 then
+            if testCount_300 = 26500 then
                 tb_debug(3)        <= '0';
             end if;
 
-            if testCount_300 = 14000 then
+            if testCount_300 = 30000 then
                 tb_debug(2)        <= '1';
             end if;
             
@@ -327,7 +327,7 @@ begin
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"0";
-                stim_sub_array  <= 8D"4";
+                stim_sub_array  <= 8D"0";
 
             elsif testCount_300 = 43000 then
                 -- META DATA FROM CORRELATOR SIM
@@ -336,7 +336,7 @@ begin
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"4";
+                stim_sub_array  <= 8D"0";
             else
                 i <= 0;
                 meta_data_sel <= '0';
@@ -394,11 +394,8 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
 
     );
 
-
-    -- signal HBM_axi_ar               : t_axi4_full_addr;                 -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-    -- signal HBM_axi_arready          : std_logic;
-    -- signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-    -- signal HBM_axi_rready           : std_logic;
+    spead_data_rdy(1)       <= '0';
+    current_array(1)        <= (others => '0');
 
     HBM_interface : entity correlator_lib.HBM_axi_tbModel
     generic map (
@@ -468,6 +465,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
     );
 
 DUT_2 : entity spead_lib.spead_top generic map ( 
+        g_CORRELATORS       => 2,
         g_DEBUG_VEC_SIZE    => DEBUG_VEC_SIZE,
         g_DEBUG_ILA         => FALSE
     )

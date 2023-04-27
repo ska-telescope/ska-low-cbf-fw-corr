@@ -99,13 +99,13 @@ entity DSP_top_correlator is
         i_cor_axi_mosi : in  t_axi4_lite_mosi;
         o_cor_axi_miso : out t_axi4_lite_miso;
         -- Output HBM
-        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
-        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
+        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi_arr(1 downto 0);
+        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso_arr(1 downto 0);
         -- Output packetiser
-        i_spead_lite_axi_mosi : in t_axi4_lite_mosi; 
-        o_spead_lite_axi_miso : out t_axi4_lite_miso;
-        i_spead_full_axi_mosi : in  t_axi4_full_mosi;
-        o_spead_full_axi_miso : out t_axi4_full_miso;
+        i_spead_lite_axi_mosi   : in t_axi4_lite_mosi_arr(1 downto 0); 
+        o_spead_lite_axi_miso   : out t_axi4_lite_miso_arr(1 downto 0);
+        i_spead_full_axi_mosi   : in  t_axi4_full_mosi_arr(1 downto 0);
+        o_spead_full_axi_miso   : out t_axi4_full_miso_arr(1 downto 0);
         -----------------------------------------------------------------------
         -- AXI interfaces to shared memory
         -- Uses the same clock as MACE (300MHz)
@@ -673,6 +673,7 @@ begin
     
     spead_packetiser_top : entity spead_lib.spead_top 
     generic map ( 
+        g_CORRELATORS       => g_CORRELATORS,
         g_DEBUG_ILA         => FALSE
     )
     port map ( 
