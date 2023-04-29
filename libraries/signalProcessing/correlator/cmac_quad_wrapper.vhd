@@ -42,6 +42,12 @@ entity cmac_quad_wrapper is
         o_visData : out std_logic_vector(47 downto 0); -- Visibility data, 23:0 = real, 47:24 = imaginary.
         o_centroid : out std_logic_vector(23 downto 0) -- (7:0) = samples accumulated, (23:8) = centroid sum.
     );
+    
+        -- prevent optimisation 
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of cmac_quad_wrapper : entity is "yes";
+    
+    
 end cmac_quad_wrapper;
 
 architecture Behavioral of cmac_quad_wrapper is
