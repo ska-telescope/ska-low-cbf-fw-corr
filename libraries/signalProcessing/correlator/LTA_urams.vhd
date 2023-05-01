@@ -60,6 +60,11 @@ entity LTA_urams is
         o_readoutVisibilities : out std_logic_vector(255 downto 0);  -- 21 clock latency from i_readoutAddr to the data.
         o_readoutCentroid     : out std_logic_vector(31 downto 0)
     );
+
+        -- prevent optimisation 
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of LTA_urams : entity is "yes";
+
 end LTA_urams;
 
 architecture Behavioral of LTA_urams is
