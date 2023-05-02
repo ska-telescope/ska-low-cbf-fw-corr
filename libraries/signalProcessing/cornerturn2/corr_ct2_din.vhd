@@ -60,7 +60,8 @@ use xpm.vcomponents.all;
 
 entity corr_ct2_din is
     generic (
-        g_USE_META : boolean := FALSE   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
+        g_DEBUG_ILA     : BOOLEAN := FALSE;    
+        g_USE_META      : boolean := FALSE   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
     );
     port(
         i_rst : in std_logic;
@@ -233,34 +234,35 @@ begin
     o_SB_req <= SB_req;
     o_SB_addr <= SB_addr;
     
-    ct2_ila : ila_0
-    port map (
-        clk => i_axi_clk,
-        probe0(15 downto 0) => copyToHBM_count,
-        probe0(19 downto 16) => copy_fsm_dbg,
-        probe0(23 downto 20) => copyData_fsm_dbg,
-        probe0(29 downto 24) => dataFIFO_dataCount(0),
-        probe0(30) => first_aw,
-        probe0(31) => copy_fsm_stuck,
-        probe0(47 downto 32) => copydata_count,
-        probe0(59 downto 48) => copy_finechannel(11 downto 0),
-        probe0(60) => get_addr,
-        probe0(61) => HBM_addr_valid,
-        probe0(62) => HBM_addr_bad,
-        probe0(63) => HBM_fine_high,
-        probe0(95 downto 64) => HBM_addr,
-        probe0(96) => dataFIFO_valid(0),
-        probe0(97) => dataFIFO_valid(1),
-        probe0(100 downto 98) => dataFIFO_dout(0)(514 downto 512),
-        probe0(103 downto 101) => dataFIFO_dout(1)(514 downto 512),
-        probe0(104) => HBM_axi_aw(0).valid,
-        probe0(105) => HBM_axi_aw(1).valid,
-        probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
-        probe0(138) => i_HBM_axi_awready(0),
-        probe0(139) => i_HBM_axi_awready(1),
-        probe0(191 downto 140) => (others => '0')
-    );
-    
+    generate_debug_ila : IF g_DEBUG_ILA GENERATE
+        ct2_ila : ila_0
+        port map (
+            clk => i_axi_clk,
+            probe0(15 downto 0) => copyToHBM_count,
+            probe0(19 downto 16) => copy_fsm_dbg,
+            probe0(23 downto 20) => copyData_fsm_dbg,
+            probe0(29 downto 24) => dataFIFO_dataCount(0),
+            probe0(30) => first_aw,
+            probe0(31) => copy_fsm_stuck,
+            probe0(47 downto 32) => copydata_count,
+            probe0(59 downto 48) => copy_finechannel(11 downto 0),
+            probe0(60) => get_addr,
+            probe0(61) => HBM_addr_valid,
+            probe0(62) => HBM_addr_bad,
+            probe0(63) => HBM_fine_high,
+            probe0(95 downto 64) => HBM_addr,
+            probe0(96) => dataFIFO_valid(0),
+            probe0(97) => dataFIFO_valid(1),
+            probe0(100 downto 98) => dataFIFO_dout(0)(514 downto 512),
+            probe0(103 downto 101) => dataFIFO_dout(1)(514 downto 512),
+            probe0(104) => HBM_axi_aw(0).valid,
+            probe0(105) => HBM_axi_aw(1).valid,
+            probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
+            probe0(138) => i_HBM_axi_awready(0),
+            probe0(139) => i_HBM_axi_awready(1),
+            probe0(191 downto 140) => (others => '0')
+        );
+    END GENERATE;
     
     process(i_axi_clk)
         variable demap_station_x128 : std_logic_vector(31 downto 0);
