@@ -89,4 +89,5 @@ system being used.
 # Changelog
 
 * 0.0.1 - 
+    * Two instance correlator.
     * U55C  - xilinx_u55c_gen3x16_xdma_3_202210_1
