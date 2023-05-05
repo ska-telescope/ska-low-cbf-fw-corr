@@ -9,7 +9,7 @@ peripherals:
   - peripheral_name        : hbm_rd_debug
     peripheral_description : "debug and statistic registers"
     slave_ports:
-      #########################################################################################                            
+      #########################################################################################
       - slave_name        : hbm_rd_debug
         slave_type        : reg
         number_of_slaves  : 1
@@ -40,8 +40,60 @@ peripherals:
               reset_value       : 0x0
               field_description : "preceeding state of the State machine."      
          #################################
-          - - field_name        : subarray_instruction_writes
+          - - field_name        : subarray_instruct_writes
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Number of meta data writes for HBM read out passed from Correlator." 
+              field_description : "Number of meta data writes for HBM read out passed from Correlator."
+         #################################
+          - - field_name        : subarray_instruct_pending
+              width             : 8
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of correlation instructions cached in FIFO for HBM read out passed from Correlator."              
+
+  - peripheral_name        : hbm_rd_debug_2
+    peripheral_description : "debug and statistic registers"
+    slave_ports:
+      #########################################################################################
+      - slave_name        : hbm_rd_debug
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "debug and statistic registers"
+        dual_clock        : false
+        fields            :
+          - - field_name        : debug_pack_it_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state."
+         #################################
+          - - field_name        : debug_cor_tri_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state." 
+         #################################
+          - - field_name        : debug_hbm_reader_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state." 
+         #################################
+          - - field_name        : debug_hbm_reader_fsm_cache
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "preceeding state of the State machine."      
+         #################################
+          - - field_name        : subarray_instruct_writes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of meta data writes for HBM read out passed from Correlator."
+         #################################
+          - - field_name        : subarray_instruct_pending
+              width             : 8
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of correlation instructions cached in FIFO for HBM read out passed from Correlator."

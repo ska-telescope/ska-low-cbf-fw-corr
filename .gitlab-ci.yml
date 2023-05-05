@@ -19,7 +19,7 @@ variables:
   EXTRA_MODEL_DIR: "" #"low-cbf-model"  # used as path for artifacts from xsim job
   EXTRA_MATLAB_MODEL_DIR: "" #"$${BASEDIR}/${EXTRA_MODEL_DIR}/src_atomic"  # set to "" downstream to skip matlab job
   COMPARE_SIM_TO_MODEL: "FALSE" 
-
+  MAIN_BUILD_TAG: "TRUE"
 
   
 

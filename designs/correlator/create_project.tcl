@@ -312,6 +312,7 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/no_of_freq_chan_preload.mem \
  $COMMON_PATH/spead/src/init_mem_preload.mem \
  $COMMON_PATH/spead/src/heap_size_preload.mem \
+ $COMMON_PATH/spead/src/heap_counter_preload.mem \
 ]
 
 #############################################################
@@ -322,6 +323,7 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
+ $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
@@ -329,7 +331,10 @@ set_property library signal_processing_common [get_files {\
  */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  */common/src/vhdl/xpm_fifo_wrapper.vhd \
  */common/src/vhdl/memory_tdp_wrapper.vhd \
+ */common/src/vhdl/args_axi_terminus.vhd \
 }]
+
+source $COMMON_PATH/common/src/args_axi_terminus.tcl
 
 #############################################################
 # 1st corner turn, between LFAA ingest and filterbanks
@@ -351,7 +356,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
 }]
 
-source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1.tcl
+#source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1.tcl
 
 #############################################################
 # output corner turn (between filterbanks and correlator)

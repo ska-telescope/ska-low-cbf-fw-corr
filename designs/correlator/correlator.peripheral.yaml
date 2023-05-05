@@ -139,6 +139,12 @@ peripherals:
               access_mode       : RW
               reset_value       : 0x0
               field_description : "Set to 1 to enable FEC, 0 to disable"
+          #################################
+          - - field_name        : no_of_correlator_instances
+              width             : 4 
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "In the U55 this will be 1 or 2."
               
   - peripheral_name        : vitis_shared
     peripheral_description : "shared memory page for Vitis register access"

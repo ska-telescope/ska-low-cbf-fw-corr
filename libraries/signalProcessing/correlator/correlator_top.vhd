@@ -229,8 +229,9 @@ entity correlator_top is
         i_packetiser_enable     : in std_logic_vector(1 downto 0);
         
         
-        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
-        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
+        -- Output HBM
+        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi_arr(1 downto 0);
+        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso_arr(1 downto 0);
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi : in t_axi4_lite_mosi;
@@ -360,8 +361,8 @@ begin
             i_packetiser_enable => i_packetiser_enable(0),
             
             -- ARGs Debug
-            i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
-            o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,
+            i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi(0),
+            o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso(0),
             ---------------------------------------------------------------
             -- Registers
             o_HBM_end           => cor0_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
@@ -464,8 +465,8 @@ begin
             i_packetiser_enable => i_packetiser_enable(1),
             
                     -- ARGs Debug
-            i_spead_hbm_rd_lite_axi_mosi => c_axi4_lite_mosi_rst,
-            o_spead_hbm_rd_lite_axi_miso => open,
+            i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi(1),
+            o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso(1),
             ---------------------------------------------------------------
             -- Registers
             o_HBM_end           => cor1_HBM_end,     -- out (31:0); Byte address offset into the HBM buffer where the visibility circular buffer ends.
