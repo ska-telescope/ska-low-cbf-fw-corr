@@ -654,7 +654,8 @@ begin
     system_fields_ro.firmware_personality	<= g_FIRMWARE_PERSONALITY;
     system_fields_ro.build_date             <= x"66666666";             -- Now under CI/CD, rely on the ARGs generation
     
-   
+    system_fields_ro.no_of_correlator_instances <= std_logic_vector(to_unsigned(g_CORRELATORS , 4));
+    
     -- Uptime counter
     process(ap_clk)
     begin
@@ -849,13 +850,24 @@ begin
         i_cor_axi_mosi => mc_lite_mosi(c_config_lite_index), -- in  t_axi4_lite_mosi;
         o_cor_axi_miso => mc_lite_miso(c_config_lite_index), -- out t_axi4_lite_miso;
         -- Output HBM
-        i_spead_hbm_rd_lite_axi_mosi => mc_lite_mosi(c_hbm_rd_debug_lite_index),
-        o_spead_hbm_rd_lite_axi_miso => mc_lite_miso(c_hbm_rd_debug_lite_index),
-        -- PSR Packetiser interface
-        i_spead_lite_axi_mosi  => mc_lite_mosi(c_spead_sdp_lite_index),
-        o_spead_lite_axi_miso  => mc_lite_miso(c_spead_sdp_lite_index),
-        i_spead_full_axi_mosi  => mc_full_mosi(c_spead_sdp_full_index), 
-        o_spead_full_axi_miso  => mc_full_miso(c_spead_sdp_full_index),
+        i_spead_hbm_rd_lite_axi_mosi(0) => mc_lite_mosi(c_hbm_rd_debug_lite_index),
+        i_spead_hbm_rd_lite_axi_mosi(1) => mc_lite_mosi(c_hbm_rd_debug_2_lite_index),
+        
+        o_spead_hbm_rd_lite_axi_miso(0) => mc_lite_miso(c_hbm_rd_debug_lite_index),
+        o_spead_hbm_rd_lite_axi_miso(1) => mc_lite_miso(c_hbm_rd_debug_2_lite_index),
+
+        -- SDP SPEAD
+        i_spead_lite_axi_mosi(0)    => mc_lite_mosi(c_spead_sdp_lite_index),
+        i_spead_lite_axi_mosi(1)    => mc_lite_mosi(c_spead_sdp_2_lite_index),
+
+        o_spead_lite_axi_miso(0)    => mc_lite_miso(c_spead_sdp_lite_index),
+        o_spead_lite_axi_miso(1)    => mc_lite_miso(c_spead_sdp_2_lite_index),
+
+        i_spead_full_axi_mosi(0)    => mc_full_mosi(c_spead_sdp_full_index), 
+        i_spead_full_axi_mosi(1)    => mc_full_mosi(c_spead_sdp_2_full_index), 
+
+        o_spead_full_axi_miso(0)    => mc_full_miso(c_spead_sdp_full_index),
+        o_spead_full_axi_miso(1)    => mc_full_miso(c_spead_sdp_2_full_index),
 
         -----------------------------------------------------------------------
         -- AXI interfaces to HBM memory (5 interfaces used)
