@@ -28,7 +28,7 @@
 ----------------------------------------------------------------------------------
 
 library IEEE, axi4_lib, xpm, LFAADecode100G_lib, dsp_top_lib;
-library technology_lib;
+library technology_lib, spead_sps_lib;
 USE technology_lib.tech_mac_100g_pkg.ALL;
 use DSP_top_lib.DSP_top_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -36,8 +36,9 @@ use IEEE.NUMERIC_STD.ALL;
 use axi4_lib.axi4_stream_pkg.ALL;
 use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.ALL;
-use xpm.vcomponents.all;
+use xpm.vcomponents.ALL;
 use LFAADecode100G_lib.LFAADecode100G_lfaadecode100g_reg_pkg.ALL;
+use spead_sps_lib.spead_sps_pkg.ALL;
 
 entity LFAAProcess100G is
     port(
@@ -76,87 +77,6 @@ entity LFAAProcess100G is
 end LFAAProcess100G;
 
 architecture Behavioral of LFAAProcess100G is
-
-    -- relevant fields extracted from the .tuser field of the input data_rx_sosi (which comes from the 40GE MAC)
-    -- data_rx_sosi.tuser has two sets of these groups of signals, one data_rx_sosi.tdata(63:0), and one for data_rx_sosi.tdata(127:64) 
-    type t_tuser_segment is record
-        ena : std_logic;
-        sop : std_logic;
-        eop : std_logic;
-        mty : std_logic_vector(3 downto 0);
-        err : std_logic;
-    end record;
-    
-    signal tuserSeg0, tuserSeg1, tuserSeg0Del, tuserSeg1Del : t_tuser_segment;
-    
-    -- Define a type to match fields in the data coming in
-    constant fieldsToMatch : natural := 30;
-    
-    type t_field_match is record
-        wordCount  : std_logic_vector(0 downto 0); -- which 512-bit word the field should match to, either 0 or 1.
-        byteOffset : natural;     -- where in the 512-bit word the relevant bits should sit
-        bytes      : natural;     -- How many bits we are checking
-        expected   : std_logic_vector(47 downto 0); -- Value we expect for a valid SPEAD packet
-        check      : std_logic;   -- Whether we should check against the expected value or not
-    end record;
-    
-    type t_field_values is array(0 to (fieldsToMatch-1)) of std_logic_vector(47 downto 0);
-    type t_field_match_loc_array is array(0 to (fieldsToMatch-1)) of t_field_match;
-
-    -- Alignments - Data in can start in any of 4 different 128 bit segments.
-    -- An initial alignment shifts packets so that all packets have an alignment of 0.
-    --  IPv4 header will have an offset of +14 bytes (assuming 2 bytes for ethertype)
-    --  UDP header will have an offset of +34 bytes (2*16+2)
-    --  SPEAD header will have an offset of +42 bytes (2*16+10) 
-    --  Data part will have an offset of +114 bytes   (7*16 + 2)
-    --  The data is 8192 bytes = 512 * 16, so the total number of words is 520, with only 2 bytes valid in the final word. 
-    -- Note all SPEAD IDs listed in the comments below exclude the msb, which is '1' ( = immediate) for all except for sample_offset (SPEAD ID 0x3300)
-    --
-    -- A note on byte order from the 40GE core -
-    --  Bytes are sent so that the first byte in the ethernet frame is bits(7:0), second byte is bits(15:8) etc.
-    -- So e.g. for a first data word with bits(127:0) = 0x00450008201D574B6B50FFEEDDCCBBAA, we have
-    --  destination MAC address = AA:BB:CC:DD:EE:FF
-    --  Source MAC address = 50:6B:4B:57:1D:20
-    --  Ethertype = "0800"
-    --  IPv4 header byte 0 = 0x45
-    --  IPv4 DSCP/ECN field = 0x0
-    
-    -- Total header is 114 bytes, so fits in the first two 512 bit words.
-    constant c_fieldmatch_loc : t_field_match_loc_array := 
-        ((wordCount => "0", byteOffset => 0,  bytes => 6, expected => x"000000000000", check => '0'),  -- 0. Destination MAC address, first 6 bytes of the frame.
-         (wordCount => "0", byteOffset => 12, bytes => 2, expected => x"000000000800", check => '1'),  -- 1. Ethertype field at byte 12 should be 0x0800 for IPv4 packets
-         (wordCount => "0", byteOffset => 14, bytes => 1, expected => x"000000000045", check => '1'),  -- 2. Version and header length fields of the IPv4 header, at byte 14. should be x45.
-         (wordCount => "0", byteOffset => 16, bytes => 2, expected => x"000000002064", check => '1'),  -- 3. Total Length from the IPv4 header. Should be 20 (IPv4) + 8 (UDP) + 72 (SPEAD) + 8192 (Data) = 8292 = x2064
-         (wordCount => "0", byteOffset => 23, bytes => 1, expected => x"000000000011", check => '1'),  -- 4. Protocol field from the IPv4 header, Should be 0x11 (UDP).
-         (wordCount => "0", byteOffset => 36, bytes => 2, expected => x"000000000000", check => '0'),  -- 5. Destination UDP port - expected value to be configured via MACE
-         (wordCount => "0", byteOffset => 38, bytes => 2, expected => x"000000002050", check => '1'),  -- 6. UDP length. Should be 8 (UDP) + 72 (SPEAD) + 8192 (Data) = x2050
-         (wordCount => "0", byteOffset => 42, bytes => 2, expected => x"000000005304", check => '1'),  -- 7. First 2 bytes of the SPEAD header, should be 0x53 ("MAGIC"), 0x04 ("Version")
-         (wordCount => "0", byteOffset => 44, bytes => 2, expected => x"000000000206", check => '1'),  -- 8. Bytes 3 and 4 of the SPEAD header, should be 0x02 ("ItemPointerWidth"), 0x06 ("HeapAddrWidht")
-         (wordCount => "0", byteOffset => 48, bytes => 2, expected => x"000000000008", check => '1'),  -- 9. Bytes 7 and 8 of the SPEAD header, should be 0x00 and 0x08 ("Number of Items")
-         (wordCount => "0", byteOffset => 50, bytes => 2, expected => x"000000008001", check => '1'),  -- 10. SPEAD ID 0x0001 = "heap_counter" field, should be 0x8001.
-         (wordCount => "0", byteOffset => 52, bytes => 2, expected => x"000000000000", check => '0'),  -- 11. Logical Channel ID
-         (wordCount => "0", byteOffset => 54, bytes => 4, expected => x"000000000000", check => '0'),  -- 12. Packet Counter 
-         (wordCount => "0", byteOffset => 58, bytes => 2, expected => x"000000008004", check => '1'),  -- 13. SPEAD ID 0x0004 = "pkt_len" (data for this SPEAD ID is ignored)
-         (wordCount => "1", byteOffset => 2,  bytes => 2, expected => x"000000009027", check => '1'),  -- 14. SPEAD ID 0x1027 = "sync_time"
-         (wordCount => "1", byteOffset => 4,  bytes => 6, expected => x"000000000000", check => '0'),  -- 15. sync time in seconds from UNIX epoch
-         (wordCount => "1", byteOffset => 10, bytes => 2, expected => x"000000009600", check => '1'),  -- 16. SPEAD ID 0x1600 = timestamp, time in nanoseconds after "sync_time"
-         (wordCount => "1", byteOffset => 12, bytes => 4, expected => x"000000000000", check => '0'),  -- 17. first 4 bytes of timestamp
-         (wordCount => "1", byteoffset => 16, bytes => 2, expected => x"000000000000", check => '0'),  -- 18. Last 2 bytes of the timestamp
-         (wordCount => "1", byteoffset => 18, bytes => 2, expected => x"000000009011", check => '1'),  -- 19. SPEAD ID 0x1011 = center_freq
-         (wordCount => "1", byteoffset => 20, bytes => 6, expected => x"000000000000", check => '0'),  -- 20. center_frequency in Hz
-         (wordCount => "1", byteoffset => 26, bytes => 2, expected => x"00000000b000", check => '1'),  -- 21. SPEAD ID 0x3000 = csp_channel_info
-         (wordCount => "1", byteoffset => 30, bytes => 2, expected => x"000000000000", check => '0'),  -- 22. beam_id
-         (wordCount => "1", byteoffset => 32, bytes => 2, expected => x"000000000000", check => '0'),  -- 23. frequency_id
-         (wordCount => "1", byteoffset => 34, bytes => 2, expected => x"00000000b001", check => '1'),  -- 24. SPEAD ID 0x3001 = csp_antenna_info
-         (wordCount => "1", byteoffset => 36, bytes => 1, expected => x"000000000000", check => '0'),  -- 25. substation_id
-         (wordCount => "1", byteoffset => 37, bytes => 1, expected => x"000000000000", check => '0'),  -- 26. subarray_id
-         (wordCount => "1", byteoffset => 38, bytes => 2, expected => x"000000000000", check => '0'),  -- 27. station_id
-         (wordCount => "1", byteoffset => 40, bytes => 2, expected => x"000000000000", check => '0'),  -- 28. nof_contributing_antennas
-         (wordCount => "1", byteoffset => 42, bytes => 2, expected => x"000000003300", check => '0')   -- 29. SPEAD ID 0x3300 = sample_offset. top bit is not set since this is "indirect" even though it is a null pointer.
-    );    
-    
-    
-    
     
     -- For data coming in, capture the following fields to registers, and use them to look up the virtual channel from the table in the registers.
     --  - frequency_id, 9 bits, SPEAD ID 0x3000
@@ -164,7 +84,7 @@ architecture Behavioral of LFAAProcess100G is
     --  - substation_id, 3 bits, SPEAD ID 0x3001
     --  - subarray_id, 5 bits, SPEAD ID 0x3001
     --  - station_id, 10 bits, SPEAD ID 0x3001
-    constant c_frequency_id_index : natural := 23;  -- 23rd field in c_fieldmatch_loc
+    constant c_frequency_id_index : natural := 23;  -- 23rd field in c_sps_v1_fieldmatch_loc
     constant c_beam_id_index : natural := 22;
     constant c_substation_id_index : natural := 25;
     constant c_subarray_id_index : natural := 26;
@@ -178,8 +98,15 @@ architecture Behavioral of LFAAProcess100G is
     constant c_sync_time : natural := 15; -- sync time, 6 bytes.
     
     signal actualValues : t_field_values;
-    signal fieldMatch : std_logic_vector(29 downto 0) := (others => '1');
-    signal allFieldsMatch : std_logic := '0';
+    signal fieldMatch               : std_logic_vector((fieldsToMatch-1) downto 0) := (others => '1');
+    signal spead_v2_fieldMatch      : std_logic_vector((fieldsToMatch-1) downto 0) := (others => '1');
+    
+    signal allFieldsMatch           : std_logic := '0';
+    signal spead_v2_allFieldsMatch  : std_logic := '0';
+
+    signal spead_v1_packet_found    : std_logic := '0';
+    signal spead_v2_packet_found    : std_logic := '0';
+    signal non_spead_packet_found   : std_logic := '0';
     
     signal dataSeg0Del : std_logic_vector(63 downto 0);
     signal dataSeg1Del : std_logic_vector(63 downto 0);
@@ -194,8 +121,11 @@ architecture Behavioral of LFAAProcess100G is
     signal txCount : std_logic_vector(8 downto 0) := (others => '0');
     type t_tx_fsm is (idle, send_data, next_buffer, send_wait);
     signal tx_fsm, tx_fsm_del1, tx_fsm_del2 : t_tx_fsm := idle;
+
     type t_rx_fsm is (idle, frame_start, start_lookup, wait_lookup, set_header, wait_done);
     signal rx_fsm : t_rx_fsm := idle;
+    signal rx_fsm_d : t_rx_fsm;
+
     type t_stats_fsm is (idle, wait_good_packet, get_packet_count, check_packet_count, rd_out_of_order_count0, rd_out_of_order_count1, rd_out_of_order_count2, wr_out_of_order_count, wr_packet_count, wr_channel, wr_UNIXTime, wr_timestampLow, wr_timestampHigh, wr_synctimeLow, wr_synctimeHigh);
     signal stats_fsm : t_stats_fsm := idle;
     
@@ -308,7 +238,8 @@ begin
     totalVirtualChannels <= i_reg_rw.total_channels;
     
     process(i_data_clk, i_data_rst)
-        variable allFieldsMatchv : std_logic := '0';
+        variable v_allFieldsMatch            : std_logic := '0';
+        variable v_spead_v2_allFieldsMatch   : std_logic := '0';
     begin
         
         if i_data_rst = '1' then
@@ -401,18 +332,18 @@ begin
             
             ------------------------------------------------------------------------------------------------
             -- Capture all the relevant fields in the headers 
-            -- Example entry in c_fieldmatch_loc
+            -- Example entry in c_sps_v1_fieldmatch_loc
             --   (wordCount => "000", byteOffset => 12, bytes => 2, expected => x"000000000800", check => '1')
             -- wordCount is in units of 128 bits. dataAligned is 512 bits. So wordCount(1:0) is the 128 bit word within dataAligned.
             for i in 0 to (fieldsToMatch-1) loop
                 if ((dataAlignedCount(9 downto 1) = "000000000") and 
-                    (dataAlignedCount(0) = c_fieldmatch_loc(i).wordcount(0)) and 
+                    (dataAlignedCount(0) = c_sps_v1_fieldmatch_loc(i).wordcount(0)) and 
                     (dataAlignedValid = '1')) then
                     -- Copy the bytes into the actualValues array
-                    for j in 0 to (c_fieldmatch_loc(i).bytes-1) loop
+                    for j in 0 to (c_sps_v1_fieldmatch_loc(i).bytes-1) loop
                         actualValues(i)(((j+1) * 8 - 1) downto (j*8)) <=
-                            dataAligned((c_fieldmatch_loc(i).byteOffset * 8 + (c_fieldmatch_loc(i).bytes-1)*8 - j*8 + 7) downto
-                                        (c_fieldmatch_loc(i).byteOffset * 8 + (c_fieldmatch_loc(i).bytes-1)*8 - j*8));
+                            dataAligned((c_sps_v1_fieldmatch_loc(i).byteOffset * 8 + (c_sps_v1_fieldmatch_loc(i).bytes-1)*8 - j*8 + 7) downto
+                                        (c_sps_v1_fieldmatch_loc(i).byteOffset * 8 + (c_sps_v1_fieldmatch_loc(i).bytes-1)*8 - j*8));
                     end loop;
                 end if;
             end loop;
@@ -423,9 +354,10 @@ begin
             
             ------------------------------------------------------------------------------------------------
             -- Check all the relevant fields in the headers
+            -- Version 1 SPEAD
             for i in 0 to (fieldsToMatch-1) loop
-                if c_fieldmatch_loc(i).check = '1' then
-                    if (actualValues(i)((c_fieldmatch_loc(i).bytes*8 - 1) downto 0) = c_fieldmatch_loc(i).expected((c_fieldmatch_loc(i).bytes*8 - 1) downto 0)) then
+                if c_sps_v1_fieldmatch_loc(i).check = '1' then
+                    if (actualValues(i)((c_sps_v1_fieldmatch_loc(i).bytes*8 - 1) downto 0) = c_sps_v1_fieldmatch_loc(i).expected((c_sps_v1_fieldmatch_loc(i).bytes*8 - 1) downto 0)) then
                         fieldMatch(i) <= '1';
                     else
                         fieldMatch(i) <= '0';
@@ -434,15 +366,47 @@ begin
                     fieldMatch(i) <= '1';
                 end if;
             end loop;
-            
-            allFieldsMatchv := '1';
+
+            v_allFieldsMatch := '1';
             for i in 0 to (fieldsToMatch-1) loop
                 if fieldMatch(i) = '0' then
-                    allFieldsMatchv := '0';
+                    v_allFieldsMatch := '0';
                 end if;
             end loop;
-            allFieldsMatch <= allFieldsMatchv;
+            allFieldsMatch <= v_allFieldsMatch;
+
+            -- Version 2 SPEAD
+            for i in 0 to (fieldsToMatch-1) loop
+                if c_sps_v1_fieldmatch_loc(i).check = '1' then
+                    if (actualValues(i)((c_sps_v2_fieldmatch_loc(i).bytes*8 - 1) downto 0) = c_sps_v2_fieldmatch_loc(i).expected((c_sps_v2_fieldmatch_loc(i).bytes*8 - 1) downto 0)) then
+                        spead_v2_fieldMatch(i) <= '1';
+                    else
+                    spead_v2_fieldMatch(i) <= '0';
+                    end if;
+                else
+                    spead_v2_fieldMatch(i) <= '1';
+                end if;
+            end loop;
+
+            v_spead_v2_allFieldsMatch := '1';
+            for i in 0 to (fieldsToMatch-1) loop
+                if spead_v2_fieldMatch(i) = '0' then
+                    v_spead_v2_allFieldsMatch := '0';
+                end if;
+            end loop;
+            spead_v2_allFieldsMatch <= v_spead_v2_allFieldsMatch;
             
+            rx_fsm_d <= rx_fsm;
+
+            if (rx_fsm = start_lookup) AND (rx_fsm_d /= rx_fsm) then
+                spead_v1_packet_found   <= allFieldsMatch;
+                spead_v2_packet_found   <= spead_v2_allFieldsMatch;
+                non_spead_packet_found  <= (NOT allFieldsMatch) AND (NOT spead_v2_allFieldsMatch);
+            else
+                spead_v1_packet_found   <= '0';
+                spead_v2_packet_found   <= '0';
+            end if;
+
             -----------------------------------------------------------------------------------------------
             -- Once we have captured the header information, trigger searching of the virtual channel table
             -- Since we only have 128 clocks to search the virtual channel table, a binary search is used.
@@ -637,7 +601,7 @@ begin
                             rx_fsm <= idle;
                             noVirtualChannel <= '1';
                             nonSPEADPacket <= '0';
-                        elsif allFieldsMatch = '0' then
+                        elsif (allFieldsMatch = '0') AND (spead_v2_allFieldsMatch = '0') then
                             rx_fsm <= idle;
                             nonSPEADPacket <= '1';
                             noVirtualChannel <= '0';
@@ -773,9 +737,9 @@ begin
                     if rx_fsm = wait_lookup and searchDone = '1' and NoMatch = '0' then
                         stats_fsm <= wait_good_packet;
                         statsBaseAddr <= VirtualChannelx8; -- address to read in the stats memory
-                        statsNewPacketCount <= actualValues(c_packet_counter)((c_fieldmatch_loc(c_packet_counter).bytes*8 - 1) downto 0);
-                        statsSPEADLogicalChannel <= actualValues(c_SPEAD_logical_channel)((c_fieldmatch_loc(c_SPEAD_logical_channel).bytes*8 - 1) downto 0);
-                        statsNOFAntennas <= actualValues(c_nof_antennas)((c_fieldmatch_loc(c_nof_antennas).bytes*8 - 1) downto 0);
+                        statsNewPacketCount <= actualValues(c_packet_counter)((c_sps_v1_fieldmatch_loc(c_packet_counter).bytes*8 - 1) downto 0);
+                        statsSPEADLogicalChannel <= actualValues(c_SPEAD_logical_channel)((c_sps_v1_fieldmatch_loc(c_SPEAD_logical_channel).bytes*8 - 1) downto 0);
+                        statsNOFAntennas <= actualValues(c_nof_antennas)((c_sps_v1_fieldmatch_loc(c_nof_antennas).bytes*8 - 1) downto 0);
                         
                         statsTimestamp(47 downto 16) <= actualValues(c_timestamp_high)(31 downto 0);  -- 4 high bytes
                         statsTimestamp(15 downto 0) <= actualValues(c_timestamp_low)(15 downto 0);     -- 2 low bytes
@@ -1008,11 +972,15 @@ begin
     bufWrAddr <= wrBufSel & bufWrCount(6 downto 0); -- Buffer is 512 deep x 64 bytes wide, one packet is 128 deep x 64 wide = 8192 bytes.
     bufRdAddr <= rdBufSel & txCount(6 downto 0);
     
-    o_reg_count.spead_packet_count <= goodPacket;
-    o_reg_count.nonspead_packet_count <= nonSPEADPacket;
-    o_reg_count.badethernetframes <= badEthPacket;
-    o_reg_count.badipudpframes <= badIPUDPPacket;
-    o_reg_count.novirtualchannelcount <= noVirtualChannel;
+    o_reg_count.spead_packet_count      <= goodPacket;
+    o_reg_count.nonspead_packet_count   <= nonSPEADPacket;
+    o_reg_count.badethernetframes       <= badEthPacket;
+    o_reg_count.badipudpframes          <= badIPUDPPacket;
+    o_reg_count.novirtualchannelcount   <= noVirtualChannel;
+
+    o_reg_count.spead_v1_packet_found   <= spead_v1_packet_found;
+    o_reg_count.spead_v2_packet_found   <= spead_v2_packet_found;
+    o_reg_count.non_spead_packet_found  <= non_spead_packet_found;
     
     -- Search address : 
     --   bit 0 selects either table data or the virtual channel that this table entry will use.
