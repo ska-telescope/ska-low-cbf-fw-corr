@@ -405,6 +405,7 @@ begin
             else
                 spead_v1_packet_found   <= '0';
                 spead_v2_packet_found   <= '0';
+                non_spead_packet_found  <= '0';
             end if;
 
             -----------------------------------------------------------------------------------------------
