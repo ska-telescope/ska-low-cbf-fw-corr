@@ -97,9 +97,10 @@ ENTITY correlator_core IS
         i_eth100G_rx_bad_code      : in std_logic_vector(31 downto 0);
         i_eth100G_tx_total_packets : in std_logic_vector(31 downto 0);
         
+        -- registers for the CMAC in Timeslave BD 
+        o_cmac_mc_lite_mosi : out t_axi4_lite_mosi; 
+        i_cmac_mc_lite_miso : in t_axi4_lite_miso;
         -- registers in the timeslave core
-        o_timeslave_mc_lite_mosi : out t_axi4_lite_mosi; 
-        i_timeslave_mc_lite_miso : in t_axi4_lite_miso;
         o_timeslave_mc_full_mosi : out t_axi4_full_mosi;
         i_timeslave_mc_full_miso : in t_axi4_full_miso;
         --------------------------------------------------------------------------------------
@@ -569,11 +570,12 @@ begin
         MSTR_OUT_FULL  => mc_full_mosi
     );
     
-    o_timeslave_mc_lite_mosi <= mc_lite_mosi(c_timeslave_lite_index);
-    mc_lite_miso(c_timeslave_lite_index) <= i_timeslave_mc_lite_miso;
+    o_cmac_mc_lite_mosi <= mc_lite_mosi(c_cmac_lite_index);
+    mc_lite_miso(c_cmac_lite_index) <= i_cmac_mc_lite_miso;
+
     o_timeslave_mc_full_mosi <= mc_full_mosi(c_timeslave_full_index);
     mc_full_miso(c_timeslave_full_index) <= i_timeslave_mc_full_miso;
-    
+
     -- Map the connection to shared memory for register reads and writes.
     m00_axi_awvalid <= mc_full_mosi(c_vitis_shared_full_index).awvalid; -- out std_logic;
     

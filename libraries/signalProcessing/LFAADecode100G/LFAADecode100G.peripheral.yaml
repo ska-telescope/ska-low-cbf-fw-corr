@@ -84,6 +84,24 @@ peripherals:
               access_mode       : CS
               reset_value       : 0x0
               field_description : "Count of packets that did not match an entry in the virtual channel table, reset on write."
+          #################################
+          - - field_name        : spead_v1_packet_found
+              width             : 32
+              access_mode       : CW
+              reset_value       : 0x0
+              field_description : "Count of packets that match spead v1 headers, 32 bit wrapping, reset on write."
+          #################################
+          - - field_name        : spead_v2_packet_found
+              width             : 32
+              access_mode       : CW
+              reset_value       : 0x0
+              field_description : "Count of packets that match spead v2 headers, 32 bit wrapping, reset on write."
+          #################################
+          - - field_name        : non_spead_packet_found
+              width             : 32
+              access_mode       : CW
+              reset_value       : 0x0
+              field_description : "Count of packets that match spead headers, 32 bit wrapping, reset on write."              
           ################################# 
           - - field_name        : VCTable
               width             : 32
