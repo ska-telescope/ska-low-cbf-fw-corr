@@ -315,6 +315,15 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/heap_counter_preload.mem \
 ]
 
+##############################################################
+# setup sim set for SPS SPEAD
+add_files -fileset sources_1 [glob \
+ $COMMON_PATH/spead_sps/src/spead_sps_packet_pkg.vhd \
+]
+set_property library spead_sps_lib [get_files {\
+ *libraries/spead_sps/src/spead_sps_packet_pkg.vhd \
+}]
+
 #############################################################
 # Signal_processing_common
 add_files -fileset sources_1 [glob \

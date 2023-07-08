@@ -457,8 +457,9 @@ ARCHITECTURE structure OF correlator IS
     signal tx_axis_tvalid : std_logic;
     signal tx_axis_tready : std_logic;
     
-    signal timeslave_mc_lite_mosi : t_axi4_lite_mosi; 
-    signal timeslave_mc_lite_miso : t_axi4_lite_miso;
+    signal cmac_mc_lite_mosi : t_axi4_lite_mosi; 
+    signal cmac_mc_lite_miso : t_axi4_lite_miso;
+
     signal timeslave_mc_full_mosi : t_axi4_full_mosi;
     signal timeslave_mc_full_miso : t_axi4_full_miso;
     signal eth100_reset_final : std_logic;
@@ -551,8 +552,8 @@ begin
         i_ARGs_clk => ap_clk, -- in std_logic;
         i_ARGs_rst => ap_rst, -- in std_logic;
         
-        i_CMAC_Lite_axi_mosi      => timeslave_mc_lite_mosi,
-        o_CMAC_Lite_axi_miso      => timeslave_mc_lite_miso,
+        i_CMAC_Lite_axi_mosi      => cmac_mc_lite_mosi,
+        o_CMAC_Lite_axi_miso      => cmac_mc_lite_miso,
         
         i_Timeslave_Full_axi_mosi => timeslave_mc_full_mosi,
         o_Timeslave_Full_axi_miso => timeslave_mc_full_miso
@@ -621,10 +622,12 @@ begin
         i_eth100G_rx_bad_code      => eth100G_rx_bad_code,      -- in (31:0);
         i_eth100G_tx_total_packets => eth100G_tx_total_packets, -- in (31:0);
         
-        o_timeslave_mc_lite_mosi => timeslave_mc_lite_mosi, 
-        i_timeslave_mc_lite_miso => timeslave_mc_lite_miso,
-        o_timeslave_mc_full_mosi => timeslave_mc_full_mosi,
-        i_timeslave_mc_full_miso => timeslave_mc_full_miso,
+        -- registers for the CMAC in Timeslave BD 
+        o_cmac_mc_lite_mosi         => cmac_mc_lite_mosi,
+        i_cmac_mc_lite_miso         => cmac_mc_lite_miso,
+        -- registers in the timeslave core
+        o_timeslave_mc_full_mosi    => timeslave_mc_full_mosi,
+        i_timeslave_mc_full_miso    => timeslave_mc_full_miso,
         --------------------------------------------------------------------------------------
         --  Note: A minimum subset of AXI4 memory mapped signals are declared.  AXI
         --  signals omitted from these interfaces are automatically inferred with the
