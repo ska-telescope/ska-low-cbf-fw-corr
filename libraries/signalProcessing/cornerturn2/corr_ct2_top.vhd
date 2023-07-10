@@ -172,7 +172,10 @@ architecture Behavioral of corr_ct2_top is
     signal din_SB_fineStart : std_logic_vector(15 downto 0);   -- The first fine channel in this subarray-beam
     signal din_SB_n_fine : std_logic_Vector(23 downto 0);      -- The number of fine channels in this subarray-beam
     signal din_SB_HBM_base_addr : std_logic_vector(31 downto 0); --  Base address in HBM for this subarray-beam.
-    signal dout_SB_req, dout_SB_req_del1, dout_SB_valid : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
+    signal dout_SB_req      : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+    signal dout_SB_req_d0   : std_logic_vector(5 downto 0) := (others => '0');
+    signal dout_SB_req_d1   : std_logic_vector(5 downto 0) := (others => '0');
+    signal dout_SB_valid    : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal dout_SB_stations : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);    -- The number of (sub)stations in this subarray-beam
     signal dout_SB_coarseStart : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- The first coarse channel in this subarray-beam
     signal dout_SB_fineStart : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);   -- The first fine channel in this subarray-beam
@@ -692,7 +695,7 @@ begin
                 end loop;
             else
                 for i in 0 to (g_MAX_CORRELATORS - 1) loop
-                    if (SB_rd_fsm_del3 = get_dout_rd4) and (unsigned(dout_SB_sel) = i) then
+                    if (SB_rd_fsm_del3 = get_dout_rd4) and (unsigned(dout_SB_sel_del3) = i) then
                         -- use fsm_del3 so that dout_SB_done will only be set after dout_SB_valid.
                         cur_readout_SB(i) <= std_logic_vector(unsigned(cur_readout_SB(i)) + 1);
                     end if;
@@ -703,9 +706,25 @@ begin
                     end if;
                 end loop;
             end if;
-            
-            dout_sb_req_del1 <= dout_sb_req;
-            
+
+            -- capture the config request, and cache it for 4 cycles.
+            -- the SM is 4 cycles and a correlator instance.
+            if dout_SB_req(0) = '1' then
+                dout_SB_req_d0 <= "111111";
+            elsif (SB_rd_fsm = get_dout_rd1) AND (dout_SB_sel(0) = '0') then
+                dout_SB_req_d0 <= (others => '0');
+            else
+                dout_SB_req_d0 <= dout_SB_req_d0(4 downto 0) & '0';
+            end if;
+
+            if dout_SB_req(1) = '1' then
+                dout_SB_req_d1 <= "111111";
+            elsif (SB_rd_fsm = get_dout_rd1) AND (dout_SB_sel(0) = '1') then
+                dout_SB_req_d1 <= (others => '0');
+            else
+                dout_SB_req_d1 <= dout_SB_req_d1(4 downto 0) & '0';
+            end if;
+
             -- This fsm handles reading from the subarray-beam table in the registers.
             -- There are multiple modules contending for access to the table; : 
             --  - The data input side, "corr_ct2_din", for working out where in HBM to put data from the filterbanks
@@ -715,16 +734,12 @@ begin
                 when idle =>
                     if din_SB_req = '1' then
                         SB_rd_fsm <= get_din_rd1;
-                    elsif unsigned(dout_SB_req) /= 0 then
+                    elsif dout_SB_req_d1(5) /= '0' OR dout_SB_req_d0(5) /= '0' then
                         SB_rd_fsm <= get_dout_rd1;
-                        for i in 0 to (g_MAX_CORRELATORS-1) loop
-                            if dout_SB_req(i) = '1' then
-                                dout_SB_sel_v := i;
-                            end if;
-                        end loop;
-                        if dout_SB_sel_v = 0 then
+
+                        if dout_SB_req_d0(5) = '1' then
                             dout_SB_sel(0) <= '0';
-                        elsif dout_SB_sel_v = 1 then
+                        else
                             dout_SB_sel(0) <= '1';
                         end if;
                     end if;
