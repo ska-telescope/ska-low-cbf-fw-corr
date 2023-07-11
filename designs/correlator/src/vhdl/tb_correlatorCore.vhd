@@ -31,10 +31,11 @@ USE technology_lib.tech_mac_100g_pkg.ALL;
 entity tb_correlatorCore is
     generic (
         g_SPS_PACKETS_PER_FRAME : integer := 128;
-        g_CORRELATORS : integer := 1; -- Number of correlator instances to instantiate (0, 1, 2)
+        g_CORRELATORS : integer := 2; -- Number of correlator instances to instantiate (0, 1, 2)
         g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
         g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        --g_TEST_CASE : string := "../../../../../../../";
         -- text file with SPS packets
         g_SPS_DATA_FILENAME : string := "sps_axi_tb_input.txt";
         -- Register initialisation
@@ -867,8 +868,8 @@ begin
         i_eth100G_tx_total_packets => (others => '0'), -- in (31:0);
         
         -- registers in the timeslave core
-        o_timeslave_mc_lite_mosi => open, --  out t_axi4_lite_mosi; 
-        i_timeslave_mc_lite_miso => axi4_lite_miso_dummy, --  in t_axi4_lite_miso;
+        o_cmac_mc_lite_mosi => open, --  out t_axi4_lite_mosi; 
+        i_cmac_mc_lite_miso => axi4_lite_miso_dummy, --  in t_axi4_lite_miso;
         o_timeslave_mc_full_mosi => open, --  out t_axi4_full_mosi;
         i_timeslave_mc_full_miso => axi4_full_miso_dummy, -- in t_axi4_full_miso;
 
