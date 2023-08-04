@@ -211,6 +211,9 @@ architecture Behavioral of corr_ct2_din is
     signal in_set_aw_count : std_logic_vector(7 downto 0) := x"00";
     signal copy_fsm_stuck : std_logic;
     signal virtualChannel0Del1, virtualChannel3Del1 : std_logic_vector(15 downto 0);
+
+    signal wait_HBMX_aw_rdy_stuck       : std_logic;
+    signal wait_HBMX_aw_rdy_stuck_cnt   : unsigned(15 downto 0) := x"0000";
     
     COMPONENT ila_0
     PORT (
@@ -260,9 +263,72 @@ begin
             probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
             probe0(138) => i_HBM_axi_awready(0),
             probe0(139) => i_HBM_axi_awready(1),
-            probe0(191 downto 140) => (others => '0')
+            probe0(140) => last_virtual_channel,
+            probe0(141) => copyToHBM_trigger,
+            probe0(149 downto 142) => i_virtualChannel(0)(7 downto 0),
+            probe0(157 downto 150) => i_virtualChannel(1)(7 downto 0),
+            probe0(165 downto 158) => i_virtualChannel(2)(7 downto 0),
+            probe0(167 downto 166) => i_frameCount_mod3,
+            probe0(171 downto 168) => i_HeaderValid,
+            probe0(187 downto 172) => i_lastChannel,
+            probe0(191 downto 188) => i_frameCount_849ms(3 downto 0)
+        );
+        
+        ct2_pt2_ila : ila_0
+        port map (
+            clk => i_axi_clk,
+            probe0(15 downto 0) => copyToHBM_count,
+            probe0(19 downto 16) => copy_fsm_dbg,
+            probe0(23 downto 20) => copyData_fsm_dbg,
+            probe0(29 downto 24) => dataFIFO_dataCount(0),
+
+            probe0(45 downto 30) => last_word_in_frame,
+            probe0(57 downto 46) => copyData_fineRemaining,
+            probe0(58) => copyData_trigger,
+
+            probe0(61 downto 59) => bufRdCount,
+
+            probe0(62) => trigger_copyData_fsm,
+            probe0(68 downto 63) => dataFIFO_dataCount(1),
+            probe0(70 downto 69) => dataFIFO_wrEn,
+            
+            probe0(71) => wait_HBMX_aw_rdy_stuck,
+            probe0(72) => copy_trigger,
+            probe0(73) => copyToHBM,
+
+            probe0(74) => i_HBM_axi_b(0).valid,
+            probe0(75) => i_HBM_axi_b(1).valid,
+
+            probe0(77 downto 76) => i_HBM_axi_b(0).resp,
+            probe0(79 downto 78) => i_HBM_axi_b(1).resp,
+
+            probe0(81 downto 80) => i_HBM_axi_wready,
+
+            probe0(87 downto 82) => fifo_size_plus_pending,
+            probe0(88) => copy_SB_HBM_sel,
+
+            probe0(95 downto 89) => ( others => '0' ),
+
+            probe0(96) => dataFIFO_valid(0),
+            probe0(97) => dataFIFO_valid(1),
+            probe0(100 downto 98) => dataFIFO_dout(0)(514 downto 512),
+            probe0(103 downto 101) => dataFIFO_dout(1)(514 downto 512),
+            probe0(104) => HBM_axi_aw(0).valid,
+            probe0(105) => HBM_axi_aw(1).valid,
+            probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
+            probe0(138) => i_HBM_axi_awready(0),
+            probe0(139) => i_HBM_axi_awready(1),
+            probe0(140) => last_virtual_channel,
+            probe0(141) => copyToHBM_trigger,
+
+            probe0(157 downto 142) => dataFIFO0_wrEn,
+            probe0(173 downto 158) => dataFIFO1_wrEn,
+            probe0(183 downto 174) => i_virtualChannel(2)(9 downto 0),
+            probe0(191 downto 184) => i_virtualChannel(3)(7 downto 0)
         );
     END GENERATE;
+    
+    
     
     process(i_axi_clk)
         variable demap_station_x128 : std_logic_vector(31 downto 0);
@@ -528,6 +594,18 @@ begin
             else
                 copy_fsm_stuck <= '0';
             end if;
+            
+            if (copy_fsm = wait_HBM0_aw_rdy) OR (copy_fsm = wait_HBM1_aw_rdy) then
+                wait_HBMX_aw_rdy_stuck_cnt  <= wait_HBMX_aw_rdy_stuck_cnt + 1;
+            else
+                wait_HBMX_aw_rdy_stuck_cnt  <= x"0000";
+            end if;
+
+            if wait_HBMX_aw_rdy_stuck_cnt > 1000 then
+                wait_HBMX_aw_rdy_stuck <= '1';
+            else
+                wait_HBMX_aw_rdy_stuck <= '0';
+            end if;
         
             -- fsm to generate write addresses
             if i_rst = '1' then
@@ -747,7 +825,7 @@ begin
             
             -- 16 clock latency to read the ultraRAM buffer.
             dataFIFO0_wrEn(15 downto 1) <= dataFIFO0_wrEn(14 downto 0);
-            dataFIFO1_wrEn(15 downto 1) <= dataFIFO0_wrEn(14 downto 0);
+            dataFIFO1_wrEn(15 downto 1) <= dataFIFO1_wrEn(14 downto 0);
             
             -- Need to know how many writes to the FIFO are pending, due to the large latency in reading the ultraRAM buffer.
             fifo_size_plus_pending0 <= std_logic_vector(unsigned(pending0) + unsigned(dataFIFO_dataCount(0)));
