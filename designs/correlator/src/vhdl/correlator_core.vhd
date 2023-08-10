@@ -351,8 +351,24 @@ ARCHITECTURE structure OF correlator_core IS
     signal fec_enable_reset_count   : integer := 0;
     signal fec_enable_reset         : std_logic := '0';
     
-    -- PTP Data
+    -- Logic side signals of HBM reset mechanism
+    signal logic_HBM_axi_aw         : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
+    signal logic_HBM_axi_awreadyi   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
 
+    signal logic_HBM_axi_w          : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
+    signal logic_HBM_axi_wreadyi    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+
+    signal logic_HBM_axi_b          : t_axi4_full_b_arr(g_HBM_INTERFACES-1 downto 0);
+
+    signal logic_HBM_axi_ar         : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
+    signal logic_HBM_axi_arreadyi   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);    
+
+    signal logic_HBM_axi_r          : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
+    signal logic_HBM_axi_rreadyi    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+
+    -- HBM reset
+    signal hbm_reset                : std_logic_vector(4 downto 0);
+    signal hbm_status               : std_logic_vector(4 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
 
@@ -874,19 +890,19 @@ begin
         -----------------------------------------------------------------------
         -- AXI interfaces to HBM memory (5 interfaces used)
         -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_aw      => HBM_axi_aw,       
-        i_HBM_axi_awready => HBM_axi_awreadyi, -- in std_logic_vector(4:0);
+        o_HBM_axi_aw      => logic_HBM_axi_aw,       
+        i_HBM_axi_awready => logic_HBM_axi_awreadyi, -- in std_logic_vector(4:0);
         -- w data buses : out t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_w       => HBM_axi_w,        
-        i_HBM_axi_wready  => HBM_axi_wreadyi,  -- in std_logic_vector(4:0);
+        o_HBM_axi_w       => logic_HBM_axi_w,        
+        i_HBM_axi_wready  => logic_HBM_axi_wreadyi,  -- in std_logic_vector(4:0);
         -- write response bus : in t_axi4_full_b_arr(4:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_b       => HBM_axi_b,
+        i_HBM_axi_b       => logic_HBM_axi_b,
         -- read address bus : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_ar      => HBM_axi_ar,
-        i_HBM_axi_arready => HBM_axi_arreadyi, -- in std_logic_vector(4:0);
+        o_HBM_axi_ar      => logic_HBM_axi_ar,
+        i_HBM_axi_arready => logic_HBM_axi_arreadyi, -- in std_logic_vector(4:0);
         -- r data bus : in t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_r       => HBM_axi_r,
-        o_HBM_axi_rready  => HBM_axi_rreadyi,  -- out std_logic_vector(4:0);
+        i_HBM_axi_r       => logic_HBM_axi_r,
+        o_HBM_axi_rready  => logic_HBM_axi_rreadyi,  -- out std_logic_vector(4:0);
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start => i_ct2_readout_start,
@@ -903,12 +919,95 @@ begin
         o_tb_channel   => o_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
         -- Start of a burst of data through the filterbank, 
         -- Used in the testbench to trigger download of the data written into the CT2 memory.
-        o_FB_out_sof   => o_FB_out_sof   -- out std_logic
+        o_FB_out_sof   => o_FB_out_sof,   -- out std_logic
+
+        -- HBM reset
+        o_hbm_reset    => hbm_reset,
+        i_hbm_status   => hbm_status
     );
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
     axi_HBM_gen : for i in 0 to 4 generate
+        -- reset blocks for HBM interfaces.
+        hbm_resetter : entity correlator_lib.hbm_axi_reset_handler 
+            generic map (
+                DEBUG_ILA               => FALSE )
+            port map ( 
+                i_clk                   => ap_clk,
+                i_reset                 => ap_rst,
+        
+                i_logic_reset           => hbm_reset(i),
+                o_in_reset              => open,
+                o_reset_complete        => hbm_status(i),
+                -----------------------------------------------------
+                -- To HBM
+                -- Data out to the HBM
+                -- ADDR
+                o_hbm_axi_aw_addr       => HBM_axi_aw(i).addr,
+                o_hbm_axi_aw_len        => HBM_axi_aw(i).len,
+                o_hbm_axi_aw_valid      => HBM_axi_aw(i).valid,
+        
+                i_hbm_axi_awready       => HBM_axi_awreadyi(i),
+        
+                -- DATA
+                o_hbm_axi_w_data        => HBM_axi_w(i).data,
+                o_hbm_axi_w_resp        => HBM_axi_w(i).resp,
+                o_hbm_axi_w_last        => HBM_axi_w(i).last,
+                o_hbm_axi_w_valid       => HBM_axi_w(i).valid,
+                i_hbm_axi_wready        => HBM_axi_wreadyi(i),
+        
+                i_hbm_axi_b_valid       => HBM_axi_b(i).valid,
+                i_hbm_axi_b_resp        => HBM_axi_b(i).resp,
+                
+                -- reading from HBM
+                -- ADDR
+                o_hbm_axi_ar_addr       => HBM_axi_ar(i).addr,
+                o_hbm_axi_ar_len        => HBM_axi_ar(i).len,
+                o_hbm_axi_ar_valid      => HBM_axi_ar(i).valid,
+                i_hbm_axi_arready       => HBM_axi_arreadyi(i),
+        
+                -- DATA
+                i_hbm_axi_r_data        => HBM_axi_r(i).data,
+                i_hbm_axi_r_resp        => HBM_axi_r(i).resp,
+                i_hbm_axi_r_last        => HBM_axi_r(i).last,
+                i_hbm_axi_r_valid       => HBM_axi_r(i).valid,
+                o_hbm_axi_rready        => HBM_axi_rreadyi(i),
+        
+                -----------------------------------------------------
+                -- To Logic
+                -- ADDR
+                i_logic_axi_aw_addr     => logic_HBM_axi_aw(i).addr,
+                i_logic_axi_aw_len      => logic_HBM_axi_aw(i).len,
+                i_logic_axi_aw_valid    => logic_HBM_axi_aw(i).valid,
+        
+                o_logic_axi_awready     => logic_HBM_axi_awreadyi(i),
+        
+                -- DATA
+                i_logic_axi_w_data      => logic_HBM_axi_w(i).data,
+                i_logic_axi_w_resp      => logic_HBM_axi_w(i).resp,
+                i_logic_axi_w_last      => logic_HBM_axi_w(i).last,
+                i_logic_axi_w_valid     => logic_HBM_axi_w(i).valid,
+                o_logic_axi_wready      => logic_HBM_axi_wreadyi(i),
+        
+                o_logic_axi_b_valid     => logic_HBM_axi_b(i).valid,
+                o_logic_axi_b_resp      => logic_HBM_axi_b(i).resp,
+                
+                -- reading from logic
+                -- ADDR
+                i_logic_axi_ar_addr     => logic_HBM_axi_ar(i).addr,
+                i_logic_axi_ar_len      => logic_HBM_axi_ar(i).len,
+                i_logic_axi_ar_valid    => logic_HBM_axi_ar(i).valid,
+                o_logic_axi_arready     => logic_HBM_axi_arreadyi(i),
+        
+                -- DATA
+                o_logic_axi_r_data      => logic_HBM_axi_r(i).data,
+                o_logic_axi_r_resp      => logic_HBM_axi_r(i).resp,
+                o_logic_axi_r_last      => logic_HBM_axi_r(i).last,
+                o_logic_axi_r_valid     => logic_HBM_axi_r(i).valid,
+                i_logic_axi_rready      => logic_HBM_axi_rreadyi(i)
+            
+            );
         
         -- ar and aw addresses need to be set to the correct offset within the HBM
         HBM_axi_araddr256Mbytei(i) <= HBM_axi_ar(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)

@@ -114,7 +114,8 @@ $DESIGN_PATH/src/vhdl/u55c/correlator.vhd \
 $DESIGN_PATH/src/vhdl/correlator_core.vhd \
 $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
-$DESIGN_PATH/src/vhdl/version_pkg.vhd \ 
+$DESIGN_PATH/src/vhdl/version_pkg.vhd \
+$COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 ]
 
 add_files -fileset sim_1 [glob \
@@ -131,6 +132,7 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/lbus_packet_receive.vhd \
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
 *correlator/src/vhdl/version_pkg.vhd \
+*hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]

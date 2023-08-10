@@ -135,7 +135,11 @@ entity DSP_top_correlator is
         o_tb_channel   : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
         -- Start of a burst of data through the filterbank, 
         -- Used in the testbench to trigger download of the data written into the CT2 memory.
-        o_FB_out_sof   : out std_logic
+        o_FB_out_sof   : out std_logic;
+        --------------------------------------------------------------
+        -- HBM reset
+        o_hbm_reset    : out std_logic_vector(4 downto 0);
+        i_hbm_status   : in std_logic_vector(4 downto 0)
     );
 end DSP_top_correlator;
 
@@ -257,7 +261,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
 begin
     
     gnd <= (others => '0');
-    
+    o_hbm_reset(4 downto 1) <= x"0";
     --------------------------------------------------------------------------
     -- Signal Processing signal Chains
     --------------------------------------------------------------------------
@@ -296,6 +300,10 @@ begin
         o_vcstats_MM_OUT   => o_LFAAFull_axi_miso, -- out t_axi4_full_miso;
         -- Output from the registers that are used elsewhere (on i_s_axi_clk)
         o_totalChannels    => totalChannels,       -- out (11:0); Total number of virtual channels defined.
+        
+        -- hbm reset   
+        o_hbm_reset        => o_hbm_reset(0),
+        i_hbm_status       => i_hbm_status(0),
         -- debug
         o_dbg              => LFAADecode_dbg
     );

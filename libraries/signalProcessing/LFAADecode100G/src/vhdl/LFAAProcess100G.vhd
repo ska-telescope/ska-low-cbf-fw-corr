@@ -62,6 +62,8 @@ entity LFAAProcess100G is
         -----------------------------------------------------------------------------------
         -- Interface to the registers
         i_reg_rw           : in t_statctrl_rw;
+        o_reg_ro           : out t_statctrl_ro;
+
         o_reg_count        : out t_statctrl_count;
         -- Virtual channel table memory in the registers
         o_searchAddr       : out std_logic_vector(11 downto 0); -- read address to the VCTable_ram in the registers.
@@ -71,7 +73,12 @@ entity LFAAProcess100G is
         o_statsWE          : out std_logic;
         o_statsAddr        : out std_logic_vector(12 downto 0);  -- 8 words of info per virtual channel, 768 virtual channels, 8*768 = 6144 deep.
         i_statsRdData      : in std_logic_vector(31 downto 0);
-        -- debug
+        
+        -- hbm reset   
+        o_hbm_reset        : out std_logic;
+        i_hbm_status       : in std_logic;
+
+        -- debug       
         o_dbg              : out std_logic_vector(13 downto 0)
     );
 end LFAAProcess100G;
@@ -174,7 +181,7 @@ architecture Behavioral of LFAAProcess100G is
     signal dataAlignedSOP : std_logic := '0';
     signal statsSOPTime : std_logic_vector(63 downto 0);
     signal SOPTime : std_logic_vector(63 downto 0);
-    signal tx_fsm_dbg, stats_fsm_dbg, rx_fsm_dbg : std_logic_vector(3 downto 0);
+    signal tx_fsm_dbg, stats_fsm_dbg, rx_fsm_dbg, lookup_fsm_dbg : std_logic_vector(3 downto 0);
     signal goodPacket_dbg : std_logic;
     signal nonSPEADPacket_dbg : std_logic;
     signal VCTable_rd_data_del1 : std_logic_vector(31 downto 0);
@@ -226,6 +233,15 @@ begin
     
     o_dbg <= nonSPEADPacket_dbg & goodPacket_dbg & rx_fsm_dbg & stats_fsm_dbg & tx_fsm_dbg;
     
+    o_reg_ro.lfaa_tx_fsm_debug      <= tx_fsm_dbg;
+    o_reg_ro.lfaa_stats_fsm_debug   <= stats_fsm_dbg;
+    o_reg_ro.lfaa_rx_fsm_debug      <= rx_fsm_dbg;
+    o_reg_ro.lfaa_lookup_fsm_debug  <= lookup_fsm_dbg;
+
+    o_reg_ro.hbm_reset_status       <= i_hbm_status;
+
+
+    o_hbm_reset                     <= i_reg_rw.hbm_reset;
     ------------------------------------------------------------------------------
     -- Capture and validate all the packet headers (MAC, IPv4, UDP, SPEAD)
     ------------------------------------------------------------------------------
@@ -243,9 +259,17 @@ begin
     begin
         
         if i_data_rst = '1' then
-            wrBufSel <= "00";
-            rx_fsm <= idle;
-            packet_active <= '0';
+            wrBufSel        <= "00";
+            rx_fsm          <= idle;
+            rx_fsm_d        <= idle;
+            tx_fsm          <= idle;
+            stats_fsm       <= idle;
+            lookup_fsm      <= idle;
+            tx_fsm_dbg      <= x"F";
+            stats_fsm_dbg   <= x"F";
+            rx_fsm_dbg      <= x"F";
+            lookup_fsm_dbg  <= x"F";
+            packet_active   <= '0';
         elsif rising_edge(i_data_clk) then
             
             axis_tdata <= i_axis_tdata; -- 512 bit input bus.
@@ -422,6 +446,7 @@ begin
             else
                 case lookup_fsm is
                     when idle =>
+                        lookup_fsm_dbg  <= x"0";
                         if rx_fsm = start_lookup then
                             lookup_fsm <= start;
                         else
@@ -432,6 +457,7 @@ begin
                         searchRunning <= '0';
                     
                     when start =>
+                        lookup_fsm_dbg  <= x"1";
                         virtualChannel <= (others => '1');
                         searchDone <= '0';
                         NoMatch <= '0';
@@ -442,16 +468,20 @@ begin
                         lookup_fsm <= wait_rd1;
      
                     when wait_rd1 =>  -- "seachAddr", the address to the virtual channel table in the registers, is valid in this state.
+                        lookup_fsm_dbg  <= x"2";
                         searchInterval <= std_logic_vector(unsigned(searchMax) - unsigned(searchMin));
                         lookup_fsm <= wait_rd2;
                     
                     when wait_rd2 => -- vc table data arrives in this state
+                        lookup_fsm_dbg  <= x"3";
                         lookup_fsm <= wait_rd3;
                     
                     when wait_rd3 => -- vctable_rd_data_del1 valid
+                        lookup_fsm_dbg  <= x"4";
                         lookup_fsm <= check_rd_data;
                         
                     when check_rd_data => -- packet_gt_table is valid in this state.
+                        lookup_fsm_dbg  <= x"5";
                         if (VCTableMatch = '1') then  -- found a matching entry
                             lookup_fsm <= search_success;
                         elsif (unsigned(searchInterval) = 0) then
@@ -494,12 +524,15 @@ begin
                         end if;
                     
                     when search_success =>
+                        lookup_fsm_dbg  <= x"6";
                         lookup_fsm <= wait_rd_VC1;
                         
                     when wait_rd_VC1 =>
+                        lookup_fsm_dbg  <= x"7";
                         lookup_fsm <= wait_rd_VC2;
                         
                     when wait_rd_VC2 =>
+                        lookup_fsm_dbg  <= x"8";
                         -- The virtual channel to be assigned to this packet is read from the second word in the virtual channel table.
                         virtualChannel <= VCTable_rd_data_del1(10 downto 0); 
                         searchDone <= '1';
@@ -507,6 +540,7 @@ begin
                         lookup_fsm <= idle;
                     
                     when search_failure =>
+                        lookup_fsm_dbg  <= x"9";
                         searchDone <= '1';
                         NoMatch <= '1';
                         lookup_fsm <= idle;
