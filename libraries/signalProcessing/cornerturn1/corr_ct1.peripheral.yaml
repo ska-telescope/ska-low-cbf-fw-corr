@@ -16,29 +16,11 @@ peripherals:
         number_of_slaves  : 1
         slave_description : "Correlator corner turn 1 control"
         fields:
-          - - field_name        : full_reset
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Start or restart corner turn after (re)configuring it."
-
-          - - field_name        : running
-              width             : 1
+          - - field_name        : status
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Is the corner turn running, i.e. are we between starting_packet_count and halt_packet_count?"
-              
-          - - field_name        : halt_packet_count
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "At which packet count shall the corner turn stop? (0 means never)"
-          
-          - - field_name        : scanStartPacketCount
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Packet count to start the scan at. LFAA data with a packet count less than this value will be dropped."
+              field_description : "status. "
 
           - - field_name        : output_cycles
               width             : 16
@@ -47,10 +29,10 @@ peripherals:
               field_description : "Number of clock cycles from the start of one output packet to the start of the next packet.\
                                    Actual packet length is 4096 clocks. Default is 4100."
               
-          - - field_name        : untimed_framecount_start
-              width             : 16
+          - - field_name        : framecount_start
+              width             : 7
               access_mode       : RW
-              reset_value       : 0x1
+              reset_value       : 0x10
               field_description : "Reading of a buffer will start when a packet count with this offset within a buffer or greater \
                                    is received for the next buffer." 
           
@@ -60,35 +42,12 @@ peripherals:
               reset_value       : 0x0
               field_description : "Number of input packet notifications received from LFAA ingest module"
           
-          - - field_name        : frame_count_buffer0
+          - - field_name        : integration_count
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "frame count for the first packet in buffer 0."
-
-          - - field_name        : frame_count_buffer1
-              width             : 32
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "frame count for the first packet in buffer 1."
-
-          - - field_name        : frame_count_buffer2
-              width             : 32
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "frame count for the first packet in buffer 2."
-
-          - - field_name        : packet_count
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "The selected coarse delay table changes if the packet count >= this value. Leaving this at 0 will switch ASAP."
-
-          - - field_name        : table_select
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Defines which table should become active when the given packet_count is passed"
+              field_description : "The integration interval that we are currently writing data for.\
+                                   Integration intervals are 849ms blocks of data, and this value counts from the start of the SPS epoch."
 
           - - field_name        : active_table
               width             : 1
@@ -96,23 +55,60 @@ peripherals:
               reset_value       : 0x0
               field_description : "Which table is currently used by the corner turn? Do not change contents of that table unless in reset."        
         
-          - - field_name        : table0_startPacket
+          - - field_name        : table0_valid
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Indicates that delay table 0 contains valid data. Table 0 delays will be used if \
+                                   the table is valid, the current packet being processed is greater than or equal to \
+                                   table0_startpacket and table 0 is more recent than table 1, if table 1 is also valid"
+              
+          - - field_name        : table0_startPacket_low
               width             : 32
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Packet count that the fine delay values in table_0 are referenced to. \
-                                   The fine delay that is applied to the output of the filterbank is based on \
-                                   the sample count of the first sample used to generate that output. Note that \
-                                   the FIR filter used in the filterbank creates an offset between the time of the \
-                                   first sample that contributes to a filterbank output and the time stamp for the \
-                                   filterbank output, typically equal to half the length of the FIR filter."
+              field_description : "low 32 bits of the packet count that the fine delay values in table_0 are referenced to. \
+                                   table 0 is used when the actual packet count passes this value"
         
-          - - field_name        : table1_startPacket
+          - - field_name        : table0_startPacket_high
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "High 16 bits for the packet count that table0 becomes valid at"
+          
+          - - field_name        : table0_ns_offset
               width             : 32
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Packet count that the fine delay values in table_1 are referenced to. See the description of table0_startPacket."
+              field_description : "ns offset to be used for delay polynomial evaluation for delay table 0."
+          
+          - - field_name        : table1_valid
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Indicates that delay table 1 contains valid data. Table 1 delays will be used if \
+                                   the table is valid, the current packet being processed is greater than or equal to \
+                                   table1_startpacket and table 1 is more recent than table 0, if table 0 is also valid"
+              
+          - - field_name        : table1_startPacket_low
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "low 32 bits of the packet count that the fine delay values in table_1 are referenced to. \
+                                   table 0 is used when the actual packet count passes this value"
         
+          - - field_name        : table1_startPacket_high
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "High 16 bits for the packet count that table1 becomes valid at"
+          
+          - - field_name        : table1_ns_offset
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "ns offset to be used for delay polynomial evaluation for delay table 1."
+          
           - - field_name        : table_0
               width             : 32
               number_of_fields  : 4096
@@ -123,7 +119,8 @@ peripherals:
                                     Word 1, bits 15:0 = Vpol DeltaP, bits 31:16 = DeltaDelta P (common to both polarisations).\
                                     Word 2, bits 15:0 = Hpol phase offset for the center frequency, bits(31:16) = Vpol phase offset for the center frequency. \
                                     Word 3, bits 31:0 = step in the phase offset for the center frequency per output packet. This is common to both polarisations. \
-                                    See confluence documentation for details."
+                                    See confluence documentation for details. \
+                                    TO BE UPDATED TO CONTAIN DELAY POLYNOMIALS "
 
           - - field_name        : table_1
               width             : 32
@@ -131,29 +128,35 @@ peripherals:
               access_mode       : RW
               field_description : "Coarse delay values - Table 1. As per the definition for table_0."
 
-          - - field_name        : Input_late_count
-              width             : 16
+          - - field_name        : early_or_late_count
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Number of input LFAA blocks which have been dropped as they are too late. Top bit is sticky."
+              field_description : "Count of SPS packets dropped due to being outside the time window for expected packets."
 
-          - - field_name        : Input_too_soon_count
-              width             : 16
+          - - field_name        : pre_latch_on_count
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of input LFAA blocks which have been dropped as they are too far into the future. Top bit is sticky."
+              field_description : "Number of packets dropped while waiting to latch on to the incoming data stream"
 
-          - - field_name        : duplicates
-              width             : 8
+          - - field_name        : duplicates_count
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of duplicate input packets (i.e. input packets with the same timestamp and channel as a previous packet). Top bit is sticky."
+              field_description : "Count of duplicate input packets (i.e. input packets with the same timestamp and channel as a previous packet)."
 
-          - - field_name        : missing_blocks
-              width             : 16
+          - - field_name        : missing_count
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of blocks (1 block = 2048 time samples) on the PSS/PST read out with no data; top bit is sticky; low 15 bits wrap."
+              field_description : "Count of SPS packets on the filterbank read out with no data."
+              
+          - - field_name        : buffers_sent_count
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "total number of 283ms buffers read out and sent to the filterbanks."
 
           - error:
             - field_name        : input_overflow
@@ -162,11 +165,11 @@ peripherals:
               reset_value       : 0x0
               field_description : "input buffer has overflowed."
           
-            - field_name        : ctc_underflow
+            - field_name        : read_overflow
               width             : 1
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Readout was triggered, but the data FIFO does not contain enough data to start output"
+              field_description : "Readout was triggered, but the previous readout was still running"
               
           - - field_name        : correlator_output_count
               width             : 32

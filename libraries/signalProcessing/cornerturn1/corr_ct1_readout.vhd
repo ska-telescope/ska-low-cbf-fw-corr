@@ -10,7 +10,7 @@
 --  -----------------------------------------------------------------------------
 --  Flow chart:
 --
---    commands in (i_currentBuffer, i_previousBuffer, i_readStart, i_Nchannels)
+--    commands in (i_currentBuffer, i_readStart, i_Nchannels)
 --        |
 --    Wait until all previous memory read requests have returned, and the buffer is empty.
 --        |
@@ -119,16 +119,16 @@ entity corr_ct1_readout is
         i_rst      : in std_logic; -- module reset, on shared_clk.
         -- input signals to trigger reading of a buffer, on shared_clk
         i_currentBuffer   : in std_logic_vector(1 downto 0);
-        i_previousBuffer  : in std_logic_vector(1 downto 0);   -- Because of the initialisation data, we need some data from the end of this buffer also.
         i_readStart       : in std_logic;                      -- Pulse to start readout from readBuffer
-        i_packetCount     : in std_logic_vector(31 downto 0);  -- Packet Count for the first packet in i_currentBuffer
+        i_packetCount     : in std_logic_vector(47 downto 0);  -- Packet Count for the first packet in i_currentBuffer
+        i_ns_offset       : in std_logic_vector(31 downto 0);  -- in(31:0); ns offset for calculation of the delays.
         i_Nchannels       : in std_logic_vector(11 downto 0);  -- Total number of virtual channels to read out,
         i_clocksPerPacket : in std_logic_vector(15 downto 0);  -- Number of clocks per output, connect to register "output_cycles"
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
         o_delayTableAddr : out std_logic_vector(11 downto 0);  -- 4 addresses per virtual channel, up to 1024 virtual channels
         i_delayTableData : in std_logic_vector(31 downto 0);   -- Data from the delay table with 3 cycle latency. 
-        i_startPacket    : in std_logic_vector(31 downto 0);   -- LFAA Packet count that the fine delays in the delay table are relative to. Fine delays are based on the first LFAA sample that contributes to a given filterbank output
+        i_startPacket    : in std_logic_vector(47 downto 0);   -- LFAA Packet count that the fine delays in the delay table are relative to. Fine delays are based on the first LFAA sample that contributes to a given filterbank output
         -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
         o_validMemReadAddr : out std_logic_vector(18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
         i_validMemReadData : in std_logic;  -- read data returned 3 clocks later.
@@ -183,8 +183,8 @@ architecture Behavioral of corr_ct1_readout is
     signal bufDout : std_logic_vector(511 downto 0);
     
     signal FBpacketCount : std_logic_vector(31 downto 0);
-    signal cdc_dataOut : std_logic_vector(63 downto 0);
-    signal cdc_dataIn : std_logic_vector(63 downto 0);
+    signal cdc_dataOut : std_logic_vector(79 downto 0);
+    signal cdc_dataIn : std_logic_vector(79 downto 0);
     signal shared_to_FB_valid, shared_to_FB_valid_del1 : std_logic;
     signal shared_to_FB_send, shared_to_FB_rcv : std_logic := '0';
     --signal FBbufferStartAddr : std_logic_vector(7 downto 0);
@@ -207,9 +207,9 @@ architecture Behavioral of corr_ct1_readout is
     signal ar_virtualChannelDel1, ar_virtualChannelDel2, ar_virtualChannelDel3, ar_virtualChannelDel4 : std_logic_vector(9 downto 0);
     signal ar_currentBuffer : std_logic_vector(1 downto 0);
     signal ar_previousBuffer : std_logic_vector(1 downto 0);
-    signal ar_packetCount : std_logic_vector(31 downto 0);
+    signal ar_packetCount : std_logic_vector(47 downto 0);
     signal ar_NChannels : std_logic_vector(11 downto 0);
-    signal ar_startPacket : std_logic_vector(31 downto 0);
+    signal ar_startPacket : std_logic_vector(47 downto 0);
     signal ar_clocksPerPacket : std_logic_vector(15 downto 0);
     
     type ar_fsm_type is (getDelayFirstWord, getDelaySecondWord, getDelayThirdWord, getDelayFourthWord,
@@ -237,7 +237,7 @@ architecture Behavioral of corr_ct1_readout is
     signal bufFirstRead, bufLastRead : std_logic_Vector(3 downto 0);
     
     signal bufSampleRelative : t_slv_24_arr(3 downto 0);
-    signal fineDelayPacketOffset : std_logic_vector(31 downto 0);
+    signal fineDelayPacketOffset : std_logic_vector(47 downto 0);
     
     signal rdata_beats : std_logic_vector(2 downto 0);
     signal rdata_beatCount : std_logic_vector(2 downto 0);
@@ -337,7 +337,6 @@ architecture Behavioral of corr_ct1_readout is
     signal rdata_phaseStepXsampleOffsetDel5, rdata_phaseStepXsampleOffsetDel6 : std_logic_vector(15 downto 0);
     
     signal rstDel1, rstDel2, rstInternal, rstFIFOs, rstFIFOsDel1 : std_logic := '0';
-    signal rstCount : std_logic_vector(8 downto 0) := "000000000";
     signal rd_wait_count : std_logic_vector(3 downto 0) := "0000";
     signal ar_fsm_buffer, ar_fsm_bufferDel1, ar_fsm_bufferDel2, ar_fsm_bufferDel3, ar_fsm_bufferDel4 : std_logic_vector(1 downto 0) := "00";
     signal shared_to_FB_send_del1 : std_logic := '0';
@@ -426,20 +425,8 @@ begin
            
             rstDel1 <= i_rst;
             rstDel2 <= rstDel1;
-            if rstDel1 = '1' and rstDel2 = '0' then
-                rstInternal <= '1';
-                rstCount <= "111111111";
-            else
-                rstInternal <= '0';
-                if rstCount /= "000000000" then
-                    rstCount <= std_logic_vector(unsigned(rstCount) - 1);
-                end if;
-            end if;
-            if rstCount = "000000001" then
-                rstFIFOs <= '1'; -- rstCount creates a delay before we reset the FIFOs, to ensure that any outstanding HBM requests have been returned.
-            else
-                rstFIFOs <= '0';
-            end if;
+            rstInternal <= rstDel2;
+            rstFIFOs <= rstDel1;
             rstFIFOsDel1 <= rstFIFOs;
             
             if rstInternal = '1' then
@@ -450,7 +437,13 @@ begin
                 ar_fsm_buffer <= "00";
                 ar_virtualChannel <= (others => '0');
                 ar_currentBuffer <= i_currentBuffer;
-                ar_previousBuffer <= i_previousBuffer;
+                if i_currentBuffer = "00" then
+                    ar_previousBuffer <= "10";
+                elsif i_currentBuffer = "01" then
+                    ar_previousBuffer <= "00";
+                else -- i_currentBuffer = "10" 
+                    ar_previousBuffer <= "01";
+                end if;
                 ar_packetCount <= i_packetCount;
                 ar_NChannels <= i_NChannels;
                 ar_startPacket <= i_startPacket;
@@ -733,6 +726,7 @@ begin
             --  bufXSampleRelative + ar_packetCount * 2048 - ar_startPacket* 2048;
             -- This is the packet count of the first packet in the buffer relative to the packet count that the fine timing is referenced to.
             fineDelayPacketOffset <= std_logic_vector(unsigned(ar_packetCount) - unsigned(ar_startPacket)); 
+            -- This assumes maximum validity interval for the delays is about 1 hour.
             fineDelaySampleOffset := fineDelayPacketOffset(20 downto 0) & "00000000000"; -- x2048 samples per packet
             
             if ar_fsm = getBufData then
@@ -1255,7 +1249,7 @@ begin
     
     cdc_dataIn(15 downto 0) <= "0000" & ar_NChannels; -- 12 bit
     cdc_dataIn(31 downto 16) <= x"0056" when (unsigned(ar_clocksPerPacket) < 86) else ar_clocksPerPacket;   -- 16 bit; minimum possible value is 86.
-    cdc_dataIn(63 downto 32) <= ar_packetCount;       -- 32 bit
+    cdc_dataIn(79 downto 32) <= ar_packetCount;       -- 48 bit
     
     process(shared_clk)
     begin
@@ -1294,7 +1288,7 @@ begin
         if rising_edge(shared_clk) then
             if shared_to_FB_send_del1 = '1' then
                 -- Packet count in cdc_dataOut is 2048 sample LFAA packets, but packet count going to the filterbanks is 4096 sample packets, so divide by 2 (i.e. downto 33)
-                FBpacketCount <= '0' & cdc_dataOut(63 downto 33);  -- Packet count at the start of the frame, output as meta data.
+                FBpacketCount <= cdc_dataOut(64 downto 33);  -- Packet count at the start of the frame, output as meta data.
                 FBClocksPerPacket <= cdc_dataOut(31 downto 16);         -- Number of FB clock cycles per output packet
                 FBNChannels <= cdc_dataOut(15 downto 0);                -- Number of virtual channels to read for the frame
             end if;
