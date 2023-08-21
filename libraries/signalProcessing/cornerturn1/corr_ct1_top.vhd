@@ -53,12 +53,11 @@
 --  1 ultraRAM = 32 kbytes = 262144 bits. So 2 ultraRAMs are used as the shadow memory.
 --  
 ----------------------------------------------------------------------------------
--- Timing
---  There are two modes for timing of output data :
---   (1) Timed output
---        Output frames start based on the clock
---   (2) Non-timed output
---        Output frames start when we get an incoming packet with a count past some threshold.
+-- Sequencing
+--  On reset, the fsm uses the packet count for the first packet received (on "i_packetCount")
+--  to determine which packets to expect. Thereafter, it follows the fastest advancing
+--  packet count, providing it doesn't skip ahead multiple frames.
+--  
 --
 ----------------------------------------------------------------------------------
 -- Default Numbers:
@@ -105,19 +104,6 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 
 entity corr_ct1_top is
-    generic (
-        -- Number of SPS packets per frame (for a single virtual channel) for the correlator output.
-        -- Each LFAA block is 2048 time samples. 
-        -- Default value is 128.
-        -- (128 LFAA packets) x (8192 bytes / LFAA packet) x (1024 virtual channels) = 2^30 bytes = 1 Gbyte per buffer.
-        -- We need to have a full set of preload data for the filterbanks in a buffer, i.e. 11*4096 samples. = 22 x 2048
-        -- 
-        -- Number of LFAA blocks per frame; 
-        --   - Can use 32 for simulation of the LFAA ingest, 1st corner turn and filterbank
-        --     32 is the minimum possible value because otherwise there is insufficient data for the filterbank preload.
-        --   - full build must use 128. The second stage corner turn only supports 128.
-        g_SPS_PACKETS_PER_FRAME : integer := 128   
-    );
     port (
         -- shared memory interface clock (300 MHz)
         i_shared_clk     : in std_logic;
@@ -126,15 +112,17 @@ entity corr_ct1_top is
         i_saxi_mosi       : in  t_axi4_lite_mosi; -- MACE IN
         o_saxi_miso       : out t_axi4_lite_miso; -- MACE OUT
         -- other config (comes from LFAA ingest module).
+        -- This should be valid before coming out of reset.
         i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
-        o_rst               : out std_logic;  -- reset from the register module, copied out to be used downstream.
-        o_validMemRstActive : out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
+        i_rst               : in std_logic;   -- While in reset, process nothing.
+        -- o_rst            : out std_logic;  -- Reset is now driven from the LFAA ingest module.
+        --o_validMemRstActive : out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         -- Headers for each valid packet received by the LFAA ingest.
         -- LFAA packets are about 8300 bytes long, so at 100Gbps each LFAA packet is about 660 ns long. This is about 200 of the interface clocks (@300MHz)
         -- These signals use i_shared_clk
         i_virtualChannel : in std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station; this module supports values in the range 0 to 1023.
-        i_packetCount    : in std_logic_vector(31 downto 0);
-        i_valid          : in std_logic;        
+        i_packetCount    : in std_logic_vector(47 downto 0);
+        i_valid          : in std_logic;
         
         ------------------------------------------------------------------------------------
         -- Data output, to go to the filterbanks.
@@ -197,7 +185,6 @@ architecture Behavioral of corr_ct1_top is
     signal freeMax : std_logic_vector(23 downto 0);
     
     signal hbm_ready : std_logic;
-    signal fullReset, fullResetDel1, fullResetDel2, fullResetDel3, fullResetDel4, fullResetDel5, fullResetDel6 : std_logic;
     signal useNewConfig, useNewConfigDel1, useNewConfigDel2, loadNewConfig : std_logic := '0';
     
     signal validMemWriteAddr : std_logic_vector(18 downto 0);
@@ -215,8 +202,11 @@ architecture Behavioral of corr_ct1_top is
     signal output_count_out : t_config_correlator_output_count_ram_out;
     
     signal virtualChannel : std_logic_vector(15 downto 0);
-    signal packetCount : std_logic_vector(32 downto 0);
-    type input_fsm_type is (idle, check_range, packet_early, packet_late, generate_aw, generate_aw_wait);
+    --signal packetCount : std_logic_vector(32 downto 0);
+    type input_fsm_type is (idle, start_divider, wait_divider, check_range_calc,
+        check_range, dump_pre_latch_on, packet_early_or_late, check_awfifo_space, 
+        generate_aw, check_advance_buffer, start_readout_calc0, start_readout_calc1, 
+        start_readout_calc2, readout_error, start_readout);
     signal input_fsm : input_fsm_type;
     
     signal AWFIFO_dout : std_logic_vector(31 downto 0);
@@ -229,35 +219,21 @@ architecture Behavioral of corr_ct1_top is
     signal AWFIFO_wrEn : std_logic;
     signal awStop : std_logic := '0';
     signal awCount : std_logic_vector(3 downto 0) := "0000";
-    signal LFAAAddr : std_logic_vector(31 downto 0) := (others => '0');  
+    signal sps_addr : std_logic_vector(31 downto 0) := (others => '0');
     
-    signal scanStartPacketCountExt : std_logic_vector(32 downto 0);
-    signal packetCountBuffer0, packetCountBuffer1, packetCountBuffer2 : std_logic_vector(32 downto 0);
-    signal currentWrBuffer, currentRdBuffer : std_logic_vector(1 downto 0) := "00";
-    signal minPacketCount, maxPacketCount : std_logic_vector(32 downto 0);
-    signal frameCountReadTrigger, untimedFrameCountStart : std_logic_vector(32 downto 0);
-    signal triggerRead, readStart : std_logic := '0';
-    signal readBuffer, previousBuffer : std_logic_vector(1 downto 0);
-    signal packetCountRdBuffer : std_logic_vector(31 downto 0);
-    signal buf0offset, buf1offset, buf2offset : std_logic_vector(32 downto 0);
-    signal resetDel2, resetDel1 : std_logic := '0';
     signal validMemSetWrAddr : std_logic_vector(18 downto 0);
     signal validMemSetWrEn : std_logic;
-    signal earlyCount : std_logic_vector(15 downto 0) := (others => '0');
-    signal lateCount : std_logic_vector(15 downto 0) := (others => '0');
     signal duplicate : std_logic;
-    signal duplicateCount : std_logic_vector(7 downto 0) := (others => '0');
     signal dataMissing : std_logic;
-    signal missingCount : std_logic_vector(19 downto 0) := (others => '0');
+    signal missing_count, duplicate_count, early_or_late_count : std_logic_vector(31 downto 0) := (others => '0');
     signal NChannels : std_logic_vector(11 downto 0) := x"400";
     signal clocksPerPacket : std_logic_vector(15 downto 0);
     signal delayTableAddr : std_logic_vector(11 downto 0);
-    signal packetCountSwitch : std_logic_vector(32 downto 0);
+    
     signal tableSelect : std_logic;
     signal delayTableData : std_logic_vector(31 downto 0);
-    signal haltpacketCountExt : std_logic_vector(32 downto 0);
     signal running : std_logic := '0';
-    signal startPacket : std_logic_vector(31 downto 0);
+    signal startPacket : std_logic_vector(47 downto 0);
     
     signal chan0, chan1, chan2, chan3 : std_logic_vector(9 downto 0);
     signal ok0, ok1, ok2, ok3 : std_logic := '0';
@@ -288,20 +264,41 @@ architecture Behavioral of corr_ct1_top is
     
     signal valid_del1 : std_logic;
     signal input_packets : std_logic_vector(31 downto 0) := x"00000000";
-    signal startup_enable : std_logic := '0';
+    
+    signal div_remainder : std_logic_vector(1 downto 0);    
+    signal div_quotient, ct_integration : std_logic_vector(41 downto 0);
+    signal div_valid, do_division : std_logic;
+    signal ct_frame_count : std_logic_vector(40 downto 0);
+    signal data_rst : std_logic;
+    signal status : std_logic_vector(31 downto 0);
+    signal pre_latch_on_count : std_logic_vector(31 downto 0);
+    signal wr_integration, rd_integration, next_buffer_integration, previous_buffer_integration : std_logic_vector(31 downto 0);
+    signal input_fsm_dbg : std_logic_vector(4 downto 0);
+    signal current_wr_buffer, current_rd_buffer : std_logic_vector(1 downto 0);
+    signal waiting_to_latch_on, first_readout : std_logic;
+    signal packet_count_in_buffer : std_logic_vector(6 downto 0);
+    signal ct_buffer, next_wr_buffer, previous_wr_buffer : std_logic_vector(1 downto 0);
+    signal ct_eq_current, ct_eq_next, ct_eq_previous : std_logic;
+    signal framecount_start : std_logic_vector(6 downto 0);
+    signal aw_overflow : std_logic;
+    signal awfifo_hwm : std_logic_vector(9 downto 0);
+    signal trigger_readout : std_logic;
+    signal rd_integration_x128, rd_integration_x256, rd_buffer_packet : std_logic_vector(47 downto 0);
+    signal table0_startpacket, table1_startpacket : std_logic_vector(47 downto 0);
+    signal readout_error_set : std_logic := '0';
+    signal table0_valid, table1_valid : std_logic;
+    signal table0_ok, table1_ok, table0_gt_table1 : std_logic := '0';
+    signal ns_offset : std_logic_vector(31 downto 0);
+    signal drop_packet : std_logic := '0';
+    signal readoverflow, readOverflow_set : std_logic := '0';
+    signal buffers_sent_count : std_logic_vector(31 downto 0);
     
 begin
-    
-    o_validMemRstActive <= validMemRstActive;
     
     ------------------------------------------------------------------------------------
     -- CONFIG (TO/FROM MACE)
     ------------------------------------------------------------------------------------
-    -- + create internal resets
-    -- + connect config & error signals to MACE 
-    -- Note : This relies on the "number_of_slaves" field being set correctly in ct_vfc.peripheral.yaml; it should match g_N_STATIONs
-    -- 
-    ------------------------------------------------------------------------------------
+
     E_TOP_CONFIG : entity ct_lib.corr_ct1_reg
     port map (
         MM_CLK  => i_shared_clk, -- in std_logic;
@@ -335,268 +332,477 @@ begin
     config_table1_in.clk <= i_shared_clk;
     config_table1_in.rst <= '0';
 	
-    config_ro.running <= running; -- std_logic;
-    config_ro.frame_count_buffer0 <= packetCountBuffer0(31 downto 0);  -- std_logic_vector(31 downto 0);
-    config_ro.frame_count_buffer1 <= packetCountBuffer1(31 downto 0);  -- std_logic_vector(31 downto 0);
-    config_ro.frame_count_buffer2 <= packetCountBuffer2(31 downto 0);  -- std_logic_vector(31 downto 0);
-    config_ro.active_table <= tableSelect;         -- std_logic;
-    config_ro.input_late_count <= lateCount;     -- std_logic_vector(15 downto 0);
-    config_ro.input_too_soon_count <= earlyCount; -- std_logic_vector(15 downto 0);
-    config_ro.duplicates <= duplicateCount; -- std_logic_vector(7 downto 0);
-    config_ro.missing_blocks <= missingCount(19 downto 4); -- std_logic_vector(15 downto 0); Drop low 4 bits since each missing block is reported 16 times.
-    config_ro.error_input_overflow <= '0'; -- std_logic;
-    config_ro.error_ctc_underflow <= '0'; -- std_logic;
-    config_ro.input_packets <= input_packets;
+    -- Three buffers in the HBM. 
+    --           integration_count : 
+    -- 
+    -- Buffer 0 stores framecounts : 0, 3, 6, 9,  12, 15 ...
+    -- Buffer 1 stores framecounts : 1, 4, 7, 10, 13, 16 ...
+    -- Buffer 2 stores framecounts : 2, 5, 8, 11, 14, 17 ...
+    -- which integration are we up to. i.e. framecount in buffer 0 is 3x this value.
+    -- This is for writing to the buffer. Equivalent count for reading would be behind by one.
+    config_ro.integration_count <= wr_integration(31 downto 0);
     
-    --------------------------------------------------------------------------------------------
+    config_ro.active_table <= tableSelect;         -- std_logic;
+    -- 32 bit status counters
+    config_ro.early_or_late_count <= early_or_late_count;
+    config_ro.pre_latch_on_count <= pre_latch_on_count;
+    config_ro.duplicates_count <= duplicate_count;
+    config_ro.missing_count <= "0000" & missing_count(31 downto 4); -- Drop low 4 bits since each missing block is reported 16 times.
+    config_ro.input_packets <= input_packets;
+    config_ro.status <= status;
+    config_ro.buffers_sent_count <= buffers_sent_count;
+    -- registers to note if something terrible happened.
+    config_ro.error_input_overflow <= aw_overflow; -- std_logic;
+    config_ro.error_read_overflow <= readOverflow_set; -- std_logic;
+    
+    process(i_shared_clk)
+    begin
+        if rising_edge(i_shared_clk) then
+            if data_rst = '1' then
+                early_or_late_count <= (others => '0');
+                pre_latch_on_count <= (others => '0');
+                duplicate_count <= (others => '0');
+                missing_count <= (others => '0');
+                input_packets <= (others => '0');
+                buffers_sent_count <= (others => '0');
+            else
+                if valid_del1 = '1' then
+                    input_packets <= std_logic_vector(unsigned(input_packets) + 1);
+                end if;
+                if input_fsm = packet_early_or_late then
+                    early_or_late_count <= std_logic_vector(unsigned(early_or_late_count) + 1);
+                end if;
+                if input_fsm = dump_pre_latch_on then
+                    pre_latch_on_count <= std_logic_vector(unsigned(pre_latch_on_count) + 1);
+                end if;
+                if duplicate = '1' then
+                    duplicate_count <= std_logic_vector(unsigned(duplicate_count) + 1);
+                end if;
+                if dataMissing = '1' then
+                    missing_count <= std_logic_vector(unsigned(missing_count) + 1);
+                end if;
+                if (trigger_readout = '1') then
+                    buffers_sent_count <= std_logic_vector(unsigned(buffers_sent_count) + 1);
+                end if;
+            end if;
+            
+            status(4 downto 0) <= input_fsm_dbg;
+            status(5) <= running;
+            status(7 downto 6) <= current_wr_buffer;
+            status(8) <= first_readout;
+            status(9) <= waiting_to_latch_on;
+            status(10) <= aw_overflow;
+            status(20 downto 11) <= awfifo_hwm;
+            status(21) <= readout_error_set;
+            status(22) <= readOverflow_set;
+            status(31 downto 23) <= "000000000";
+            
+            if data_rst = '1' then
+                aw_overflow <= '0';
+                awfifo_hwm <= (others => '0'); -- high water mark for the aw fifo
+                readout_error_set <= '0';
+                readOverflow_set <= '0';
+            else
+                if (i_valid = '1' and input_fsm /= idle) then
+                    aw_overflow <= '1';
+                end if;
+                if (unsigned(awfifo_wrDataCount) > unsigned(awfifo_hwm)) then
+                    awfifo_hwm <= awfifo_wrDataCount;
+                end if;
+                if input_fsm = readout_error then
+                    readout_error_set <= '1';
+                end if;
+                if readoverflow = '1' then
+                    readOverflow_set <= '1';
+                end if;
+            end if;
+            if waiting_to_latch_on = '0' and data_rst = '0' then
+                running <= '1';
+            else
+                running <= '0';
+            end if;
+            
+            framecount_start <= config_rw.framecount_start(6 downto 0);
+            
+        end if;
+    end process;
+    
+    -----------------------------------------------------------------------------------------------------
     -- Processing of input headers (i_virtualChannel, i_packetCount, i_valid) to generate write addresses
+    -----------------------------------------------------------------------------------------------------
+    
+    -- i_packet_count determines the location to write to in the HBM
+    -- This repeats every 384 packets : 0-127 -> HBM buffer 0, 128-255 -> HBM buffer 1, 256-383 -> HBM buffer 2
+    -- To find which buffer the packet should go to, divide by 384
+    -- Division by 128 is done by shifting, this divides by 3.
+    div3i : entity ct_lib.corr_div3
+    port map (
+        i_clk  => i_shared_clk,
+        -- Input
+        i_din   => ct_frame_count, -- in (40:0); 
+        i_valid => do_division, -- in std_logic;
+        -- Output - XX clock latency
+        o_quotient  => div_quotient,  -- out (41:0); Integration this packet is part of
+        o_remainder => div_remainder, -- out (1:0); Selects which HBM buffer this packet should go to.
+        o_valid     => div_valid      -- out std_logic, about 12 clocks after i_valid
+    );
+    
+    do_division <= '1' when input_fsm = start_divider else '0';
+    
     process(i_shared_clk)
     begin
         if rising_edge(i_shared_clk) then
             
             valid_del1 <= i_valid;
-            if valid_del1 = '1' then
-                input_packets <= std_logic_vector(unsigned(input_packets) + 1);
-            end if;
             
-            case input_fsm is
-                when idle =>
-                    if i_valid = '1' then
-                        virtualChannel <= i_virtualChannel;
-                        packetCount <= '0' & i_packetCount;  -- Used as a signed value, since we can have negative packet counts for minPacketCount at the start of a run. 
+            -- The data path reset puts everything back to the default state,
+            -- and causes the state machine to latch on to the incoming data stream
+            -- when it is released.
+            -- data_rst also clears all the status registers.
+            data_rst <= i_rst;
+            
+            if data_rst = '1' then
+                input_fsm <= idle;
+                -- After coming out of reset, always start writing in buffer 2,
+                -- so we have preload data for buffer 0.
+                --
+                --                 first writes 
+                --                 after reset
+                --                   |
+                -- ... buf0   buf1   buf2   buf0  buf1 ...
+                --                          |
+                --                      Start of frame
+                --                      will be read  
+                --                      from here.
+                --
+                current_wr_buffer <= "10";
+                current_rd_buffer <= "00";
+                -- When "waiting_to_latch_on" packets are discarded until they
+                -- fall into the correct window.
+                waiting_to_latch_on <= '1';
+                -- Hold off reading out anything until we are reading out 
+                -- buffer 0 (i.e. the first buffer in the integration frame).
+                first_readout <= '1';
+                wr_integration <= (others => '0');
+                rd_integration <= (others => '0');
+                tableSelect <= '0';
+                drop_packet <= '0';
+                -- 
+                input_fsm_dbg <= "00000";
+                
+                NChannels <= '0' & i_virtualChannels;
+                clocksPerPacket <= config_rw.output_cycles;
+                
+            else
+                case input_fsm is
+                    when idle =>
+                        input_fsm_dbg <= "00001";
+                        trigger_readout <= '0';
+                        if i_valid = '1' then
+                            sps_addr(29 downto 20) <= i_virtualChannel(9 downto 0);
+                            -- which packet out of 128 SPS packets per corner turn frame.
+                            sps_addr(19 downto 13) <= i_packetCount(6 downto 0);
+                            -- low 13 bits are zero, sps packets are 8192 byte aligned in HBM. 
+                            sps_addr(12 downto 0) <= (others => '0');
+                            -- top 2 bits select the HBM buffer (put in later).
+                            sps_addr(31 downto 30) <= "00";
+                            -- 128 packets per buffer (per virtual channel).
+                            -- So low 7 bits is where in the buffer this packet will be.
+                            packet_count_in_buffer <= i_packetCount(6 downto 0);
+                            
+                            -- There are 128 SPS packets per corner turn frame.
+                            -- High bits are divided by 3 to select which integration it is part of,
+                            -- and which of the 3 buffers the packet will go to.
+                            ct_frame_count <= i_packetCount(47 downto 7);
+                            -- divider finds ct_frame_count/3.
+                            -- floor(ct_frame_count/3) is the integration frame, 
+                            -- mod(ct_frame_count,3) is the HBM buffer the packet is written to.
+                            input_fsm <= start_divider;
+                        end if;
+                        awCount <= "0000";
+                        AWFIFO_wrEn <= '0';
+                    
+                    when start_divider =>
+                        input_fsm_dbg <= "00010";
+                        trigger_readout <= '0';
+                        AWFIFO_wrEn <= '0';
+                        -- Divide ct_frame_count by 3, to get which of the 3 corner turn buffers
+                        -- the packet should go into, and which integration it is part of.
+                        input_fsm <= wait_divider;
+                        
+                    when wait_divider =>
+                        input_fsm_dbg <= "00011";
+                        trigger_readout <= '0';
+                        AWFIFO_wrEn <= '0';
+                        if div_valid = '1' then
+                            -- which HBM buffer does the packet go to (2 bits)
+                            ct_buffer <= div_remainder;
+                            -- which integration is this packet a part of (42 bits)
+                            ct_integration <= div_quotient;
+                            input_fsm <= check_range_calc;
+                        end if;
+                    
+                    when check_range_calc =>
+                        input_fsm_dbg <= "00100";
+                        trigger_readout <= '0';
+                        AWFIFO_wrEn <= '0';
                         input_fsm <= check_range;
-                    end if;
-                    awCount <= "0000";
-                    AWFIFO_wrEn <= '0';
-                
-                when check_range =>
-                    -- check the packet count is not too early or too late
-                    AWFIFO_wrEn <= '0';
-                    if (signed(packetCount) < signed(minPacketCount)) then
-                        input_fsm <= packet_early;
-                    elsif (signed(packetCount) > signed(maxPacketCount)) then
-                        input_fsm <= packet_late;
-                    else
-                        input_fsm <= generate_aw_wait; -- Don't go straight to generate_aw, since we need an extra clock to calculate the address.
-                    end if;
                     
-                when packet_early =>
-                    -- signal an error - packet was too early.
-                    AWFIFO_wrEn <= '0';
-                    input_fsm <= idle;
+                    when check_range =>
+                        input_fsm_dbg <= "00101";
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '0';
+                        sps_addr(31 downto 30) <= ct_buffer;
+                        
+                        if waiting_to_latch_on = '1' or validMemRstActive = '1' then
+                            -- if we are waiting to latch onto the data stream,
+                            -- then check that the packet is close to the preload packets used in buffer 2
+                            -- when reading buffer 0.
+                            -- 23 preload packets used, will have to clear a few extra in the readout to cope with
+                            -- both +ve and -ve delays.
+                            if (validMemRstActive = '0' and ct_buffer = "10" and unsigned(packet_count_in_buffer) > (128-24)) then
+                                waiting_to_latch_on <= '0';
+                                -- current integration is the index of the integration that
+                                -- we are currently writing data into the HBM for.
+                                -- The index is relative to the SPS epoch (either monthly
+                                -- updates, or J2000, depending on the ICD version)
+                                wr_integration <= ct_integration(31 downto 0);
+                                input_fsm <= generate_aw;
+                                drop_packet <= '0';
+                            else
+                                -- dump the packet
+                                input_fsm <= dump_pre_latch_on;
+                                drop_packet <= '1';
+                            end if;
+                        else
+                            -- check the packet count is not too early or too late
+                            if ((ct_buffer = current_wr_buffer and ct_eq_current = '1') or
+                                (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) < 64)) or
+                                (ct_buffer = previous_wr_buffer and ct_eq_previous = '1' and (unsigned(packet_count_in_buffer) > 112))) then
+                                -- just write the packet into the buffer
+                                input_fsm <= generate_aw;
+                                drop_packet <= '0';
+                            else
+                                -- packet is too far into the future or the past, drop it.
+                                input_fsm <= packet_early_or_late;
+                                drop_packet <= '1';
+                            end if;
+                        end if;
                     
-                when packet_late =>
-                    -- signal an error - packet was too late.
-                    AWFIFO_wrEn <= '0';
-                    input_fsm <= idle;
-                
-                when generate_aw =>
-                    -- Put the write addresses into the FIFO
-                    -- Generates 16 write addresses, each 8 beats.
-                    -- 16 writes * 8 beats * 64 bytes/beat = 8192 bytes
-                    if awStop = '0' then
-                        awFIFO_din(31 downto 13) <= LFAAAddr(31 downto 13);
+                    when dump_pre_latch_on =>
+                        input_fsm_dbg <= "00110";
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '0';
+                        input_fsm <= generate_aw; 
+                        -- Still need to generate write addresses even if we are discarding the packet.
+                        -- Otherwise it will mess up the axi bus, since wdata bus is in the LFAA ingest module.
+                        -- Write to a point just past the end of the write window, where it will get overwritten
+                        -- later when the real packet turns up.
+                        sps_addr(31 downto 30) <= next_wr_buffer;
+                        sps_addr(29 downto 20) <= (others => '0');
+                        sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                        sps_addr(12 downto 0) <= (others => '0');
+                    
+                    when packet_early_or_late =>
+                        input_fsm_dbg <= "00111";
+                        -- signal an error - packet was too early or too late.
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '0';
+                        input_fsm <= generate_aw; 
+                        -- Still need to generate write addresses even if we are discarding the packet.
+                        -- Otherwise it will mess up the axi bus, since wdata bus is in the LFAA ingest module.
+                        -- Write to a point just past the end of the write window, where it will get overwritten
+                        -- later when the real packet turns up.
+                        sps_addr(31 downto 30) <= next_wr_buffer;
+                        sps_addr(29 downto 20) <= (others => '0');
+                        sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                        sps_Addr(12 downto 0) <= (others => '0');
+                    
+                    when check_awfifo_space =>
+                        -- check there is space in the FIFO for 16 aw transactions.
+                        input_fsm_dbg <= "01000";
+                        trigger_readout <= '0';
+                        if awStop = '0' then
+                            input_fsm <= generate_aw;
+                        end if;
+                    
+                    when generate_aw =>
+                        input_fsm_dbg <= "01001";
+                        trigger_readout <= '0';
+                        -- Put the write addresses into the FIFO
+                        -- Generates 16 write addresses, each 8 beats.
+                        -- 16 writes * 8 beats * 64 bytes/beat = 8192 bytes
+                        awFIFO_din(31 downto 13) <= sps_addr(31 downto 13);
                         awFIFO_din(12 downto 9) <= awCount;
-                        awFIFO_din(8 downto 0) <= "000000000";  -- each burst is 8 beats * 64 bytes = 512 bytes, so all writes are 512 byte aligned.
+                        awFIFO_din(8 downto 1) <= "00000000";  -- each burst is 8 beats * 64 bytes = 512 bytes, so all writes are 512 byte aligned.
+                        awFIFO_din(0) <= drop_packet; -- not used for the axi transaction, just used to avoid writing to the valid memory
                         awCount <= std_logic_vector(unsigned(awCount) + 1);
                         AWFIFO_wrEn <= '1';
                         if awCount = "1111" then
+                            input_fsm <= check_advance_buffer;
+                        end if;
+                    
+                    when check_advance_buffer =>
+                        -- Do we need to move to the next buffer
+                        input_fsm_dbg <= "01010";
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '0';
+                        if (ct_buffer = next_wr_buffer and ct_eq_next = '1' and 
+                            (unsigned(packet_count_in_buffer) < 64) and 
+                            (unsigned(packet_count_in_buffer) > unsigned(framecount_start))) then
+                            -- update current buffer to the next buffer, trigger readout 
+                            current_wr_buffer <= next_wr_buffer;
+                            -- next integration only increments if we were up to buffer 2. 
+                            -- Otherwise, this is still the same integration.
+                            wr_integration <= next_buffer_integration;
+                            if ((first_readout = '0') or
+                                (first_readout = '1' and current_wr_buffer = "00")) then
+                                -- The first readout after a reset always starts in buffer 0
+                                current_rd_buffer <= current_wr_buffer;
+                                rd_integration <= wr_integration;
+                                first_readout <= '0';
+                                if current_wr_buffer = "00" then
+                                    -- These are used in the readout, only update them at the start 
+                                    -- of an integration.
+                                    NChannels <= '0' & i_virtualChannels;
+                                    clocksPerPacket <= config_rw.output_cycles;
+                                end if;
+                                input_fsm <= start_readout_calc0;
+                            else
+                                input_fsm <= idle;
+                            end if;
+                        else
                             input_fsm <= idle;
                         end if;
-                    else
-                        input_fsm <= generate_aw_wait;
+                    
+                    when start_readout_calc0 =>
+                        input_fsm_dbg <= "01011";
                         AWFIFO_wrEn <= '0';
-                    end if;
-                    
-                when generate_aw_wait =>
-                    -- wait until space is available in the FIFO
-                    if awStop = '0' then
-                        input_fsm <= generate_aw;
-                    end if;
-                    AWFIFO_wrEn <= '0';
-                    
-                when others =>
-                    input_fsm <= idle;
+                        trigger_readout <= '0';
+                        -- select which delay buffer to use for the readout
+                        input_fsm <= start_readout_calc1;
+                        -- 384 SPS packets per integration
+                        if current_rd_buffer = "00" then
+                            rd_buffer_packet <= std_logic_vector(unsigned(rd_integration_x128) + unsigned(rd_integration_x256));
+                        elsif current_rd_buffer = "01" then
+                            rd_buffer_packet <= std_logic_vector(unsigned(rd_integration_x128) + unsigned(rd_integration_x256) + 128);
+                        else
+                            rd_buffer_packet <= std_logic_vector(unsigned(rd_integration_x128) + unsigned(rd_integration_x256) + 256);
+                        end if;
+                        
+                    when start_readout_calc1 =>
+                        input_fsm_dbg <= "01100";
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '0';
+                        input_fsm <= start_readout_calc2;
+                        if ((table0_valid = '1') and (unsigned(rd_buffer_packet) > unsigned(table0_startpacket))) then
+                            table0_ok <= '1';
+                        else
+                            table0_ok <= '0';
+                        end if;
+                        if ((table1_valid = '1') and (unsigned(rd_buffer_packet) > unsigned(table1_startpacket))) then
+                            table1_ok <= '1';
+                        else
+                            table1_ok <= '0';
+                        end if;
+                        if (unsigned(table0_startpacket) > unsigned(table1_startpacket)) then
+                            table0_gt_table1 <= '1';
+                        else
+                            table0_gt_table1 <= '0';
+                        end if;
+                        
+                    when start_readout_calc2 =>
+                        input_fsm_dbg <= "01101";
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '0';
+                        if (table0_ok = '1' and (table0_gt_table1 = '1' or table1_ok = '0')) then
+                            tableSelect <= '0';
+                        else
+                            tableSelect <= '1';
+                        end if;
+                        if table0_ok = '0' and table1_ok = '0' then
+                            input_fsm <= readout_error;
+                        else
+                            input_fsm <= start_readout;
+                        end if;
+                        
+                    when readout_error =>
+                        -- Cannot do readout because there is no valid delay table
+                        input_fsm_dbg <= "01110";
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '0';
+                        input_fsm <= idle;
+                        
+                    when start_readout =>
+                        input_fsm_dbg <= "01111";
+                        AWFIFO_wrEn <= '0';
+                        trigger_readout <= '1';
+                        if tableSelect = '0' then
+                            startPacket <= table0_startpacket;
+                            ns_offset <= config_rw.table0_ns_offset;
+                        else
+                            startPacket <= table1_startpacket;
+                            ns_offset <= config_rw.table1_ns_offset;
+                        end if;
+                        input_fsm <= idle;
+                        
+                    when others =>
+                        input_fsm_dbg <= "11111";
+                        trigger_readout <= '0';
+                        AWFIFO_wrEn <= '0';
+                        input_fsm <= idle;
+                end case;
+            end if;
+            
+            case current_wr_buffer is
+                when "00" =>
+                    next_wr_buffer <= "01";
+                    previous_wr_buffer <= "10";
+                    next_buffer_integration <= wr_integration;
+                    previous_buffer_integration <= std_logic_vector(unsigned(wr_integration) - 1);
+                when "01" =>
+                    next_wr_buffer <= "10";
+                    previous_wr_buffer <= "00";
+                    next_buffer_integration <= wr_integration;
+                    previous_buffer_integration <= wr_integration;
+                when others => -- "10"
+                    next_wr_buffer <= "00";
+                    previous_wr_buffer <= "01";
+                    next_buffer_integration <= std_logic_vector(unsigned(wr_integration) + 1);
+                    previous_buffer_integration <= wr_integration;
             end case;
             
-            if (unsigned(AWFIFO_WrDataCount) > 500) then
+            -- pipeline calculations to improve timing
+            -- input_fsm state "check_range_calc" exists to allow a cycle for these calculations to finish.
+            if ct_integration(31 downto 0) = next_buffer_integration(31 downto 0) then
+                ct_eq_next <= '1';
+            else
+                ct_eq_next <= '0';
+            end if;
+            if ct_integration(31 downto 0) = wr_integration(31 downto 0) then
+                ct_eq_current <= '1';
+            else
+                ct_eq_current <= '0';
+            end if;
+            if ct_integration(31 downto 0) = previous_buffer_integration(31 downto 0) then
+                ct_eq_previous <= '1';
+            else
+                ct_eq_previous <= '0';
+            end if;
+
+            if (unsigned(AWFIFO_WrDataCount) > 255) then
                 awStop <= '1';
             else
                 awStop <= '0';
             end if;
             
-            if (unsigned(config_rw.halt_packet_count) = 0) then
-                haltPacketCountEqZero <= '1';   -- when zero, never halt.
-            else
-                haltPacketCountEqZero <= '0';
-            end if; 
+            table0_startpacket <= config_rw.table0_startPacket_high & config_rw.table0_startpacket_low;
+            table1_startpacket <= config_rw.table1_startPacket_high & config_rw.table1_startpacket_low;
+            table0_valid <= config_rw.table0_valid;
+            table1_valid <= config_rw.table1_valid;
             
-            if input_fsm = check_range then
-                if ((signed(packetCount) >= signed(scanStartPacketCountExt)) and
-                    (haltPacketCountEqZero = '1' or (signed(packetCount) < signed(haltpacketCountExt)))) then
-                    running <= '1';
-                else
-                    running <= '0';
-                end if;
-            end if;
-            
-            -- Get the memory address to write the packet to.
-            LFAAAddr(12 downto 0) <= "0000000000000"; -- 8192 bytes per LFAA packet, so low 13 bits are zeros.
-            LFAAAddr(29 downto 20) <= virtualChannel(9 downto 0);
-            
-            buf0offset <= std_logic_vector(signed(packetCount) - signed(packetCountBuffer0));
-            buf1offset <= std_logic_vector(signed(packetCount) - signed(packetCountBuffer1));
-            buf2offset <= std_logic_vector(signed(packetCount) - signed(packetCountBuffer2));
-            
-            -- Select which of the 4 buffers to use. This is still qualified in the state machine by checks on whether the packet is in range.
-            if ((signed(buf0offset) >= 0) and (signed(buf0offset) < g_SPS_PACKETS_PER_FRAME)) then
-                LFAAAddr(31 downto 30) <= "00";
-                LFAAAddr(19 downto 13) <= buf0offset(6 downto 0);
-            elsif ((signed(buf1offset) >= 0) and (signed(buf1offset) < g_SPS_PACKETS_PER_FRAME)) then
-                LFAAAddr(31 downto 30) <= "01";
-                LFAAAddr(19 downto 13) <= buf1offset(6 downto 0);
-            else -- if ((signed(buf2offset) >= 0) and (signed(buf2offset) < g_LFAA_BLOCKS_PER_FRAME)) then
-                LFAAAddr(31 downto 30) <= "10";
-                LFAAAddr(19 downto 13) <= buf2offset(6 downto 0);
-            end if;
-            
-            ----------------------------------------------------------------------
-            -- Buffer management
-            -- Two options for managing the four buffers :
-            --  (1) Untimed.
-            --       - At startup, the first three buffers are assigned to start at packet counts of
-            --           buffer "10" : config_rw.scanstartpacketcount - g_LFAA_BLOCKS_PER_FRAME,
-            --           buffer "00" : config_rw.scanstartpacketcount, 
-            --           buffer "01" : config_rw.scanstartpacketcount + g_LFAA_BLOCKS_PER_FRAME,
-            --       - When we receive a packet with a packet count that places it in buffer "01",
-            --         with a frame count within the buffer >= config_rw.untimed_framecount_start, 
-            --         then we start reading from buffer "00", with preload from buffer "10".
-            --         
-            --  (2) Timed.
-            --  
-            untimedFrameCountStart(15 downto 0) <= config_rw.untimed_framecount_start;
-            untimedFrameCountStart(32 downto 16) <= (others => '0');
-            
-            if resetDel1 = '1' and resetDel2 = '0' then
-                currentWrBuffer <= "00";
-                currentRdBuffer <= "10";   -- although we don't actually do a read out on the first frame
-                packetCountBuffer0 <= scanStartPacketCountExt;
-                packetCountBuffer1 <= std_logic_vector(signed(scanStartPacketCountExt) + g_SPS_PACKETS_PER_FRAME);  -- Next frame
-                packetCountBuffer2 <= std_logic_vector(signed(scanStartPacketCountExt) - g_SPS_PACKETS_PER_FRAME);  -- Previous frame
-                frameCountReadTrigger <= std_logic_vector(signed(scanStartPacketCountExt) + g_SPS_PACKETS_PER_FRAME + signed(untimedFrameCountStart));
-                minPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) - 2); -- -2 so that it includes the preload data.
-                maxPacketCount <= std_logic_vector(signed(scanStartPacketCountExt) + 3*g_SPS_PACKETS_PER_FRAME - 2); -- -2 so we don't overwrite preload data for the current frame being read out with future data.
-                triggerRead <= '0';
-            elsif ((input_fsm = check_range) and (signed(packetCount) >= signed(frameCountReadTrigger))) then 
-                -- Advance to the next frame
-                currentRdBuffer <= currentWrBuffer;
-                case currentWrBuffer is
-                    when "00" => currentWrBuffer <= "01";
-                    when "01" => currentWrBuffer <= "10";
-                    when others => currentWrBuffer <= "00";
-                end case;
-                frameCountReadTrigger <= std_logic_vector(unsigned(frameCountReadTrigger) + g_SPS_PACKETS_PER_FRAME);
-                if currentWrBuffer = "00" then
-                    -- We are far enough into buffer 1 to start reading from buffer 0, with preload data coming from buffer 2.
-                    -- For the purpose of writing new LFAA data, advance buffer 2 (although the end of buffer2 is still used for preload data). 
-                    packetCountBuffer2 <= std_logic_vector(unsigned(packetCountBuffer2) + 3 * g_SPS_PACKETS_PER_FRAME);
-                elsif currentWrBuffer = "01" then
-                    packetCountBuffer0 <= std_logic_vector(unsigned(packetCountBuffer0) + 3 * g_SPS_PACKETS_PER_FRAME);
-                else
-                    packetCountBuffer1 <= std_logic_vector(unsigned(packetCountBuffer1) + 3 * g_SPS_PACKETS_PER_FRAME);
-                end if;
-                minPacketCount <= std_logic_vector(unsigned(minPacketCount) + g_SPS_PACKETS_PER_FRAME);
-                maxPacketCount <= std_logic_vector(unsigned(maxPacketCount) + g_SPS_PACKETS_PER_FRAME);
-                triggerRead <= '1';
-            else
-                triggerRead <= '0';
-            end if;
-            
-            if resetDel1 = '1' and resetDel2 = '0' then
-                NChannels <= '0' & i_virtualChannels;
-                clocksPerPacket <= config_rw.output_cycles;
-            end if;
-            
-            resetDel1 <= config_rw.full_reset;
-            resetDel2 <= resetDel1;
-            if resetDel1 = '1' and resetDel2 = '0' then
-                AWFIFO_rst <= '1';
-            else
-                AWFIFO_rst <= '0';
-            end if;
-            if resetDel1 = '0' and resetDel2 = '1' then
-                startup_enable <= '1';
-            end if;
-            o_rst <= resetDel2;
-            
-            if AWFIFO_rst = '1' then
-                earlyCount <= (others => '0');
-                lateCount <= (others => '0');
-                duplicateCount <= (others => '0');
-                missingCount <= (others => '0');
-            else
-                if input_fsm = packet_early then
-                    if earlyCount = "1111111111111111" then
-                        earlyCount <= "1000000000000000"; -- make top bit sticky.
-                    else
-                        earlyCount <= std_logic_vector(unsigned(earlyCount) + 1); 
-                    end if;
-                end if;
-                if input_fsm = packet_late then
-                    if lateCount = "1111111111111111" then
-                        lateCount <= "1000000000000000";
-                    else
-                        lateCount <= std_logic_vector(unsigned(lateCount) + 1);
-                    end if;
-                end if;
-                if duplicate = '1' then
-                    if duplicateCount = "11111111" then
-                        duplicateCount <= "10000000";
-                    else
-                        duplicateCount <= std_logic_vector(unsigned(duplicateCount) + 1);
-                    end if;
-                end if;
-                if dataMissing = '1' then
-                    if missingCount = "11111111111111111111" then
-                        missingCount <= "10000000000000000000";
-                    else
-                        missingCount <= std_logic_vector(unsigned(missingCount) + 1);
-                    end if;
-                end if;
-            end if;
-            
-            -- Control signals to the readout module
-            readStart <= triggerRead and running and startup_enable;
-            readBuffer <= currentRdBuffer;
-            case currentRdBuffer is
-                -- 3 buffers, "00","01" and "10", so prior to "00" was "10".
-                when "00" => previousBuffer <= "10";
-                when "01" => previousBuffer <= "00";
-                when "10" => previousBuffer <= "01";
-                when others => previousBuffer <= "00";  -- should be impossible.
-            end case;
-            if currentRdBuffer = "00" then
-                packetCountRdBuffer <= packetCountBuffer0(31 downto 0);
-            elsif currentRdBuffer = "01" then
-                packetCountRdBuffer <= packetCountBuffer1(31 downto 0);
-            else --  currentRdBuffer = "10" then
-                packetCountRdBuffer <= packetCountBuffer2(31 downto 0);
-            end if;
-            
-            packetCountSwitch <= '0' & config_rw.packet_count;
-            if resetDel1 = '1' then
-                tableSelect <= config_rw.table_select;
-            elsif readStart = '1' then
-                if (unsigned(packetCountSwitch) = 0 or (unsigned(packetCountSwitch) >= unsigned(packetCountRdBuffer))) then
-                    tableSelect <= config_rw.table_select;
-                end if;
-            end if;
-            
-            if tableSelect = '0' then
-                startPacket <= config_rw.table0_startpacket;
-            else
-                startPacket <= config_rw.table1_startpacket;
-            end if;
+            ---------------------------------------------------
+            AWFIFO_rst <= data_rst;
             
             table0Rd_dat <= config_table0_out.rd_dat;
             table1Rd_dat <= config_table1_out.rd_dat;
@@ -609,8 +815,8 @@ begin
         end if;
     end process;
     
-    scanStartPacketCountExt <= '0' & config_rw.scanstartpacketcount;
-    haltpacketCountExt <= '0' & config_rw.halt_packet_count;
+    rd_integration_x128 <= "000000000" & rd_integration & "0000000";
+    rd_integration_x256 <= "00000000" & rd_integration & "00000000";
     
     -- FIFO for write addresses 
     -- Input to the fifo comes from "input_fsm". It is read as fast as addresses are accepted by the shared memory bus.
@@ -662,7 +868,7 @@ begin
     );
     
     o_m01_axi_aw.valid <= not AWFIFO_empty; --  out std_logic;
-    o_m01_axi_aw.addr  <= x"00" & AWFIFO_dout(31 downto 0); -- out std_logic_vector(29 downto 0);
+    o_m01_axi_aw.addr  <= x"00" & AWFIFO_dout(31 downto 1) & '0';
     -- Number of beats in a burst -1; 
     -- 8 beats * 64 byte wide bus = 512 bytes per burst, so 16 bursts for a full LFAA packet of 8192 bytes.
     -- Warning : The "wlast" signal generated in the LFAA ingest module (in "LFAAProcess100G.vhd") assumes that this value is 7 (=8 beats per burst).
@@ -678,7 +884,8 @@ begin
     process(i_shared_clk)
     begin
         if rising_edge(i_shared_clk) then
-            if (AWFIFO_empty = '0') and (i_m01_axi_awready = '1') and (AWFIFO_dout(12 downto 9) = "1111") then
+            if (AWFIFO_empty = '0') and (i_m01_axi_awready = '1') and (AWFIFO_dout(12 downto 9) = "1111") and (AWFIFO_dout(0) = '0') then
+                -- bit 0 of AWFIFO_dout indicates that the packet is being dropped.
                 validMemSetWrEn <= '1';
                 validMemSetWrAddr <= AWFIFO_dout(31 downto 13);
             else
@@ -709,23 +916,23 @@ begin
     
     readout : entity ct_lib.corr_ct1_readout
     generic map (
-        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME
+        g_SPS_PACKETS_PER_FRAME => 128
     )
     port map (
         shared_clk => i_shared_clk, -- in std_logic; Shared memory clock
         i_rst      => AWFIFO_rst,
         -- input signals to trigger reading of a buffer
-        i_currentBuffer => readBuffer,        -- in(1:0);
-        i_previousBuffer => previousBuffer,   -- in(1:0);
-        i_readStart => readStart,             -- in std_logic; -- Pulse to start readout from readBuffer
-        i_packetCount => packetCountRdBuffer, -- in(31:0)
+        i_currentBuffer => current_rd_buffer, -- in(1:0);
+        i_readStart => trigger_readout,       -- in std_logic; Pulse to start readout from i_currentBuffer
+        i_packetCount => rd_buffer_packet,    -- in(47:0)
+        i_ns_offset => ns_offset,             -- in(31:0); ns offset for calculation of the delays.
         i_Nchannels => NChannels,             -- in(11:0); -- Total number of virtual channels to read out,
         i_clocksPerPacket => clocksPerPacket, -- in(15:0)
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
         o_delayTableAddr => delayTableAddr, -- out std_logic_vector(10 downto 0); -- 2 addresses per virtual channel, up to 1024 virtual channels
         i_delayTableData => delayTableData, -- in std_logic_vector(31 downto 0); -- Data from the delay table with 3 cycle latency. 
-        i_startPacket    => startPacket,    -- in std_logic_vector(31 downto 0) -- LFAA Packet count that the fine delays in the delay table are relative to. Fine delays are based on the first LFAA sample that contributes to a given filterbank output
+        i_startPacket    => startPacket,    -- in (47:0); SPS Packet count that the fine delays in the delay table are relative to. Fine delays are based on the first LFAA sample that contributes to a given filterbank output
         
         -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
         o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
@@ -765,7 +972,7 @@ begin
         o_axi_rready  => o_m01_axi_rready, -- out std_logic;
         -- errors and debug
         -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
-        o_readOverflow => open,       -- out std_logic -- pulses high in the shared_clk domain.
+        o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
         o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
         o_dataMissing => dataMissing  -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
     );
