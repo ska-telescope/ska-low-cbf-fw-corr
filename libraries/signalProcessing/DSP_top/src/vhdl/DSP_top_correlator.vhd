@@ -257,6 +257,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal data_tx_siso : t_lbus_siso;
     signal FB_out_sof : std_logic;
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
+    signal reset_to_ct_1 : std_logic;
     
 begin
     
@@ -304,6 +305,8 @@ begin
         -- hbm reset   
         o_hbm_reset        => o_hbm_reset(0),
         i_hbm_status       => i_hbm_status(0),
+
+        o_reset_to_ct      => reset_to_ct_1,
         -- debug
         o_dbg              => LFAADecode_dbg
     );
@@ -314,14 +317,14 @@ begin
     -- ) 
     port map (
         -- shared memory interface clock (300 MHz)
-        i_shared_clk => i_MACE_clk, -- in std_logic;
-        i_shared_rst => i_MACE_rst, -- in std_logic;
+        i_shared_clk        => i_MACE_clk, -- in std_logic;
+        i_shared_rst        => i_MACE_rst, -- in std_logic;
         --AXI Lite Interface for registers
-        i_saxi_mosi => i_LFAA_CT_axi_mosi, -- in t_axi4_lite_mosi;
-        o_saxi_miso => o_LFAA_CT_axi_miso, -- out t_axi4_lite_miso;
+        i_saxi_mosi         => i_LFAA_CT_axi_mosi, -- in t_axi4_lite_mosi;
+        o_saxi_miso         => o_LFAA_CT_axi_miso, -- out t_axi4_lite_miso;
         -- other config (from LFAA ingest config, must be the same for the corner turn)
-        i_virtualChannels => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
-        i_rst       => '0',
+        i_virtualChannels   => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
+        i_rst               => reset_to_ct_1,
         --o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
         --o_validMemRstActive => o_validMemRstActive, -- out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         --

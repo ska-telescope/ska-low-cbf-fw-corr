@@ -73,6 +73,8 @@ entity LFAADecodeTop100G is
         -- hbm reset   
         o_hbm_reset        : out std_logic;
         i_hbm_status       : in std_logic;
+        
+        o_reset_to_ct      : out std_logic;
 
         -- debug ports
         o_dbg            : out std_logic_vector(13 downto 0)
@@ -113,6 +115,7 @@ architecture Behavioral of LFAADecodeTop100G is
     
 begin
     
+    o_reset_to_ct   <= reg_rw.lfaa_decode_reset;
     -------------------------------------------------------------------------------------------------
     -- Process packets from the 100GE LFAA input 
     
