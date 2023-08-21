@@ -355,6 +355,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
 ]
 set_property library ct_lib [get_files {\
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
@@ -363,6 +364,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_div3.vhd \
 }]
 
 #source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1.tcl

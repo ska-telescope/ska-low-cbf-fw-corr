@@ -173,7 +173,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal clk100GE_wallTime : t_wall_time;
     
     signal LFAAingest_virtualChannel : std_logic_vector(15 downto 0);  -- single number to uniquely identify the channel+station for this packet.
-    signal LFAAingest_packetCount    : std_logic_vector(31 downto 0);  -- Packet count from the SPEAD header.
+    signal LFAAingest_packetCount    : std_logic_vector(47 downto 0);  -- Packet count from the SPEAD header.
     signal LFAAingest_valid          : std_logic;                      -- out std_logic
     
     signal LFAAingest_wvalid : std_logic;
@@ -281,7 +281,7 @@ begin
         i_data_rst       => '0',            -- in std_logic;
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
         o_virtualChannel => LFAAingest_virtualChannel,  -- out(15:0), single number to uniquely identify the channel+station for this packet.
-        o_packetCount    => LFAAingest_packetCount,     -- out(31:0). Packet count from the SPEAD header.
+        o_packetCount    => LFAAingest_packetCount(31 downto 0),     -- out(31:0). Packet count from the SPEAD header.
         o_valid          => LFAAingest_valid,           -- out std_logic; o_virtualChannel and o_packetCount are valid.
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
         o_axi_w      => o_HBM_axi_w(0),      -- w data bus (.wvalid, .wdata, .wlast)
@@ -301,9 +301,10 @@ begin
     );
     
     LFAA_FB_CT : entity CT_lib.corr_ct1_top
-    generic map (
-        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME
-    ) port map (
+    -- generic map (
+    --     g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME
+    -- ) 
+    port map (
         -- shared memory interface clock (300 MHz)
         i_shared_clk => i_MACE_clk, -- in std_logic;
         i_shared_rst => i_MACE_rst, -- in std_logic;
@@ -312,8 +313,9 @@ begin
         o_saxi_miso => o_LFAA_CT_axi_miso, -- out t_axi4_lite_miso;
         -- other config (from LFAA ingest config, must be the same for the corner turn)
         i_virtualChannels => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
-        o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
-        o_validMemRstActive => o_validMemRstActive, -- out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
+        i_rst       => '0',
+        --o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
+        --o_validMemRstActive => o_validMemRstActive, -- out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         --
         -- Headers for each valid packet received by the LFAA ingest.
         -- LFAA packets are about 8300 bytes long, so at 100Gbps each LFAA packet is about 660 ns long. This is about 200 of the interface clocks (@300MHz)
