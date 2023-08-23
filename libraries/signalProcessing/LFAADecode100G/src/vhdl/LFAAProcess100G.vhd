@@ -233,13 +233,26 @@ begin
     
     o_dbg <= nonSPEADPacket_dbg & goodPacket_dbg & rx_fsm_dbg & stats_fsm_dbg & tx_fsm_dbg;
     
-    o_reg_ro.lfaa_tx_fsm_debug      <= tx_fsm_dbg;
-    o_reg_ro.lfaa_stats_fsm_debug   <= stats_fsm_dbg;
-    o_reg_ro.lfaa_rx_fsm_debug      <= rx_fsm_dbg;
-    o_reg_ro.lfaa_lookup_fsm_debug  <= lookup_fsm_dbg;
-
-    o_reg_ro.hbm_reset_status       <= i_hbm_status;
-
+process(i_data_clk, i_data_rst)
+begin
+    if rising_edge(i_data_clk) then 
+        if i_data_rst = '1' then
+            o_reg_ro.lfaa_tx_fsm_debug      <= x"0";
+            o_reg_ro.lfaa_stats_fsm_debug   <= x"0";
+            o_reg_ro.lfaa_rx_fsm_debug      <= x"0";
+            o_reg_ro.lfaa_lookup_fsm_debug  <= x"0";
+        
+            o_reg_ro.hbm_reset_status       <= '0';
+        else
+            o_reg_ro.lfaa_tx_fsm_debug      <= tx_fsm_dbg;
+            o_reg_ro.lfaa_stats_fsm_debug   <= stats_fsm_dbg;
+            o_reg_ro.lfaa_rx_fsm_debug      <= rx_fsm_dbg;
+            o_reg_ro.lfaa_lookup_fsm_debug  <= lookup_fsm_dbg;
+        
+            o_reg_ro.hbm_reset_status       <= i_hbm_status;
+        end if;        
+    end if;
+end process;
 
     o_hbm_reset                     <= i_reg_rw.hbm_reset;
     ------------------------------------------------------------------------------
