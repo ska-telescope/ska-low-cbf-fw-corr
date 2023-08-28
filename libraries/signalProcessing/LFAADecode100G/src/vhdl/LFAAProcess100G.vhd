@@ -216,11 +216,11 @@ architecture Behavioral of LFAAProcess100G is
     
     signal tableSelect : std_logic := '0';
     
-    component ila_beamData
-    port (
-        clk : in std_logic;
-        probe0 : in std_logic_vector(119 downto 0)); 
-    end component;
+    COMPONENT ila_0
+    PORT (
+        clk : IN STD_LOGIC;
+        probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
+    END COMPONENT;
     
     signal axis_tdata, axis_tdata_del : std_logic_vector(511 downto 0);
     signal axis_tkeep, axis_tkeep_del : std_logic_vector(63 downto 0);  -- 64 bits, one bit per byte in i_axi_tdata
@@ -241,16 +241,14 @@ begin
             o_reg_ro.lfaa_stats_fsm_debug   <= x"0";
             o_reg_ro.lfaa_rx_fsm_debug      <= x"0";
             o_reg_ro.lfaa_lookup_fsm_debug  <= x"0";
-        
-            o_reg_ro.hbm_reset_status       <= '0';
         else
             o_reg_ro.lfaa_tx_fsm_debug      <= tx_fsm_dbg;
             o_reg_ro.lfaa_stats_fsm_debug   <= stats_fsm_dbg;
             o_reg_ro.lfaa_rx_fsm_debug      <= rx_fsm_dbg;
             o_reg_ro.lfaa_lookup_fsm_debug  <= lookup_fsm_dbg;
-        
-            o_reg_ro.hbm_reset_status       <= i_hbm_status;
-        end if;        
+        end if;
+            
+            o_reg_ro.hbm_reset_status       <= "000" & i_hbm_status;     
     end if;
 end process;
 
@@ -1231,26 +1229,32 @@ end process;
     
     
     ----------------------------------------------------------------------------
-    --
---    ilaLFAAProcess : ila_beamData
---    port map (
---        clk => i_data_clk, --  in std_logic;
---        probe0(0)  => dataAlignedEOP, -- : in std_logic_vector(119 downto 0)
---        probe0(1) => allFieldsMatch,
---        probe0(2) => searchRunning,
---        probe0(3) => bufDinGoodLength,
---        probe0(4) => searchDone,
---        probe0(5) => NoMatch,
---        probe0(6) => bufDinEOP,
---        probe0(7) => bufDinErr,
---        probe0(8) => VCTableMatch,
---        probe0(12 downto 9) => rx_fsm_dbg, --  4 bits,
---        probe0(13) => noVirtualChannel,
---        probe0(23 downto 14) => virtualChannel,     --  10 bits
---        probe0(33 downto 24) => packetStationID,    --  10 bits
---        probe0(42 downto 34) => packetFrequencyID,  --  9 bits
---        probe0(119 downto 43) => (others => '0')    -- 
---    );
+    
+   ilaLFAAProcess : ila_0
+   port map (
+       clk                  => i_data_clk, 
+       probe0(0)            => dataAlignedEOP, 
+       probe0(1)            => allFieldsMatch,
+       probe0(2)            => searchRunning,
+       probe0(3)            => bufDinGoodLength,
+       probe0(4)            => searchDone,
+       probe0(5)            => NoMatch,
+       probe0(6)            => bufDinEOP,
+       probe0(7)            => axis_tlast_del,
+       probe0(8)            => VCTableMatch,
+       probe0(12 downto 9)  => rx_fsm_dbg,          --  4 bits,
+       probe0(13)           => noVirtualChannel,
+       probe0(23 downto 14) => virtualChannel(9 downto 0),      --  10 bits
+       probe0(33 downto 24) => actualValues(c_station_id_index)(9 downto 0),     --  10 bits
+       probe0(42 downto 34) => actualValues(c_frequency_id_index)(8 downto 0),   --  9 bits
+       probe0(43)           => i_hbm_status,
+       probe0(47 downto 44) => tx_fsm_dbg,
+       probe0(51 downto 48) => stats_fsm_dbg,
+       probe0(55 downto 52) => lookup_fsm_dbg,
+       probe0(56)           => i_reg_rw.hbm_reset,
+       probe0(57)           => i_data_rst,
+       probe0(191 downto 58) => (others => '0')  
+   );
     
 end Behavioral;
 
