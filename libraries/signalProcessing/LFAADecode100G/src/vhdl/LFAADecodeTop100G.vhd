@@ -122,39 +122,40 @@ begin
     LFAAProcessInst : entity LFAADecode100G_lib.LFAAProcess100G
     port map(
         -- Data in from the 100GE MAC
-        i_axis_tdata   => i_axis_tdata,
-        i_axis_tkeep   => i_axis_tkeep,
-        i_axis_tlast   => i_axis_tlast,
-        i_axis_tuser   => i_axis_tuser,
-        i_axis_tvalid  => i_axis_tvalid,
-        i_data_clk     => i_data_clk,     -- in std_logic;     -- 312.5 MHz for 40GE MAC
-        i_data_rst     => reg_rw.lfaa_decode_reset,     -- in std_logic;
+        i_axis_tdata        => i_axis_tdata,
+        i_axis_tkeep        => i_axis_tkeep,
+        i_axis_tlast        => i_axis_tlast,
+        i_axis_tuser        => i_axis_tuser,
+        i_axis_tvalid       => i_axis_tvalid,
+        i_data_clk          => i_data_clk,     -- in std_logic;     -- 312.5 MHz for 40GE MAC
+        i_data_rst          => reg_rw.lfaa_decode_reset,     -- in std_logic;
         -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
-        i_ap_clk       => i_s_axi_clk,  -- in  std_logic;
-        o_axi_w        => o_axi_w,      -- out t_axi4_full_data
-        i_axi_wready   => i_axi_wready, -- in std_logic;
+        i_ap_clk            => i_s_axi_clk,  -- in  std_logic;
+        o_axi_w             => o_axi_w,      -- out t_axi4_full_data
+        i_axi_wready        => i_axi_wready, -- in std_logic;
         -- Only the header data goes to the corner turn.
-        o_virtualChannel => o_virtualChannel, -- out std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station.
-        o_packetCount  => o_packetCount,    -- out std_logic_vector(31 downto 0);
-        o_valid        => o_valid,          -- out std_logic;
+        o_virtualChannel    => o_virtualChannel, -- out std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station.
+        o_packetCount       => o_packetCount,    -- out std_logic_vector(31 downto 0);
+        o_valid             => o_valid,          -- out std_logic;
         -- Interface to the registers
-        i_reg_rw       => reg_rw,         -- in t_statctrl_rw;
-        o_reg_count    => LFAAreg_count,  -- out t_statctrl_count;
+        i_reg_rw            => reg_rw,         -- in t_statctrl_rw;
+        o_reg_ro            => reg_ro,
+        o_reg_count         => LFAAreg_count,  -- out t_statctrl_count;
         -- Virtual channel table memory in the registers
-        o_searchAddr      => LFAAVCTable_addr,       -- out(11:0); -- read address to the VCTable_ram in the registers.
-        i_VCTable_rd_data => VCTable_ram_out.rd_dat, -- in(31:0);  -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
+        o_searchAddr        => LFAAVCTable_addr,       -- out(11:0); -- read address to the VCTable_ram in the registers.
+        i_VCTable_rd_data   => VCTable_ram_out.rd_dat, -- in(31:0);  -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
         -- Virtual channel stats in the registers.
-        o_statsWrData  => VCStats_ram_in_wr_dat,  -- out(31:0);
-        o_statsWE      => VCStats_ram_in_wr_en,   -- out std_logic;
-        o_statsAddr    => VCStats_ram_in_adr,     -- out(12:0);
-        i_statsRdData  => VCStats_ram_out_rd_dat, -- in(31:0)
+        o_statsWrData       => VCStats_ram_in_wr_dat,  -- out(31:0);
+        o_statsWE           => VCStats_ram_in_wr_en,   -- out std_logic;
+        o_statsAddr         => VCStats_ram_in_adr,     -- out(12:0);
+        i_statsRdData       => VCStats_ram_out_rd_dat, -- in(31:0)
 
         -- hbm reset   
-        o_hbm_reset    => hbm_reset_cmac,
-        i_hbm_status   => hbm_status_cmac,
+        o_hbm_reset         => hbm_reset_cmac,
+        i_hbm_status        => hbm_status_cmac,
 
         -- debug ports
-        o_dbg             => o_dbg   -- out(13:0)
+        o_dbg               => o_dbg   -- out(13:0)
     );
     
     -- VCTable memory inputs
