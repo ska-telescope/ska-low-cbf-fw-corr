@@ -115,7 +115,7 @@ entity corr_ct1_top is
         -- This should be valid before coming out of reset.
         i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         i_rst               : in std_logic;   -- While in reset, process nothing.
-        -- o_rst            : out std_logic;  -- Reset is now driven from the LFAA ingest module.
+        o_rst               : out std_logic;  -- Reset is now driven from the LFAA ingest module.
         --o_validMemRstActive : out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         -- Headers for each valid packet received by the LFAA ingest.
         -- LFAA packets are about 8300 bytes long, so at 100Gbps each LFAA packet is about 660 ns long. This is about 200 of the interface clocks (@300MHz)
@@ -354,6 +354,8 @@ begin
     -- registers to note if something terrible happened.
     config_ro.error_input_overflow <= aw_overflow; -- std_logic;
     config_ro.error_read_overflow <= readOverflow_set; -- std_logic;
+
+    o_rst   <= config_rw.full_reset;
     
     process(i_shared_clk)
     begin

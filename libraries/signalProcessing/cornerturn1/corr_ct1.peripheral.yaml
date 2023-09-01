@@ -16,12 +16,18 @@ peripherals:
         number_of_slaves  : 1
         slave_description : "Correlator corner turn 1 control"
         fields:
+          - - field_name        : full_reset
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "This is the reset line for CT-2, needs to be driven high and then low to enable the CT-2 logic. (To be replaced before AA0.5)"
+        ###########################################################################
           - - field_name        : status
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
               field_description : "status. "
-
+        ###########################################################################      
           - - field_name        : output_cycles
               width             : 16
               access_mode       : RW

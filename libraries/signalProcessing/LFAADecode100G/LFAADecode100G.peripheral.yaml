@@ -37,12 +37,6 @@ peripherals:
         slave_description : "Registers associated with LFAA Decode"
         dual_clock        : true
         fields:
-          - - field_name        : control
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "bit 0 rising edge resets the module."
-          #################################
           - - field_name        : table_select
               width             : 1
               access_mode       : RW

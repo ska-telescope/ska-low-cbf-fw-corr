@@ -325,7 +325,7 @@ begin
         -- other config (from LFAA ingest config, must be the same for the corner turn)
         i_virtualChannels   => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
         i_rst               => reset_to_ct_1,
-        --o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
+        o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
         --o_validMemRstActive => o_validMemRstActive, -- out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         --
         -- Headers for each valid packet received by the LFAA ingest.
