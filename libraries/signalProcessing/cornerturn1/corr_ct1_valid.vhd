@@ -269,7 +269,7 @@ begin
             
             rstDel1 <= i_rst;
             rstDel2 <= rstDel1;
-            if rstDel1 = '1' and rstDel2 = '0' then -- rising edge of reset
+            if rstDel1 = '0' and rstDel2 = '1' then -- falling edge of reset
                 addrb <= (others => '0');
                 rstActive <= '1';
                 web(0) <= '1';

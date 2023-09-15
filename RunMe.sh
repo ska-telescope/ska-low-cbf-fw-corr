@@ -167,6 +167,11 @@ if [ "$4" = "args" ]; then
     exit 0
 fi
 
+echo "Generate build info file"
+cd $GITREPO/build
+echo "$GITREPO/build"
+./../common/scripts/build_details.sh
+
 export VITIS_VERSION=$VIVADO_VERSION_IN_USE
 
 # If you wish to just generate the .CCFG , issue the following command
