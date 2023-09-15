@@ -28,7 +28,7 @@
 --  - ptpBlock : transfer ptp time to the data_clk domain.
 ------------------------------------------------------------------------------------
 
-library IEEE, axi4_lib, xpm, LFAADecode100G_lib, dsp_top_lib, technology_lib;
+library IEEE, axi4_lib, xpm, LFAADecode100G_lib, dsp_top_lib, technology_lib, signal_processing_common;
 --use ctc_lib.ctc_pkg.all;
 use DSP_top_lib.DSP_top_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -69,6 +69,13 @@ entity LFAADecodeTop100G is
         o_vcstats_MM_OUT : out t_axi4_full_miso;
         -- Output from the registers that are used elsewhere (on i_s_axi_clk)
         o_totalChannels  : out std_logic_vector(11 downto 0);
+        
+        -- hbm reset   
+        o_hbm_reset        : out std_logic;
+        i_hbm_status       : in std_logic;
+        
+        o_reset_to_ct      : out std_logic;
+
         -- debug ports
         o_dbg            : out std_logic_vector(13 downto 0)
     );
@@ -81,7 +88,9 @@ end LFAADecodeTop100G;
 
 architecture Behavioral of LFAADecodeTop100G is
 
-    signal reg_rw    : t_statctrl_rw;
+    signal reg_rw   : t_statctrl_rw;
+    signal reg_ro   : t_statctrl_ro;
+
     signal LFAAreg_count, testReg_count, reg_count : t_statctrl_count;
     signal data_clk_vec : std_logic_vector(0 downto 0);
     
@@ -101,42 +110,52 @@ architecture Behavioral of LFAADecodeTop100G is
     signal cdcDestReq, cdcRcv : std_logic;
     signal AXI_totalChannels : std_logic_vector(11 downto 0);
     
+    signal hbm_reset_cmac   : std_logic;
+    signal hbm_status_cmac  : std_logic;
+    
 begin
     
+    o_reset_to_ct   <= reg_rw.lfaa_decode_reset;
     -------------------------------------------------------------------------------------------------
     -- Process packets from the 100GE LFAA input 
     
     LFAAProcessInst : entity LFAADecode100G_lib.LFAAProcess100G
     port map(
         -- Data in from the 100GE MAC
-        i_axis_tdata   => i_axis_tdata,
-        i_axis_tkeep   => i_axis_tkeep,
-        i_axis_tlast   => i_axis_tlast,
-        i_axis_tuser   => i_axis_tuser,
-        i_axis_tvalid  => i_axis_tvalid,
-        i_data_clk     => i_data_clk,     -- in std_logic;     -- 312.5 MHz for 40GE MAC
-        i_data_rst     => i_data_rst,     -- in std_logic;
+        i_axis_tdata        => i_axis_tdata,
+        i_axis_tkeep        => i_axis_tkeep,
+        i_axis_tlast        => i_axis_tlast,
+        i_axis_tuser        => i_axis_tuser,
+        i_axis_tvalid       => i_axis_tvalid,
+        i_data_clk          => i_data_clk,     -- in std_logic;     -- 312.5 MHz for 40GE MAC
+        i_data_rst          => reg_rw.lfaa_decode_reset,     -- in std_logic;
         -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
-        i_ap_clk       => i_s_axi_clk,  -- in  std_logic;
-        o_axi_w        => o_axi_w,      -- out t_axi4_full_data
-        i_axi_wready   => i_axi_wready, -- in std_logic;
+        i_ap_clk            => i_s_axi_clk,  -- in  std_logic;
+        o_axi_w             => o_axi_w,      -- out t_axi4_full_data
+        i_axi_wready        => i_axi_wready, -- in std_logic;
         -- Only the header data goes to the corner turn.
-        o_virtualChannel => o_virtualChannel, -- out std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station.
-        o_packetCount  => o_packetCount,    -- out std_logic_vector(31 downto 0);
-        o_valid        => o_valid,          -- out std_logic;
+        o_virtualChannel    => o_virtualChannel, -- out std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station.
+        o_packetCount       => o_packetCount,    -- out std_logic_vector(31 downto 0);
+        o_valid             => o_valid,          -- out std_logic;
         -- Interface to the registers
-        i_reg_rw       => reg_rw,         -- in t_statctrl_rw;
-        o_reg_count    => LFAAreg_count,  -- out t_statctrl_count;
+        i_reg_rw            => reg_rw,         -- in t_statctrl_rw;
+        o_reg_ro            => reg_ro,
+        o_reg_count         => LFAAreg_count,  -- out t_statctrl_count;
         -- Virtual channel table memory in the registers
-        o_searchAddr      => LFAAVCTable_addr,       -- out(11:0); -- read address to the VCTable_ram in the registers.
-        i_VCTable_rd_data => VCTable_ram_out.rd_dat, -- in(31:0);  -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
+        o_searchAddr        => LFAAVCTable_addr,       -- out(11:0); -- read address to the VCTable_ram in the registers.
+        i_VCTable_rd_data   => VCTable_ram_out.rd_dat, -- in(31:0);  -- read data from VCTable_ram in the registers; assumed valid 2 clocks after searchAddr.
         -- Virtual channel stats in the registers.
-        o_statsWrData  => VCStats_ram_in_wr_dat,  -- out(31:0);
-        o_statsWE      => VCStats_ram_in_wr_en,   -- out std_logic;
-        o_statsAddr    => VCStats_ram_in_adr,     -- out(12:0);
-        i_statsRdData  => VCStats_ram_out_rd_dat, -- in(31:0)
+        o_statsWrData       => VCStats_ram_in_wr_dat,  -- out(31:0);
+        o_statsWE           => VCStats_ram_in_wr_en,   -- out std_logic;
+        o_statsAddr         => VCStats_ram_in_adr,     -- out(12:0);
+        i_statsRdData       => VCStats_ram_out_rd_dat, -- in(31:0)
+
+        -- hbm reset   
+        o_hbm_reset         => hbm_reset_cmac,
+        i_hbm_status        => hbm_status_cmac,
+
         -- debug ports
-        o_dbg             => o_dbg   -- out(13:0)
+        o_dbg               => o_dbg   -- out(13:0)
     );
     
     -- VCTable memory inputs
@@ -154,17 +173,18 @@ begin
     regif : entity work.LFAADecode100G_lfaadecode100G_reg
     --   GENERIC (g_technology : t_technology := c_tech_select_default);
     port map (
-        MM_CLK               => i_s_axi_clk, --  IN    STD_LOGIC;
-        MM_RST               => i_s_axi_rst, --  IN    STD_LOGIC;
-        st_clk_statctrl      => data_clk_vec,
-        st_rst_statctrl      => "0",
-        SLA_IN               => i_s_axi_mosi, --  IN    t_axi4_lite_mosi;
-        SLA_OUT              => o_s_axi_miso, --  OUT   t_axi4_lite_miso;
-        statctrl_fields_rw   => reg_rw,       --  out t_statctrl_rw;
-        statctrl_fields_count => reg_count,   --  in t_statctrl_count;
-        count_rsti           => '0',            -- in std_logic := '0'
-        statctrl_VCTable_in  => VCTable_ram_in, -- in t_statctrl_vctable_ram_in;
-        statctrl_VCTable_out => VCTable_ram_out -- OUT t_statctrl_vctable_ram_out;
+        MM_CLK                  => i_s_axi_clk, --  IN    STD_LOGIC;
+        MM_RST                  => i_s_axi_rst, --  IN    STD_LOGIC;
+        st_clk_statctrl         => data_clk_vec,
+        st_rst_statctrl         => "0",
+        SLA_IN                  => i_s_axi_mosi, --  IN    t_axi4_lite_mosi;
+        SLA_OUT                 => o_s_axi_miso, --  OUT   t_axi4_lite_miso;
+        statctrl_fields_rw      => reg_rw,       --  out t_statctrl_rw;
+        STATCTRL_FIELDS_RO      => reg_ro,
+        statctrl_fields_count   => reg_count,   --  in t_statctrl_count;
+        count_rsti              => '0',            -- in std_logic := '0'
+        statctrl_VCTable_in     => VCTable_ram_in, -- in t_statctrl_vctable_ram_in;
+        statctrl_VCTable_out    => VCTable_ram_out -- OUT t_statctrl_vctable_ram_out;
     );
     
     data_clk_vec(0) <= i_data_clk; 
@@ -231,4 +251,28 @@ begin
         end if;
     end process;
     
+    hbm_status_cdc : entity signal_processing_common.sync
+    generic map (
+        WIDTH       => 1
+    )
+    Port map ( 
+        Clock_a     => i_data_clk,
+        data_in(0)  => i_hbm_status,
+         
+        Clock_b     => i_s_axi_clk,
+        data_out(0) => hbm_status_cmac
+    );
+
+    hbm_reset_cdc : entity signal_processing_common.sync
+    generic map (
+        WIDTH       => 1
+    )
+    Port map ( 
+        Clock_a     => i_s_axi_clk,
+        data_in(0)  => hbm_reset_cmac,
+         
+        Clock_b     => i_data_clk,
+        data_out(0) => o_hbm_reset
+    );
+
 end Behavioral;

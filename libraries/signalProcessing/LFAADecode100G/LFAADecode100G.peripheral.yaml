@@ -37,12 +37,6 @@ peripherals:
         slave_description : "Registers associated with LFAA Decode"
         dual_clock        : true
         fields:
-          - - field_name        : control
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "bit 0 rising edge resets the module."
-          #################################
           - - field_name        : table_select
               width             : 1
               access_mode       : RW
@@ -62,26 +56,26 @@ peripherals:
               field_description : "Count of LFAA SPEAD packets received, 32 bit wrapping, reset on write."
           #################################
           - - field_name        : NONSPEAD_packet_count
-              width             : 16
-              access_mode       : CS
+              width             : 32
+              access_mode       : CW
               reset_value       : 0x0
               field_description : "Count of non-LFAA SPEAD packets received, 32 bit saturating, reset on write."
           #################################
           - - field_name        : badEthernetFrames
-              width             : 16
-              access_mode       : CS
+              width             : 32
+              access_mode       : CW
               reset_value       : 0x0
               field_description : "Count of ethernet packets with errors (e.g. too short, too long, or FCS bad), reset on write."
           #################################
           - - field_name        : badIPUDPFrames
-              width             : 16
-              access_mode       : CS
+              width             : 32
+              access_mode       : CW
               reset_value       : 0x0
               field_description : "Count of ethernet packets with bad IP or UDP checksums, reset on write."
           #################################
           - - field_name        : NoVirtualChannelCount
-              width             : 16
-              access_mode       : CS
+              width             : 32
+              access_mode       : CW
               reset_value       : 0x0
               field_description : "Count of packets that did not match an entry in the virtual channel table, reset on write."
           #################################
@@ -131,5 +125,46 @@ peripherals:
                                     4 - station 10, channel 101 \
                                     5 - station 12, channel 101 \
                                     "
-        
+          #################################
+          - - field_name        : HBM_reset
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Set this to 1 and then monitor HBM_reset status."
+          #################################
+          - - field_name        : HBM_reset_status
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "When this reads 1 then both HBM read and WR queues have been zeroed out, ready to reconfigure logic."
+          #################################
+          - - field_name        : lfaa_decode_reset
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Set this to 1 to return all statemachines to IDLE"
+          #################################
+          - - field_name        : lfaa_tx_fsm_debug
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "If this returns 0xF, then held in reset otherwise it is running"
+          #################################
+          - - field_name        : lfaa_stats_fsm_debug
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "If this returns 0xF, then held in reset otherwise it is running"
+          #################################
+          - - field_name        : lfaa_rx_fsm_debug
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "If this returns 0xF, then held in reset otherwise it is running"
+          #################################
+          - - field_name        : lfaa_lookup_fsm_debug
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "If this returns 0xF, then held in reset otherwise it is running"
               
