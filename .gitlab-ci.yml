@@ -1,3 +1,12 @@
+stages:
+  - lint
+  - build
+  - test
+  - publish
+  - pages
+  - integration
+  - scan
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   VITIS_VERSION: "2022.2"
@@ -60,6 +69,27 @@ raw-build:
     # we check if the build directory exists because v++ doesn't always run
     - if [ -d build ]; then source common/scripts/util.sh; prepare_package_files raw/ska-low-cbf-fw-corr-u55c "$BUILD_STRING"; fi;
 
+# Low PSI CI job creation rules
+.low_psi_rules: &low_psi_rules
+  # The prerequisite jobs will not exist if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # starting out with a manual (not required) job, for initial familiarity & debugging
+  - when: manual
+    allow_failure: true
+
+psi-low-test:
+  stage: integration
+  rules:
+    - *low_psi_rules
+  needs:
+    - publish dev package
+  trigger:
+    project: "ska-telescope/low-cbf/ska-low-cbf-integration"
+  variables:
+    # version is actually something like "0.0.1-main.5a9cbb45" or "0.0.1-dev.b9faa971",
+    # but inserting the main/dev string here is annoying. Hash alone should be ok
+    CORR_FW_VERSION: ${CI_COMMIT_SHORT_SHA}
 
 ####################################################################################################################
 ### Example of how to add jobs to build for a different platform/card.
