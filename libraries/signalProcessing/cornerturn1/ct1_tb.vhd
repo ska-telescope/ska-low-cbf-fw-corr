@@ -26,7 +26,8 @@ entity ct1_tb is
     generic(
         g_VIRTUAL_CHANNELS : integer := 4;
         g_PACKET_GAP : integer := 800;
-        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"03421AFE0270"
+        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"03421AFE0270";
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt"
     );
 --  Port ( );
 end ct1_tb;
@@ -107,6 +108,9 @@ architecture Behavioral of ct1_tb is
     
     signal axi_lite_mosi : t_axi4_lite_mosi;
     signal axi_lite_miso : t_axi4_lite_miso;
+    
+    signal axi_full_mosi : t_axi4_full_mosi;
+    signal axi_full_miso : t_axi4_full_miso;
 
     signal pkt_packet_count : std_logic_vector(47 downto 0);
     signal pkt_virtual_channel : std_logic_vector(15 downto 0);
@@ -140,10 +144,10 @@ begin
     
     process
         file RegCmdfile: TEXT;
-       -- variable RegLine_in : Line;
-       -- variable regData, regAddr : std_logic_vector(31 downto 0);
-       -- variable RegGood : boolean;
-       -- variable c : character;
+        variable RegLine_in : Line;
+        variable regData, regAddr : std_logic_vector(31 downto 0);
+        variable RegGood : boolean;
+        variable c : character;
     begin
         data_rst <= '1';
         clk300_rst <= '1';
@@ -160,13 +164,19 @@ begin
         axi_lite_mosi.arvalid <= '0';
         axi_lite_mosi.rready <= '0';
         
---        axi_full_mosi.awaddr <= (others => '0');
---        axi_full_mosi.awvalid <= '0';
---        -- Always write bursts of 64 bytes = 16 x 4-byte words = 1 polynomial specification
---        axi_full_mosi.awlen <= "00001111";
---        axi_full_mosi.wvalid <= '0';
---        axi_full_mosi.wdata <= (others => '0');
---        axi_full_mosi.wlast <= '0';
+        axi_full_mosi.awaddr <= (others => '0');
+        axi_full_mosi.awvalid <= '0';
+       
+        -- Always write bursts of 80 bytes = 20 x 4-byte words
+        axi_full_mosi.awlen <= "00010011";
+        
+        axi_full_mosi.wvalid <= '0';
+        axi_full_mosi.wdata <= (others => '0');
+        axi_full_mosi.wlast <= '0';
+        axi_full_mosi.bready <= '1';
+        
+        axi_full_mosi.arvalid <= '0';
+        
         
         wait until rising_edge(clk300);
         wait for 100 ns;
@@ -187,46 +197,46 @@ begin
         wait until rising_edge(clk300);
         
         -- !! Put this in to do writes to configure the polynomials.
---        -- write configuration data to memory over the axi full interface.
---        FILE_OPEN(RegCmdfile, g_REGISTER_INIT_FILENAME, READ_MODE);
+        -- write configuration data to memory over the axi full interface.
+        FILE_OPEN(RegCmdfile, g_REGISTER_INIT_FILENAME, READ_MODE);
         
---        while (not endfile(RegCmdfile)) loop
---            -- Get data for 1 source (64 bytes = 16 x 4byte words)
---            readline(regCmdFile, regLine_in);
---            -- drop "[" character that indicates the address
---            read(regLine_in,c,regGood);
---            -- get the address
---            hread(regLine_in,regAddr,regGood);
---            axi_full_mosi.awaddr(31 downto 0) <= regAddr;
---            axi_full_mosi.awvalid <= '1';
---            wait until (rising_edge(clk) and axi_full_miso.awready='1');
---            wait for 1 ps;
---            axi_full_mosi.awvalid <= '0';
---            for i in 0 to 15 loop
---                readline(regCmdFile, regLine_in);
---                hread(regLine_in,regData,regGood);
---                axi_full_mosi.wvalid <= '1';
---                axi_full_mosi.wdata(31 downto 0) <= regData;
---                if i=15 then
---                    axi_full_mosi.wlast <= '1';
---                else
---                    axi_full_mosi.wlast <= '0';
---                end if;
---                wait until (rising_edge(clk) and axi_full_miso.wready = '1');
---                wait for 1 ps;
---            end loop;
---            axi_full_mosi.wvalid <= '0';
---            wait until rising_edge(clk);
---            wait until rising_edge(clk);
---        end loop;
---        wait until rising_edge(clk);
---        wait for 100 ns;
---        -- read back some data 
---        wait until rising_edge(clk);
---        do_readback <= '1';
---        wait until rising_edge(clk);
---        wait until rising_edge(clk);
---        do_readback <= '0';
+        while (not endfile(RegCmdfile)) loop
+            -- Get data for 1 source (64 bytes = 16 x 4byte words)
+            readline(regCmdFile, regLine_in);
+            -- drop "[" character that indicates the address
+            read(regLine_in,c,regGood);
+            -- get the address
+            hread(regLine_in,regAddr,regGood);
+            axi_full_mosi.awaddr(31 downto 0) <= regAddr;
+            axi_full_mosi.awvalid <= '1';
+            wait until (rising_edge(clk300) and axi_full_miso.awready='1');
+            wait for 1 ps;
+            axi_full_mosi.awvalid <= '0';
+            for i in 0 to 19 loop
+                readline(regCmdFile, regLine_in);
+                hread(regLine_in,regData,regGood);
+                axi_full_mosi.wvalid <= '1';
+                axi_full_mosi.wdata(31 downto 0) <= regData;
+                if i=19 then
+                    axi_full_mosi.wlast <= '1';
+                else
+                    axi_full_mosi.wlast <= '0';
+                end if;
+                wait until (rising_edge(clk300) and axi_full_miso.wready = '1');
+                wait for 1 ps;
+            end loop;
+            axi_full_mosi.wvalid <= '0';
+            wait until rising_edge(clk300);
+            wait until rising_edge(clk300);
+        end loop;
+        wait until rising_edge(clk300);
+        wait for 100 ns;
+        -- read back some data 
+        wait until rising_edge(clk300);
+        --do_readback <= '1';
+        wait until rising_edge(clk300);
+        wait until rising_edge(clk300);
+        --do_readback <= '0';
 
         ---------------------------------------------------------------
         wait until rising_edge(clk300);
@@ -348,6 +358,8 @@ begin
         -- Registers (uses the shared memory clock)
         i_saxi_mosi      => axi_lite_mosi, -- in  t_axi4_lite_mosi;
         o_saxi_miso      => axi_lite_miso, -- out t_axi4_lite_miso;
+        i_poly_full_axi_mosi => axi_full_mosi, -- in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso => axi_full_miso, -- out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (comes from LFAA ingest module).
         -- This should be valid before coming out of reset.
         i_virtualChannels => virtual_channels, -- in std_logic_vector(10 downto 0); -- total virtual channels 

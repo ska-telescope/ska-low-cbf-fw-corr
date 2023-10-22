@@ -26,6 +26,8 @@ entity corr_ct1_readout_32bit is
         i_VDeltaP : in std_logic_vector(15 downto 0);
         i_HoffsetP : in std_logic_vector(15 downto 0);
         i_VoffsetP : in std_logic_vector(15 downto 0);
+        i_vc       : in std_logic_vector(15 downto 0);
+        i_packet   : in std_logic_vector(7 downto 0);
         i_valid : in std_logic; -- should go high no more than once every 16 clocks
         o_stop  : out std_logic;
         -- data out
@@ -34,6 +36,8 @@ entity corr_ct1_readout_32bit is
         o_VDeltaP : out std_logic_vector(15 downto 0); 
         o_HOffsetP : out std_logic_vector(15 downto 0);
         o_VOffsetP : out std_logic_vector(15 downto 0);
+        o_vc       : out std_logic_vector(15 downto 0);
+        o_packet   : out std_logic_vector(7 downto 0);
         o_valid : out std_logic;
         i_run : in std_logic -- should go high for a burst of 64 clocks to output a packet.
     );
@@ -88,6 +92,8 @@ begin
                 o_VDeltaP <= i_VDeltaP;
                 o_HOffsetP <= i_HoffsetP;
                 o_VOffsetP <= i_VoffsetP;
+                o_vc <= i_vc;
+                o_packet <= i_packet;
             end if;
             
             fifoDin <= reg512(31 downto 0);

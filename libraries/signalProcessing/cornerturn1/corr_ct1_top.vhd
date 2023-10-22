@@ -89,6 +89,20 @@
 --     - Clocks/packet = 4423  (maximum allowed)
 --
 ----------------------------------------------------------------------------------
+-- Delays
+--   Delays are specified by polynomial coefficients:
+--
+--  163840 Bytes (=160kBytes) total, first 80 kBytes are the first buffer, second 80 kBytes are the second buffer
+--  Within that memory :
+--    words 0 to 9 : Config for virtual channel 0, buffer 0 (see below for specification of contents)
+--    words 10 to 19 : Config for virtual channel 1, buffer 0
+--    ...
+--    words 10230 to 10239 : Config for virtual channel 1023, first buffer
+--    words 10240 to 20479 : Config for all 1024 virtual channels, second buffer
+--  See comments in the "poly_eval.vhd" module for the definition of the 80 bytes for each virtual channel and buffer.
+--
+--
+----------------------------------------------------------------------------------
 
 library IEEE, ct_lib, common_lib, xpm;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -111,6 +125,8 @@ entity corr_ct1_top is
         -- Registers (uses the shared memory clock)
         i_saxi_mosi       : in  t_axi4_lite_mosi; -- MACE IN
         o_saxi_miso       : out t_axi4_lite_miso; -- MACE OUT
+        i_poly_full_axi_mosi : in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso : out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (comes from LFAA ingest module).
         -- This should be valid before coming out of reset.
         i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
@@ -180,10 +196,6 @@ architecture Behavioral of corr_ct1_top is
     signal config_rw : t_config_rw;
     signal config_ro : t_config_ro;
     
-    --type config_fields_rw_v is array(0 to g_N_STATIONS-1) of t_config_rw;
-    --signal global_config_fields_rw_del : config_fields_rw_v;
-    signal freeMax : std_logic_vector(23 downto 0);
-    
     signal hbm_ready : std_logic;
     signal useNewConfig, useNewConfigDel1, useNewConfigDel2, loadNewConfig : std_logic := '0';
     
@@ -192,21 +204,14 @@ architecture Behavioral of corr_ct1_top is
     signal validMemReadAddr : std_logic_vector(18 downto 0);
     signal validMemReadData : std_logic;
     
-    signal config_table0_in : t_config_table_0_ram_in;
-    signal config_table0_out : t_config_table_0_ram_out;
-    
-    signal config_table1_in : t_config_table_1_ram_in;
-    signal config_table1_out : t_config_table_1_ram_out;
-    
     signal output_count_in  : t_config_correlator_output_count_ram_in;
     signal output_count_out : t_config_correlator_output_count_ram_out;
     
     signal virtualChannel : std_logic_vector(15 downto 0);
-    --signal packetCount : std_logic_vector(32 downto 0);
     type input_fsm_type is (idle, start_divider, wait_divider, check_range_calc,
         check_range, dump_pre_latch_on, packet_early_or_late, check_awfifo_space, 
         generate_aw, check_advance_buffer, start_readout_calc0, start_readout_calc1, 
-        start_readout_calc2, readout_error, start_readout);
+        start_readout_calc2, start_readout);
     signal input_fsm : input_fsm_type;
     
     signal AWFIFO_dout : std_logic_vector(31 downto 0);
@@ -228,13 +233,7 @@ architecture Behavioral of corr_ct1_top is
     signal missing_count, duplicate_count, early_or_late_count : std_logic_vector(31 downto 0) := (others => '0');
     signal NChannels : std_logic_vector(11 downto 0) := x"400";
     signal clocksPerPacket : std_logic_vector(15 downto 0);
-    signal delayTableAddr : std_logic_vector(11 downto 0);
-    
-    signal tableSelect : std_logic;
-    signal delayTableData : std_logic_vector(31 downto 0);
     signal running : std_logic := '0';
-    signal startPacket : std_logic_vector(47 downto 0);
-    
     signal chan0, chan1, chan2, chan3 : std_logic_vector(9 downto 0);
     signal ok0, ok1, ok2, ok3 : std_logic := '0';
     signal validOut : std_logic;
@@ -252,7 +251,7 @@ architecture Behavioral of corr_ct1_top is
     signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_8_arr(1 downto 0);
     signal FBClk_rst : std_logic;
     signal haltPacketCountEqZero : std_logic;
-    signal table0Rd_dat, table1Rd_dat : std_logic_vector(31 downto 0);
+    --signal table0Rd_dat, table1Rd_dat : std_logic_vector(31 downto 0);
     signal validMemRstActive : std_logic;
     signal AWFIFO_rst_del2, AWFIFO_rst_del1 : std_logic;
     
@@ -283,15 +282,12 @@ architecture Behavioral of corr_ct1_top is
     signal aw_overflow : std_logic;
     signal awfifo_hwm : std_logic_vector(9 downto 0);
     signal trigger_readout : std_logic;
-    signal rd_integration_x128, rd_integration_x256, rd_buffer_packet : std_logic_vector(47 downto 0);
-    signal table0_startpacket, table1_startpacket : std_logic_vector(47 downto 0);
-    signal readout_error_set : std_logic := '0';
-    signal table0_valid, table1_valid : std_logic;
-    signal table0_ok, table1_ok, table0_gt_table1 : std_logic := '0';
-    signal ns_offset : std_logic_vector(31 downto 0);
     signal drop_packet : std_logic := '0';
     signal readoverflow, readOverflow_set : std_logic := '0';
     signal buffers_sent_count : std_logic_vector(31 downto 0);
+    
+    signal poly_addr : std_logic_vector(14 downto 0); 
+    signal poly_rddata : std_logic_vector(63 downto 0);
     
 begin
     
@@ -309,28 +305,35 @@ begin
         CONFIG_FIELDS_RW   => config_rw, -- OUT t_config_rw;
         CONFIG_FIELDS_RO   => config_ro, -- IN  t_config_ro;
         
-        CONFIG_TABLE_0_IN  => config_table0_in, -- IN  t_config_table_0_ram_in;
-		CONFIG_TABLE_0_OUT => config_table0_out, -- OUT t_config_table_0_ram_out;
-		CONFIG_TABLE_1_IN  => config_table1_in, -- IN  t_config_table_1_ram_in;
-		CONFIG_TABLE_1_OUT => config_table1_out, -- OUT t_config_table_1_ram_out;
+        --CONFIG_TABLE_0_IN  => config_table0_in, -- IN  t_config_table_0_ram_in;
+		--CONFIG_TABLE_0_OUT => config_table0_out, -- OUT t_config_table_0_ram_out;
+		--CONFIG_TABLE_1_IN  => config_table1_in, -- IN  t_config_table_1_ram_in;
+		--CONFIG_TABLE_1_OUT => config_table1_out, -- OUT t_config_table_1_ram_out;
         
         CONFIG_CORRELATOR_OUTPUT_COUNT_IN => output_count_in,   -- IN  t_config_psspst_output_count_ram_in;
 		CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
     );
     
-    config_table0_in.adr <= delayTableAddr;
-    config_table0_in.wr_dat <= (others => '0');
-    config_table0_in.wr_en <= '0';
-    config_table0_in.rd_en <= '1';
-    config_table0_in.clk <= i_shared_clk;
-    config_table0_in.rst <= '0';
     
-    config_table1_in.adr <= delayTableAddr;
-    config_table1_in.wr_dat <= (others => '0');
-    config_table1_in.wr_en <= '0';
-    config_table1_in.rd_en <= '1';
-    config_table1_in.clk <= i_shared_clk;
-    config_table1_in.rst <= '0';
+    -----------------------------------------------------------------------
+    -- Full AXI interface - write to the ultraRAM 
+    -- Full axi to bram
+    poly_axi_bram_inst : entity ct_lib.poly_axi_bram_wrapper
+    port map ( 
+        i_clk  => i_shared_clk,
+        i_rst  => i_shared_rst,
+        -------------------------------------------------------
+         -------------------------------------------------------
+        -- Block ram interface for access by the rest of the module
+        -- Memory is 18432 x 8 byte words
+        -- read latency 3 clocks
+        i_bram_addr    => poly_addr, -- in std_logic_vector(14 downto 0); 
+        o_bram_rddata  => poly_rddata, --  out std_logic_vector(63 downto 0);
+        -------------------------------------------------------
+        -- ARGs axi interface
+        i_vd_full_axi_mosi => i_poly_full_axi_mosi, -- in  t_axi4_full_mosi
+        o_vd_full_axi_miso => o_poly_full_axi_miso  -- out t_axi4_full_miso
+    );
 	
     -- Three buffers in the HBM. 
     --           integration_count : 
@@ -341,8 +344,6 @@ begin
     -- which integration are we up to. i.e. framecount in buffer 0 is 3x this value.
     -- This is for writing to the buffer. Equivalent count for reading would be behind by one.
     config_ro.integration_count <= wr_integration(31 downto 0);
-    
-    config_ro.active_table <= tableSelect;         -- std_logic;
     -- 32 bit status counters
     config_ro.early_or_late_count <= early_or_late_count;
     config_ro.pre_latch_on_count <= pre_latch_on_count;
@@ -395,14 +396,13 @@ begin
             status(9) <= waiting_to_latch_on;
             status(10) <= aw_overflow;
             status(20 downto 11) <= awfifo_hwm;
-            status(21) <= readout_error_set;
+            status(21) <= '0';
             status(22) <= readOverflow_set;
             status(31 downto 23) <= "000000000";
             
             if data_rst = '1' then
                 aw_overflow <= '0';
                 awfifo_hwm <= (others => '0'); -- high water mark for the aw fifo
-                readout_error_set <= '0';
                 readOverflow_set <= '0';
             else
                 if (i_valid = '1' and input_fsm /= idle) then
@@ -410,9 +410,6 @@ begin
                 end if;
                 if (unsigned(awfifo_wrDataCount) > unsigned(awfifo_hwm)) then
                     awfifo_hwm <= awfifo_wrDataCount;
-                end if;
-                if input_fsm = readout_error then
-                    readout_error_set <= '1';
                 end if;
                 if readoverflow = '1' then
                     readOverflow_set <= '1';
@@ -487,7 +484,6 @@ begin
                 first_readout <= '1';
                 wr_integration <= (others => '0');
                 rd_integration <= (others => '0');
-                tableSelect <= '0';
                 drop_packet <= '0';
                 -- 
                 input_fsm_dbg <= "00000";
@@ -683,69 +679,23 @@ begin
                         trigger_readout <= '0';
                         -- select which delay buffer to use for the readout
                         input_fsm <= start_readout_calc1;
-                        -- 384 SPS packets per integration
-                        if current_rd_buffer = "00" then
-                            rd_buffer_packet <= std_logic_vector(unsigned(rd_integration_x128) + unsigned(rd_integration_x256));
-                        elsif current_rd_buffer = "01" then
-                            rd_buffer_packet <= std_logic_vector(unsigned(rd_integration_x128) + unsigned(rd_integration_x256) + 128);
-                        else
-                            rd_buffer_packet <= std_logic_vector(unsigned(rd_integration_x128) + unsigned(rd_integration_x256) + 256);
-                        end if;
                         
                     when start_readout_calc1 =>
                         input_fsm_dbg <= "01100";
                         AWFIFO_wrEn <= '0';
                         trigger_readout <= '0';
                         input_fsm <= start_readout_calc2;
-                        if ((table0_valid = '1') and (unsigned(rd_buffer_packet) > unsigned(table0_startpacket))) then
-                            table0_ok <= '1';
-                        else
-                            table0_ok <= '0';
-                        end if;
-                        if ((table1_valid = '1') and (unsigned(rd_buffer_packet) > unsigned(table1_startpacket))) then
-                            table1_ok <= '1';
-                        else
-                            table1_ok <= '0';
-                        end if;
-                        if (unsigned(table0_startpacket) > unsigned(table1_startpacket)) then
-                            table0_gt_table1 <= '1';
-                        else
-                            table0_gt_table1 <= '0';
-                        end if;
                         
                     when start_readout_calc2 =>
                         input_fsm_dbg <= "01101";
                         AWFIFO_wrEn <= '0';
                         trigger_readout <= '0';
-                        if (table0_ok = '1' and (table0_gt_table1 = '1' or table1_ok = '0')) then
-                            tableSelect <= '0';
-                        else
-                            tableSelect <= '1';
-                        end if;
-                        if table0_ok = '0' and table1_ok = '0' then
-                            input_fsm <= readout_error;
-                        else
-                            input_fsm <= start_readout;
-                        end if;
-                        
-                    when readout_error =>
-                        -- Cannot do readout because there is no valid delay table
-                        input_fsm_dbg <= "01110";
-                        AWFIFO_wrEn <= '0';
-                        trigger_readout <= '0';
-                        input_fsm <= idle;
+                        input_fsm <= start_readout;
                         
                     when start_readout =>
-                        input_fsm_dbg <= "01111";
+                        input_fsm_dbg <= "01110";
                         AWFIFO_wrEn <= '0';
                         trigger_readout <= '1';
-                        if tableSelect = '0' then
-                            startPacket <= table0_startpacket;
-                            ns_offset <= config_rw.table0_ns_offset;
-                        else
-                            startPacket <= table1_startpacket;
-                            ns_offset <= config_rw.table1_ns_offset;
-                        end if;
                         input_fsm <= idle;
                         
                     when others =>
@@ -798,27 +748,11 @@ begin
                 awStop <= '0';
             end if;
             
-            table0_startpacket <= config_rw.table0_startPacket_high & config_rw.table0_startpacket_low;
-            table1_startpacket <= config_rw.table1_startPacket_high & config_rw.table1_startpacket_low;
-            table0_valid <= config_rw.table0_valid;
-            table1_valid <= config_rw.table1_valid;
-            
             ---------------------------------------------------
             AWFIFO_rst <= data_rst;
             
-            table0Rd_dat <= config_table0_out.rd_dat;
-            table1Rd_dat <= config_table1_out.rd_dat;
-            
-            if tableSelect = '0' then
-                delayTableData <= table0Rd_dat;
-            else
-                delayTableData <= table1Rd_dat;
-            end if;
         end if;
     end process;
-    
-    rd_integration_x128 <= "000000000" & rd_integration & "0000000";
-    rd_integration_x256 <= "00000000" & rd_integration & "00000000";
     
     -- FIFO for write addresses 
     -- Input to the fifo comes from "input_fsm". It is read as fast as addresses are accepted by the shared memory bus.
@@ -926,15 +860,14 @@ begin
         -- input signals to trigger reading of a buffer
         i_currentBuffer => current_rd_buffer, -- in(1:0);
         i_readStart => trigger_readout,       -- in std_logic; Pulse to start readout from i_currentBuffer
-        i_packetCount => rd_buffer_packet,    -- in(47:0)
-        i_ns_offset => ns_offset,             -- in(31:0); ns offset for calculation of the delays.
+        i_integration => rd_integration,    -- in(31:0)
+
         i_Nchannels => NChannels,             -- in(11:0); -- Total number of virtual channels to read out,
         i_clocksPerPacket => clocksPerPacket, -- in(15:0)
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
-        o_delayTableAddr => delayTableAddr, -- out std_logic_vector(10 downto 0); -- 2 addresses per virtual channel, up to 1024 virtual channels
-        i_delayTableData => delayTableData, -- in std_logic_vector(31 downto 0); -- Data from the delay table with 3 cycle latency. 
-        i_startPacket    => startPacket,    -- in (47:0); SPS Packet count that the fine delays in the delay table are relative to. Fine delays are based on the first LFAA sample that contributes to a given filterbank output
+        o_delayTableAddr => poly_addr, -- out (14:0); -- 2 addresses per virtual channel, up to 1024 virtual channels
+        i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
         
         -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
         o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17

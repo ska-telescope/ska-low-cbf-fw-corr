@@ -53,7 +53,8 @@ entity FB_Top_correlator is
         i_DataValid : in std_logic;
                 
         -- Correlator filterbank data output
-        o_frameCount     : out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+        o_integration    : out std_logic_vector(31 downto 0); -- Which integration frame is this ? Units of 0.849 seconds since epoch.
+        o_ctFrame        : out std_logic_vector(1 downto 0);  -- Which 283ms corner turn frame is this ? 
         o_virtualChannel : out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
         o_HeaderValid : out std_logic_vector(3 downto 0);
         o_Data        : out t_ctc_output_payload_arr(3 downto 0);
@@ -133,7 +134,7 @@ architecture Behavioral of FB_Top_correlator is
     signal bufWrData, bufDout : std_logic_vector(127 downto 0);
     signal triggerSendTo100GE : std_logic;
     signal vc_hold, vc_out : t_slv_16_arr(3 downto 0);
-    signal framecount_hold, framecount_out : std_logic_vector(31 downto 0);
+    signal integration_hold, integration_out : std_logic_vector(31 downto 0);
     signal bufWrAddr, bufRdAddr : std_logic_vector(12 downto 0);
     signal config_ro : t_config_ro;
     signal output_disable_i : t_config_output_disable_ram_in;
@@ -184,7 +185,8 @@ begin
             CorrelatorMetaIn(79+243 downto 64+243) <= i_meta67.virtualChannel;
             CorrelatorMetaIn(80+243) <= i_meta67.valid;
             
-            CorrelatorMetaIn(31+324 downto 0+324) <= i_meta01.frameCount;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
+            CorrelatorMetaIn(31+324 downto 0+324)  <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
+            CorrelatorMetaIn(33+324 downto 32+324) <= i_meta01.ctFrame;
             
             -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
             for i in 0 to 1 loop
@@ -341,7 +343,8 @@ begin
     corFBHeader(0).VOffsetP <= corMetaOut(63 downto 48);
     corFBHeader(0).virtualChannel <= corMetaOut(79 downto 64);
     corFBHeader(0).valid <= corMetaOut(80);
-    corFBHeader(0).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(0).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(0).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeader(1).HDeltaP <= corMetaOut(15+81 downto 0+81);
     corFBHeader(1).VDeltaP <= corMetaOut(31+81 downto 16+81);
@@ -349,7 +352,8 @@ begin
     corFBHeader(1).VOffsetP <= corMetaOut(63+81 downto 48+81);
     corFBHeader(1).virtualChannel <= corMetaOut(79+81 downto 64+81);
     corFBHeader(1).valid <= corMetaOut(80+81);
-    corFBHeader(1).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(1).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(1).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeader(2).HDeltaP <= corMetaOut(15+162 downto 0+162);
     corFBHeader(2).VDeltaP <= corMetaOut(31+162 downto 16+162);
@@ -357,7 +361,8 @@ begin
     corFBHeader(2).VOffsetP <= corMetaOut(63+162 downto 48+162);
     corFBHeader(2).virtualChannel <= corMetaOut(79+162 downto 64+162);
     corFBHeader(2).valid <= corMetaOut(80+162);
-    corFBHeader(2).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(2).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(2).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeader(3).HDeltaP <= corMetaOut(15+243 downto 0+243);
     corFBHeader(3).VDeltaP <= corMetaOut(31+243 downto 16+243);
@@ -365,7 +370,8 @@ begin
     corFBHeader(3).VOffsetP <= corMetaOut(63+243 downto 48+243);
     corFBHeader(3).virtualChannel <= corMetaOut(79+243 downto 64+243);
     corFBHeader(3).valid <= corMetaOut(80+243);
-    corFBHeader(3).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(3).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(3).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
@@ -427,7 +433,8 @@ begin
     o_virtualChannel(1) <= FDHeader(1).virtualChannel;
     o_virtualChannel(2) <= FDHeader(2).virtualChannel;
     o_virtualChannel(3) <= FDHeader(3).virtualChannel;
-    o_frameCount <= FDHeader(0).frameCount;
+    o_integration <= FDHeader(0).integration;
+    o_ctFrame <= FDHeader(0).ctFrame;
     o_headerValid <= headerValid;
     ---------------------------------------------------------------
     -- Registers
@@ -597,7 +604,7 @@ begin
                 vc_hold(1) <= FDHeader(1).virtualChannel;
                 vc_hold(2) <= FDHeader(2).virtualChannel;
                 vc_hold(3) <= FDHeader(3).virtualChannel;
-                framecount_hold <= FDHeader(0).frameCount;
+                integration_hold <= FDHeader(0).integration;
             end if;
             
             -- fsm to send packets of data to the 100GE
@@ -610,7 +617,7 @@ begin
                         vc_out(1) <= vc_hold(1);
                         vc_out(2) <= vc_hold(2);
                         vc_out(3) <= vc_hold(3);
-                        framecount_out <= framecount_hold;
+                        integration_out <= integration_hold;
                         bufRdAddrDoubleBufferSelect <= bufWrAddrDoubleBufferSelect;  -- Read the buffer that just got written.
                         bufRdAddrBuffer <= "000";
                         bufRdAddrWord <= "000000000";
@@ -689,7 +696,7 @@ begin
             bufRdAddrBufferDel3 <= bufRdAddrBufferDel2;
             
             if (sendTo100GE_fsm_del3 = sendHeader) then
-                o_packetData(39 downto 0) <= "00000000" & framecount_out;
+                o_packetData(39 downto 0) <= "00000000" & integration_out;
                 o_packetData(63 downto 40) <= x"000000";
                 case bufRdAddrBufferDel3(2 downto 1) is
                     when "00"   => o_packetData(79 downto 64) <= vc_out(0);

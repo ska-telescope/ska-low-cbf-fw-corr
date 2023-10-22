@@ -858,6 +858,8 @@ begin
         -- Corner Turn between LFAA Ingest and the filterbanks.
         i_LFAA_CT_axi_mosi => mc_lite_mosi(c_corr_ct1_lite_index), -- in  t_axi4_lite_mosi;
         o_LFAA_CT_axi_miso => mc_lite_miso(c_corr_ct1_lite_index), -- out t_axi4_lite_miso;
+        i_poly_full_axi_mosi => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso => mc_full_miso(c_corr_ct1_full_index),
         -- Filterbanks
         i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
         o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;

@@ -99,7 +99,6 @@ entity corr_ct2_top is
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
-        i_frameCount   : in std_logic_vector(31 downto 0); -- intra-frame count; Each count here is a block of 4096 LFAA samples = 1 time sample at the filterbank output.
         i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
         i_HeaderValid : in std_logic_vector(3 downto 0);
         i_data        : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)

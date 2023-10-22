@@ -89,6 +89,8 @@ entity DSP_top_correlator is
         -- Corner Turn between LFAA Ingest and the filterbanks.
         i_LFAA_CT_axi_mosi : in t_axi4_lite_mosi;  --
         o_LFAA_CT_axi_miso : out t_axi4_lite_miso; --
+        i_poly_full_axi_mosi : in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso : out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- registers for the filterbanks
         i_FB_axi_mosi : in t_axi4_lite_mosi;
         o_FB_axi_miso : out t_axi4_lite_miso;
@@ -203,7 +205,8 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     signal FB_valid : std_logic;
     
-    signal FD_frameCount :  std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+    signal FD_integration :  std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+    signal FD_ctFrame : std_logic_vector(1 downto 0);
     signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
     signal FD_headerValid : std_logic_vector(3 downto 0);
     signal FD_data : t_ctc_output_payload_arr(3 downto 0);
@@ -322,6 +325,9 @@ begin
         --AXI Lite Interface for registers
         i_saxi_mosi         => i_LFAA_CT_axi_mosi, -- in t_axi4_lite_mosi;
         o_saxi_miso         => o_LFAA_CT_axi_miso, -- out t_axi4_lite_miso;
+        -- axi full interface for the polynomials
+        i_poly_full_axi_mosi => i_poly_full_axi_mosi, --  in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso => o_poly_full_axi_miso, --  out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (from LFAA ingest config, must be the same for the corner turn)
         i_virtualChannels   => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
         i_rst               => reset_to_ct_1,
@@ -397,7 +403,8 @@ begin
             i_dataValid => FB_valid, -- in std_logic;
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
-            o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
             o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
@@ -451,7 +458,8 @@ begin
             i_dataValid => FB_valid, -- in std_logic;
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
-            o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_integration    => FD_integration,    -- out (31:0); frame count is the same for all simultaneous output streams.
+            o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
             o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
@@ -502,7 +510,6 @@ begin
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
         i_sof             => FB_out_sof,        -- in std_logic; Pulse high at the start of every new group of virtual channels. (1 frame is typically 283 ms of data).
-        i_frameCount      => FD_frameCount,     -- in (31:0); Frame count is the same for all simultaneous output streams.
         i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); 4 virtual channels, one for each of the PST data streams.
         i_HeaderValid     => FD_headerValid,    -- in (3:0);
         i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)

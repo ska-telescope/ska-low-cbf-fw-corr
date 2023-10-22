@@ -1,0 +1,131 @@
+polynomials:
+  # each entry is for a particular virtual channel
+  0:
+    virtual_channel : 0
+    # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
+    # Units of ns/s^k
+    poly0 : [61036, 61036, 0, 0, 0, 0]
+    # sky frequency in GHz
+    sky_freq0 : 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset0 : 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset0 : 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration0 : 10
+    valid0 : 1
+    #
+    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    # sky frequency in GHz
+    sky_freq1: 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset1: 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset1: 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration1: 30
+    valid1: 1
+    
+  1:
+    virtual_channel : 1
+    # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
+    # Units of ns/s^k
+    poly0 : [61036, 61036, 0, 0, 0, 0]
+    # sky frequency in GHz
+    sky_freq0 : 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset0 : 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset0 : 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration0 : 10
+    valid0 : 1
+    #
+    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    # sky frequency in GHz
+    sky_freq1: 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset1: 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset1: 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration1: 30
+    valid1: 1
+
+  2:
+    virtual_channel : 2
+    # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
+    # Units of ns/s^k
+    poly0 : [61036, 61036, 0, 0, 0, 0]
+    # sky frequency in GHz
+    sky_freq0 : 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset0 : 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset0 : 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration0 : 10
+    valid0 : 1
+    #
+    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    # sky frequency in GHz
+    sky_freq1: 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset1: 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset1: 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration1: 30
+    valid1: 1
+    
+  3:
+    virtual_channel : 3
+    # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
+    # Units of ns/s^k
+    poly0 : [61036, 61036, 0, 0, 0, 0]
+    # sky frequency in GHz
+    sky_freq0 : 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset0 : 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset0 : 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration0 : 10
+    valid0 : 1
+    #
+    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    # sky frequency in GHz
+    sky_freq1: 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset1: 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset1: 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration1: 30
+    valid1: 1
+    
+  4:
+    virtual_channel : 4
+    # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
+    # Units of ns/s^k
+    poly0 : [61036, 61036, 0, 0, 0, 0]
+    # sky frequency in GHz
+    sky_freq0 : 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset0 : 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset0 : 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration0 : 10
+    valid0 : 1
+    #
+    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    # sky frequency in GHz
+    sky_freq1: 0.05
+    #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+    buf_offset1: 10
+    # double precision offset in ns for the second polarisation (relative to the first polarisation). 
+    Ypol_offset1: 3
+    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+    integration1: 30
+    valid1: 1
