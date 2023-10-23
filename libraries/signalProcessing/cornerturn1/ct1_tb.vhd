@@ -26,7 +26,7 @@ entity ct1_tb is
     generic(
         g_VIRTUAL_CHANNELS : integer := 4;
         g_PACKET_GAP : integer := 800;
-        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"03421AFE0270";
+        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"03421AFE0350";
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt"
     );
 --  Port ( );
@@ -188,9 +188,9 @@ begin
         data_rst <= '1';
         wait until rising_edge(clk300);
         -- setup registers, just set table0 valid.
-        axi_lite_transaction(clk300, axi_lite_miso, axi_lite_mosi, 
-            c_config_table0_valid_address.base_address + c_config_table0_valid_address.address,
-            true, x"00000001");
+--        axi_lite_transaction(clk300, axi_lite_miso, axi_lite_mosi, 
+--            c_config_table0_valid_address.base_address + c_config_table0_valid_address.address,
+--            true, x"00000001");
         
         wait until rising_edge(clk300);
         wait for 100 ns;

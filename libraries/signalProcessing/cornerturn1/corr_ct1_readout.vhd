@@ -468,9 +468,7 @@ begin
                     when wait_done1 =>
                         poly_start <= '0';
                         if poly_idle = '1' then
-                            if ((unsigned(poly_vc_base) + 4) < unsigned(Nchannels)) then
-                                poly_fsm <= check_fifos;
-                            end if;
+                            poly_fsm <= check_fifos;
                         end if;
                     
                     when check_fifos =>

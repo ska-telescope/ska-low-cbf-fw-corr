@@ -304,7 +304,11 @@ architecture Behavioral of poly_eval is
     signal Hpol_deltaP, Hpol_phase : t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     signal Vpol_deltaP, Vpol_phase : t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     
+    signal poly_rd_addr : std_logic_vector(19 downto 0);
+    
 begin
+    
+    o_rd_addr <= poly_rd_addr(14 downto 0);
     
     vc_gen : for i in 0 to (g_VIRTUAL_CHANNELS-1) generate
         -- Processing for each of the virtual channels.
@@ -363,7 +367,9 @@ begin
                 
                 if poly_fsm_del(4) = get_c0 then
                     -- del(1) => rd address valid, del(4) rd data valid
-                    cur_poly_state(to_integer(unsigned(vc_count_del(4)))) <= i_rd_data;
+                    if to_integer(unsigned(vc_count_del(4))) = i then
+                        cur_poly_state(i) <= i_rd_data;
+                    end if;
                 elsif ((poly_fsm_del(32) = get_c1) or (poly_fsm_del(32) = get_c2) or (poly_fsm_del(32) = get_c3) or 
                        (poly_fsm_del(32) = get_c4) or (poly_fsm_del(32) = get_c5)) then
                     -- del(1) => rd address valid
@@ -879,31 +885,31 @@ begin
             
             
             if poly_fsm = get_validity_buf0 then
-                o_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + 9);
+                poly_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + 9);
             elsif poly_fsm = get_validity_buf1 then
                 -- read validity info for the second buffer for each virtual channel
                 -- validity = offset 7 within set of 10 words, second buffer = offset 10240
-                o_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + 10240 + 9);
+                poly_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + 10240 + 9);
             elsif (poly_fsm_del(10) = calc_t_start) then
                 -- Fetch from configuration memory the offset in seconds from the integration to the 
                 -- start of validity for the polynomial (word 7).
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(10))))) + 7);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(10))))) + 7);
             elsif (poly_fsm_del(0) = get_c0) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 0);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 0);
             elsif (poly_fsm_del(0) = get_c1) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 1);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 1);
             elsif (poly_fsm_del(0) = get_c2) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 2);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 2);
             elsif (poly_fsm_del(0) = get_c3) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 3);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 3);
             elsif (poly_fsm_del(0) = get_c4) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 4);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 4);
             elsif (poly_fsm_del(0) = get_c5) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 5);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 5);
             elsif (poly_fsm_del(0) = add_vpol_offset) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 8);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 8);
             else -- if ((poly_fsm_del(0) = mult_hpol_sky_frequency) or (poly_fsm_del(0) = mult_vpol_sky_frequency)) then
-                o_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 6);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 6);
             end if;
             
             if poly_fsm = wait_new_vc then
