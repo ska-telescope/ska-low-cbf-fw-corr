@@ -1524,23 +1524,23 @@ begin
                             --      g_LFAA_BLOCKS_PER_FRAME*128 + 11*256       (for the case where the first sample is aligned to a 64 byte boundary)
                             --   or g_LFAA_BLOCKS_PER_FRAME*128 + 11*256 + 1   (for the case where the first sample is not aligned to a 64 byte boundary)                            
                             --
-                            if bufFIFO_dout(0)(67 downto 64) = "0000" then
+                            if bufFIFO_dout(0)(3 downto 0) = "0000" then
                                 buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
                                 buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
                             end if;
-                            if bufFIFO_dout(1)(67 downto 64) = "0000" then
+                            if bufFIFO_dout(1)(3 downto 0) = "0000" then
                                 buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
                                 buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
                             end if;
-                            if bufFIFO_dout(2)(67 downto 64) = "0000" then
+                            if bufFIFO_dout(2)(3 downto 0) = "0000" then
                                 buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
                                 buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
                             end if;
                             
-                            if bufFIFO_dout(3)(67 downto 64) = "0000" then
+                            if bufFIFO_dout(3)(3 downto 0) = "0000" then
                                 buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
                             else
                                 buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
