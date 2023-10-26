@@ -198,7 +198,8 @@ architecture Behavioral of poly_eval is
     constant c_fp64_0p283115520 : std_logic_vector(63 downto 0) := x"3FD21E908ED8F651";
     -- two corner turn frames = 1080ns * 2048 * 128 * 2 = 0.566231040
     constant c_fp64_0p566231040 : std_logic_vector(63 downto 0) := x"3FE21E908ED8F651";
-    
+    -- time for a single packet = 4096 * 1080ns = 0.00442368000
+    constant c_fp64_one_packet : std_logic_vector(63 downto 0) := x"3F721E908ED8F651";
     -- Need to multiply time in ns by the period in ns to get number of samples,
     -- divide by 1080 = multiply by 1/1080
     constant c_fp64_rate : std_logic_vector(63 downto 0) := x"3F4E573AC901E574"; -- = 1/1080    
@@ -329,11 +330,11 @@ begin
                 end if; 
                 
                 -- Current time for each virtual channel
-                if (poly_fsm_del(13) = get_validity_buf1) then
+                if (poly_fsm_del(14) = get_validity_buf1) then
                     -- Load the time after converting to a double at the start of a run
                     -- This is (double)((int)i_integration - (int)buf_integration)
                     -- so is time as a double in units of integrations.
-                    if (to_integer(unsigned(vc_count_del(13))) = i) then
+                    if (to_integer(unsigned(vc_count_del(14))) = i) then
                         cur_time(i) <= int_to_fp64_dout;
                     end if;
                 elsif (poly_fsm_del(43) = calc_t_start) then
@@ -350,17 +351,25 @@ begin
                     if to_integer(unsigned(vc_count_del(43))) = i then
                         cur_time(i) <= fp64_add_dout;
                     end if;
+                elsif poly_fsm_del(15) = add_packet_time then
+                    if to_integer(unsigned(vc_count_del(15))) = i then
+                        cur_time(i) <= fp64_add_dout;
+                    end if;
                 end if;
                 
                 if (poly_fsm_del(43) = calc_t_start) then
                     if to_integer(unsigned(vc_count_del(43))) = i then
                         cur_time_n(i) <= fp64_add_dout;
                     end if;
-                elsif (poly_fsm_del(16) = t_x_t) or (poly_fsm_del(16) = t_x_t2) or (poly_fsm_del(16) = t_x_t3) or (poly_fsm_del(16) = t_x_t4) then
-                    -- 4 cycle latency before inputs to the multiplier are (t x t^n), then 12 cycles to get the output
+                elsif (poly_fsm_del(17) = t_x_t) or (poly_fsm_del(17) = t_x_t2) or (poly_fsm_del(17) = t_x_t3) or (poly_fsm_del(17) = t_x_t4) then
+                    -- 5 cycle latency before inputs to the multiplier are (t x t^n), then 12 cycles to get the output
                     -- update cur_time_n with previous value x time (i.e. "time^n")
-                    if to_integer(unsigned(vc_count_del(16))) = i then
+                    if to_integer(unsigned(vc_count_del(17))) = i then
                         cur_time_n(i) <= fp64_mult_dout;
+                    end if;
+                elsif poly_fsm_del(15) = add_packet_time then
+                    if to_integer(unsigned(vc_count_del(15))) = i then
+                        cur_time_n(i) <= fp64_add_dout;
                     end if;
                 end if;
                 
@@ -381,6 +390,10 @@ begin
                     --  ...
                     -- del(32) => fp64_add_dout valid
                     if to_integer(unsigned(vc_count_del(32))) = i then
+                        cur_poly_state(i) <= fp64_add_dout;
+                    end if;
+                elsif (poly_fsm_del(19) = add_vpol_offset) then
+                    if to_integer(unsigned(vc_count_del(19))) = i then
                         cur_poly_state(i) <= fp64_add_dout;
                     end if;
                 end if;
@@ -890,7 +903,7 @@ begin
                 -- read validity info for the second buffer for each virtual channel
                 -- validity = offset 7 within set of 10 words, second buffer = offset 10240
                 poly_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + 10240 + 9);
-            elsif (poly_fsm_del(10) = calc_t_start) then
+            elsif (poly_fsm_del(9) = calc_t_start) then
                 -- Fetch from configuration memory the offset in seconds from the integration to the 
                 -- start of validity for the polynomial (word 7).
                 poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(10))))) + 7);
@@ -930,7 +943,7 @@ begin
             if poly_fsm_del(5) = get_validity_buf0 then
                 integration_buf1_del6 <= i_rd_data(31 downto 0);
                 valid_buf1_del6 <= i_rd_data(32);
-                if ((valid_buf0 = '1') and (unsigned(integration_buf0_del5) >= unsigned(integration))) then
+                if ((valid_buf0 = '1') and (unsigned(integration_buf0_del5) <= unsigned(integration))) then
                     buf0_ok_del6 <= '1';  -- del5 is relative to the fsm
                 else
                     buf0_ok_del6 <= '0';
@@ -945,7 +958,7 @@ begin
                 else
                     buf1_more_recent_del7 <= '0';
                 end if;
-                if (valid_buf1_del6 = '1' and (unsigned(integration_buf1_del6) >= unsigned(integration))) then
+                if (valid_buf1_del6 = '1' and (unsigned(integration_buf1_del6) <= unsigned(integration))) then
                     buf1_ok_del7 <= '1';
                 else
                     buf1_ok_del7 <= '0';
@@ -964,11 +977,11 @@ begin
                     -- choose buf0 for vc = vc_count_del6
                     -- This is also the default choice in the case where neither buffer is valid.
                     buffer_select(to_integer(unsigned(vc_count_del(7)))) <= '0';
-                    integration_offset_del8 <= std_logic_vector(unsigned(integration_buf0_del7) - unsigned(integration));
+                    integration_offset_del8 <= std_logic_vector(unsigned(integration) - unsigned(integration_buf0_del7));
                 elsif buf1_ok_del7 = '1' then
                     -- choose buf1
                     buffer_select(to_integer(unsigned(vc_count_del(7)))) <= '1';
-                    integration_offset_del8 <= std_logic_vector(unsigned(integration_buf1_del7) - unsigned(integration));
+                    integration_offset_del8 <= std_logic_vector(unsigned(integration) - unsigned(integration_buf1_del7));
                 end if;
             end if;
             
@@ -977,9 +990,6 @@ begin
             elsif poly_fsm_del(7) = get_validity_buf1 and buf0_ok_del7 = '0' and buf1_ok_del7 = '0' then
                 no_valid_buffer_count <= std_logic_vector(unsigned(no_valid_buffer_count) + 1);
             end if;
-            
-            -- pipeline - 
-            
             
             -----------------------------------------------------------------------------
             -- Input to the int to float conversion
@@ -991,6 +1001,7 @@ begin
                 int_to_fp64_din <= (others => '0');
             end if;
             
+            -----------------------------------------------------------------------------
             -- Input to the double precision multiplier
             if poly_fsm = calc_t_start then
                 -- multiply : integration_offset_seconds = (double)(integration_offset * 0.849346560)
@@ -1027,6 +1038,7 @@ begin
                 fp64_mult_din1 <= (others => '0');
             end if;
             
+            -----------------------------------------------------------------------------
             -- Input to the double precision adder
             if poly_fsm_del(13) = calc_t_start then
                 -- Integration_offset_epoch = integration_offset_seconds + buf_offset_seconds
@@ -1058,12 +1070,18 @@ begin
                 fp64_add_valid_in <= '1';
                 fp64_add_din0 <= i_rd_data;
                 fp64_add_din1 <= cur_poly_state(to_integer(unsigned(vc_count_del(4))));
+            elsif (poly_fsm = add_packet_time) then
+                fp64_add_valid_in <= '1';
+                fp64_add_din0 <= cur_time(to_integer(unsigned(vc_count)));
+                fp64_add_din1 <= c_fp64_one_packet;
             else
                 fp64_add_valid_in <= '0';
                 fp64_add_din0 <= (others => '0');
                 fp64_add_din1 <= (others => '0');
             end if;
             
+            -----------------------------------------------------------------------------
+            -- Input to the double -> int conversion
             if ((poly_fsm_del(17) = mult_hpol_1_on_1080ns) or (poly_fsm_del(17) = mult_vpol_1_on_1080ns) or 
                 (poly_fsm_del(17) = mult_hpol_sky_frequency) or (poly_fsm_del(17) = mult_vpol_sky_frequency)) then
                 -- fp64_mult_din was valid on del(5), fp64_mult_dout is valid on del(17)

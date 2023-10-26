@@ -26,7 +26,8 @@ entity ct1_tb is
     generic(
         g_VIRTUAL_CHANNELS : integer := 4;
         g_PACKET_GAP : integer := 800;
-        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"03421AFE0350";
+        -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
+        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt"
     );
 --  Port ( );
@@ -176,7 +177,29 @@ begin
         axi_full_mosi.bready <= '1';
         
         axi_full_mosi.arvalid <= '0';
-        
+        axi_full_mosi.awid <= x"00";
+        axi_full_mosi.awprot <= "000";
+        axi_full_mosi.awsize <= "010"; -- "010" = 32 bit wide data bus
+        axi_full_mosi.awburst <= "01"; -- "01" indicates incrementing addresses for each beat in the burst. 
+        axi_full_mosi.awcache <= "0011"; -- bufferable transaction. Default in Vitis environment.
+        axi_full_mosi.awuser <= "0000";
+        axi_full_mosi.awlock <= '0';
+        axi_full_mosi.wid <= "00000000";
+        axi_full_mosi.arid <= "00000000";
+        axi_full_mosi.araddr <= (others => '0');
+        axi_full_mosi.arprot <= "000";
+        axi_full_mosi.arlen <= "00010011";
+        axi_full_mosi.arsize <= "000";
+        axi_full_mosi.arburst <= "01";
+        axi_full_mosi.arcache <= "0011";
+        axi_full_mosi.aruser <= "0000";
+        axi_full_mosi.arlock <= '0';
+        axi_full_mosi.rready <= '1';
+        axi_full_mosi.awregion <= "0000";
+        axi_full_mosi.arregion <= "0000";
+        axi_full_mosi.arqos <= "0000";
+        axi_full_mosi.awqos <= "0000";
+        axi_full_mosi.wstrb <= (others => '1');
         
         wait until rising_edge(clk300);
         wait for 100 ns;

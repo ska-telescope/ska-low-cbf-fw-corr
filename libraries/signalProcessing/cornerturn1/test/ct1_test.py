@@ -277,6 +277,84 @@ def main():
             for n in range(1024):
                 args.cfgfull.write(f"\n0x{full_config_array[block*1024+n]:08x}")
 
+    # Calculate the expected delays for each virtual channel
+    integration_start = config["integration_start"]
+    sim_frames = config["sim_frames"]
+    for frame in range(sim_frames):
+        integration_offset = frame // 3
+        integration = integration_start + integration_offset
+        frame_in_integration = frame - integration_offset * 3
+        for vc in range(vc_max):
+            # Find the config entry for this virtual channel
+            vc_found = False
+            for n, src_cfg in config["polynomials"].items():
+                this_vc = src_cfg["virtual_channel"]
+                if vc == this_vc:
+                    if vc_found == True:
+                        print(f"!!!! Multiple instances of virtual channel {this_vc} in config yaml file")
+                    vc_found = True
+                    cfg_n = n
+            if  not vc_found:
+                print(f"!!! frame {frame}, No specification for virtual channel {vc}")
+            else:
+                src_cfg = config["polynomials"][vc]
+                if (src_cfg["valid0"]==1) and (integration >= src_cfg["integration0"]):
+                    cfg0_valid = True
+                else:
+                    cfg0_valid = False
+                if (src_cfg["valid1"]==1) and (integration >= src_cfg["integration1"]):
+                    cfg1_valid = True
+                else:
+                    cfg1_valid = False
+               
+                if cfg1_valid and ((not cfg0_valid) or (src_cfg["integration1"] > src_cfg["integration0"])):
+                    # select second configuration
+                    poly = src_cfg["poly1"]
+                    # sky frequency in GHz
+                    sky_freq = src_cfg["sky_freq1"]
+                    # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
+                    integration_validity = src_cfg["integration1"]
+                    # seconds from the polynomial epoch to the start of the integration period, as a double precision value
+                    buf_offset = src_cfg["buf_offset1"]
+                    # Double precision offset in ns for the second polarisation (relative to the first polarisation). 
+                    Ypol_offset = src_cfg["Ypol_offset1"]
+                else:
+                    if (not cfg0_valid) and (not cfg1_valid):
+                        print(f"No valid polynomials, ")
+                    # select first configuration
+                    poly = src_cfg["poly0"]
+                    sky_freq = src_cfg["sky_freq0"]
+                    integration_validity = src_cfg["integration0"]
+                    buf_offset = src_cfg["buf_offset0"]
+                    Ypol_offset = src_cfg["Ypol_offset0"]
+                
+                for packet in range(64):
+                    # Time in seconds in the polynomial
+                    t = buf_offset + frame_in_integration * 0.283115520 + (integration - integration_validity) * 0.849346560
+                    # Each packet is 4.4ms
+                    t = t + packet * 0.00442368
+                    delay_Xpol = poly[0] + poly[1]*t + poly[2]*(t**2) + poly[3]*(t**3) + poly[4]*(t**4) + poly[5]*(t**5)
+                    delay_Ypol = delay_Xpol + Ypol_offset
+                    delay_samples_Xpol = delay_Xpol/1080.0
+                    delay_samples_Ypol = delay_Ypol/1080.0
+                    if packet == 0:
+                        coarse_delay = np.int32(np.floor(delay_samples_Xpol))
+                    fine_delay_Xpol = delay_samples_Xpol - coarse_delay
+                    fine_delay_Ypol = delay_samples_Ypol - coarse_delay
+                    if (fine_delay_Xpol >= 0):
+                        fine_delay_Xpol = np.int32(np.floor(fine_delay_Xpol * 16384))
+                    else:
+                        fine_delay_Xpol = 65536 - np.int32(np.floor(-fine_delay_Xpol*16384))
+                    if (fine_delay_Ypol >= 0):
+                        fine_delay_Ypol = np.int32(np.floor(fine_delay_Ypol * 16384))
+                    else:
+                        fine_delay_Ypol = 65536 - np.int32(np.floor(-fine_delay_Ypol*16384))
+                    phase_X = delay_Xpol * sky_freq
+                    phase_Y = delay_Ypol * sky_freq
+                    phase_X = np.floor(65536 * (phase_X - np.floor(phase_X)))
+                    phase_Y = np.floor(65536 * (phase_Y - np.floor(phase_Y)))
+                    print(f"VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")
+            
 
 if __name__ == "__main__":
     main()

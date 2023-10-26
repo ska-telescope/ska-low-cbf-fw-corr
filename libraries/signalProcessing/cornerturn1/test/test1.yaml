@@ -1,10 +1,12 @@
+integration_start: 11
+sim_frames : 2
 polynomials:
   # each entry is for a particular virtual channel
   0:
     virtual_channel : 0
     # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
     # Units of ns/s^k
-    poly0 : [61036, 61036, 0, 0, 0, 0]
+    poly0 : [17280, 7.450580596923828, 0, 0, 0, 0]
     # sky frequency in GHz
     sky_freq0 : 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -15,7 +17,7 @@ polynomials:
     integration0 : 10
     valid0 : 1
     #
-    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    poly1: [ 34560, 7.450580596923828, 0, 0, 0, 0 ]
     # sky frequency in GHz
     sky_freq1: 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -30,7 +32,7 @@ polynomials:
     virtual_channel : 1
     # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
     # Units of ns/s^k
-    poly0 : [61036, 61036, 0, 0, 0, 0]
+    poly0 : [18360, 14.901161193847656, 0, 0, 0, 0]
     # sky frequency in GHz
     sky_freq0 : 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -41,7 +43,7 @@ polynomials:
     integration0 : 10
     valid0 : 1
     #
-    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    poly1: [ 35640, 14.901161193847656, 0, 0, 0, 0 ]
     # sky frequency in GHz
     sky_freq1: 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -56,7 +58,7 @@ polynomials:
     virtual_channel : 2
     # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
     # Units of ns/s^k
-    poly0 : [61036, 61036, 0, 0, 0, 0]
+    poly0 : [19440, 22.351741790771484, 0, 0, 0, 0]
     # sky frequency in GHz
     sky_freq0 : 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -67,7 +69,7 @@ polynomials:
     integration0 : 10
     valid0 : 1
     #
-    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    poly1: [ 36720, 22.351741790771484, 0, 0, 0, 0 ]
     # sky frequency in GHz
     sky_freq1: 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -82,7 +84,7 @@ polynomials:
     virtual_channel : 3
     # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
     # Units of ns/s^k
-    poly0 : [61036, 61036, 0, 0, 0, 0]
+    poly0 : [-17280, 29.802322387695312, 0, 0, 0, 0]
     # sky frequency in GHz
     sky_freq0 : 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -93,7 +95,7 @@ polynomials:
     integration0 : 10
     valid0 : 1
     #
-    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    poly1: [ -34560, 29.802322387695312, 0, 0, 0, 0 ]
     # sky frequency in GHz
     sky_freq1: 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -108,7 +110,7 @@ polynomials:
     virtual_channel : 4
     # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
     # Units of ns/s^k
-    poly0 : [61036, 61036, 0, 0, 0, 0]
+    poly0 : [ -19440, 37.252902984619141, 0, 0, 0, 0]
     # sky frequency in GHz
     sky_freq0 : 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
@@ -119,7 +121,7 @@ polynomials:
     integration0 : 10
     valid0 : 1
     #
-    poly1: [ 61036, 61036, 0, 0, 0, 0 ]
+    poly1: [ -36720, 37.252902984619141, 0, 0, 0, 0 ]
     # sky frequency in GHz
     sky_freq1: 0.05
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 

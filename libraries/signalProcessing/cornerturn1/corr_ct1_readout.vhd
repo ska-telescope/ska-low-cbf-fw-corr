@@ -1802,6 +1802,8 @@ begin
                         delayFIFO_rden <= "0000";
                     end if;
                 end if;
+            else
+                delayFIFO_rden <= "0000";
             end if;
             
             if ((unsigned(packetsRemaining) > 0) and (unsigned(clockCount) < 4096)) then
