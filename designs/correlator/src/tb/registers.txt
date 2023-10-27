@@ -1,0 +1,2 @@
+[lfaadecode100g.statctrl.hbm_reset][0]
+0x00000001

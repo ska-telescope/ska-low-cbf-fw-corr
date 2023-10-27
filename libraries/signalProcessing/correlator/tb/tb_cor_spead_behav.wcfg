@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.960000 us"></ZoomStartTime>
-      <ZoomEndTime time="1,197.960001 us"></ZoomEndTime>
-      <Cursor1Time time="558.960000 us"></Cursor1Time>
+      <ZoomStartTime time="103,894.974 ns"></ZoomStartTime>
+      <ZoomEndTime time="104,021.575 ns"></ZoomEndTime>
+      <Cursor1Time time="103,867.558 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="305"></NameColumnWidth>
-      <ValueColumnWidth column_width="137"></ValueColumnWidth>
+      <NameColumnWidth column_width="294"></NameColumnWidth>
+      <ValueColumnWidth column_width="144"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="275" />
+   <WVObjectSize size="288" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -580,6 +580,11 @@
       <obj_property name="ElementShortName">strut_counter</obj_property>
       <obj_property name="ObjectShortName">strut_counter</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/small_matrix_tracker">
+      <obj_property name="ElementShortName">small_matrix_tracker[3:0]</obj_property>
+      <obj_property name="ObjectShortName">small_matrix_tracker[3:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_packetise">
       <obj_property name="ElementShortName">bytes_to_packetise[13:0]</obj_property>
       <obj_property name="ObjectShortName">bytes_to_packetise[13:0]</obj_property>
@@ -597,6 +602,14 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_q">
       <obj_property name="ElementShortName">hbm_data_fifo_q[511:0]</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_q[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/hbm_data_fifo_empty">
+      <obj_property name="ElementShortName">hbm_data_fifo_empty</obj_property>
+      <obj_property name="ObjectShortName">hbm_data_fifo_empty</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/meta_cache_fifo_empty">
+      <obj_property name="ElementShortName">meta_cache_fifo_empty</obj_property>
+      <obj_property name="ObjectShortName">meta_cache_fifo_empty</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_q">
       <obj_property name="ElementShortName">hbm_meta_fifo_q[31:0]</obj_property>
@@ -651,6 +664,11 @@
       <obj_property name="ElementShortName">aligned_packed_wr_d</obj_property>
       <obj_property name="ObjectShortName">aligned_packed_wr_d</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/pack_counter">
+      <obj_property name="ElementShortName">pack_counter[5:0]</obj_property>
+      <obj_property name="ObjectShortName">pack_counter[5:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/packed_fifo_empty">
       <obj_property name="ElementShortName">packed_fifo_empty</obj_property>
       <obj_property name="ObjectShortName">packed_fifo_empty</obj_property>
@@ -690,6 +708,10 @@
       <obj_property name="ElementShortName">cor_triangle_fsm</obj_property>
       <obj_property name="ObjectShortName">cor_triangle_fsm</obj_property>
    </wvobject>
+   <wvobject type="other" fp_name="/tb_cor_spead/DUT/pack_it_fsm">
+      <obj_property name="ElementShortName">pack_it_fsm</obj_property>
+      <obj_property name="ObjectShortName">pack_it_fsm</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/hbm_data_fifo_rd_count">
       <obj_property name="ElementShortName">hbm_data_fifo_rd_count[7:0]</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_rd_count[7:0]</obj_property>
@@ -699,6 +721,10 @@
       <obj_property name="ObjectShortName">row_count_rd_out[12:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/cor_tri_row">
+      <obj_property name="ElementShortName">cor_tri_row[12:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_tri_row[12:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/cor_tri_row_count">
       <obj_property name="ElementShortName">cor_tri_row_count[8:0]</obj_property>
       <obj_property name="ObjectShortName">cor_tri_row_count[8:0]</obj_property>
@@ -707,6 +733,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/small_matrix_tracker">
       <obj_property name="ElementShortName">small_matrix_tracker[3:0]</obj_property>
       <obj_property name="ObjectShortName">small_matrix_tracker[3:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/hbm_data_rd_en">
       <obj_property name="ElementShortName">hbm_data_rd_en</obj_property>
@@ -803,9 +830,22 @@
       <obj_property name="ElementShortName">i_local_reset</obj_property>
       <obj_property name="ObjectShortName">i_local_reset</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_rd_loop_cnt">
+      <obj_property name="ElementShortName">hbm_rd_loop_cnt[3:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_rd_loop_cnt[3:0]</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_axi_ar_valid">
       <obj_property name="ElementShortName">hbm_axi_ar_valid</obj_property>
       <obj_property name="ObjectShortName">hbm_axi_ar_valid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_data_addr">
+      <obj_property name="ElementShortName">meta_data_addr[31:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_addr[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_data_quantity">
+      <obj_property name="ElementShortName">meta_data_quantity[13:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_quantity[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_axi_ar_addr">
       <obj_property name="ElementShortName">hbm_axi_ar_addr[31:0]</obj_property>
@@ -830,7 +870,6 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/i_HBM_axi_r">
       <obj_property name="ElementShortName">i_HBM_axi_r</obj_property>
       <obj_property name="ObjectShortName">i_HBM_axi_r</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/o_HBM_axi_rready">
       <obj_property name="ElementShortName">o_HBM_axi_rready</obj_property>
@@ -861,14 +900,38 @@
       <obj_property name="ObjectShortName">hbm_data_fifo_rd_count[7:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_rd">
+      <obj_property name="ElementShortName">hbm_data_fifo_rd</obj_property>
+      <obj_property name="ObjectShortName">hbm_data_fifo_rd</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_empty">
       <obj_property name="ElementShortName">hbm_meta_fifo_empty</obj_property>
       <obj_property name="ObjectShortName">hbm_meta_fifo_empty</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_data">
+      <obj_property name="ElementShortName">hbm_meta_fifo_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_meta_fifo_data[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_cache_fifo/wr_data_count">
+      <obj_property name="ElementShortName">wr_data_count[5:0]</obj_property>
+      <obj_property name="ObjectShortName">wr_data_count[5:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_rd_count">
       <obj_property name="ElementShortName">hbm_meta_fifo_rd_count[9:0]</obj_property>
       <obj_property name="ObjectShortName">hbm_meta_fifo_rd_count[9:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_q">
+      <obj_property name="ElementShortName">hbm_meta_fifo_q[31:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_meta_fifo_q[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_rd">
+      <obj_property name="ElementShortName">hbm_meta_fifo_rd</obj_property>
+      <obj_property name="ObjectShortName">hbm_meta_fifo_rd</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_wr">
+      <obj_property name="ElementShortName">hbm_meta_fifo_wr</obj_property>
+      <obj_property name="ObjectShortName">hbm_meta_fifo_wr</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_addr_sel">
       <obj_property name="ElementShortName">hbm_addr_sel</obj_property>
@@ -905,14 +968,6 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_data">
       <obj_property name="ElementShortName">hbm_data_fifo_data[511:0]</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_data[511:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_data">
-      <obj_property name="ElementShortName">hbm_meta_fifo_data[511:0]</obj_property>
-      <obj_property name="ObjectShortName">hbm_meta_fifo_data[511:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_meta_fifo_wr">
-      <obj_property name="ElementShortName">hbm_meta_fifo_wr</obj_property>
-      <obj_property name="ObjectShortName">hbm_meta_fifo_wr</obj_property>
    </wvobject>
    <wvobject fp_name="divider681" type="divider">
       <obj_property name="label">SPEAD</obj_property>
@@ -1071,23 +1126,11 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/bytes_to_transmit">
       <obj_property name="ElementShortName">bytes_to_transmit[1:0][13:0]</obj_property>
       <obj_property name="ObjectShortName">bytes_to_transmit[1:0][13:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/bytes_to_transmit[1]">
-         <obj_property name="ElementShortName">[1][13:0]</obj_property>
-         <obj_property name="ObjectShortName">[1][13:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/bytes_to_transmit[0]">
-         <obj_property name="ElementShortName">[0][13:0]</obj_property>
-         <obj_property name="ObjectShortName">[0][13:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/data_to_player">
       <obj_property name="ElementShortName">data_to_player[1:0][511:0]</obj_property>
       <obj_property name="ObjectShortName">data_to_player[1:0][511:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/data_to_player_wr">
       <obj_property name="ElementShortName">data_to_player_wr[1:0]</obj_property>
