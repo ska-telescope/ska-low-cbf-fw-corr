@@ -24,7 +24,7 @@ use DSP_top_lib.DSP_top_pkg.all;
 
 entity ct1_tb is
     generic(
-        g_VIRTUAL_CHANNELS : integer := 4;
+        g_VIRTUAL_CHANNELS : integer := 8;
         g_PACKET_GAP : integer := 800;
         -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
@@ -124,8 +124,9 @@ architecture Behavioral of ct1_tb is
     signal wdata_fsm : wdata_fsm_type := idle;
     signal wdata_virtual_channel : std_logic_vector(15 downto 0);
     signal wdata_packet_count : std_logic_vector(47 downto 0);
-    signal wdata_word_count : std_logic_vector(7 downto 0);
-    signal wdata_burst_count : std_logic_vector(7 downto 0);
+    signal absolute_sample : std_logic_vector(95 downto 0);
+    signal wdata_word_count : std_logic_vector(47 downto 0);
+    signal wdata_burst_count : std_logic_vector(47 downto 0);
    -- signal rst_active : std_logic;
     
     signal fb_sof, fb_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
@@ -362,13 +363,23 @@ begin
         end if;
     end process;
     
-    m01_axi_w.data(3 downto 0) <= wdata_word_count(3 downto 0);
-    m01_axi_w.data(11 downto 4) <= wdata_burst_count;
-    m01_axi_w.data(15 downto 12) <= "0000";
-    m01_axi_w.data(31 downto 16) <= wdata_virtual_channel;
-    m01_axi_w.data(63 downto 32) <= (others => '0');
-    m01_axi_w.data(127 downto 64) <= x"0000" & wdata_packet_count;
-    m01_axi_w.data(511 downto 128) <= (others => '0'); 
+    -- wdata holds the absolute sample index, relative to the epoch
+    -- as a 24 bit value, plus an 8 bit virtual channel.
+    -- 2048 samples per packet, 128 samples per burst (of 512 bytes), 16 samples per word (of 64 bytes)
+    absolute_sample <= std_logic_vector(unsigned(wdata_packet_count) * 2048 + unsigned(wdata_burst_count) * 128 + unsigned(wdata_word_count) * 16); --to_unsigned(16,48));
+    
+    dgen1 : for i in 0 to 15 generate
+        m01_axi_w.data(i*32+23 downto i*32+0) <= absolute_sample(23 downto 4) & std_logic_vector(to_unsigned(i,4)); 
+        m01_axi_w.data(i*32+31 downto i*32+24) <= wdata_virtual_channel(7 downto 0);
+    end generate;
+    
+--    m01_axi_w.data(3 downto 0) <= wdata_word_count(3 downto 0);
+--    m01_axi_w.data(11 downto 4) <= wdata_burst_count;
+--    m01_axi_w.data(15 downto 12) <= "0000";
+--    m01_axi_w.data(31 downto 16) <= wdata_virtual_channel;
+--    m01_axi_w.data(63 downto 32) <= (others => '0');
+--    m01_axi_w.data(127 downto 64) <= x"0000" & wdata_packet_count;
+--    m01_axi_w.data(511 downto 128) <= (others => '0'); 
     m01_axi_w.valid <= '1' when wdata_fsm = send_burst else '0';
     m01_axi_w.last <= '1' when unsigned(wdata_word_count) = 7 else '0';
 
@@ -531,5 +542,11 @@ begin
     init_mem <= '0';
     --init_fname <= "dummy.vhd";
 
+    --------------------------------------------------------------------------------
+    -- dummy filterbank 
+    
+    
+    
+    
 
 end Behavioral;

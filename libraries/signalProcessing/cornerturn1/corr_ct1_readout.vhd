@@ -204,7 +204,6 @@ architecture Behavioral of corr_ct1_readout is
     signal ARFIFO_wrEn : std_logic;
     
     signal ar_virtualChannel : std_logic_vector(9 downto 0);
-    signal ar_virtualChannelDel1, ar_virtualChannelDel2, ar_virtualChannelDel3, ar_virtualChannelDel4 : std_logic_vector(9 downto 0);
     signal ar_currentBuffer : std_logic_vector(1 downto 0);
     signal ar_previousBuffer, ar_nextBuffer : std_logic_vector(1 downto 0);
     signal ar_integration : std_logic_vector(31 downto 0);
@@ -260,7 +259,7 @@ architecture Behavioral of corr_ct1_readout is
     
     signal bufFIFO_din : std_logic_vector(3 downto 0);
     signal bufFIFO_dout : t_slv_4_arr(3 downto 0);
-    signal delayFIFO_dout, delayFIFO_doutdel : t_slv_88_arr(3 downto 0);
+    signal delayFIFO_dout : t_slv_88_arr(3 downto 0);
     signal bufFIFO_empty : std_logic_vector(3 downto 0);
     signal bufFIFO_rdDataCount : t_slv_11_arr(3 downto 0);
     signal bufFIFO_wrDataCount : t_slv_11_arr(3 downto 0);
@@ -313,7 +312,8 @@ architecture Behavioral of corr_ct1_readout is
     signal readoutStart : std_logic := '0';
     signal readPacket : std_logic := '0';
     signal clockCount : std_logic_vector(15 downto 0);
-    signal packetsRemaining : std_logic_vector(15 downto 0);
+    signal packetsRemaining, packetsRemaining_minus1 : std_logic_vector(15 downto 0);
+    signal some_packets_remaining : std_logic := '0';
     signal validOut : std_logic_vector(3 downto 0);
     --signal packetCount : std_logic_vector(31 downto 0);
     signal meta0VirtualChannel, meta1VirtualChannel, meta2VirtualChannel, meta3VirtualChannel : std_logic_vector(15 downto 0);
@@ -355,7 +355,7 @@ architecture Behavioral of corr_ct1_readout is
     signal delayFIFO_din : std_logic_vector(87 downto 0);
     signal delayFIFO_wrEn : std_logic_Vector(3 downto 0);
     
-    type poly_fsm_t is (start, wait_done0, wait_done1, check_fifos, update_vc, check_vc, done);
+    type poly_fsm_t is (start, wait_done0, wait_done1, wait_done2, check_fifos, update_vc, check_vc, done);
     signal poly_fsm : poly_fsm_t := done;
     signal poly_vc_base : std_logic_vector(15 downto 0);
     signal poly_integration : std_logic_vector(31 downto 0);
@@ -461,11 +461,16 @@ begin
                         poly_start <= '1'; -- Start on a batch of 4 polynomials
                         poly_fsm <= wait_done0;
                         
+                    -- three wait states so that poly_idle can go low in response to poly_start. 
                     when wait_done0 =>
                         poly_start <= '0';
                         poly_fsm <= wait_done1;
                         
                     when wait_done1 =>
+                        poly_start <= '0';
+                        poly_fsm <= wait_done2;
+                    
+                    when wait_done2 =>
                         poly_start <= '0';
                         if poly_idle = '1' then
                             poly_fsm <= check_fifos;
@@ -564,6 +569,7 @@ begin
                         
                     when getCoarseDelays1 =>
                         ar_fsm <= getDataIdle;
+                        ar_virtualChannel <= std_logic_vector(unsigned(ar_virtualChannel) + 4);
                     
                     ----------------------------------------------------------------------------------
                     -- Read data from HBM
@@ -617,7 +623,7 @@ begin
                     when checkAllVirtualChannelsDone =>
                         if (unsigned(ar_NChannels) > unsigned(ar_virtualChannel)) then
                             ar_fsm <= waitDelaysValid; -- Get the next group of 4 virtual channels.
-                            ar_virtualChannel <= std_logic_vector(unsigned(ar_virtualChannel) + 4);
+                            
                             ar_fsm_buffer <= "00";
                         else
                             ar_fsm <= waitAllDone;
@@ -647,11 +653,6 @@ begin
             ar_fsm_bufferDel2 <= ar_fsm_bufferDel1;
             ar_fsm_bufferDel3 <= ar_fsm_bufferDel2;
             ar_fsm_bufferDel4 <= ar_fsm_bufferDel3;
-            
-            ar_virtualChannelDel1 <= ar_virtualChannel;
-            ar_virtualChannelDel2 <= ar_virtualChannelDel1;
-            ar_virtualChannelDel3 <= ar_virtualChannelDel2;
-            ar_virtualChannelDel4 <= ar_virtualChannelDel3;
             
             -- Total space which could be used in the buffers after all pending reads return
             for i in 0 to 3 loop
@@ -1516,10 +1517,6 @@ begin
                             rdOffset(1) <= bufFIFO_dout(1)(3 downto 0);
                             rdOffset(2) <= bufFIFO_dout(2)(3 downto 0);
                             rdOffset(3) <= bufFIFO_dout(3)(3 downto 0);
-                            delayFIFO_doutDel(0) <= delayFIFO_dout(0);
-                            delayFIFO_doutDel(1) <= delayFIFO_dout(1);
-                            delayFIFO_doutDel(2) <= delayFIFO_dout(2);
-                            delayFIFO_doutDel(3) <= delayFIFO_dout(3);
                             -- The number of 64-byte (=512 bit) words that we have to read from the buffer for each channel is 
                             --      g_LFAA_BLOCKS_PER_FRAME*128 + 11*256       (for the case where the first sample is aligned to a 64 byte boundary)
                             --   or g_LFAA_BLOCKS_PER_FRAME*128 + 11*256 + 1   (for the case where the first sample is not aligned to a 64 byte boundary)                            
@@ -1564,7 +1561,6 @@ begin
                             bufReadAddr0 <= std_logic_vector(unsigned(bufReadAddr0) + 1);
                             buf0WordsRemaining <= std_logic_vector(unsigned(buf0WordsRemaining) - 1);
                             buf0RdEnable <= '1';
-                            delayFIFO_doutDel(0) <= delayFIFO_dout(0);
                         else
                             buf0RdEnable <= '0';
                         end if;
@@ -1581,7 +1577,6 @@ begin
                             bufReadAddr1 <= std_logic_vector(unsigned(bufReadAddr1) + 1);
                             buf1WordsRemaining <= std_logic_vector(unsigned(buf1WordsRemaining) - 1);
                             buf1RdEnable <= '1';
-                            delayFIFO_doutDel(1) <= delayFIFO_dout(1);
                         else
                             buf1RdEnable <= '0';
                         end if;
@@ -1598,7 +1593,6 @@ begin
                             bufReadAddr2 <= std_logic_vector(unsigned(bufReadAddr2) + 1);
                             buf2WordsRemaining <= std_logic_vector(unsigned(buf2WordsRemaining) - 1);
                             buf2RdEnable <= '1';
-                            delayFIFO_doutDel(2) <= delayFIFO_dout(2);
                         else
                             buf2RdEnable <= '0';
                         end if;
@@ -1616,7 +1610,6 @@ begin
                             bufReadAddr3 <= std_logic_vector(unsigned(bufReadAddr3) + 1);
                             buf3WordsRemaining <= std_logic_vector(unsigned(buf3WordsRemaining) - 1);
                             buf3RdEnable <= '1';
-                            delayFIFO_doutDel(3) <= delayFIFO_dout(3);
                         else
                             buf3RdEnable <= '0';
                         end if;
@@ -1786,6 +1779,27 @@ begin
                 clockCount <= (others => '0');
                 clockCountZero <= '1';
                 delayFIFO_rden <= "0000";
+                
+                o_meta0.HDeltaP <= delayFIFO_dout(0)(15 downto 0);
+                o_meta0.VDeltaP <= delayFIFO_dout(0)(31 downto 16);
+                o_meta0.HoffsetP <= delayFIFO_dout(0)(47 downto 32);
+                o_meta0.VoffsetP <= delayFIFO_dout(0)(63 downto 48);
+                
+                o_meta1.HDeltaP <= delayFIFO_dout(1)(15 downto 0);
+                o_meta1.VDeltaP <= delayFIFO_dout(1)(31 downto 16);
+                o_meta1.HoffsetP <= delayFIFO_dout(1)(47 downto 32);
+                o_meta1.VoffsetP <= delayFIFO_dout(1)(63 downto 48);
+                
+                o_meta2.HDeltaP <= delayFIFO_dout(2)(15 downto 0);
+                o_meta2.VDeltaP <= delayFIFO_dout(2)(31 downto 16);
+                o_meta2.HoffsetP <= delayFIFO_dout(2)(47 downto 32);
+                o_meta2.VoffsetP <= delayFIFO_dout(2)(63 downto 48);
+                
+                o_meta3.HDeltaP <= delayFIFO_dout(3)(15 downto 0);
+                o_meta3.VDeltaP <= delayFIFO_dout(3)(31 downto 16);
+                o_meta3.HoffsetP <= delayFIFO_dout(3)(47 downto 32);
+                o_meta3.VoffsetP <= delayFIFO_dout(3)(63 downto 48);
+                
             elsif (unsigned(packetsRemaining) > 0) then
                 -- Changed to improve timing, was : if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusOne))) then
                 if clockCountIncrement = '1' or clockCountZero = '1' then
@@ -1795,8 +1809,31 @@ begin
                 else
                     clockCount <= (others => '0');
                     clockCountZero <= '1';
-                    packetsRemaining <= std_logic_vector(unsigned(packetsRemaining) - 1);
-                    if (unsigned(packetsRemaining) <= (g_SPS_PACKETS_PER_FRAME/2)) then
+                       
+                    o_meta0.HDeltaP <= delayFIFO_dout(0)(15 downto 0);
+                    o_meta0.VDeltaP <= delayFIFO_dout(0)(31 downto 16);
+                    o_meta0.HoffsetP <= delayFIFO_dout(0)(47 downto 32);
+                    o_meta0.VoffsetP <= delayFIFO_dout(0)(63 downto 48);
+                    
+                    o_meta1.HDeltaP <= delayFIFO_dout(1)(15 downto 0);
+                    o_meta1.VDeltaP <= delayFIFO_dout(1)(31 downto 16);
+                    o_meta1.HoffsetP <= delayFIFO_dout(1)(47 downto 32);
+                    o_meta1.VoffsetP <= delayFIFO_dout(1)(63 downto 48);
+                    
+                    o_meta2.HDeltaP <= delayFIFO_dout(2)(15 downto 0);
+                    o_meta2.VDeltaP <= delayFIFO_dout(2)(31 downto 16);
+                    o_meta2.HoffsetP <= delayFIFO_dout(2)(47 downto 32);
+                    o_meta2.VoffsetP <= delayFIFO_dout(2)(63 downto 48);
+                    
+                    o_meta3.HDeltaP <= delayFIFO_dout(3)(15 downto 0);
+                    o_meta3.VDeltaP <= delayFIFO_dout(3)(31 downto 16);
+                    o_meta3.HoffsetP <= delayFIFO_dout(3)(47 downto 32);
+                    o_meta3.VoffsetP <= delayFIFO_dout(3)(63 downto 48);                    
+                    
+                    packetsRemaining <= packetsRemaining_minus1;
+                    if ((unsigned(packetsRemaining_minus1) <= (g_SPS_PACKETS_PER_FRAME/2)) and
+                        (some_packets_remaining = '1')) then
+                        -- At the point where this happens, actual packetsRemaining is one less than "packetsRemaining"
                         delayFIFO_rden <= "1111";
                     else
                         delayFIFO_rden <= "0000";
@@ -1804,6 +1841,13 @@ begin
                 end if;
             else
                 delayFIFO_rden <= "0000";
+            end if;
+            
+            packetsRemaining_minus1 <= std_logic_vector(unsigned(packetsRemaining) - 1);
+            if (unsigned(packetsRemaining_minus1) > 0) then 
+                some_packets_remaining <= '1';
+            else
+                some_packets_remaining <= '0';
             end if;
             
             if ((unsigned(packetsRemaining) > 0) and (unsigned(clockCount) < 4096)) then
@@ -1861,22 +1905,10 @@ begin
             i_data => bufDout, -- in std_logic_vector(511 downto 0); --
             -- data in from the FIFO that shadows the buffer
             i_rdOffset => rdOffset(i), -- in std_logic_vector(1 downto 0);  -- Sample offset in the 128 bit word; 0 = use all 4 samples, "01" = Skip first sample, "10" = skip 2 samples, "11" = skip 3 samples; Only used on the first 128 bit word after i_rst.
-            i_HDeltaP  => delayFIFO_doutDel(i)(15 downto 0), -- in std_logic_vector(15 downto 0);  -- use every 16th input for the meta data (each word in = 128 bits = 4 samples, so 16 inputs = 64 samples = 1 packet)
-            i_VDeltaP  => delayFIFO_doutDel(i)(31 downto 16), -- in std_logic_vector(15 downto 0);
-            i_HoffsetP => delayFIFO_doutDel(i)(47 downto 32), -- in (15:0);
-            i_VoffsetP => delayFIFO_doutDel(i)(63 downto 48), -- in (15:0);
-            i_vc       => delayFIFO_doutDel(i)(79 downto 64), -- in (15:0);
-            i_packet   => delayFIFO_doutDel(i)(87 downto 80), -- in (7:0);
             i_valid    => bufRdValid(i), -- in std_logic; -- should go high no more than once every 4 clocks
             o_stop     => rdStop(i), -- out std_logic;
             -- data out
-            o_data    => readoutData(i),    -- out std_logic_vector(31 downto 0);
-            o_HDeltaP => readoutHDeltaP(i), -- out std_logic_vector(15 downto 0);
-            o_VDeltaP => readoutVDeltaP(i), -- out std_logic_vector(15 downto 0); 
-            o_HoffsetP => readoutHOffsetP(i), -- out (15:0);
-            o_VoffsetP => readoutVOffsetP(i), -- out (15:0);
-            o_vc       => readout_delay_vc(i), -- out (15:0);
-            o_packet   => readout_delay_packet(i), -- out (7:0); 
+            o_data    => readoutData(i),    -- out std_logic_vector(31 downto 0); 
             i_run     => readPacket,        -- in std_logic -- should go high for a burst of 64 clocks to output a packet.
             o_valid   => validOut(i)        -- out std_logic;
         );
@@ -1888,10 +1920,7 @@ begin
     o_HPol0(1) <= readoutData(0)(15 downto 8); -- 8 bit imaginary part
     o_VPol0(0) <= readoutData(0)(23 downto 16); -- 8 bit real part
     o_VPol0(1) <= readoutData(0)(31 downto 24); -- 8 bit imaginary part
-    o_meta0.HDeltaP <= readoutHDeltaP(0);
-    o_meta0.VDeltaP <= readoutVDeltaP(0);
-    o_meta0.HoffsetP <= readoutHoffsetP(0);
-    o_meta0.VoffsetP <= readoutVoffsetP(0);
+    
     o_meta0.integration <= FBintegration; -- (31:0); integration in units of 849ms relative to the epoch.
     o_meta0.ctFrame <= FBctFrame;
     o_meta0.virtualChannel <= meta0VirtualChannel;     -- virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
@@ -1900,10 +1929,6 @@ begin
     o_HPol1(1) <= readoutData(1)(15 downto 8); -- 8 bit imaginary part
     o_VPol1(0) <= readoutData(1)(23 downto 16); -- 8 bit real part
     o_VPol1(1) <= readoutData(1)(31 downto 24); -- 8 bit imaginary part
-    o_meta1.HDeltaP <= readoutHDeltaP(1);
-    o_meta1.VDeltaP <= readoutVDeltaP(1);
-    o_meta1.HoffsetP <= readoutHoffsetP(1);
-    o_meta1.VoffsetP <= readoutVoffsetP(1);
     o_meta1.integration <= FBintegration;
     o_meta1.ctFrame <= FBctFrame;
     o_meta1.virtualChannel <= meta1VirtualChannel;
@@ -1912,10 +1937,6 @@ begin
     o_HPol2(1) <= readoutData(2)(15 downto 8); -- 8 bit imaginary part
     o_VPol2(0) <= readoutData(2)(23 downto 16); -- 8 bit real part
     o_VPol2(1) <= readoutData(2)(31 downto 24); -- 8 bit imaginary part
-    o_meta2.HDeltaP <= readoutHDeltaP(2);
-    o_meta2.VDeltaP <= readoutVDeltaP(2);
-    o_meta2.HoffsetP <= readoutHoffsetP(2);
-    o_meta2.VoffsetP <= readoutVoffsetP(2);
     o_meta2.integration <= FBintegration;
     o_meta2.ctFrame <= FBctFrame;
     o_meta2.virtualChannel <= meta2VirtualChannel;
@@ -1924,15 +1945,8 @@ begin
     o_HPol3(1) <= readoutData(3)(15 downto 8); -- 8 bit imaginary part
     o_VPol3(0) <= readoutData(3)(23 downto 16); -- 8 bit real part
     o_VPol3(1) <= readoutData(3)(31 downto 24); -- 8 bit imaginary part
-    o_meta3.HDeltaP <= readoutHDeltaP(3);
-    o_meta3.VDeltaP <= readoutVDeltaP(3);
-    o_meta3.HoffsetP <= readoutHoffsetP(3);
-    o_meta3.VoffsetP <= readoutVoffsetP(3);
     o_meta3.integration <= FBintegration;
     o_meta3.ctFrame <= FBctFrame;
     o_meta3.virtualChannel <= meta3VirtualChannel;
     
-    
 end Behavioral;
-
-

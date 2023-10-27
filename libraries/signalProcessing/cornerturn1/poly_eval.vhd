@@ -765,7 +765,8 @@ begin
                         
                     when wait_c5_x_t5 =>
                         -- Pipelined multiplication and addition : cur_poly_state(vc_count) <= c4 * t^4 + (cur_poly_state = c3 * t^3 + c2 * t^2 + c1 * t + c0)
-                        if (unsigned(state_count) > 15) then
+                        if (unsigned(state_count) > 37) then
+                            -- wait longer here than for e.g. wait_c4_x_t4 because we use the fp64 adder in the next state.
                             poly_fsm <= add_vpol_offset;
                             state_count <= (others => '0');
                         else
