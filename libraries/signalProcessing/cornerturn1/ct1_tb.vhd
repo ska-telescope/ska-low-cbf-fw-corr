@@ -28,7 +28,8 @@ entity ct1_tb is
         g_PACKET_GAP : integer := 800;
         -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt"
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt";
+        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1_ct1_out.txt"
     );
 --  Port ( );
 end ct1_tb;
@@ -139,6 +140,14 @@ architecture Behavioral of ct1_tb is
     signal hbm_dump_filename, init_fname : string(1 to 9) := "dummy.txt";
     signal init_mem : std_logic;
     signal rst_n : std_logic;
+    
+    signal fb_valid_del : std_logic := '0';
+    constant hex_one : std_logic_vector(3 downto 0) := "0001";
+    constant hex_two : std_logic_vector(3 downto 0) := "0010";
+    constant hex_three : std_logic_vector(3 downto 0) := "0011";
+    constant hex_four : std_logic_vector(3 downto 0) := "0100";
+    constant hex_five : std_logic_vector(3 downto 0) := "0101";
+    
 begin
 
     clk300 <= not clk300 after 1.666 ns;
@@ -360,6 +369,8 @@ begin
                 end case;
             end if;
         
+            fb_valid_del <= fb_valid;
+        
         end if;
     end process;
     
@@ -383,6 +394,93 @@ begin
     m01_axi_w.valid <= '1' when wdata_fsm = send_burst else '0';
     m01_axi_w.last <= '1' when unsigned(wdata_word_count) = 7 else '0';
 
+    -- write CT1 output to a file
+    process
+		file logfile: TEXT;
+		--variable data_in : std_logic_vector((BIT_WIDTH-1) downto 0);
+		variable line_out : Line;
+    begin
+	    FILE_OPEN(logfile, g_CT1_OUT_FILENAME, WRITE_MODE);
+		loop
+            wait until rising_edge(clk300);
+            if fb_valid = '1' then
+                
+                if fb_valid_del = '0' and fb_valid = '1' then
+                    -- Rising edge of fb_valid, write out the meta data
+                    line_out := "";
+                    hwrite(line_out,hex_one,RIGHT,1);
+                    hwrite(line_out,fb_meta01.HDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta01.HOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta01.VDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta01.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta01.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta01.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta01.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                    line_out := "";
+                    hwrite(line_out,hex_two,RIGHT,1);
+                    hwrite(line_out,fb_meta23.HDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta23.HOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta23.VDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta23.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta23.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta23.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta23.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                    line_out := "";
+                    hwrite(line_out,hex_three,RIGHT,1);
+                    hwrite(line_out,fb_meta45.HDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta45.HOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta45.VDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta45.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta45.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta45.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta45.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                    line_out := "";
+                    hwrite(line_out,hex_four,RIGHT,1);
+                    hwrite(line_out,fb_meta67.HDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta67.HOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta67.VDeltaP,RIGHT,5);
+                    hwrite(line_out,fb_meta67.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta67.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta67.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta67.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                end if;
+                
+                -- write out the samples to the file
+                line_out := "";
+                hwrite(line_out,hex_five,RIGHT,1);
+                hwrite(line_out,fb_data0(0),RIGHT,3);
+                hwrite(line_out,fb_data0(1),RIGHT,3);
+                hwrite(line_out,fb_data1(0),RIGHT,3);
+                hwrite(line_out,fb_data1(1),RIGHT,3);
+                hwrite(line_out,fb_data2(0),RIGHT,3);
+                hwrite(line_out,fb_data2(1),RIGHT,3);
+                hwrite(line_out,fb_data3(0),RIGHT,3);
+                hwrite(line_out,fb_data3(1),RIGHT,3);
+                
+                hwrite(line_out,fb_data4(0),RIGHT,3);
+                hwrite(line_out,fb_data4(1),RIGHT,3);
+                hwrite(line_out,fb_data5(0),RIGHT,3);
+                hwrite(line_out,fb_data5(1),RIGHT,3);
+                hwrite(line_out,fb_data6(0),RIGHT,3);
+                hwrite(line_out,fb_data6(1),RIGHT,3);
+                hwrite(line_out,fb_data7(0),RIGHT,3);
+                hwrite(line_out,fb_data7(1),RIGHT,3);
+                writeline(logfile,line_out);
+            end if;
+         
+        end loop;
+        file_close(logfile);	
+        wait;
+    end process;
+    
     
     ct1i : entity ct_lib.corr_ct1_top
     port map (

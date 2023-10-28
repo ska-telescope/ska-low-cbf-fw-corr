@@ -83,6 +83,15 @@ def command_line_args():
         help="File to write full configuration data to, i.e. all 160 kBytes of data",
         required=False,
     )
+    parser.add_argument(
+        "-t",
+        "--tbdata",
+        type=argparse.FileType(mode="rt"),
+        help="File to read CT1 output from",
+        required=False,
+    )
+    
+    
     #parser.add_argument("-H0", "--HBM0", help="HBM buffer 0 data from firmware to check",
     #                    type=argparse.FileType(mode="r"))
     #parser.add_argument("-f", "--filter", help="Interpolation filter taps", type=argparse.FileType(mode="r"))
@@ -168,6 +177,68 @@ def ct1_config(config):
         config_array_buf1[vc*20+19] = np.frombuffer(np.int32(src_cfg["valid1"]).tobytes(), dtype=np.uint32)
         
     return (config_array_buf0, config_array_buf1, vc_max)
+
+def get_tb_data(tb_file, virtual_channels):
+    # Load data saved by the testbench
+    # File Format : text
+    #   - 4 lines of meta data, one per channel
+    #                  <1-4> HdeltaP, HoffsetP, VdeltaP, VoffsetP, integration, frame, virtual channel
+    # array element:    0       1       2         3          4           5        6          7 
+    #   - 4096 lines of data   
+    #      5 <re Hpol> <im Hpol> <re Vpol> <im Vpol> ... (x4 for 4 virtual channels)
+
+    first_integration_set = False
+    first_integration = 0
+    # Number of packets received for each integration, frame and virtual channel
+    packet_count = np.zeros((10,3,virtual_channels),dtype=np.int)
+    # meta data : [integration, frame, packet, vc, hdelta/Hoffset/Vdelta/Voffset]
+    # 75 packets = 11 preload + 64 per frame
+    meta_data = np.zeros((10,3,75,virtual_channels,4),dtype = np.int)
+    # data [integration,frame,packet,vc,Hre/Him/Vre/Vim,sample]
+    data_data = np.zeros((10,3,75,virtual_channels,4,4096), dtype = np.int)
+    vc_list = np.zeros(4,dtype = np.int)
+    for line in tb_file:
+        dval = line.split()
+        dint = [int(di,16) for di in dval]
+        if dint[0] == 1:
+            if not first_integration_set:
+                first_integration_set = True
+                first_integration = dint[5]
+        if (dint[0] == 1 or dint[0] == 2 or dint[0] == 3 or dint[0] == 4):
+            integration = dint[5] - first_integration
+            frame = dint[6]
+            vc = dint[7]
+            vc_list[dint[0]-1] = vc
+            # meta data indexed by [integration, frame (0,1,2), packet (), vc, parameter]
+            #  where parameter : 0 = HdeltaP, 1 = HoffsetP, 2 = VdeltaP, 3 = VoffsetP
+            meta_data[integration, frame, packet_count[integration, frame, vc], vc, 0] = dint[1]
+            meta_data[integration, frame, packet_count[integration, frame, vc], vc, 1] = dint[2]
+            meta_data[integration, frame, packet_count[integration, frame, vc], vc, 2] = dint[3]
+            meta_data[integration, frame, packet_count[integration, frame, vc], vc, 3] = dint[4]
+            packet_count[integration, frame, vc] = packet_count[integration, frame, vc] + 1
+            dcount = 0
+        else:
+            # dint[0] == 5, the data part
+            # data_data index by [integration, frame, packet_count, vc, Hre/Him/Vre/Vim, sample
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 0, dcount] = dint[1]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 1, dcount] = dint[2]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 2, dcount] = dint[3]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 3, dcount] = dint[4]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 0, dcount] = dint[5]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 1, dcount] = dint[6]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 2, dcount] = dint[7]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 3, dcount] = dint[8]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],0, dcount] = dint[9]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],1, dcount] = dint[10]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],2, dcount] = dint[11]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],3, dcount] = dint[12]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],0, dcount] = dint[13]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],1, dcount] = dint[14]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],2, dcount] = dint[15]
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],3, dcount] = dint[16]
+            dcount = dcount + 1
+    
+    return (meta_data, data_data, packet_count)
 
 """
 def create_stream(config, filters, stream_index, n_samples):
@@ -277,14 +348,25 @@ def main():
             for n in range(1024):
                 args.cfgfull.write(f"\n0x{full_config_array[block*1024+n]:08x}")
 
+    # Get the output of the simulation
+    if args.tbdata:
+        (meta_data, data_data, packet_count) = get_tb_data(args.tbdata, total_blocks)
+        tb_valid = True
+    else:
+        tb_valid = False
+    
     # Calculate the expected delays for each virtual channel
     integration_start = config["integration_start"]
     sim_frames = config["sim_frames"]
+    data_mismatch = 0
+    data_match = 0
+    meta_match = 0
+    meta_mismatch = 0
     for frame in range(sim_frames):
         integration_offset = frame // 3
         integration = integration_start + integration_offset
         frame_in_integration = frame - integration_offset * 3
-        for vc in range(vc_max):
+        for vc in range(vc_max + 1):
             # Find the config entry for this virtual channel
             vc_found = False
             for n, src_cfg in config["polynomials"].items():
@@ -328,11 +410,14 @@ def main():
                     buf_offset = src_cfg["buf_offset0"]
                     Ypol_offset = src_cfg["Ypol_offset0"]
                 
-                for packet in range(64):
+                for packet in range(75):
+                    # 75 packets produced by CT1 for each frame
+                    # 11 preload packets, then 64 packets.
                     # Time in seconds in the polynomial
                     t = buf_offset + frame_in_integration * 0.283115520 + (integration - integration_validity) * 0.849346560
                     # Each packet is 4.4ms
-                    t = t + packet * 0.00442368
+                    if packet > 10:
+                        t = t + (packet-11) * 0.00442368
                     delay_Xpol = poly[0] + poly[1]*t + poly[2]*(t**2) + poly[3]*(t**3) + poly[4]*(t**4) + poly[5]*(t**5)
                     delay_Ypol = delay_Xpol + Ypol_offset
                     delay_samples_Xpol = delay_Xpol/1080.0
@@ -351,10 +436,47 @@ def main():
                         fine_delay_Ypol = 65536 - np.int32(np.floor(-fine_delay_Ypol*16384))
                     phase_X = delay_Xpol * sky_freq
                     phase_Y = delay_Ypol * sky_freq
-                    phase_X = np.floor(65536 * (phase_X - np.floor(phase_X)))
-                    phase_Y = np.floor(65536 * (phase_Y - np.floor(phase_Y)))
-                    print(f"VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")
-            
+                    phase_X = np.int32(np.floor(65536 * (phase_X - np.floor(phase_X))))
+                    phase_Y = np.int32(np.floor(65536 * (phase_Y - np.floor(phase_Y))))
+                    
+                    # print(f"VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")
+                    if tb_valid:
+                        # Compare with the data loaded from the testbench
+                        # Calculate which sample this packet should start at
+                        # Simulation puts the sample number in the data, where the 
+                        # sample number is the number of samples since the epoch
+                        first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 + coarse_delay
+                        for sample in range(2048):
+                            Xre = data_data[integration_offset,frame_in_integration,packet,vc,0,sample]
+                            Xim = data_data[integration_offset,frame_in_integration,packet,vc,1,sample]
+                            Yre = data_data[integration_offset,frame_in_integration,packet,vc,2,sample]
+                            Yim = data_data[integration_offset,frame_in_integration,packet,vc,3,sample]
+                            tb_sample = Xre + 256*Xim + 65536*Yre
+                            tb_vc = Yim
+                            if ((tb_sample != (first_sample+sample)) or (vc != tb_vc)):
+                                print(f"Bad sample : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}")
+                                print(f"   At sample {sample}, expected {first_sample+sample}, got {tb_sample}, for vc = {vc}, (tb_vc = {tb_vc})")
+                                data_mismatch += 1
+                            else:
+                                data_match += 1 
+                        # Compare fine delays
+                        fine_delay_Xpol_tb = meta_data[integration_offset,frame_in_integration,packet,vc,0]
+                        phase_X_tb = meta_data[integration_offset,frame_in_integration,packet,vc,1]
+                        fine_delay_Ypol_tb = meta_data[integration_offset,frame_in_integration,packet,vc,2]
+                        phase_Y_tb = meta_data[integration_offset,frame_in_integration,packet,vc,3]
+                        if ((fine_delay_Xpol_tb != fine_delay_Xpol) or (fine_delay_Ypol_tb != fine_delay_Ypol) or (phase_X_tb != phase_X) or (phase_Y_tb != phase_Y)):
+                            print(f"PYTHON : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")    
+                            print(f"    TB : fine X = {fine_delay_Xpol_tb}, fine Y = {fine_delay_Ypol_tb}, phase X = {phase_X_tb}, phase_Y = {phase_Y_tb}")
+                            meta_mismatch += 1
+                        else:
+                            meta_match += 1
+                    else:
+                        print(f"No tb data : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")
+
+    if tb_valid:
+        print(f"checked {sim_frames} frames against simulation")
+        print(f"    data sample mismatch = {data_mismatch}, data samples matched = {data_match} ")
+        print(f"    meta data mismatch = {meta_mismatch}, meta data matched = {meta_match}")
 
 if __name__ == "__main__":
     main()
