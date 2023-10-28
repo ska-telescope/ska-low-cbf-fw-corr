@@ -31,7 +31,6 @@ entity ct1_tb is
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1_ct1_out.txt"
     );
---  Port ( );
 end ct1_tb;
 
 architecture Behavioral of ct1_tb is
@@ -110,7 +109,6 @@ architecture Behavioral of ct1_tb is
     
     signal axi_lite_mosi : t_axi4_lite_mosi;
     signal axi_lite_miso : t_axi4_lite_miso;
-    
     signal axi_full_mosi : t_axi4_full_mosi;
     signal axi_full_miso : t_axi4_full_miso;
 
@@ -128,7 +126,6 @@ architecture Behavioral of ct1_tb is
     signal absolute_sample : std_logic_vector(95 downto 0);
     signal wdata_word_count : std_logic_vector(47 downto 0);
     signal wdata_burst_count : std_logic_vector(47 downto 0);
-   -- signal rst_active : std_logic;
     
     signal fb_sof, fb_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
     signal fb_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
@@ -368,7 +365,6 @@ begin
                     
                 end case;
             end if;
-        
             fb_valid_del <= fb_valid;
         
         end if;
@@ -480,7 +476,6 @@ begin
         file_close(logfile);	
         wait;
     end process;
-    
     
     ct1i : entity ct_lib.corr_ct1_top
     port map (
@@ -642,9 +637,6 @@ begin
 
     --------------------------------------------------------------------------------
     -- dummy filterbank 
-    
-    
-    
     
 
 end Behavioral;

@@ -6,6 +6,7 @@ set ARGS_PATH "$env(RADIOHDL)/build/ARGS/correlator"
 set DESIGN_PATH "$env(RADIOHDL)/designs/$env(PERSONALITY)"
 set RLIBRARIES_PATH "$env(RADIOHDL)/libraries"
 set COMMON_PATH "$env(RADIOHDL)/common/libraries"
+set BUILD_PATH "$env(RADIOHDL)/build"
 set DEVICE "xcu55c-fsvh2892-2L-e"
 set BOARD "xilinx.com:au55c:part0:1.0"
 
@@ -116,6 +117,7 @@ $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
 $DESIGN_PATH/src/vhdl/version_pkg.vhd \
 $COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
+$BUILD_PATH/build_details_pkg.vhd \
 ]
 
 add_files -fileset sim_1 [glob \
@@ -133,6 +135,7 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
 *correlator/src/vhdl/version_pkg.vhd \
 *hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
+*/build_details_pkg.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]

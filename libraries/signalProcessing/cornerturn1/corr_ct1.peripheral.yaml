@@ -90,7 +90,7 @@ peripherals:
               reset_value       : 0x0
               field_description : "The integration interval that we are currently writing data for.\
                                    Integration intervals are 849ms blocks of data, and this value counts from the start of the SPS epoch."
-
+                                   
           - - field_name        : early_or_late_count
               width             : 32
               access_mode       : RO
@@ -113,6 +113,7 @@ peripherals:
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
+
               field_description : "Count of SPS packets on the filterbank read out with no data."
               
           - - field_name        : buffers_sent_count

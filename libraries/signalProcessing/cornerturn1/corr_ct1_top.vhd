@@ -285,7 +285,6 @@ architecture Behavioral of corr_ct1_top is
     signal drop_packet : std_logic := '0';
     signal readoverflow, readOverflow_set : std_logic := '0';
     signal buffers_sent_count : std_logic_vector(31 downto 0);
-    
     signal poly_addr : std_logic_vector(14 downto 0); 
     signal poly_rddata : std_logic_vector(63 downto 0);
     
@@ -861,7 +860,6 @@ begin
         i_currentBuffer => current_rd_buffer, -- in(1:0);
         i_readStart => trigger_readout,       -- in std_logic; Pulse to start readout from i_currentBuffer
         i_integration => rd_integration,    -- in(31:0)
-
         i_Nchannels => NChannels,             -- in(11:0); -- Total number of virtual channels to read out,
         i_clocksPerPacket => clocksPerPacket, -- in(15:0)
         -- Reading Coarse and fine delay info from the registers

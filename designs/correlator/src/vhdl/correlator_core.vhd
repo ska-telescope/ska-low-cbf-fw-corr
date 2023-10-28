@@ -20,7 +20,7 @@ USE axi4_lib.axi4_full_pkg.ALL;
 USE technology_lib.tech_mac_100g_pkg.ALL;
 USE technology_lib.technology_pkg.ALL;
 USE technology_lib.technology_select_pkg.all;
-
+use correlator_lib.build_details_pkg.all;
 USE work.correlator_bus_pkg.ALL;
 USE work.correlator_system_reg_pkg.ALL;
 USE UNISIM.vcomponents.all;
@@ -665,13 +665,15 @@ begin
     -- On the gemini cards, this was the build date accessed via the USR_ACCESSE2 primitive.
     -- However this is not supported in a vitis kernel since it cannot be placed in the dynamic region.
     
-    system_fields_ro.firmware_major_version	<= g_FIRMWARE_MAJOR_VERSION;
-    system_fields_ro.firmware_minor_version	<= g_FIRMWARE_MINOR_VERSION;
-    system_fields_ro.firmware_patch_version	<= g_FIRMWARE_PATCH_VERSION;
-    system_fields_ro.firmware_label			<= g_FIRMWARE_LABEL;
-    system_fields_ro.firmware_personality	<= g_FIRMWARE_PERSONALITY;
+    system_fields_ro.firmware_major_version <= g_FIRMWARE_MAJOR_VERSION;
+    system_fields_ro.firmware_minor_version <= g_FIRMWARE_MINOR_VERSION;
+    system_fields_ro.firmware_patch_version <= g_FIRMWARE_PATCH_VERSION;
+    system_fields_ro.firmware_label         <= g_FIRMWARE_LABEL;
+    system_fields_ro.firmware_personality   <= g_FIRMWARE_PERSONALITY;
     system_fields_ro.build_date             <= x"66666666";             -- Now under CI/CD, rely on the ARGs generation
-    
+    system_fields_ro.commit_short_hash      <= C_SHA_SHORT;
+    system_fields_ro.build_type             <= C_BUILD_TYPE;
+
     system_fields_ro.no_of_correlator_instances <= std_logic_vector(to_unsigned(g_CORRELATORS , 4));
     
     -- Uptime counter
@@ -934,7 +936,7 @@ begin
         -- reset blocks for HBM interfaces.
         hbm_resetter : entity correlator_lib.hbm_axi_reset_handler 
             generic map (
-                DEBUG_ILA               => TRUE )
+                DEBUG_ILA               => FALSE )
             port map ( 
                 i_clk                   => ap_clk,
                 i_reset                 => ap_rst,

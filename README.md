@@ -1,9 +1,16 @@
 # Low CBF Firmware - Correlator Repository
-
-[![Documentation Status](https://readthedocs.org/projects/ska-telescope-ska-low-cbf-fw-corr/badge/?version=latest)](https://developer.skao.int/projects/ska-low-cbf-fw-corr/en/latest/?badge=latest)
-
 This repository contains FPGA firmware to implement Low CBF correlator and
 associated functions.
+
+## Documentation
+[![Documentation Status](https://readthedocs.org/projects/ska-telescope-ska-low-cbf-fw-corr/badge/?version=latest)](https://developer.skao.int/projects/ska-low-cbf-fw-corr/en/latest/?badge=latest)
+
+The documentation for this project can be found in the `docs` folder, or browsed in the SKA development portal:
+
+* [ska-low-cbf-fw-corr documentation](https://developer.skatelescope.org/projects/ska-low-cbf-fw-corr/en/latest/index.html "SKA Developer Portal: ska-low-cbf-fw-corr documentation")
+
+## Project Avatar (Repository Icon)
+[Matrix icons created by HAJICON - Flaticon](https://www.flaticon.com/free-icons/matrix "matrix icons")
 
 ## Description
 

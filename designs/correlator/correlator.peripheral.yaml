@@ -64,7 +64,7 @@ peripherals:
           - - field_name        : Firmware_Patch_Version
               width             : 16
               access_mode       : RO
-              reset_value       : 0x1
+              reset_value       : 0x2
               field_description : "Patch version number"
           #################################
           - - field_name        : Firmware_Label
@@ -78,6 +78,18 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "Firmware function - PST/PSS/ZOOM/CORR"
+          #################################
+          - - field_name        : commit_short_hash
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "GIT 8 char short hash from which this build came from."
+          #################################
+          - - field_name        : build_type
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Build type that is linked to the pipeline flow, dev, main, etc.."              
           #################################
           - time:
             - field_name        : uptime

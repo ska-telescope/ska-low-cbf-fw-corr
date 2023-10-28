@@ -208,7 +208,6 @@ architecture Behavioral of corr_ct1_readout is
     signal ar_previousBuffer, ar_nextBuffer : std_logic_vector(1 downto 0);
     signal ar_integration : std_logic_vector(31 downto 0);
     signal ar_NChannels : std_logic_vector(11 downto 0);
-   -- signal ar_startPacket : std_logic_vector(47 downto 0);
     signal ar_clocksPerPacket : std_logic_vector(15 downto 0);
     
     type ar_fsm_type is (waitDelaysValid, getCoarseDelays0, getCoarseDelays1, getDataIdle, getBufData,
@@ -234,24 +233,9 @@ architecture Behavioral of corr_ct1_readout is
     signal bufFirstRead, bufLastRead : std_logic_Vector(3 downto 0);
     
     signal bufSampleRelative : t_slv_24_arr(3 downto 0);
-    --signal fineDelayPacketOffset : std_logic_vector(47 downto 0);
     
     signal rdata_beats : std_logic_vector(2 downto 0);
     signal rdata_beatCount : std_logic_vector(2 downto 0);
-    --signal rdata_deltaDeltaPXsampleOffset : signed(47 downto 0);
-    --signal rdata_deltaDeltaPXsampleOffsetDel3 : std_logic_vector(47 downto 0);
-    --signal rdata_deltaDeltaPXsampleOffsetDel4 : std_logic_vector(47 downto 0);
-    --signal rdata_deltaDeltaPXsampleOffsetDel5 : std_logic_vector(26 downto 0);
-    --signal rdata_deltaDeltaPXsampleOffsetDel6 : std_logic_vector(26 downto 0);
-    
-    --signal rdata_phaseStepXsampleOffset : signed(58 downto 0); -- result of a 27 * 32 bit multiply.
-    --signal rdata_phaseStepXsampleOffsetDel3, rdata_phaseStepXsampleOffsetDel4 : std_logic_vector(58 downto 0);
-    
-    --signal rdata_roundupDel5 : std_logic := '0';
-    
-    --signal rdata_HDeltaPDel5, rdata_VDeltaPDel5, rdata_HDeltaPDel4, rdata_VDeltaPDel4, rdata_HDeltaPDel3, rdata_VDeltaPDel3, rdata_HDeltaPDel2, rdata_VDeltaPDel2, rdata_HDeltaP, rdata_VDeltaP : std_logic_vector(15 downto 0);
-    --signal rdata_HDeltaPDel6, rdata_VDeltaPDel6, rdata_HDeltaPDel7, rdata_VDeltaPDel7 : std_logic_vector(26 downto 0);
-    --signal rdata_validSamples, rdata_validSamplesDel2, rdata_validSamplesDel3, rdata_validSamplesDel4, rdata_validSamplesDel5, rdata_validSamplesDel6, rdata_validSamplesDel7 : std_logic_vector(3 downto 0);
     signal rdata_rdStartOffset, rdata_rdStartOffsetDel2, rdata_rdStartOffsetDel3, rdata_rdStartOffsetDel4, rdata_rdStartOffsetDel5, rdata_rdStartOffsetDel6, rdata_rdStartOffsetDel7 : std_logic_vector(3 downto 0);
     signal axi_rvalid_del1, axi_rvalid_del2, axi_rvalid_del3, axi_rvalid_del4, axi_rvalid_del5, axi_rvalid_del6, axi_rvalid_del7 : std_logic;
     signal rdata_stream, rdata_streamDel2, rdata_streamDel3, rdata_streamDel4, rdata_streamDel5, rdata_streamDel6, rdata_streamDel7 : std_logic_vector(1 downto 0);
@@ -322,15 +306,6 @@ architecture Behavioral of corr_ct1_readout is
     signal selRFI : std_logic;
     signal clockCountIncrement : std_logic := '0';
     signal clockCountZero : std_logic := '0';
-    
-    
-    --signal rdata_phaseStep : std_logic_vector(26 downto 0);
-    --signal rdata_phaseOffset : std_logic_vector(31 downto 0);
-    
-    --signal rdata_HphaseOffsetDel2, rdata_HphaseOffsetDel3, rdata_HphaseOffsetDel4, rdata_HphaseOffsetDel5, rdata_HphaseOffsetDel6, rdata_HphaseOffsetDel7 : std_logic_vector(15 downto 0);
-    --signal rdata_VphaseOffsetDel2, rdata_VphaseOffsetDel3, rdata_VphaseOffsetDel4, rdata_VphaseOffsetDel5, rdata_VphaseOffsetDel6, rdata_VphaseOffsetDel7 : std_logic_vector(15 downto 0);
-    --signal rdata_phaseStepRoundupDel5 : std_logic;
-    --signal rdata_phaseStepXsampleOffsetDel5, rdata_phaseStepXsampleOffsetDel6 : std_logic_vector(15 downto 0);
     
     signal rstDel1, rstDel2, rstInternal, rstFIFOs, rstFIFOsDel1 : std_logic := '0';
     signal rd_wait_count : std_logic_vector(3 downto 0) := "0000";
@@ -1431,6 +1406,7 @@ begin
     cdc_dataIn(31 downto 16) <= x"0056" when (unsigned(ar_clocksPerPacket) < 86) else ar_clocksPerPacket;   -- 16 bit; minimum possible value is 86.
     cdc_dataIn(63 downto 32) <= ar_integration;       -- 32 bit
     cdc_dataIn(65 downto 64) <= ar_currentBuffer;     -- 2 bit
+
     
     process(shared_clk)
     begin
