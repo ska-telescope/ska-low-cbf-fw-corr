@@ -1,5 +1,5 @@
 integration_start: 11
-sim_frames : 4
+sim_frames : 2
 polynomials:
   # each entry is for a particular virtual channel
   0:
