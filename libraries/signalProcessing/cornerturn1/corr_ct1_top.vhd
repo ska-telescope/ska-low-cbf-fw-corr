@@ -555,9 +555,9 @@ begin
                             -- if we are waiting to latch onto the data stream,
                             -- then check that the packet is close to the preload packets used in buffer 2
                             -- when reading buffer 0.
-                            -- 23 preload packets used, will have to clear a few extra in the readout to cope with
+                            -- 13 preload packets used, will have to clear a few extra in the readout to cope with
                             -- both +ve and -ve delays.
-                            if (validMemRstActive = '0' and ct_buffer = "10" and unsigned(packet_count_in_buffer) > (128-24)) then
+                            if (validMemRstActive = '0' and ct_buffer = "10" and unsigned(packet_count_in_buffer) > (128-14)) then
                                 waiting_to_latch_on <= '0';
                                 -- current integration is the index of the integration that
                                 -- we are currently writing data into the HBM for.

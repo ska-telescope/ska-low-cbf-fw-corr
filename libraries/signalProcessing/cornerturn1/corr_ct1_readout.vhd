@@ -389,15 +389,15 @@ begin
                 --      axi_araddr(12:0)  = byte within the 8192 byte LFAA block.
                 --                          Reads are 512 bytes, so if bits(12:9) = "1111" then this is the last read from this LFAA block.
                 -- This clause clears the valid bit :
-                --   - For the 23rd from the end LFAA block in the previous buffer, on the first memory request to the first LFAA block in the current buffer
+                --   - For the 13th from the end LFAA block in the previous buffer, on the first memory request to the first LFAA block in the current buffer
                 --     (This happens on the reads of current buffer to ensure that all the preload blocks in the previous buffer are cleared,
                 --      since large values of the coarse delay may mean the first possible preload LFAA block in previous buffer is not read to preload the filterbanks)
                 validMemWrEn <= '1';
                 validMemWriteAddr(18 downto 17) <= ar_previousBuffer;
                 validMemWriteAddr(16 downto 7) <= axi_araddr(29 downto 20);
-                validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 23,7));
-            elsif (((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) < (g_SPS_PACKETS_PER_FRAME-23))) or 
-                   ((axi_araddr(31 downto 30) = ar_previousBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) >= (g_SPS_PACKETS_PER_FRAME-23)))) and
+                validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
+            elsif (((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) < (g_SPS_PACKETS_PER_FRAME-13))) or 
+                   ((axi_araddr(31 downto 30) = ar_previousBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) >= (g_SPS_PACKETS_PER_FRAME-13)))) and
                   (axi_arvalid = '1' and axi_arvalidDel1 = '0') then
                 -- clear the valid bit
                 --   - on the last read from any but the final 23 blocks in this buffer.

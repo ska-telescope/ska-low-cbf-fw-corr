@@ -25,6 +25,7 @@ use DSP_top_lib.DSP_top_pkg.all;
 entity ct1_tb is
     generic(
         g_VIRTUAL_CHANNELS : integer := 8;
+        g_CT1_VIRTUAL_CHANNELS : integer := 10;
         g_PACKET_GAP : integer := 800;
         -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
@@ -278,7 +279,7 @@ begin
         wait;
     end process;
 
-    virtual_channels <= std_logic_vector(to_unsigned(g_VIRTUAL_CHANNELS,11));
+    virtual_channels <= std_logic_vector(to_unsigned(g_CT1_VIRTUAL_CHANNELS,11));
     
     --------------------------------------------------------------------------------
     -- Emulate the LFAA decode module
