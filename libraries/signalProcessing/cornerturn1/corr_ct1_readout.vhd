@@ -232,7 +232,7 @@ architecture Behavioral of corr_ct1_readout is
     signal bufHasMoreSamples : std_logic_vector(3 downto 0); -- one bit for each buffer.
     signal bufFirstRead, bufLastRead : std_logic_Vector(3 downto 0);
     
-    signal bufSampleRelative : t_slv_24_arr(3 downto 0);
+    --signal bufSampleRelative : t_slv_24_arr(3 downto 0);
     
     signal rdata_beats : std_logic_vector(2 downto 0);
     signal rdata_beatCount : std_logic_vector(2 downto 0);
@@ -325,7 +325,7 @@ architecture Behavioral of corr_ct1_readout is
     
     signal delay_vc, delay_packet, delay_Hpol_deltaP, delay_Hpol_phase, delay_Vpol_deltaP, delay_Vpol_phase :  std_logic_vector(15 downto 0);
     signal delay_valid : std_logic;
-    signal delay_offset : std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
+    signal delay_offset, delay_offset_inv, delay_offset_neg : std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
     
     signal delayFIFO_din : std_logic_vector(87 downto 0);
     signal delayFIFO_wrEn : std_logic_Vector(3 downto 0);
@@ -364,7 +364,7 @@ begin
     
     process(shared_clk)
         variable bufSampleTemp : t_slv_20_arr(3 downto 0);
-        variable bufSampleRelative_v : t_slv_20_arr(3 downto 0);
+        --variable bufSampleRelative_v : t_slv_20_arr(3 downto 0);
         variable bufSamplesToRead20bit : t_slv_20_arr(3 downto 0);
         variable bufLenx16 : t_slv_24_arr(3 downto 0);
         variable bufSampleTemp8bit : t_slv_8_arr(3 downto 0);
@@ -665,9 +665,9 @@ begin
                     -- Round it down so we have 64 byte aligned accesses to the HBM. Note buf0Sample is the sample within the buffer for this particular virtual channel
                     bufSample(i) <= bufSampleTemp(i)(19 downto 4) & "0000"; -- This gets multiplied by 4 to get the byte address, so the byte address will be 64 byte aligned.
                     
-                    bufSampleRelative_v(i) := std_logic_vector(unsigned(bufCoarseDelay(i)) - 47104 - (11*4096 - g_FILTER_CENTER)); -- Index of the sample to be read relative to the first sample in the buffer.
-                    bufSampleRelative(i) <= bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & 
-                                            bufSampleRelative_v(i)(19) & bufSampleRelative_v(i);
+                    --bufSampleRelative_v(i) := std_logic_vector(unsigned(bufCoarseDelay(i)) - 47104 - (11*4096 - g_FILTER_CENTER)); -- Index of the sample to be read relative to the first sample in the buffer.
+                    --bufSampleRelative(i) <= bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & bufSampleRelative_v(i)(19) & 
+                    --                        bufSampleRelative_v(i)(19) & bufSampleRelative_v(i);
                     -- Number of 64 byte words to read.
                     -- First read is chosen such that the remaining reads are aligned to a 512 byte boundary (i.e. 8*64 bytes).
                     -- The 64 byte word we are reading within the current 512 byte block is buf0SampleTemp(6 downto 4)
@@ -686,7 +686,7 @@ begin
                     bufLenx16(i) := "00000000000000000" & bufLen(i) & "0000";
                     -- bufSampleRelative is the index of the sample corresponding to a 16 sample boundary in the readout in the first data word returned from the HBM
                     -- It is used to determine the fine delay to use. Note +16 here because bufLen is 1 less than the number of beats, and each beat is 16 samples.
-                    bufSampleRelative(i) <= std_logic_vector(signed(bufSampleRelative(i)) + signed(bufLenx16(i)) + 16);  
+                    --bufSampleRelative(i) <= std_logic_vector(signed(bufSampleRelative(i)) + signed(bufLenx16(i)) + 16);  
                     bufSamplesRemaining(i) <= std_logic_vector(unsigned(bufSamplesRemaining(i)) - unsigned(bufSamplesToRead20bit(i)));
                     bufFirstRead(i) <= '0';
                 elsif ((ar_fsmDel1 = getBufData) and (unsigned(ar_fsm_bufferDel1) = i)) then  -- Second of two steps to update buf0Sample when we issue a read request
@@ -1173,6 +1173,9 @@ begin
         
     end generate;
     
+    -- sample shift is negative of sample delay. Or something like that.
+    delay_offset_inv <= (not delay_offset);
+    delay_offset_neg <= std_logic_vector(signed(delay_offset_inv) + 1);
     
     process(shared_clk)
     begin
@@ -1197,7 +1200,7 @@ begin
                 delayFIFO_wrEn <= "0000";
             end if;
             
-            coarseFIFO_din(11 downto 0) <= delay_offset;
+            coarseFIFO_din(11 downto 0) <= delay_offset_neg;
             coarseFIFO_din(27 downto 12) <= delay_vc;
             coarseFIFO_din(31 downto 28) <= "0000";
             if (delay_valid = '1' and (unsigned(delay_packet) = 0)) then

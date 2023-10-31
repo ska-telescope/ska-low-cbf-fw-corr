@@ -1,5 +1,5 @@
 integration_start: 11
-sim_frames : 4
+sim_frames : 1
 polynomials:
   # each entry is for a particular virtual channel
   0:
@@ -163,9 +163,9 @@ polynomials:
     virtual_channel : 6
     # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
     # Units of ns/s^k
-    poly0 : [ -19440, 37.252902984619141, 0, 0, 0, 0]
+    poly0 : [ 1080, 0, 0, 0, 0, 0]
     # sky frequency in GHz
-    sky_freq0 : 0.05
+    sky_freq0 : 0.17
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
     buf_offset0 : 10
     # double precision offset in ns for the second polarisation (relative to the first polarisation). 
@@ -174,24 +174,24 @@ polynomials:
     integration0 : 20
     valid0 : 1
     #
-    poly1: [ -1079, -37.252902984619141, 0, 0, 0, 0 ]
+    poly1: [ 1080, 0, 0, 0, 0, 0 ]
     # sky frequency in GHz
-    sky_freq1: 0.05
+    sky_freq1: 0.17
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
     buf_offset1: 10
     # double precision offset in ns for the second polarisation (relative to the first polarisation). 
     Ypol_offset1: 3
     # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
-    integration1: 9
+    integration1: 10
     valid1: 1
     
   7:
     virtual_channel : 7
     # polynomial coefficients c0 to c5, result = c0 + c1*t + ... + c5*t^5
     # Units of ns/s^k
-    poly0 : [ -19440, 37.252902984619141, 0, 0, 0, 0]
+    poly0 : [ 1080, 0, 0, 0, 0, 0]
     # sky frequency in GHz
-    sky_freq0 : 0.06
+    sky_freq0 : 0.17078125
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
     buf_offset0 : 10
     # double precision offset in ns for the second polarisation (relative to the first polarisation). 
@@ -200,13 +200,13 @@ polynomials:
     integration0 : 3
     valid0 : 1
     #
-    poly1: [ -36720, 37.252902984619141, 0, 0, 0, 0 ]
+    poly1: [ 1080, 0, 0, 0, 0, 0 ]
     # sky frequency in GHz
-    sky_freq1: 0.06
+    sky_freq1: 0.17078125
     #seconds from the polynomial epoch to the start of the integration period, as a double precision value 
     buf_offset1: 10
     # double precision offset in ns for the second polarisation (relative to the first polarisation). 
-    Ypol_offset1: 5
+    Ypol_offset1: 3
     # Validity time : 32 bit buf_integration: Integration period at which the polynomial becomes valid.
     integration1: 10
     valid1: 1

@@ -9,7 +9,7 @@
 -- 
 ----------------------------------------------------------------------------------
 
-library IEEE, correlator_lib, ct_lib, common_lib;
+library IEEE, correlator_lib, ct_lib, common_lib, filterbanks_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
@@ -24,13 +24,25 @@ use DSP_top_lib.DSP_top_pkg.all;
 
 entity ct1_tb is
     generic(
-        g_VIRTUAL_CHANNELS : integer := 8;
-        g_CT1_VIRTUAL_CHANNELS : integer := 10;
-        g_PACKET_GAP : integer := 800;
-        -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
+        g_VIRTUAL_CHANNELS : integer := 4;
+        g_CT1_VIRTUAL_CHANNELS : integer := 4;
+        g_PACKET_GAP : integer := 1000;
+        
+        --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt";
-        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1_ct1_out.txt"
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2.txt";
+        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2_ct1_out.txt"
+
+        
+        -- x000000EC8F40 = 64 packets prior to the first valid integration in delays1080_8vc.txt
+        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"000000EC8F40"; -- x"03421AFE0350";
+        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/delays1080_8vc.txt";
+        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/delays1080_ct1_out.txt"
+        
+        -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
+        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt";
+        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1_ct1_out.txt"
     );
 end ct1_tb;
 
@@ -133,6 +145,26 @@ architecture Behavioral of ct1_tb is
     signal fb_data0, fb_data1, fb_data2, fb_data3, fb_data4, fb_data5, fb_data6, fb_data7 : t_slv_8_arr(1 downto 0);
     signal fb_meta01, fb_meta23, fb_meta45, fb_meta67  : t_CT1_META_out;
     
+    signal fb2_sof, fb2_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb2_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb2_data0, fb2_data1, fb2_data2, fb2_data3, fb2_data4, fb2_data5, fb2_data6, fb2_data7 : t_slv_8_arr(1 downto 0);
+    signal fb2_meta01, fb2_meta23, fb2_meta45, fb2_meta67  : t_CT1_META_out;
+    
+    signal fb3_sof, fb3_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb3_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb3_data0, fb3_data1, fb3_data2, fb3_data3, fb3_data4, fb3_data5, fb3_data6, fb3_data7 : t_slv_8_arr(1 downto 0);
+    signal fb3_meta01, fb3_meta23, fb3_meta45, fb3_meta67  : t_CT1_META_out;
+    
+    signal fb4_sof, fb4_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb4_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb4_data0, fb4_data1, fb4_data2, fb4_data3, fb4_data4, fb4_data5, fb4_data6, fb4_data7 : t_slv_8_arr(1 downto 0);
+    signal fb4_meta01, fb4_meta23, fb4_meta45, fb4_meta67  : t_CT1_META_out;
+    
+    signal fb5_sof, fb5_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb5_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb5_data0, fb5_data1, fb5_data2, fb5_data3, fb5_data4, fb5_data5, fb5_data6, fb5_data7 : t_slv_8_arr(1 downto 0);
+    signal fb5_meta01, fb5_meta23, fb5_meta45, fb5_meta67  : t_CT1_META_out;    
+    
     signal write_HBM_to_disk : std_logic;
     signal hbm_dump_addr : integer;
     signal hbm_dump_filename, init_fname : string(1 to 9) := "dummy.txt";
@@ -146,8 +178,28 @@ architecture Behavioral of ct1_tb is
     constant hex_four : std_logic_vector(3 downto 0) := "0100";
     constant hex_five : std_logic_vector(3 downto 0) := "0101";
     
-begin
+    signal FB_axi_mosi : t_axi4_lite_mosi;
+    signal FB_axi_miso : t_axi4_lite_miso;
+    signal clk_gate : std_logic := '0';
 
+    signal FD_integration : std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+    signal FD_ctFrame : std_logic_vector(1 downto 0);
+    signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+    signal FD_headerValid : std_logic_vector(3 downto 0);
+    signal FD_data : t_ctc_output_payload_arr(3 downto 0);
+    signal FD_dataValid : std_logic;
+    -- i_SOF delayed by 16384 clocks;
+    -- i_sof occurs at the start of each new block of 4 virtual channels.
+    -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+    -- between data packets at the filterbank output that occurs due to the filterbank preload.
+    signal FB_out_sof : std_logic;
+    signal FB_to_100G_data : std_logic_vector(127 downto 0);
+    signal FB_to_100G_valid : std_logic;
+    signal FB_to_100G_ready : std_logic;
+    signal clk300_gated : std_logic := '0';
+    
+begin
+    
     clk300 <= not clk300 after 1.666 ns;
     rst_n <= not clk300_rst;
     
@@ -172,6 +224,18 @@ begin
         axi_lite_mosi.arprot <= "000";
         axi_lite_mosi.arvalid <= '0';
         axi_lite_mosi.rready <= '0';
+        
+        FB_axi_mosi.awaddr <= (others => '0');
+        FB_axi_mosi.awprot <= "000";
+        FB_axi_mosi.awvalid <= '0';
+        FB_axi_mosi.wdata <= (others => '0');
+        FB_axi_mosi.wstrb <= "1111";
+        FB_axi_mosi.wvalid <= '0';
+        FB_axi_mosi.bready <= '0';
+        FB_axi_mosi.araddr <= (others => '0');
+        FB_axi_mosi.arprot <= "000";
+        FB_axi_mosi.arvalid <= '0';
+        FB_axi_mosi.rready <= '1';        
         
         axi_full_mosi.awaddr <= (others => '0');
         axi_full_mosi.awvalid <= '0';
@@ -637,7 +701,176 @@ begin
     --init_fname <= "dummy.vhd";
 
     --------------------------------------------------------------------------------
-    -- dummy filterbank 
+    -- Filterbank 
     
+    process(clk300)
+    begin
+        if rising_edge(clk300) then
+            FB2_sof   <= FB_sof;
+            FB2_data0 <= FB_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB2_data1 <= FB_data1; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta01 <= FB_meta01;
+            FB2_data2  <= FB_data2; -- in t_slv_8_arr(1 downto 0);
+            FB2_data3  <= FB_data3; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta23 <= FB_meta23;
+            FB2_data4  <= FB_data4; -- in t_slv_8_arr(1 downto 0);
+            FB2_data5  <= FB_data5; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta45 <= FB_meta45;
+            FB2_data6  <= FB_data6; -- in t_slv_8_arr(1 downto 0);
+            FB2_data7  <= FB_data7; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta67 <= FB_meta67;
+            FB2_Valid <= FB_valid;
+
+            FB3_sof   <= FB2_sof;
+            FB3_data0 <= FB2_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB3_data1 <= FB2_data1; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta01 <= FB2_meta01;
+            FB3_data2  <= FB2_data2; -- in t_slv_8_arr(1 downto 0);
+            FB3_data3  <= FB2_data3; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta23 <= FB2_meta23;
+            FB3_data4  <= FB2_data4; -- in t_slv_8_arr(1 downto 0);
+            FB3_data5  <= FB2_data5; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta45 <= FB2_meta45;
+            FB3_data6  <= FB2_data6; -- in t_slv_8_arr(1 downto 0);
+            FB3_data7  <= FB2_data7; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta67 <= FB2_meta67;
+            FB3_Valid <= FB2_valid;
+            
+            FB4_sof   <= FB3_sof;
+            FB4_data0 <= FB3_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB4_data1 <= FB3_data1; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta01 <= FB3_meta01;
+            FB4_data2  <= FB3_data2; -- in t_slv_8_arr(1 downto 0);
+            FB4_data3  <= FB3_data3; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta23 <= FB3_meta23;
+            FB4_data4  <= FB3_data4; -- in t_slv_8_arr(1 downto 0);
+            FB4_data5  <= FB3_data5; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta45 <= FB3_meta45;
+            FB4_data6  <= FB3_data6; -- in t_slv_8_arr(1 downto 0);
+            FB4_data7  <= FB3_data7; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta67 <= FB3_meta67;
+            FB4_Valid <= FB3_valid;
+            
+            if FB_sof = '1' then
+                clk_gate <= '1';
+            end if;
+        end if;
+    end process;
+    
+    
+    clk300_gated <= clk300 when clk_gate = '1' else '0';
+    
+    process(clk300_gated)
+    begin
+        if rising_edge(clk300_gated) then
+            FB5_sof   <= FB4_sof;
+            FB5_data0 <= FB4_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB5_data1 <= FB4_data1; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta01 <= FB4_meta01;
+            FB5_data2  <= FB4_data2; -- in t_slv_8_arr(1 downto 0);
+            FB5_data3  <= FB4_data3; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta23 <= FB4_meta23;
+            FB5_data4  <= FB4_data4; -- in t_slv_8_arr(1 downto 0);
+            FB5_data5  <= FB4_data5; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta45 <= FB4_meta45;
+            FB5_data6  <= FB4_data6; -- in t_slv_8_arr(1 downto 0);
+            FB5_data7  <= FB4_data7; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta67 <= FB4_meta67;
+            FB5_Valid <= FB4_valid;
+        end if;
+    end process;
+    
+    
+    
+    corFB_i : entity filterbanks_lib.FB_top_correlator
+    port map (
+        i_data_rst => FB5_sof, -- in std_logic;
+        -- Register interface
+        i_axi_clk => clk300_gated,    -- in std_logic;
+        i_axi_rst => clk300_rst,    -- in std_logic;
+        i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
+        o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
+        -- Configuration (on i_data_clk)
+        i_fineDelayDisable => '0',     -- in std_logic;
+        -- Data input, common valid signal, expects packets of 4096 samples
+        i_SOF    => FB5_sof,
+        i_data0  => FB5_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+        i_data1  => FB5_data1, -- in t_slv_8_arr(1 downto 0);
+        i_meta01 => FB5_meta01,
+        i_data2  => FB5_data2, -- in t_slv_8_arr(1 downto 0);
+        i_data3  => FB5_data3, -- in t_slv_8_arr(1 downto 0);
+        i_meta23 => FB5_meta23,
+        i_data4  => FB5_data4, -- in t_slv_8_arr(1 downto 0);
+        i_data5  => FB5_data5, -- in t_slv_8_arr(1 downto 0);
+        i_meta45 => FB5_meta45,
+        i_data6  => FB5_data6, -- in t_slv_8_arr(1 downto 0);
+        i_data7  => FB5_data7, -- in t_slv_8_arr(1 downto 0);
+        i_meta67 => FB5_meta67,
+        i_dataValid => FB5_valid, -- in std_logic;
+        -- Data out; bursts of 3456 clocks for each channel.
+        -- Correlator filterbank data output
+        o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+        o_ctFrame        => FD_ctFrame,        -- out (1:0);
+        o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+        o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
+        o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
+        o_DataValid      => FD_dataValid,      -- out std_logic
+        -- i_SOF delayed by 16384 clocks;
+        -- i_sof occurs at the start of each new block of 4 virtual channels.
+        -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+        -- between data packets at the filterbank output that occurs due to the filterbank preload.
+        o_sof => FB_out_sof, -- out std_logic;
+        -- Correlator filterbank output as packets
+        -- Each output packet contains all the data for:
+        --  - Single time step
+        --  - Single polarisation
+        --  - single coarse channel
+        -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
+        -- The data is transferred in bursts of 433 clocks.
+        o_packetData  => FB_to_100G_data, -- out std_logic_vector(127 downto 0);
+        o_packetValid => FB_to_100G_valid, -- out std_logic;
+        i_packetReady => FB_to_100G_ready  -- in std_logic
+    );
+
+    FB_to_100G_ready <= '1';
+
+---- write CT1 output to a file
+--    process
+--		file logfile: TEXT;
+--		--variable data_in : std_logic_vector((BIT_WIDTH-1) downto 0);
+--		variable line_out : Line;
+--    begin
+--	    FILE_OPEN(logfile, g_CT1_OUT_FILENAME, WRITE_MODE);
+--		loop
+--            wait until rising_edge(clk300);
+--            if fb_valid = '1' then
+                
+--                if fb_valid_del = '0' and fb_valid = '1' then
+--                    -- Rising edge of fb_valid, write out the meta data
+--                    line_out := "";
+--                    hwrite(line_out,hex_one,RIGHT,1);
+--                    hwrite(line_out,fb_meta01.HDeltaP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.HOffsetP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.VDeltaP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.VOffsetP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.integration,RIGHT,9);
+--                    hwrite(line_out,"00" & fb_meta01.ctFrame,RIGHT,2);
+--                    hwrite(line_out,fb_meta01.virtualChannel,RIGHT,5);
+--                    writeline(logfile,line_out);
+    
+--    -- write out the samples to the file
+--                line_out := "";
+--                hwrite(line_out,hex_five,RIGHT,1);
+--                hwrite(line_out,fb_data0(0),RIGHT,3);
+--                hwrite(line_out,fb_data0(1),RIGHT,3);
+--                hwrite(line_out,fb_data1(0),RIGHT,3);
+--                hwrite(line_out,fb_data1(1),RIGHT,3);
+--                hwrite(line_out,fb_data2(0),RIGHT,3);
+--                hwrite(line_out,fb_data2(1),RIGHT,3);
+--                hwrite(line_out,fb_data3(0),RIGHT,3);
+--                hwrite(line_out,fb_data3(1),RIGHT,3);
+                
+--        end loop;
+--    end process;
 
 end Behavioral;
