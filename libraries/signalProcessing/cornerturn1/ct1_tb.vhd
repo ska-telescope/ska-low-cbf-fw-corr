@@ -440,6 +440,8 @@ begin
     -- 2048 samples per packet, 128 samples per burst (of 512 bytes), 16 samples per word (of 64 bytes)
     absolute_sample <= std_logic_vector(unsigned(wdata_packet_count) * 2048 + unsigned(wdata_burst_count) * 128 + unsigned(wdata_word_count) * 16); --to_unsigned(16,48));
     
+    -- need pn sequence option
+    
     dgen1 : for i in 0 to 15 generate
         m01_axi_w.data(i*32+23 downto i*32+0) <= absolute_sample(23 downto 4) & std_logic_vector(to_unsigned(i,4)); 
         m01_axi_w.data(i*32+31 downto i*32+24) <= wdata_virtual_channel(7 downto 0);
