@@ -559,18 +559,36 @@ begin
                         if (unsigned(bufMaxUsed(0)) < 1000) or (unsigned(bufMaxUsed(1)) < 1000) or (unsigned(bufMaxUsed(2)) < 1000) or (unsigned(bufMaxUsed(3)) < 1000) then
                             ar_fsm <= getBufData;
                         end if;
-                        if ((unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(1))) and 
-                            (unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(2))) and
-                            (unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(3)))) then
+                        
+                        if (((unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(1))) or (bufHasMoreSamples(1) = '0')) and 
+                            ((unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(2))) or (bufHasMoreSamples(2) = '0')) and
+                            ((unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(3))) or (bufHasMoreSamples(3) = '0')) and
+                            bufHasMoreSamples(0) = '1') then
                             ar_fsm_buffer <= "00"; -- which buffer to get data for
-                        elsif ((unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(2))) and 
-                               (unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(3)))) then
+                        elsif (((unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(2))) or (bufHasMoreSamples(2) = '0')) and 
+                               ((unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(3))) or (bufHasMoreSamples(3) = '0')) and
+                               bufHasMoreSamples(1) = '1') then
                             ar_fsm_buffer <= "01";
-                        elsif (unsigned(bufMaxUsed(2)) <= unsigned(bufMaxUsed(3))) then
+                        elsif (((unsigned(bufMaxUsed(2)) <= unsigned(bufMaxUsed(3))) or bufHasMoreSamples(3) = '0') and 
+                               (bufHasMoreSamples(2) = '1')) then
                             ar_fsm_buffer <= "10";
                         else
+                            -- At least one buffer must have more samples because otherwise we couldn't have gotten into this state.
                             ar_fsm_buffer <= "11";
                         end if;
+                        
+--                        if ((unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(1))) and 
+--                            (unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(2))) and
+--                            (unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(3)))) then
+--                            ar_fsm_buffer <= "00"; -- which buffer to get data for
+--                        elsif ((unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(2))) and 
+--                               (unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(3)))) then
+--                            ar_fsm_buffer <= "01";
+--                        elsif (unsigned(bufMaxUsed(2)) <= unsigned(bufMaxUsed(3))) then
+--                            ar_fsm_buffer <= "10";
+--                        else
+--                            ar_fsm_buffer <= "11";
+--                        end if;
                         axi_arvalid <= '0';
                     
                     when getBufData =>  -- "buf0" in the name "getBuf0Data" refers to the particular virtual channel

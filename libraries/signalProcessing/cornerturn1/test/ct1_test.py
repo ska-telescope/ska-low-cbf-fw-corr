@@ -445,7 +445,7 @@ def main():
                         # Calculate which sample this packet should start at
                         # Simulation puts the sample number in the data, where the 
                         # sample number is the number of samples since the epoch
-                        first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 + coarse_delay
+                        first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 - coarse_delay
                         for sample in range(2048):
                             Xre = data_data[integration_offset,frame_in_integration,packet,vc,0,sample]
                             Xim = data_data[integration_offset,frame_in_integration,packet,vc,1,sample]
@@ -454,8 +454,9 @@ def main():
                             tb_sample = Xre + 256*Xim + 65536*Yre
                             tb_vc = Yim
                             if ((tb_sample != (first_sample+sample)) or (vc != tb_vc)):
-                                print(f"Bad sample : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}")
-                                print(f"   At sample {sample}, expected {first_sample+sample}, got {tb_sample}, for vc = {vc}, (tb_vc = {tb_vc})")
+                                if data_mismatch < 20:
+                                    print(f"Bad sample : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}")
+                                    print(f"   At sample {sample}, expected {first_sample+sample}, got {tb_sample}, for vc = {vc}, (tb_vc = {tb_vc})")
                                 data_mismatch += 1
                             else:
                                 data_match += 1 

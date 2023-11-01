@@ -24,15 +24,20 @@ use DSP_top_lib.DSP_top_pkg.all;
 
 entity ct1_tb is
     generic(
-        g_VIRTUAL_CHANNELS : integer := 4;
-        g_CT1_VIRTUAL_CHANNELS : integer := 4;
+        g_VIRTUAL_CHANNELS : integer := 8;
+        g_CT1_VIRTUAL_CHANNELS : integer := 8;
         g_PACKET_GAP : integer := 1000;
+
+        -- 
+        g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
+        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
+        g_USE_FILTERBANK : std_logic := '0'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
-        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2.txt";
-        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2_ct1_out.txt"
-
+        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2.txt";
+        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2_ct1_out.txt"
         
         -- x000000EC8F40 = 64 packets prior to the first valid integration in delays1080_8vc.txt
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"000000EC8F40"; -- x"03421AFE0350";
@@ -783,56 +788,58 @@ begin
     end process;
     
     
-    
-    corFB_i : entity filterbanks_lib.FB_top_correlator
-    port map (
-        i_data_rst => FB5_sof, -- in std_logic;
-        -- Register interface
-        i_axi_clk => clk300_gated,    -- in std_logic;
-        i_axi_rst => clk300_rst,    -- in std_logic;
-        i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
-        o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
-        -- Configuration (on i_data_clk)
-        i_fineDelayDisable => '0',     -- in std_logic;
-        -- Data input, common valid signal, expects packets of 4096 samples
-        i_SOF    => FB5_sof,
-        i_data0  => FB5_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        i_data1  => FB5_data1, -- in t_slv_8_arr(1 downto 0);
-        i_meta01 => FB5_meta01,
-        i_data2  => FB5_data2, -- in t_slv_8_arr(1 downto 0);
-        i_data3  => FB5_data3, -- in t_slv_8_arr(1 downto 0);
-        i_meta23 => FB5_meta23,
-        i_data4  => FB5_data4, -- in t_slv_8_arr(1 downto 0);
-        i_data5  => FB5_data5, -- in t_slv_8_arr(1 downto 0);
-        i_meta45 => FB5_meta45,
-        i_data6  => FB5_data6, -- in t_slv_8_arr(1 downto 0);
-        i_data7  => FB5_data7, -- in t_slv_8_arr(1 downto 0);
-        i_meta67 => FB5_meta67,
-        i_dataValid => FB5_valid, -- in std_logic;
-        -- Data out; bursts of 3456 clocks for each channel.
-        -- Correlator filterbank data output
-        o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
-        o_ctFrame        => FD_ctFrame,        -- out (1:0);
-        o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-        o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
-        o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
-        o_DataValid      => FD_dataValid,      -- out std_logic
-        -- i_SOF delayed by 16384 clocks;
-        -- i_sof occurs at the start of each new block of 4 virtual channels.
-        -- Delay of 16384 is enough to ensure that o_sof falls in the gap
-        -- between data packets at the filterbank output that occurs due to the filterbank preload.
-        o_sof => FB_out_sof, -- out std_logic;
-        -- Correlator filterbank output as packets
-        -- Each output packet contains all the data for:
-        --  - Single time step
-        --  - Single polarisation
-        --  - single coarse channel
-        -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
-        -- The data is transferred in bursts of 433 clocks.
-        o_packetData  => FB_to_100G_data, -- out std_logic_vector(127 downto 0);
-        o_packetValid => FB_to_100G_valid, -- out std_logic;
-        i_packetReady => FB_to_100G_ready  -- in std_logic
-    );
+    FBgen : if g_USE_FILTERBANK = '1' generate
+        corFB_i : entity filterbanks_lib.FB_top_correlator
+        port map (
+            i_data_rst => FB5_sof, -- in std_logic;
+            -- Register interface
+            i_axi_clk => clk300_gated,    -- in std_logic;
+            i_axi_rst => clk300_rst,    -- in std_logic;
+            i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
+            o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
+            -- Configuration (on i_data_clk)
+            i_fineDelayDisable => '0',     -- in std_logic;
+            -- Data input, common valid signal, expects packets of 4096 samples
+            i_SOF    => FB5_sof,
+            i_data0  => FB5_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            i_data1  => FB5_data1, -- in t_slv_8_arr(1 downto 0);
+            i_meta01 => FB5_meta01,
+            i_data2  => FB5_data2, -- in t_slv_8_arr(1 downto 0);
+            i_data3  => FB5_data3, -- in t_slv_8_arr(1 downto 0);
+            i_meta23 => FB5_meta23,
+            i_data4  => FB5_data4, -- in t_slv_8_arr(1 downto 0);
+            i_data5  => FB5_data5, -- in t_slv_8_arr(1 downto 0);
+            i_meta45 => FB5_meta45,
+            i_data6  => FB5_data6, -- in t_slv_8_arr(1 downto 0);
+            i_data7  => FB5_data7, -- in t_slv_8_arr(1 downto 0);
+            i_meta67 => FB5_meta67,
+            i_dataValid => FB5_valid, -- in std_logic;
+            -- Data out; bursts of 3456 clocks for each channel.
+            -- Correlator filterbank data output
+            o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_ctFrame        => FD_ctFrame,        -- out (1:0);
+            o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+            o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
+            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
+            o_DataValid      => FD_dataValid,      -- out std_logic
+            -- i_SOF delayed by 16384 clocks;
+            -- i_sof occurs at the start of each new block of 4 virtual channels.
+            -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+            -- between data packets at the filterbank output that occurs due to the filterbank preload.
+            o_sof => FB_out_sof, -- out std_logic;
+            -- Correlator filterbank output as packets
+            -- Each output packet contains all the data for:
+            --  - Single time step
+            --  - Single polarisation
+            --  - single coarse channel
+            -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
+            -- The data is transferred in bursts of 433 clocks.
+            o_packetData  => FB_to_100G_data, -- out std_logic_vector(127 downto 0);
+            o_packetValid => FB_to_100G_valid, -- out std_logic;
+            i_packetReady => FB_to_100G_ready  -- in std_logic
+        );
+        
+    end generate;
 
     FB_to_100G_ready <= '1';
 
