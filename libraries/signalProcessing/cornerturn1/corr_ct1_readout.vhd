@@ -243,7 +243,7 @@ architecture Behavioral of corr_ct1_readout is
     
     signal bufFIFO_din : std_logic_vector(3 downto 0);
     signal bufFIFO_dout : t_slv_4_arr(3 downto 0);
-    signal delayFIFO_dout : t_slv_88_arr(3 downto 0);
+    signal delayFIFO_dout : t_slv_128_arr(3 downto 0);
     signal bufFIFO_empty : std_logic_vector(3 downto 0);
     signal bufFIFO_rdDataCount : t_slv_11_arr(3 downto 0);
     signal bufFIFO_wrDataCount : t_slv_11_arr(3 downto 0);
@@ -323,11 +323,12 @@ architecture Behavioral of corr_ct1_readout is
         probe0 : in std_logic_vector(63 downto 0)); 
     end component;
     
-    signal delay_vc, delay_packet, delay_Hpol_deltaP, delay_Hpol_phase, delay_Vpol_deltaP, delay_Vpol_phase :  std_logic_vector(15 downto 0);
+    signal delay_vc, delay_packet : std_logic_vector(15 downto 0);
+    signal delay_Hpol_deltaP, delay_Hpol_phase, delay_Vpol_deltaP, delay_Vpol_phase : std_logic_vector(31 downto 0);
     signal delay_valid : std_logic;
     signal delay_offset, delay_offset_inv, delay_offset_neg : std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
     
-    signal delayFIFO_din : std_logic_vector(87 downto 0);
+    signal delayFIFO_din : std_logic_vector(127 downto 0);
     signal delayFIFO_wrEn : std_logic_Vector(3 downto 0);
     
     type poly_fsm_t is (start, wait_done0, wait_done1, wait_done2, check_fifos, update_vc, check_vc, done);
@@ -1100,13 +1101,13 @@ begin
             PROG_EMPTY_THRESH => 10,     -- DECIMAL
             PROG_FULL_THRESH => 10,      -- DECIMAL
             RD_DATA_COUNT_WIDTH => 11,   -- DECIMAL
-            READ_DATA_WIDTH => 88,       -- DECIMAL
+            READ_DATA_WIDTH => 128,       -- DECIMAL
             READ_MODE => "fwft",         -- String
             RELATED_CLOCKS => 0,         -- DECIMAL
             SIM_ASSERT_CHK => 0,         -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "0404",  -- String "404" includes read and write data counts.
             WAKEUP_TIME => 0,            -- DECIMAL
-            WRITE_DATA_WIDTH => 88,      -- DECIMAL
+            WRITE_DATA_WIDTH => 128,      -- DECIMAL
             WR_DATA_COUNT_WIDTH => 11    -- DECIMAL
         )
         port map (
@@ -1127,7 +1128,7 @@ begin
             wr_ack => open,           -- 1-bit output: Write Acknowledge: Iindicates that a write request (wr_en) during the prior clock cycle is succeeded.
             wr_data_count => delayFIFO_wrDataCount(i), -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count
             wr_rst_busy => open,      -- 1-bit output: Write Reset Busy
-            din => delayFIFO_din,       -- Same for all FIFOs, since we only write to one fifo at a time. WRITE_DATA_WIDTH-bit input: Write Data; 
+            din => delayFIFO_din,     -- Same for all FIFOs, since we only write to one fifo at a time. WRITE_DATA_WIDTH-bit input: Write Data; 
             injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
             injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection
             rd_clk => shared_clk,     -- 1-bit input: Read clock: Used for read operation. 
@@ -1198,12 +1199,12 @@ begin
     process(shared_clk)
     begin
         if rising_edge(shared_clk) then
-            delayFIFO_din(15 downto 0) <= delay_Hpol_deltaP;
-            delayFIFO_din(31 downto 16) <= delay_Vpol_deltaP;
-            delayFIFO_din(47 downto 32) <= delay_Hpol_phase;
-            delayFIFO_din(63 downto 48) <= delay_Vpol_phase;
-            delayFIFO_din(79 downto 64) <= delay_vc;  -- Just a sanity check, fifo read and write order should be ensure that the correct virtual channel goes to the correct output
-            delayFIFO_din(87 downto 80) <= delay_packet(7 downto 0); -- packet within the corner turn frame
+            delayFIFO_din(31 downto 0) <= delay_Hpol_deltaP;
+            delayFIFO_din(63 downto 32) <= delay_Vpol_deltaP;
+            delayFIFO_din(95 downto 64) <= delay_Hpol_phase;
+            delayFIFO_din(127 downto 96) <= delay_Vpol_phase;
+            --delayFIFO_din(143 downto 128) <= delay_vc;  -- Just a sanity check, fifo read and write order should be ensure that the correct virtual channel goes to the correct output
+            --delayFIFO_din(151 downto 144) <= delay_packet(7 downto 0); -- packet within the corner turn frame
             if delay_valid = '1' then
                 if delay_vc(1 downto 0) = "00" then
                     delayFIFO_wrEn <= "0001";
@@ -1381,15 +1382,15 @@ begin
         o_packet => delay_packet, -- out std_logic_vector(15 downto 0);
         --
         o_sample_offset => delay_offset, -- out std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
-        -- Units for deltaP are rotations; 1 sign bit, 15 fractional bits.
-        -- So pi radians at the band edge = 16384.
-        -- As a fraction of a coarse sample, 1 coarse sample = pi radian at the band edge = 16384
-        --                                   0.5 coarse samples = pi/2 radians at the band edge = 8192
-        o_Hpol_deltaP => delay_Hpol_deltaP, -- out std_logic_vector(15 downto 0);
-        -- Phase uses 32768 to represent pi radians. Note this differs by a factor of 2 compared with Hpol_deltaP.
-        o_Hpol_phase => delay_Hpol_phase, -- out std_logic_vector(15 downto 0);
-        o_Vpol_deltaP => delay_Vpol_deltaP, -- out std_logic_vector(15 downto 0);
-        o_Vpol_phase  => delay_Vpol_phase, -- out std_logic_vector(15 downto 0);
+        -- Units for deltaP are rotations; 1 sign bit, 15 fractional bits. + 16 extra fractional bits
+        -- So pi radians at the band edge = 16384 * 65536
+        -- As a fraction of a coarse sample, 1 coarse sample = pi radian at the band edge = 16384 * 65536
+        --                                   0.5 coarse samples = pi/2 radians at the band edge = 8192 * 65536
+        o_Hpol_deltaP => delay_Hpol_deltaP, -- out std_logic_vector(31 downto 0);
+        -- Phase uses 32768 * 65536 to represent pi radians. Note this differs by a factor of 2 compared with Hpol_deltaP.
+        o_Hpol_phase => delay_Hpol_phase, -- out std_logic_vector(31 downto 0);
+        o_Vpol_deltaP => delay_Vpol_deltaP, -- out std_logic_vector(31 downto 0);
+        o_Vpol_phase  => delay_Vpol_phase, -- out std_logic_vector(31 downto 0);
         o_valid       => delay_valid -- out std_logic
     );
     
@@ -1776,26 +1777,26 @@ begin
                 clockCount <= (others => '0');
                 clockCountZero <= '1';
                 delayFIFO_rden <= "0000";
-                
-                o_meta0.HDeltaP <= delayFIFO_dout(0)(15 downto 0);
-                o_meta0.VDeltaP <= delayFIFO_dout(0)(31 downto 16);
-                o_meta0.HoffsetP <= delayFIFO_dout(0)(47 downto 32);
-                o_meta0.VoffsetP <= delayFIFO_dout(0)(63 downto 48);
-                
-                o_meta1.HDeltaP <= delayFIFO_dout(1)(15 downto 0);
-                o_meta1.VDeltaP <= delayFIFO_dout(1)(31 downto 16);
-                o_meta1.HoffsetP <= delayFIFO_dout(1)(47 downto 32);
-                o_meta1.VoffsetP <= delayFIFO_dout(1)(63 downto 48);
-                
-                o_meta2.HDeltaP <= delayFIFO_dout(2)(15 downto 0);
-                o_meta2.VDeltaP <= delayFIFO_dout(2)(31 downto 16);
-                o_meta2.HoffsetP <= delayFIFO_dout(2)(47 downto 32);
-                o_meta2.VoffsetP <= delayFIFO_dout(2)(63 downto 48);
-                
-                o_meta3.HDeltaP <= delayFIFO_dout(3)(15 downto 0);
-                o_meta3.VDeltaP <= delayFIFO_dout(3)(31 downto 16);
-                o_meta3.HoffsetP <= delayFIFO_dout(3)(47 downto 32);
-                o_meta3.VoffsetP <= delayFIFO_dout(3)(63 downto 48);
+
+                o_meta0.HDeltaP <= delayFIFO_dout(0)(31 downto 0);
+                o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
+                o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
+                o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
+                    
+                o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
+                o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
+                o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
+                o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
+                    
+                o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
+                o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
+                o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
+                o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
+                  
+                o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
+                o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
+                o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
+                o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);  
                 
             elsif (unsigned(packetsRemaining) > 0) then
                 -- Changed to improve timing, was : if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusOne))) then
@@ -1807,25 +1808,25 @@ begin
                     clockCount <= (others => '0');
                     clockCountZero <= '1';
                        
-                    o_meta0.HDeltaP <= delayFIFO_dout(0)(15 downto 0);
-                    o_meta0.VDeltaP <= delayFIFO_dout(0)(31 downto 16);
-                    o_meta0.HoffsetP <= delayFIFO_dout(0)(47 downto 32);
-                    o_meta0.VoffsetP <= delayFIFO_dout(0)(63 downto 48);
+                    o_meta0.HDeltaP <= delayFIFO_dout(0)(31 downto 0);
+                    o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
+                    o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
+                    o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
                     
-                    o_meta1.HDeltaP <= delayFIFO_dout(1)(15 downto 0);
-                    o_meta1.VDeltaP <= delayFIFO_dout(1)(31 downto 16);
-                    o_meta1.HoffsetP <= delayFIFO_dout(1)(47 downto 32);
-                    o_meta1.VoffsetP <= delayFIFO_dout(1)(63 downto 48);
+                    o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
+                    o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
+                    o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
+                    o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
                     
-                    o_meta2.HDeltaP <= delayFIFO_dout(2)(15 downto 0);
-                    o_meta2.VDeltaP <= delayFIFO_dout(2)(31 downto 16);
-                    o_meta2.HoffsetP <= delayFIFO_dout(2)(47 downto 32);
-                    o_meta2.VoffsetP <= delayFIFO_dout(2)(63 downto 48);
+                    o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
+                    o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
+                    o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
+                    o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
                     
-                    o_meta3.HDeltaP <= delayFIFO_dout(3)(15 downto 0);
-                    o_meta3.VDeltaP <= delayFIFO_dout(3)(31 downto 16);
-                    o_meta3.HoffsetP <= delayFIFO_dout(3)(47 downto 32);
-                    o_meta3.VoffsetP <= delayFIFO_dout(3)(63 downto 48);                    
+                    o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
+                    o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
+                    o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
+                    o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);                    
                     
                     packetsRemaining <= packetsRemaining_minus1;
                     if ((unsigned(packetsRemaining_minus1) <= (g_SPS_PACKETS_PER_FRAME/2)) and

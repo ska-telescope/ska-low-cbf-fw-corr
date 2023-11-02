@@ -175,15 +175,15 @@ entity poly_eval is
         o_packet : out std_logic_vector(15 downto 0);
         --
         o_sample_offset : out std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
-        -- Units for deltaP are rotations; 1 sign bit, 15 fractional bits.
-        -- So pi radians at the band edge = 16384.
-        -- As a fraction of a coarse sample, 1 coarse sample = pi radian at the band edge = 16384
-        --                                   0.5 coarse samples = pi/2 radians at the band edge = 8192
-        o_Hpol_deltaP : out std_logic_vector(15 downto 0);
-        -- Phase uses 32768 to represent pi radians. Note this differs by a factor of 2 compared with Hpol_deltaP.
-        o_Hpol_phase : out std_logic_vector(15 downto 0);
-        o_Vpol_deltaP : out std_logic_vector(15 downto 0);
-        o_Vpol_phase : out std_logic_vector(15 downto 0);
+        -- Units for deltaP are rotations; 1 sign bit, 15 fractional bits. + 16 more fractional bits
+        -- So pi radians at the band edge = 16384 * 65536.
+        -- As a fraction of a coarse sample, 1 coarse sample = pi radian at the band edge = 16384 * 65536
+        --                                   0.5 coarse samples = pi/2 radians at the band edge = 8192 * 65536
+        o_Hpol_deltaP : out std_logic_vector(31 downto 0);
+        -- Phase uses 32768*65536 to represent pi radians. Note this differs by a factor of 2 compared with Hpol_deltaP.
+        o_Hpol_phase : out std_logic_vector(31 downto 0);
+        o_Vpol_deltaP : out std_logic_vector(31 downto 0);
+        o_Vpol_phase : out std_logic_vector(31 downto 0);
         o_valid : out std_logic
     );
 end poly_eval;
@@ -302,8 +302,8 @@ architecture Behavioral of poly_eval is
     signal packets_sent : std_logic_vector(7 downto 0) := x"00";
     signal packets_sent_eq_zero_del : std_logic_vector(31 downto 0);
     
-    signal Hpol_deltaP, Hpol_phase : t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0);
-    signal Vpol_deltaP, Vpol_phase : t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0);
+    signal Hpol_deltaP, Hpol_phase : t_slv_32_arr((g_VIRTUAL_CHANNELS-1) downto 0);
+    signal Vpol_deltaP, Vpol_phase : t_slv_32_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     
     signal poly_rd_addr : std_logic_vector(19 downto 0);
     
@@ -407,7 +407,7 @@ begin
                             -- Sample offset is only set once (at the start of each frame) 
                             sample_offset(i) <= fp64_to_int_dout(43 downto 32);
                             --  .111111111 => o_hpol_deltaP = 16383
-                            Hpol_deltaP(i) <= "00" & fp64_to_int_dout(31 downto 18);
+                            Hpol_deltaP(i) <= "00" & fp64_to_int_dout(31 downto 2);
                         else
                             -- For later frames, sample offset can't be changed, so 
                             -- deltaP can be more than 1 sample.
@@ -415,13 +415,13 @@ begin
                             --   sample_diff = 0  --> Hpol_deltaP <= "00" & fp64_to_int_dout(31 downto 18);
                             --   sample_diff = 1  --> Hpol_deltaP <= "01" & fp64_to_int_dout(31 downto 18);  i.e. fine delay is positive, greater than 1 sample
                             --   sample_diff = -1 --> Hpol_deltaP <= "11" & fp64_to_int_dout(31 downto 18);  i.e. fine delay is negative.
-                            Hpol_deltaP(i)(13 downto 0) <= fp64_to_int_dout(31 downto 18);
+                            Hpol_deltaP(i)(29 downto 0) <= fp64_to_int_dout(31 downto 2);
                             if (unsigned(fp64_to_int_dout(43 downto 32)) > unsigned(sample_offset(i))) then
-                                Hpol_deltaP(i)(15 downto 14) <= "01";
+                                Hpol_deltaP(i)(31 downto 30) <= "01";
                             elsif (unsigned(fp64_to_int_dout(43 downto 32)) = unsigned(sample_offset(i))) then
-                                Hpol_deltaP(i)(15 downto 14) <= "00";
+                                Hpol_deltaP(i)(31 downto 30) <= "00";
                             else
-                                Hpol_deltaP(i)(15 downto 14) <= "11";
+                                Hpol_deltaP(i)(31 downto 30) <= "11";
                             end if;
                         end if;
                     end if;
@@ -430,24 +430,24 @@ begin
                     if (to_integer(unsigned(vc_count_del(24))) = i) then
                         -- fine delay for Vpol is same calculation as for Hpol, except that
                         -- the integer delay is set by Hpol sample delay (V and H have same integer delay).
-                        Vpol_deltaP(i)(13 downto 0) <= fp64_to_int_dout(31 downto 18);
+                        Vpol_deltaP(i)(29 downto 0) <= fp64_to_int_dout(31 downto 2);
                         if (unsigned(fp64_to_int_dout(43 downto 32)) > unsigned(sample_offset(i))) then
-                            Vpol_deltaP(i)(15 downto 14) <= "01";
+                            Vpol_deltaP(i)(31 downto 30) <= "01";
                         elsif (unsigned(fp64_to_int_dout(43 downto 32)) = unsigned(sample_offset(i))) then
-                            Vpol_deltaP(i)(15 downto 14) <= "00";
+                            Vpol_deltaP(i)(31 downto 30) <= "00";
                         else
-                            Vpol_deltaP(i)(15 downto 14) <= "11";
+                            Vpol_deltaP(i)(31 downto 30) <= "11";
                         end if;
                     end if;
                 end if;
                 if (poly_fsm_del(24) = mult_hpol_sky_frequency) then
                     if (to_integer(unsigned(vc_count_del(24))) = i) then
-                        Hpol_phase(i) <= fp64_to_int_dout(31 downto 16);
+                        Hpol_phase(i) <= fp64_to_int_dout(31 downto 0);
                     end if;
                 end if;
                 if (poly_fsm_del(24) = mult_vpol_sky_frequency) then
                     if (to_integer(unsigned(vc_count_del(24))) = i) then
-                        Vpol_phase(i) <= fp64_to_int_dout(31 downto 16);
+                        Vpol_phase(i) <= fp64_to_int_dout(31 downto 0);
                     end if;
                 end if;
                 

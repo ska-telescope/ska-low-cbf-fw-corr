@@ -427,17 +427,17 @@ def main():
                     fine_delay_Xpol = delay_samples_Xpol - coarse_delay
                     fine_delay_Ypol = delay_samples_Ypol - coarse_delay
                     if (fine_delay_Xpol >= 0):
-                        fine_delay_Xpol = np.int32(np.floor(fine_delay_Xpol * 16384))
+                        fine_delay_Xpol = np.int64(np.floor(fine_delay_Xpol * 16384*65536))
                     else:
-                        fine_delay_Xpol = 65536 - np.int32(np.floor(-fine_delay_Xpol*16384))
+                        fine_delay_Xpol = 65536*65536 - np.int64(np.floor(-fine_delay_Xpol*16384*65536))
                     if (fine_delay_Ypol >= 0):
-                        fine_delay_Ypol = np.int32(np.floor(fine_delay_Ypol * 16384))
+                        fine_delay_Ypol = np.int64(np.floor(fine_delay_Ypol * 16384*65536))
                     else:
-                        fine_delay_Ypol = 65536 - np.int32(np.floor(-fine_delay_Ypol*16384))
+                        fine_delay_Ypol = 65536*65536 - np.int64(np.floor(-fine_delay_Ypol*16384*65536))
                     phase_X = delay_Xpol * sky_freq
                     phase_Y = delay_Ypol * sky_freq
-                    phase_X = np.int32(np.floor(65536 * (phase_X - np.floor(phase_X))))
-                    phase_Y = np.int32(np.floor(65536 * (phase_Y - np.floor(phase_Y))))
+                    phase_X = np.int64(np.floor(65536*65536 * (phase_X - np.floor(phase_X))))
+                    phase_Y = np.int64(np.floor(65536*65536 * (phase_Y - np.floor(phase_Y))))
                     
                     # print(f"VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")
                     if tb_valid:
@@ -466,8 +466,9 @@ def main():
                         fine_delay_Ypol_tb = meta_data[integration_offset,frame_in_integration,packet,vc,2]
                         phase_Y_tb = meta_data[integration_offset,frame_in_integration,packet,vc,3]
                         if ((fine_delay_Xpol_tb != fine_delay_Xpol) or (fine_delay_Ypol_tb != fine_delay_Ypol) or (phase_X_tb != phase_X) or (phase_Y_tb != phase_Y)):
-                            print(f"PYTHON : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")    
-                            print(f"    TB : fine X = {fine_delay_Xpol_tb}, fine Y = {fine_delay_Ypol_tb}, phase X = {phase_X_tb}, phase_Y = {phase_Y_tb}")
+                            if meta_mismatch < 20:
+                                print(f"PYTHON : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")    
+                                print(f"    TB : fine X = {fine_delay_Xpol_tb}, fine Y = {fine_delay_Ypol_tb}, phase X = {phase_X_tb}, phase_Y = {phase_Y_tb}")
                             meta_mismatch += 1
                         else:
                             meta_match += 1

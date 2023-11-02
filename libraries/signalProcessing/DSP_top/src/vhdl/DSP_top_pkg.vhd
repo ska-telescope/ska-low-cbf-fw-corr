@@ -126,10 +126,10 @@ package DSP_top_pkg is
     end record;
     
     type t_CT1_META_out is record
-        HDeltaP        : std_logic_vector(15 downto 0);
-        VDeltaP        : std_logic_vector(15 downto 0);
-        HOffsetP       : std_logic_vector(15 downto 0);
-        VOffsetP       : std_logic_vector(15 downto 0);
+        HDeltaP        : std_logic_vector(31 downto 0);
+        VDeltaP        : std_logic_vector(31 downto 0);
+        HOffsetP       : std_logic_vector(31 downto 0);
+        VOffsetP       : std_logic_vector(31 downto 0);
         integration    : std_logic_vector(31 downto 0); --  which integration is this for; units of 849ms since epoch
         ctFrame        : std_logic_vector(1 downto 0);  --  which corner turn frame is this; 0, 1, or 2; units of 283ms; relative to integration.
         virtualChannel : std_logic_vector(15 downto 0); --  Virtual channels are processed in order, so this just counts.

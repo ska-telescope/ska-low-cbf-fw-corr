@@ -32,7 +32,7 @@ entity ct1_tb is
         g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
-        g_USE_FILTERBANK : std_logic := '0'
+        g_USE_FILTERBANK : std_logic := '1'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
@@ -477,10 +477,10 @@ begin
                     -- Rising edge of fb_valid, write out the meta data
                     line_out := "";
                     hwrite(line_out,hex_one,RIGHT,1);
-                    hwrite(line_out,fb_meta01.HDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta01.HOffsetP,RIGHT,5);
-                    hwrite(line_out,fb_meta01.VDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta01.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta01.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta01.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta01.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta01.VOffsetP,RIGHT,9);
                     hwrite(line_out,fb_meta01.integration,RIGHT,9);
                     hwrite(line_out,"00" & fb_meta01.ctFrame,RIGHT,2);
                     hwrite(line_out,fb_meta01.virtualChannel,RIGHT,5);
@@ -488,10 +488,10 @@ begin
                     
                     line_out := "";
                     hwrite(line_out,hex_two,RIGHT,1);
-                    hwrite(line_out,fb_meta23.HDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta23.HOffsetP,RIGHT,5);
-                    hwrite(line_out,fb_meta23.VDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta23.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta23.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta23.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta23.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta23.VOffsetP,RIGHT,9);
                     hwrite(line_out,fb_meta23.integration,RIGHT,9);
                     hwrite(line_out,"00" & fb_meta23.ctFrame,RIGHT,2);
                     hwrite(line_out,fb_meta23.virtualChannel,RIGHT,5);
@@ -499,10 +499,10 @@ begin
                     
                     line_out := "";
                     hwrite(line_out,hex_three,RIGHT,1);
-                    hwrite(line_out,fb_meta45.HDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta45.HOffsetP,RIGHT,5);
-                    hwrite(line_out,fb_meta45.VDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta45.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta45.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta45.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta45.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta45.VOffsetP,RIGHT,9);
                     hwrite(line_out,fb_meta45.integration,RIGHT,9);
                     hwrite(line_out,"00" & fb_meta45.ctFrame,RIGHT,2);
                     hwrite(line_out,fb_meta45.virtualChannel,RIGHT,5);
@@ -510,10 +510,10 @@ begin
                     
                     line_out := "";
                     hwrite(line_out,hex_four,RIGHT,1);
-                    hwrite(line_out,fb_meta67.HDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta67.HOffsetP,RIGHT,5);
-                    hwrite(line_out,fb_meta67.VDeltaP,RIGHT,5);
-                    hwrite(line_out,fb_meta67.VOffsetP,RIGHT,5);
+                    hwrite(line_out,fb_meta67.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta67.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta67.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta67.VOffsetP,RIGHT,9);
                     hwrite(line_out,fb_meta67.integration,RIGHT,9);
                     hwrite(line_out,"00" & fb_meta67.ctFrame,RIGHT,2);
                     hwrite(line_out,fb_meta67.virtualChannel,RIGHT,5);
