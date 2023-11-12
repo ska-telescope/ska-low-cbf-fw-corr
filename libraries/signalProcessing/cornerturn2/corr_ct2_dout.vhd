@@ -82,6 +82,7 @@ entity corr_ct2_dout is
         i_axi_clk   : in std_logic;
         i_start     : in std_logic; -- start reading out data to the correlators
         i_buffer    : in std_logic; -- which of the double buffers to read out ?
+        i_frameCount : in std_logic_vector(31 downto 0); -- 849ms frameCount since epoch
         
         -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
         o_SB_req    : out std_logic;    -- Rising edge gets the parameters for the next subarray-beam to read out.
@@ -122,6 +123,7 @@ entity corr_ct2_dout is
         --            All correlation products for the rectangle are then computed.
         o_cor_tileType : out std_logic;
         o_cor_valid    : out std_logic;  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        o_cor_frameCount : out std_logic_vector(31 downto 0);
         -- o_cor_last and o_cor_final go high after a block of data has been sent.
         o_cor_first    : out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
         o_cor_last     : out std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
@@ -179,7 +181,7 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutVCx16 : std_logic_vector(7 downto 0);
     signal readoutKey : std_logic_vector(1 downto 0);
     signal arFIFO_valid, arFIFO_full, arFIFO_rdEn, arFIFO_wrEn : std_logic;
-    signal arFIFO_din, arFIFO_dout : std_logic_vector(100 downto 0);
+    signal arFIFO_din, arFIFO_dout : std_logic_vector(132 downto 0);
     signal dataFIFO_valid, dataFIFO_rdEn, dataFIFO_wrEn, dataFIFO_full : std_logic;
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
     signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
@@ -230,6 +232,8 @@ architecture Behavioral of corr_ct2_dout is
     signal SB_del, SB_SB : std_logic_vector(7 downto 0);
     signal readoutSB : std_logic_vector(7 downto 0);
     signal readoutTotalStations : std_logic_vector(15 downto 0);
+    signal readFrameCount : std_logic_vector(31 downto 0);
+    signal readoutFrameCount : std_logic_vector(31 downto 0);
     
 begin
     
@@ -298,6 +302,7 @@ begin
             if i_start = '1' then
                 ar_fsm <= get_SB_data;
                 readBuffer <= i_buffer;
+                readFrameCount <= i_frameCount;
                 o_SB_req <= '0';
                 first_req_in_integration <= '1';
             else
@@ -590,6 +595,7 @@ begin
                 
                 arFIFO_din(92 downto 77) <= SB_stations; -- 16 bit number of stations in this subarray-beam
                 arFIFO_din(100 downto 93) <= SB_SB; -- 8 bit index into the subarray-beam table
+                arFIFO_din(132 downto 101) <= readFrameCount;
                 
             elsif ar_fsm_del1 = next_fine then
                 arFIFO_wrEn <= '1';
@@ -629,12 +635,12 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 7,   -- DECIMAL
-        READ_DATA_WIDTH => 101,     -- DECIMAL
+        READ_DATA_WIDTH => 133,     -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 101,    -- DECIMAL
+        WRITE_DATA_WIDTH => 133,    -- DECIMAL
         WR_DATA_COUNT_WIDTH => 7    -- DECIMAL
     ) port map (
         almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -726,7 +732,7 @@ begin
             case readout_fsm is
                 when idle =>
                     if arFIFO_valid = '1' then
-                    
+                        readoutFrameCount <= arFIFO_dout(132 downto 101);
                         readoutTriangle <= arFIFO_dout(0); -- 1 bit
                         readoutFineChannel <= arFIFO_dout(24 downto 1); -- 24 bits
                         readoutTimeGroup <= arFIFO_dout(28 downto 25);  -- 4 bits
@@ -811,6 +817,7 @@ begin
             o_cor_rowStations <= readoutRowStations;
             o_cor_colStations <= readoutColStations;
             o_cor_tileTotalChannels <= readoutTotalChannels(4 downto 0);
+            o_cor_frameCount <= readoutFrameCount;
             if readoutFirst = '1' then 
                 cor_first_int <= '1';
             elsif cor_last_int = '1' then

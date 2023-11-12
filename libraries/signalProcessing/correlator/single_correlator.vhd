@@ -63,6 +63,7 @@ entity single_correlator is
         -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 2 rectangles.
         --      for 4096x4096 stations, there will be 16 triangles, and 240 rectangles.
         i_cor_tileLocation : in std_logic_vector(9 downto 0);
+        i_cor_frameCount   : in std_logic_vector(31 downto 0);
         -- Fine channel being delivered, relative to the start of the data HBM.
         i_cor_tileChannel : in std_logic_vector(23 downto 0);
         
@@ -300,7 +301,7 @@ begin
         o_ro_freq_index => ro_freq_index, -- out (16:0);
         -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
         -- integration time.
-        o_ro_time_ref => ro_time_ref, -- out (63:0);
+        o_ro_time_ref => open, -- out (63:0);
         -- The first of the block of rows in the visibility matrix that is now available for readout.
         -- Counts from 0. 
         -- The number of columns to read out for the first row will be (o_row + 1).
@@ -322,7 +323,18 @@ begin
     );
     
 
-    packetiser_reset    <= NOT i_packetiser_enable;
+    packetiser_reset <= NOT i_packetiser_enable;
+
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            ro_time_ref(63 downto 34) <= (others => '0');
+            -- TBD : Fix for 283ms integrations 
+            ro_time_ref(33 downto 32) <= "10";
+            ro_time_ref(31 downto 0) <= i_cor_frameCount;
+        end if;
+    end process;
+
 
     HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
         DEBUG_ILA           => FALSE

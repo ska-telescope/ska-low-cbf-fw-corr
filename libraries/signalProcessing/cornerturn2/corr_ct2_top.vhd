@@ -99,6 +99,8 @@ entity corr_ct2_top is
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
+        i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+        i_ctFrame      : in std_logic_vector(1 downto 0); -- 283 ms frame within each integration interval
         i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
         i_HeaderValid : in std_logic_vector(3 downto 0);
         i_data        : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
@@ -117,6 +119,7 @@ entity corr_ct2_top is
         o_cor_time    : out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  -- time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
         o_cor_station : out t_slv_12_arr(g_MAX_CORRELATORS-1 downto 0); -- first of the 4 stations in o_cor0_data
         o_cor_valid   : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+        o_cor_frameCount : out t_slv_32_arr(g_MAX_CORRELATORS-1 downto 0);
         o_cor_last    : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.        
         o_cor_final   : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.
         o_cor_tileType    : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- '0' for triangle, '1' for square. Triangles use the same data for the row and column.
@@ -145,7 +148,8 @@ entity corr_ct2_top is
         -- signals used in testing to initiate readout of the buffer when HBM is preloaded with data,
         -- so we don't have to wait for the previous processing stages to complete.
         i_readout_start : in std_logic;
-        i_readout_buffer : in std_logic
+        i_readout_buffer : in std_logic;
+        i_readout_frameCount : in std_logic_vector(31 downto 0)
     );
 end corr_ct2_top;
 
@@ -227,6 +231,7 @@ architecture Behavioral of corr_ct2_top is
     signal dataValid : std_logic;
     signal rst_hold : std_logic := '1';
     signal update_table : std_logic := '0';
+    signal readout_frameCount, readout_frameCount_del1, trigger_frameCount : std_logic_vector(31 downto 0);
     
 begin
     
@@ -258,19 +263,22 @@ begin
                 -- If i_virtualChannel(0) = 0 then this is the start of a new block of 283 ms.
                 -- Note : i_virtualChannel is only valid when i_dataValid = '1'.
                 rst_hold <= '0';
+                frameCount_mod3 <= i_ctFrame;
+                frameCount_849ms <= i_integration;
+                
                 if rst_hold = '0' then
                     if (unsigned(i_virtualChannel(0)) = 0) then
                         case frameCount_mod3 is
                             when "00" => 
-                                frameCount_mod3 <= "01";
+                                --frameCount_mod3 <= "01";
                                 update_table <= '0';
                             when "01" => 
-                                frameCount_mod3 <= "10";
+                                --frameCount_mod3 <= "10";
                                 update_table <= '0';
                             when others => 
-                                frameCount_mod3 <= "00";
+                                --frameCount_mod3 <= "00";
                                 update_table <= '1';
-                                frameCount_849ms <= std_logic_vector(unsigned(frameCount_849ms) + 1);
+                                --frameCount_849ms <= std_logic_vector(unsigned(frameCount_849ms) + 1);
                         end case;
                     else
                         update_table <= '0';
@@ -298,14 +306,17 @@ begin
                 -- This is used in the testbench to readout preloaded data from the HBM
                 readout_start <= '1';
                 readout_buffer <= i_readout_buffer;
+                readout_frameCount <= i_readout_frameCount;
             else
                 -- Normal functionality in the hardware
                 readout_start <= trigger_readout;
                 readout_buffer <= trigger_buffer;
+                readout_frameCount <= trigger_frameCount;
             end if;
             
             readout_start_del1 <= readout_start;
             readout_buffer_del1 <= readout_buffer;
+            readout_frameCount_Del1 <= readout_frameCount;
             if readout_start = '1' and readout_start_del1 = '0' then
                 readout_start_pulse <= '1';
             else
@@ -405,6 +416,7 @@ begin
         i_dataValid        => dataValid,      -- in std_logic;
         o_trigger_readout  => trigger_readout,  -- out std_logic; All data has been written to the HBM, can start reading out to the correlator.
         o_trigger_buffer   => trigger_buffer,   -- out std_logic;
+        o_trigger_frameCount => trigger_frameCount, -- out (31:0)
         -- interface to the demap table
         o_vc_demap_rd_addr   => vc_demap_rd_Addr,    -- out (7:0);  address into the demap table, 0-255 = floor(virtual_channel / 4)
         o_vc_demap_req       => vc_demap_req,        -- out std_logic;  -- request a read from address o_vc_demap_rd_addr
@@ -450,6 +462,7 @@ begin
         i_axi_clk   => i_axi_clk, --  in std_logic;
         i_start     => readout_start_pulse, --  in std_logic; -- start reading out data to the correlators
         i_buffer    => readout_buffer_del1, --  in std_logic; -- which of the double buffers to read out ?
+        i_frameCount => readout_frameCount_del1, -- in (31:0); -- 849ms frame since epoch.
         
         -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
         o_SB_req   => dout_SB_req(0),    -- Rising edge gets the parameters for the next subarray-beam to read out.
@@ -477,6 +490,7 @@ begin
         o_cor_time => o_cor_time(0),       -- out (7:0); Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
         o_cor_station => o_cor_station(0), -- out (11:0); First of the 4 virtual channels in o_cor0_data
         o_cor_valid => cor_valid_int(0),     -- out std_logic;
+        o_cor_frameCount => o_cor_frameCount(0), -- out (31:0)
         o_cor_last  => o_cor_last(0),      -- out std_logic; Last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
         o_cor_final => o_cor_final(0),     -- out std_logic; Indicates that at the completion of processing the last block of correlator data, the integration is complete.
         o_cor_tileType => o_cor_tileType(0), -- out std_logic;
@@ -507,6 +521,7 @@ begin
             i_axi_clk   => i_axi_clk, --  in std_logic;
             i_start     => readout_start_pulse, --  in std_logic; -- start reading out data to the correlators
             i_buffer    => readout_buffer_del1, --  in std_logic; -- which of the double buffers to read out ?
+            i_frameCount => readout_frameCount_del1, -- in (31:0); -- 849ms frame since epoch.
             
             -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
             o_SB_req   => dout_SB_req(i),    -- Rising edge gets the parameters for the next subarray-beam to read out.
@@ -534,6 +549,7 @@ begin
             o_cor_time => o_cor_time(i),       -- out (7:0); Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
             o_cor_station => o_cor_station(i), -- out (11:0); First of the 4 virtual channels in o_cor0_data
             o_cor_valid => cor_valid_int(i),     -- out std_logic;
+            o_cor_frameCount => o_cor_frameCount(i), -- out (31:0);
             o_cor_last  => o_cor_last(i),      -- out std_logic; Last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
             o_cor_final => o_cor_final(i),     -- out std_logic; Indicates that at the completion of processing the last block of correlator data, the integration is complete.
             o_cor_tileType => o_cor_tileType(i), -- out std_logic;

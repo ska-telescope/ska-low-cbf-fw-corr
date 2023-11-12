@@ -163,6 +163,7 @@ entity correlator_top is
         -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 2 rectangles.
         --      for 4096x4096 stations, there will be 16 triangles, and 240 rectangles.
         i_cor0_tileLocation : in std_logic_vector(9 downto 0);
+        i_cor0_frameCount   : in std_logic_vector(31 downto 0);
         -- Which block of frequency channels is this tile for ?
         -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
         i_cor0_tileChannel : in std_logic_vector(23 downto 0);
@@ -196,6 +197,7 @@ entity correlator_top is
         i_cor1_last  : in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
         i_cor1_final : in std_logic;  -- Indicates that at the completion of processing the last block of correlator data, the integration is complete.    
         i_cor1_tileLocation : in std_logic_vector(9 downto 0);
+        i_cor1_frameCount   : in std_logic_vector(31 downto 0);
         i_cor1_tileChannel : in std_logic_vector(23 downto 0);
         i_cor1_tileTotalTimes    : in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
         i_cor1_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
@@ -326,6 +328,7 @@ begin
             -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 1 square.
             --      for 4096x4096 stations, there will be 16 triangles, and 120 squares.
             i_cor_tileLocation => i_cor0_tileLocation, --  in (9:0); bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
+            i_cor_frameCount   => i_cor0_frameCount, -- in (31:0);
             -- Which block of frequency channels is this tile for ?
             -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
             i_cor_tileChannel => i_cor0_tileChannel, --  in (23:0);
@@ -430,6 +433,7 @@ begin
             i_cor_last     => i_cor1_last,     -- in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
             i_cor_final    => i_cor1_final,    -- in std_logic;  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.   
             i_cor_tileLocation => i_cor1_tileLocation, --  in (9:0); bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
+            i_cor_frameCount => i_cor1_frameCount, -- in (31:0);
             -- Which block of frequency channels is this tile for ?
             -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
             i_cor_tileChannel       => i_cor1_tileChannel,       -- in (23:0);
