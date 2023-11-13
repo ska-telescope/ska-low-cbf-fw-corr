@@ -54,7 +54,8 @@ entity FB_Top_correlator_dummy is
         i_DataValid : in std_logic;
                 
         -- Correlator filterbank data output
-        o_frameCount     : out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+        o_integration    : out std_logic_vector(31 downto 0); -- integration in units of 849ms since epoch.
+        o_ctFrame        : out std_logic_vector(1 downto 0); -- corner turn frame, 0, 1 or 2, units of 283ms relative to integration.
         o_virtualChannel : out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
         o_HeaderValid : out std_logic_vector(3 downto 0);
         o_Data        : out t_ctc_output_payload_arr(3 downto 0);
@@ -152,7 +153,8 @@ architecture Behavioral of FB_Top_correlator_dummy is
     signal FD_datavalid, FD_headerValid : std_logic_vector(18 downto 0);
     signal FD_finecount : std_logic_vector(15 downto 0);
     signal FD_virtualChannel0, FD_virtualChannel1, FD_virtualChannel2, FD_virtualChannel3 : t_slv_16_arr(18 downto 0);
-    signal FD_frameCount : t_slv_32_arr(18 downto 0);
+    signal FD_integration : t_slv_32_arr(18 downto 0);
+    signal FD_ctFrame : t_slv_2_arr(18 downto 0);
     
 begin
     
@@ -189,7 +191,8 @@ begin
             CorrelatorMetaIn(79+243 downto 64+243) <= i_meta67.virtualChannel;
             CorrelatorMetaIn(80+243) <= i_meta67.valid;
             
-            CorrelatorMetaIn(31+324 downto 0+324) <= i_meta01.frameCount;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
+            CorrelatorMetaIn(31+324 downto 0+324) <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
+            CorrelatorMetaIn(33+324 downto 32+324) <= i_meta01.ctFrame;
             
             DataValid <= i_DataValid;
             
@@ -319,7 +322,8 @@ begin
     corFBHeader(0).VOffsetP <= corMetaOut(63 downto 48);
     corFBHeader(0).virtualChannel <= corMetaOut(79 downto 64);
     corFBHeader(0).valid <= corMetaOut(80);
-    corFBHeader(0).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(0).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(0).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeader(1).HDeltaP <= corMetaOut(15+81 downto 0+81);
     corFBHeader(1).VDeltaP <= corMetaOut(31+81 downto 16+81);
@@ -327,7 +331,8 @@ begin
     corFBHeader(1).VOffsetP <= corMetaOut(63+81 downto 48+81);
     corFBHeader(1).virtualChannel <= corMetaOut(79+81 downto 64+81);
     corFBHeader(1).valid <= corMetaOut(80+81);
-    corFBHeader(1).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(1).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(1).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeader(2).HDeltaP <= corMetaOut(15+162 downto 0+162);
     corFBHeader(2).VDeltaP <= corMetaOut(31+162 downto 16+162);
@@ -335,7 +340,8 @@ begin
     corFBHeader(2).VOffsetP <= corMetaOut(63+162 downto 48+162);
     corFBHeader(2).virtualChannel <= corMetaOut(79+162 downto 64+162);
     corFBHeader(2).valid <= corMetaOut(80+162);
-    corFBHeader(2).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(2).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(2).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeader(3).HDeltaP <= corMetaOut(15+243 downto 0+243);
     corFBHeader(3).VDeltaP <= corMetaOut(31+243 downto 16+243);
@@ -343,7 +349,8 @@ begin
     corFBHeader(3).VOffsetP <= corMetaOut(63+243 downto 48+243);
     corFBHeader(3).virtualChannel <= corMetaOut(79+243 downto 64+243);
     corFBHeader(3).valid <= corMetaOut(80+243);
-    corFBHeader(3).frameCount <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(3).integration <= corMetaOut(31+324 downto 0+324);
+    corFBHeader(3).ctFrame <= corMetaOut(33+324 downto 32+324);
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
@@ -413,9 +420,12 @@ begin
             FD_virtualChannel3(0) <= corFBHeader(3).virtualChannel(15 downto 0);
             FD_virtualChannel3(18 downto 1) <= FD_virtualChannel3(17 downto 0);
             
-            FD_frameCount(0) <= corFBHeader(0).frameCount;
-            FD_frameCount(18 downto 1) <= FD_frameCount(17 downto 0);
+            FD_integration(0) <= corFBHeader(0).integration;
+            FD_integration(18 downto 1) <= FD_integration(17 downto 0);
             
+            FD_ctFrame(0) <= corFBHeader(0).ctFrame;
+            FD_ctFrame(18 downto 1) <= FD_ctFrame(17 downto 0);
+             
             FD_datavalid(0) <= corValidOut;
             FD_datavalid(18 downto 1) <= FD_datavalid(17 downto 0);
             
@@ -431,22 +441,22 @@ begin
     end process;
         
     o_data(0).Hpol.re <= FD_virtualChannel0(18)(7 downto 0);
-    o_data(0).Hpol.im <= FD_frameCount(18)(7 downto 0);
+    o_data(0).Hpol.im <= FD_integration(18)(7 downto 0);
     o_data(0).Vpol.re <= FD_finecount(7 downto 0);
     o_data(0).Vpol.im <= FD_finecount(15 downto 8);
 
     o_data(1).Hpol.re <= FD_virtualChannel1(18)(7 downto 0);
-    o_data(1).Hpol.im <= FD_frameCount(18)(7 downto 0);
+    o_data(1).Hpol.im <= FD_integration(18)(7 downto 0);
     o_data(1).Vpol.re <= FD_finecount(7 downto 0);
     o_data(1).Vpol.im <= FD_finecount(15 downto 8);
     
     o_data(2).Hpol.re <= FD_virtualChannel2(18)(7 downto 0);
-    o_data(2).Hpol.im <= FD_frameCount(18)(7 downto 0);
+    o_data(2).Hpol.im <= FD_integration(18)(7 downto 0);
     o_data(2).Vpol.re <= FD_finecount(7 downto 0);
     o_data(2).Vpol.im <= FD_finecount(15 downto 8);
     
     o_data(3).Hpol.re <= FD_virtualChannel3(18)(7 downto 0);
-    o_data(3).Hpol.im <= FD_frameCount(18)(7 downto 0);
+    o_data(3).Hpol.im <= FD_integration(18)(7 downto 0);
     o_data(3).Vpol.re <= FD_finecount(7 downto 0);
     o_data(3).Vpol.im <= FD_finecount(15 downto 8);
     
@@ -455,7 +465,8 @@ begin
     o_virtualChannel(1) <= FD_virtualChannel1(18);
     o_virtualChannel(2) <= FD_virtualChannel2(18);
     o_virtualChannel(3) <= FD_virtualChannel3(18);
-    o_frameCount <= FD_frameCount(18);
+    o_integration <= FD_integration(18);
+    o_ctFrame <= FD_ctFrame(18);
     o_headerValid(0) <= FD_headerValid(18);
     o_headerValid(1) <= FD_headerValid(18);
     o_headerValid(2) <= FD_headerValid(18);

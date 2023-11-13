@@ -89,6 +89,8 @@ entity DSP_top_correlator is
         -- Corner Turn between LFAA Ingest and the filterbanks.
         i_LFAA_CT_axi_mosi : in t_axi4_lite_mosi;  --
         o_LFAA_CT_axi_miso : out t_axi4_lite_miso; --
+        i_poly_full_axi_mosi : in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso : out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- registers for the filterbanks
         i_FB_axi_mosi : in t_axi4_lite_mosi;
         o_FB_axi_miso : out t_axi4_lite_miso;
@@ -122,6 +124,7 @@ entity DSP_top_correlator is
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start  : in std_logic;
         i_ct2_readout_buffer : in std_logic;
+        i_ct2_readout_frameCount : in std_logic_vector(31 downto 0);
         ---------------------------------------------------------------
         -- Copy of the bus taking data to be written to the HBM,
         -- for the first correlator instance.
@@ -203,7 +206,8 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     signal FB_valid : std_logic;
     
-    signal FD_frameCount :  std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+    signal FD_integration :  std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+    signal FD_ctFrame : std_logic_vector(1 downto 0);
     signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
     signal FD_headerValid : std_logic_vector(3 downto 0);
     signal FD_data : t_ctc_output_payload_arr(3 downto 0);
@@ -244,6 +248,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_station : t_slv_12_arr((g_MAX_CORRELATORS-1) downto 0);
     
     signal cor_tileLocation : t_slv_10_arr((g_MAX_CORRELATORS-1) downto 0);
+    signal cor_frameCount : t_slv_32_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_tileChannel : t_slv_24_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_tileTotalTimes : t_slv_8_arr((g_MAX_CORRELATORS-1) downto 0); -- Number of time samples to integrate for this tile.
     signal cor_timeTotalChannels : t_slv_5_arr((g_MAX_CORRELATORS-1) downto 0);  -- Number of frequency channels to integrate for this tile.
@@ -322,6 +327,9 @@ begin
         --AXI Lite Interface for registers
         i_saxi_mosi         => i_LFAA_CT_axi_mosi, -- in t_axi4_lite_mosi;
         o_saxi_miso         => o_LFAA_CT_axi_miso, -- out t_axi4_lite_miso;
+        -- axi full interface for the polynomials
+        i_poly_full_axi_mosi => i_poly_full_axi_mosi, --  in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso => o_poly_full_axi_miso, --  out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (from LFAA ingest config, must be the same for the corner turn)
         i_virtualChannels   => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
         i_rst               => reset_to_ct_1,
@@ -397,7 +405,8 @@ begin
             i_dataValid => FB_valid, -- in std_logic;
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
-            o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
             o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
@@ -451,7 +460,8 @@ begin
             i_dataValid => FB_valid, -- in std_logic;
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
-            o_frameCount     => FD_frameCount,     -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_integration    => FD_integration,    -- out (31:0); frame count is the same for all simultaneous output streams.
+            o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
             o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
@@ -502,7 +512,8 @@ begin
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
         i_sof             => FB_out_sof,        -- in std_logic; Pulse high at the start of every new group of virtual channels. (1 frame is typically 283 ms of data).
-        i_frameCount      => FD_frameCount,     -- in (31:0); Frame count is the same for all simultaneous output streams.
+        i_integration     => FD_integration,    -- in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+        i_ctFrame         => FD_ctFrame,        -- in (1:0);
         i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); 4 virtual channels, one for each of the PST data streams.
         i_HeaderValid     => FD_headerValid,    -- in (3:0);
         i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
@@ -515,6 +526,7 @@ begin
         o_cor_station           => cor_station,   -- out (8:0); first of the 4 stations in i_cor0_data
         o_cor_tileType          => cor_tileType,  -- out slv(); 
         o_cor_valid             => cor_valid,     -- out slv();  -- i_cor0_data, i_cor0_time, i_cor0_VC, i_cor0_FC and i_cor0_tileType are valid when i_cor0_valid = '1'
+        o_cor_frameCount        => cor_frameCount, -- out t_slv_32_arr
         o_cor_first             => cor_first,     -- out slv();  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
         o_cor_last              => cor_last,      -- out slv();  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
         o_cor_final             => cor_final,     -- out slv();  -- Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
@@ -541,7 +553,8 @@ begin
         -- signals used in testing to initiate readout of the buffer when HBM is preloaded with data,
         -- so we don't have to wait for the previous processing stages to complete.
         i_readout_start  => i_ct2_readout_start,  -- in std_logic;
-        i_readout_buffer => i_ct2_readout_buffer  -- in std_logic
+        i_readout_buffer => i_ct2_readout_buffer,  -- in std_logic
+        i_readout_frameCount => i_ct2_readout_frameCount  -- in (31:0)
     );
     
     -- Correlator
@@ -586,6 +599,7 @@ begin
         -- e.g. for 512x512 stations, there will be 4 tiles, consisting of 2 triangles and 2 rectangles.
         --      for 4096x4096 stations, there will be 16 triangles, and 240 rectangles.
         i_cor0_tileLocation => cor_tileLocation(0), --  in std_logic_vector(9 downto 0);
+        i_cor0_frameCount   => cor_frameCount(0),   -- in (31:0);
         -- Which block of frequency channels is this tile for ?
         -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
         i_cor0_tileChannel       => cor_tileChannel(0),       -- in (23:0);
@@ -607,6 +621,7 @@ begin
         i_cor1_last     => cor_last(1),     -- in std_logic;  Last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
         i_cor1_final    => cor_final(1),    -- in std_logic;  Indicates that at the completion of processing the most recent block of correlator data, the integration is complete. i_cor0_tileCount and i_cor0_tileChannel are valid when this is high.
         i_cor1_tileLocation => cor_tileLocation(1), --  in (9:0);
+        i_cor1_frameCount   => cor_frameCount(1),   -- in (31:0);
         i_cor1_tileChannel       => cor_tileChannel(1),       --  in (23:0);
         i_cor1_tileTotalTimes    => cor_tileTotalTimes(1),    --  in (7:0); Number of time samples to integrate for this tile.
         i_cor1_tiletotalChannels => cor_timeTotalChannels(1), --  in (4:0); Number of frequency channels to integrate for this tile.

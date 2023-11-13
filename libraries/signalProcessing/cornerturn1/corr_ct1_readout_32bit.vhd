@@ -22,18 +22,10 @@ entity corr_ct1_readout_32bit is
         i_data : in std_logic_vector(511 downto 0); --
         -- data in from the FIFO that shadows the buffer
         i_rdOffset : in std_logic_vector(3 downto 0);  -- Sample offset in the 512 bit word; 0 = use all 16 samples, "01" = Skip first sample, "10" = ... ; Only used on the first 512 bit word after i_rst.
-        i_HDeltaP : in std_logic_vector(15 downto 0);  -- use every 256th input for the meta data (each word in = 512 bits = 16 samples, so 256 input samples = 4096 time samples = 1 output packet)
-        i_VDeltaP : in std_logic_vector(15 downto 0);
-        i_HoffsetP : in std_logic_vector(15 downto 0);
-        i_VoffsetP : in std_logic_vector(15 downto 0);
         i_valid : in std_logic; -- should go high no more than once every 16 clocks
         o_stop  : out std_logic;
         -- data out
         o_data : out std_logic_vector(31 downto 0);
-        o_HDeltaP : out std_logic_vector(15 downto 0); --
-        o_VDeltaP : out std_logic_vector(15 downto 0); 
-        o_HOffsetP : out std_logic_vector(15 downto 0);
-        o_VOffsetP : out std_logic_vector(15 downto 0);
         o_valid : out std_logic;
         i_run : in std_logic -- should go high for a burst of 64 clocks to output a packet.
     );
@@ -79,15 +71,6 @@ begin
             elsif curSample /= "10000" then
                 curSample <= std_logic_vector(unsigned(curSample) + 1);
                 reg512 <= x"00000000" & reg512(511 downto 32);
-            end if;
-            
-            -- FIFO is only 64 deep, so we never have more than a whole packet in it (one packet = 4096 samples)
-            -- So we just capture the fine delay information and it will be valid on the first output cycle of each packet.
-            if i_valid = '1' and validCount = "00000000" then
-                o_HDeltaP <= i_HDeltaP; -- use every 16th input sample for the meta data
-                o_VDeltaP <= i_VDeltaP;
-                o_HOffsetP <= i_HoffsetP;
-                o_VOffsetP <= i_VoffsetP;
             end if;
             
             fifoDin <= reg512(31 downto 0);

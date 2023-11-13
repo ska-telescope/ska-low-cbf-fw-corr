@@ -244,6 +244,7 @@ ENTITY correlator_core IS
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start  : in std_logic;
         i_ct2_readout_buffer : in std_logic;
+        i_ct2_readout_frameCount : in std_logic_vector(31 downto 0);
         ---------------------------------------------------------------
         -- Copy of the bus taking data to be written to the HBM,
         -- for the first correlator instance.
@@ -860,6 +861,8 @@ begin
         -- Corner Turn between LFAA Ingest and the filterbanks.
         i_LFAA_CT_axi_mosi => mc_lite_mosi(c_corr_ct1_lite_index), -- in  t_axi4_lite_mosi;
         o_LFAA_CT_axi_miso => mc_lite_miso(c_corr_ct1_lite_index), -- out t_axi4_lite_miso;
+        i_poly_full_axi_mosi => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso => mc_full_miso(c_corr_ct1_full_index),
         -- Filterbanks
         i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
         o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;
@@ -909,6 +912,7 @@ begin
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start => i_ct2_readout_start,
         i_ct2_readout_buffer => i_ct2_readout_buffer,
+        i_ct2_readout_frameCount => i_ct2_readout_frameCount,
         ---------------------------------------------------------------
         -- copy of the bus taking data to be written to the HBM.
         -- Used for simulation only, to check against the model data.

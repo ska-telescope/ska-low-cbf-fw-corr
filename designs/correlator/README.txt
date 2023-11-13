@@ -28,6 +28,7 @@ source /tools/Xilinx/Vitis/2022.2/settings64.sh
 export PERSONALITY=correlator
 export TARGET_ALVEO=u55
 export VITIS_VERSION=2022.2
+export COMMON_PATH=~/projects/perentie/ska-low-cbf-fw-corr/common
 vivado -mode batch -source create_project.tcl
 
 # 6. Open the project in vivado

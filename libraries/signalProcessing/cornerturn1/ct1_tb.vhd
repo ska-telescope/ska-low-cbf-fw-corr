@@ -9,7 +9,7 @@
 -- 
 ----------------------------------------------------------------------------------
 
-library IEEE, correlator_lib, ct_lib, common_lib;
+library IEEE, correlator_lib, ct_lib, common_lib, filterbanks_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
@@ -24,11 +24,31 @@ use DSP_top_lib.DSP_top_pkg.all;
 
 entity ct1_tb is
     generic(
-        g_VIRTUAL_CHANNELS : integer := 4;
-        g_PACKET_GAP : integer := 800;
-        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"03421AFE0270"
+        g_VIRTUAL_CHANNELS : integer := 8;
+        g_CT1_VIRTUAL_CHANNELS : integer := 8;
+        g_PACKET_GAP : integer := 1000;
+
+        -- 
+        g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
+        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
+        g_USE_FILTERBANK : std_logic := '1'
+        
+        --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
+        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2.txt";
+        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2_ct1_out.txt"
+        
+        -- x000000EC8F40 = 64 packets prior to the first valid integration in delays1080_8vc.txt
+        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"000000EC8F40"; -- x"03421AFE0350";
+        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/delays1080_8vc.txt";
+        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/delays1080_ct1_out.txt"
+        
+        -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
+        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt";
+        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1_ct1_out.txt"
     );
---  Port ( );
 end ct1_tb;
 
 architecture Behavioral of ct1_tb is
@@ -107,6 +127,8 @@ architecture Behavioral of ct1_tb is
     
     signal axi_lite_mosi : t_axi4_lite_mosi;
     signal axi_lite_miso : t_axi4_lite_miso;
+    signal axi_full_mosi : t_axi4_full_mosi;
+    signal axi_full_miso : t_axi4_full_miso;
 
     signal pkt_packet_count : std_logic_vector(47 downto 0);
     signal pkt_virtual_channel : std_logic_vector(15 downto 0);
@@ -119,31 +141,79 @@ architecture Behavioral of ct1_tb is
     signal wdata_fsm : wdata_fsm_type := idle;
     signal wdata_virtual_channel : std_logic_vector(15 downto 0);
     signal wdata_packet_count : std_logic_vector(47 downto 0);
-    signal wdata_word_count : std_logic_vector(7 downto 0);
-    signal wdata_burst_count : std_logic_vector(7 downto 0);
-   -- signal rst_active : std_logic;
+    signal absolute_sample : std_logic_vector(95 downto 0);
+    signal wdata_word_count : std_logic_vector(47 downto 0);
+    signal wdata_burst_count : std_logic_vector(47 downto 0);
     
     signal fb_sof, fb_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
     signal fb_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
     signal fb_data0, fb_data1, fb_data2, fb_data3, fb_data4, fb_data5, fb_data6, fb_data7 : t_slv_8_arr(1 downto 0);
     signal fb_meta01, fb_meta23, fb_meta45, fb_meta67  : t_CT1_META_out;
     
+    signal fb2_sof, fb2_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb2_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb2_data0, fb2_data1, fb2_data2, fb2_data3, fb2_data4, fb2_data5, fb2_data6, fb2_data7 : t_slv_8_arr(1 downto 0);
+    signal fb2_meta01, fb2_meta23, fb2_meta45, fb2_meta67  : t_CT1_META_out;
+    
+    signal fb3_sof, fb3_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb3_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb3_data0, fb3_data1, fb3_data2, fb3_data3, fb3_data4, fb3_data5, fb3_data6, fb3_data7 : t_slv_8_arr(1 downto 0);
+    signal fb3_meta01, fb3_meta23, fb3_meta45, fb3_meta67  : t_CT1_META_out;
+    
+    signal fb4_sof, fb4_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb4_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb4_data0, fb4_data1, fb4_data2, fb4_data3, fb4_data4, fb4_data5, fb4_data6, fb4_data7 : t_slv_8_arr(1 downto 0);
+    signal fb4_meta01, fb4_meta23, fb4_meta45, fb4_meta67  : t_CT1_META_out;
+    
+    signal fb5_sof, fb5_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
+    signal fb5_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+    signal fb5_data0, fb5_data1, fb5_data2, fb5_data3, fb5_data4, fb5_data5, fb5_data6, fb5_data7 : t_slv_8_arr(1 downto 0);
+    signal fb5_meta01, fb5_meta23, fb5_meta45, fb5_meta67  : t_CT1_META_out;    
+    
     signal write_HBM_to_disk : std_logic;
     signal hbm_dump_addr : integer;
     signal hbm_dump_filename, init_fname : string(1 to 9) := "dummy.txt";
     signal init_mem : std_logic;
     signal rst_n : std_logic;
-begin
+    
+    signal fb_valid_del : std_logic := '0';
+    constant hex_one : std_logic_vector(3 downto 0) := "0001";
+    constant hex_two : std_logic_vector(3 downto 0) := "0010";
+    constant hex_three : std_logic_vector(3 downto 0) := "0011";
+    constant hex_four : std_logic_vector(3 downto 0) := "0100";
+    constant hex_five : std_logic_vector(3 downto 0) := "0101";
+    
+    signal FB_axi_mosi : t_axi4_lite_mosi;
+    signal FB_axi_miso : t_axi4_lite_miso;
+    signal clk_gate : std_logic := '0';
 
+    signal FD_integration : std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+    signal FD_ctFrame : std_logic_vector(1 downto 0);
+    signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+    signal FD_headerValid : std_logic_vector(3 downto 0);
+    signal FD_data : t_ctc_output_payload_arr(3 downto 0);
+    signal FD_dataValid : std_logic;
+    -- i_SOF delayed by 16384 clocks;
+    -- i_sof occurs at the start of each new block of 4 virtual channels.
+    -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+    -- between data packets at the filterbank output that occurs due to the filterbank preload.
+    signal FB_out_sof : std_logic;
+    signal FB_to_100G_data : std_logic_vector(127 downto 0);
+    signal FB_to_100G_valid : std_logic;
+    signal FB_to_100G_ready : std_logic;
+    signal clk300_gated : std_logic := '0';
+    
+begin
+    
     clk300 <= not clk300 after 1.666 ns;
     rst_n <= not clk300_rst;
     
     process
         file RegCmdfile: TEXT;
-       -- variable RegLine_in : Line;
-       -- variable regData, regAddr : std_logic_vector(31 downto 0);
-       -- variable RegGood : boolean;
-       -- variable c : character;
+        variable RegLine_in : Line;
+        variable regData, regAddr : std_logic_vector(31 downto 0);
+        variable RegGood : boolean;
+        variable c : character;
     begin
         data_rst <= '1';
         clk300_rst <= '1';
@@ -160,13 +230,53 @@ begin
         axi_lite_mosi.arvalid <= '0';
         axi_lite_mosi.rready <= '0';
         
---        axi_full_mosi.awaddr <= (others => '0');
---        axi_full_mosi.awvalid <= '0';
---        -- Always write bursts of 64 bytes = 16 x 4-byte words = 1 polynomial specification
---        axi_full_mosi.awlen <= "00001111";
---        axi_full_mosi.wvalid <= '0';
---        axi_full_mosi.wdata <= (others => '0');
---        axi_full_mosi.wlast <= '0';
+        FB_axi_mosi.awaddr <= (others => '0');
+        FB_axi_mosi.awprot <= "000";
+        FB_axi_mosi.awvalid <= '0';
+        FB_axi_mosi.wdata <= (others => '0');
+        FB_axi_mosi.wstrb <= "1111";
+        FB_axi_mosi.wvalid <= '0';
+        FB_axi_mosi.bready <= '0';
+        FB_axi_mosi.araddr <= (others => '0');
+        FB_axi_mosi.arprot <= "000";
+        FB_axi_mosi.arvalid <= '0';
+        FB_axi_mosi.rready <= '1';        
+        
+        axi_full_mosi.awaddr <= (others => '0');
+        axi_full_mosi.awvalid <= '0';
+       
+        -- Always write bursts of 80 bytes = 20 x 4-byte words
+        axi_full_mosi.awlen <= "00010011";
+        
+        axi_full_mosi.wvalid <= '0';
+        axi_full_mosi.wdata <= (others => '0');
+        axi_full_mosi.wlast <= '0';
+        axi_full_mosi.bready <= '1';
+        
+        axi_full_mosi.arvalid <= '0';
+        axi_full_mosi.awid <= x"00";
+        axi_full_mosi.awprot <= "000";
+        axi_full_mosi.awsize <= "010"; -- "010" = 32 bit wide data bus
+        axi_full_mosi.awburst <= "01"; -- "01" indicates incrementing addresses for each beat in the burst. 
+        axi_full_mosi.awcache <= "0011"; -- bufferable transaction. Default in Vitis environment.
+        axi_full_mosi.awuser <= "0000";
+        axi_full_mosi.awlock <= '0';
+        axi_full_mosi.wid <= "00000000";
+        axi_full_mosi.arid <= "00000000";
+        axi_full_mosi.araddr <= (others => '0');
+        axi_full_mosi.arprot <= "000";
+        axi_full_mosi.arlen <= "00010011";
+        axi_full_mosi.arsize <= "000";
+        axi_full_mosi.arburst <= "01";
+        axi_full_mosi.arcache <= "0011";
+        axi_full_mosi.aruser <= "0000";
+        axi_full_mosi.arlock <= '0';
+        axi_full_mosi.rready <= '1';
+        axi_full_mosi.awregion <= "0000";
+        axi_full_mosi.arregion <= "0000";
+        axi_full_mosi.arqos <= "0000";
+        axi_full_mosi.awqos <= "0000";
+        axi_full_mosi.wstrb <= (others => '1');
         
         wait until rising_edge(clk300);
         wait for 100 ns;
@@ -178,55 +288,55 @@ begin
         data_rst <= '1';
         wait until rising_edge(clk300);
         -- setup registers, just set table0 valid.
-        axi_lite_transaction(clk300, axi_lite_miso, axi_lite_mosi, 
-            c_config_table0_valid_address.base_address + c_config_table0_valid_address.address,
-            true, x"00000001");
+--        axi_lite_transaction(clk300, axi_lite_miso, axi_lite_mosi, 
+--            c_config_table0_valid_address.base_address + c_config_table0_valid_address.address,
+--            true, x"00000001");
         
         wait until rising_edge(clk300);
         wait for 100 ns;
         wait until rising_edge(clk300);
         
         -- !! Put this in to do writes to configure the polynomials.
---        -- write configuration data to memory over the axi full interface.
---        FILE_OPEN(RegCmdfile, g_REGISTER_INIT_FILENAME, READ_MODE);
+        -- write configuration data to memory over the axi full interface.
+        FILE_OPEN(RegCmdfile, g_REGISTER_INIT_FILENAME, READ_MODE);
         
---        while (not endfile(RegCmdfile)) loop
---            -- Get data for 1 source (64 bytes = 16 x 4byte words)
---            readline(regCmdFile, regLine_in);
---            -- drop "[" character that indicates the address
---            read(regLine_in,c,regGood);
---            -- get the address
---            hread(regLine_in,regAddr,regGood);
---            axi_full_mosi.awaddr(31 downto 0) <= regAddr;
---            axi_full_mosi.awvalid <= '1';
---            wait until (rising_edge(clk) and axi_full_miso.awready='1');
---            wait for 1 ps;
---            axi_full_mosi.awvalid <= '0';
---            for i in 0 to 15 loop
---                readline(regCmdFile, regLine_in);
---                hread(regLine_in,regData,regGood);
---                axi_full_mosi.wvalid <= '1';
---                axi_full_mosi.wdata(31 downto 0) <= regData;
---                if i=15 then
---                    axi_full_mosi.wlast <= '1';
---                else
---                    axi_full_mosi.wlast <= '0';
---                end if;
---                wait until (rising_edge(clk) and axi_full_miso.wready = '1');
---                wait for 1 ps;
---            end loop;
---            axi_full_mosi.wvalid <= '0';
---            wait until rising_edge(clk);
---            wait until rising_edge(clk);
---        end loop;
---        wait until rising_edge(clk);
---        wait for 100 ns;
---        -- read back some data 
---        wait until rising_edge(clk);
---        do_readback <= '1';
---        wait until rising_edge(clk);
---        wait until rising_edge(clk);
---        do_readback <= '0';
+        while (not endfile(RegCmdfile)) loop
+            -- Get data for 1 source (64 bytes = 16 x 4byte words)
+            readline(regCmdFile, regLine_in);
+            -- drop "[" character that indicates the address
+            read(regLine_in,c,regGood);
+            -- get the address
+            hread(regLine_in,regAddr,regGood);
+            axi_full_mosi.awaddr(31 downto 0) <= regAddr;
+            axi_full_mosi.awvalid <= '1';
+            wait until (rising_edge(clk300) and axi_full_miso.awready='1');
+            wait for 1 ps;
+            axi_full_mosi.awvalid <= '0';
+            for i in 0 to 19 loop
+                readline(regCmdFile, regLine_in);
+                hread(regLine_in,regData,regGood);
+                axi_full_mosi.wvalid <= '1';
+                axi_full_mosi.wdata(31 downto 0) <= regData;
+                if i=19 then
+                    axi_full_mosi.wlast <= '1';
+                else
+                    axi_full_mosi.wlast <= '0';
+                end if;
+                wait until (rising_edge(clk300) and axi_full_miso.wready = '1');
+                wait for 1 ps;
+            end loop;
+            axi_full_mosi.wvalid <= '0';
+            wait until rising_edge(clk300);
+            wait until rising_edge(clk300);
+        end loop;
+        wait until rising_edge(clk300);
+        wait for 100 ns;
+        -- read back some data 
+        wait until rising_edge(clk300);
+        --do_readback <= '1';
+        wait until rising_edge(clk300);
+        wait until rising_edge(clk300);
+        --do_readback <= '0';
 
         ---------------------------------------------------------------
         wait until rising_edge(clk300);
@@ -238,7 +348,7 @@ begin
         wait;
     end process;
 
-    virtual_channels <= std_logic_vector(to_unsigned(g_VIRTUAL_CHANNELS,11));
+    virtual_channels <= std_logic_vector(to_unsigned(g_CT1_VIRTUAL_CHANNELS,11));
     
     --------------------------------------------------------------------------------
     -- Emulate the LFAA decode module
@@ -325,20 +435,119 @@ begin
                     
                 end case;
             end if;
+            fb_valid_del <= fb_valid;
         
         end if;
     end process;
     
-    m01_axi_w.data(3 downto 0) <= wdata_word_count(3 downto 0);
-    m01_axi_w.data(11 downto 4) <= wdata_burst_count;
-    m01_axi_w.data(15 downto 12) <= "0000";
-    m01_axi_w.data(31 downto 16) <= wdata_virtual_channel;
-    m01_axi_w.data(63 downto 32) <= (others => '0');
-    m01_axi_w.data(127 downto 64) <= x"0000" & wdata_packet_count;
-    m01_axi_w.data(511 downto 128) <= (others => '0'); 
+    -- wdata holds the absolute sample index, relative to the epoch
+    -- as a 24 bit value, plus an 8 bit virtual channel.
+    -- 2048 samples per packet, 128 samples per burst (of 512 bytes), 16 samples per word (of 64 bytes)
+    absolute_sample <= std_logic_vector(unsigned(wdata_packet_count) * 2048 + unsigned(wdata_burst_count) * 128 + unsigned(wdata_word_count) * 16); --to_unsigned(16,48));
+    
+    -- need pn sequence option
+    
+    dgen1 : for i in 0 to 15 generate
+        m01_axi_w.data(i*32+23 downto i*32+0) <= absolute_sample(23 downto 4) & std_logic_vector(to_unsigned(i,4)); 
+        m01_axi_w.data(i*32+31 downto i*32+24) <= wdata_virtual_channel(7 downto 0);
+    end generate;
+    
+--    m01_axi_w.data(3 downto 0) <= wdata_word_count(3 downto 0);
+--    m01_axi_w.data(11 downto 4) <= wdata_burst_count;
+--    m01_axi_w.data(15 downto 12) <= "0000";
+--    m01_axi_w.data(31 downto 16) <= wdata_virtual_channel;
+--    m01_axi_w.data(63 downto 32) <= (others => '0');
+--    m01_axi_w.data(127 downto 64) <= x"0000" & wdata_packet_count;
+--    m01_axi_w.data(511 downto 128) <= (others => '0'); 
     m01_axi_w.valid <= '1' when wdata_fsm = send_burst else '0';
     m01_axi_w.last <= '1' when unsigned(wdata_word_count) = 7 else '0';
 
+    -- write CT1 output to a file
+    process
+		file logfile: TEXT;
+		--variable data_in : std_logic_vector((BIT_WIDTH-1) downto 0);
+		variable line_out : Line;
+    begin
+	    FILE_OPEN(logfile, g_CT1_OUT_FILENAME, WRITE_MODE);
+		loop
+            wait until rising_edge(clk300);
+            if fb_valid = '1' then
+                
+                if fb_valid_del = '0' and fb_valid = '1' then
+                    -- Rising edge of fb_valid, write out the meta data
+                    line_out := "";
+                    hwrite(line_out,hex_one,RIGHT,1);
+                    hwrite(line_out,fb_meta01.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta01.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta01.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta01.VOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta01.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta01.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta01.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                    line_out := "";
+                    hwrite(line_out,hex_two,RIGHT,1);
+                    hwrite(line_out,fb_meta23.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta23.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta23.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta23.VOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta23.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta23.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta23.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                    line_out := "";
+                    hwrite(line_out,hex_three,RIGHT,1);
+                    hwrite(line_out,fb_meta45.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta45.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta45.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta45.VOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta45.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta45.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta45.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                    line_out := "";
+                    hwrite(line_out,hex_four,RIGHT,1);
+                    hwrite(line_out,fb_meta67.HDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta67.HOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta67.VDeltaP,RIGHT,9);
+                    hwrite(line_out,fb_meta67.VOffsetP,RIGHT,9);
+                    hwrite(line_out,fb_meta67.integration,RIGHT,9);
+                    hwrite(line_out,"00" & fb_meta67.ctFrame,RIGHT,2);
+                    hwrite(line_out,fb_meta67.virtualChannel,RIGHT,5);
+                    writeline(logfile,line_out);
+                    
+                end if;
+                
+                -- write out the samples to the file
+                line_out := "";
+                hwrite(line_out,hex_five,RIGHT,1);
+                hwrite(line_out,fb_data0(0),RIGHT,3);
+                hwrite(line_out,fb_data0(1),RIGHT,3);
+                hwrite(line_out,fb_data1(0),RIGHT,3);
+                hwrite(line_out,fb_data1(1),RIGHT,3);
+                hwrite(line_out,fb_data2(0),RIGHT,3);
+                hwrite(line_out,fb_data2(1),RIGHT,3);
+                hwrite(line_out,fb_data3(0),RIGHT,3);
+                hwrite(line_out,fb_data3(1),RIGHT,3);
+                
+                hwrite(line_out,fb_data4(0),RIGHT,3);
+                hwrite(line_out,fb_data4(1),RIGHT,3);
+                hwrite(line_out,fb_data5(0),RIGHT,3);
+                hwrite(line_out,fb_data5(1),RIGHT,3);
+                hwrite(line_out,fb_data6(0),RIGHT,3);
+                hwrite(line_out,fb_data6(1),RIGHT,3);
+                hwrite(line_out,fb_data7(0),RIGHT,3);
+                hwrite(line_out,fb_data7(1),RIGHT,3);
+                writeline(logfile,line_out);
+            end if;
+         
+        end loop;
+        file_close(logfile);	
+        wait;
+    end process;
     
     ct1i : entity ct_lib.corr_ct1_top
     port map (
@@ -348,6 +557,8 @@ begin
         -- Registers (uses the shared memory clock)
         i_saxi_mosi      => axi_lite_mosi, -- in  t_axi4_lite_mosi;
         o_saxi_miso      => axi_lite_miso, -- out t_axi4_lite_miso;
+        i_poly_full_axi_mosi => axi_full_mosi, -- in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
+        o_poly_full_axi_miso => axi_full_miso, -- out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (comes from LFAA ingest module).
         -- This should be valid before coming out of reset.
         i_virtualChannels => virtual_channels, -- in std_logic_vector(10 downto 0); -- total virtual channels 
@@ -496,5 +707,179 @@ begin
     init_mem <= '0';
     --init_fname <= "dummy.vhd";
 
+    --------------------------------------------------------------------------------
+    -- Filterbank 
+    
+    process(clk300)
+    begin
+        if rising_edge(clk300) then
+            FB2_sof   <= FB_sof;
+            FB2_data0 <= FB_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB2_data1 <= FB_data1; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta01 <= FB_meta01;
+            FB2_data2  <= FB_data2; -- in t_slv_8_arr(1 downto 0);
+            FB2_data3  <= FB_data3; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta23 <= FB_meta23;
+            FB2_data4  <= FB_data4; -- in t_slv_8_arr(1 downto 0);
+            FB2_data5  <= FB_data5; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta45 <= FB_meta45;
+            FB2_data6  <= FB_data6; -- in t_slv_8_arr(1 downto 0);
+            FB2_data7  <= FB_data7; -- in t_slv_8_arr(1 downto 0);
+            FB2_meta67 <= FB_meta67;
+            FB2_Valid <= FB_valid;
+
+            FB3_sof   <= FB2_sof;
+            FB3_data0 <= FB2_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB3_data1 <= FB2_data1; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta01 <= FB2_meta01;
+            FB3_data2  <= FB2_data2; -- in t_slv_8_arr(1 downto 0);
+            FB3_data3  <= FB2_data3; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta23 <= FB2_meta23;
+            FB3_data4  <= FB2_data4; -- in t_slv_8_arr(1 downto 0);
+            FB3_data5  <= FB2_data5; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta45 <= FB2_meta45;
+            FB3_data6  <= FB2_data6; -- in t_slv_8_arr(1 downto 0);
+            FB3_data7  <= FB2_data7; -- in t_slv_8_arr(1 downto 0);
+            FB3_meta67 <= FB2_meta67;
+            FB3_Valid <= FB2_valid;
+            
+            FB4_sof   <= FB3_sof;
+            FB4_data0 <= FB3_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB4_data1 <= FB3_data1; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta01 <= FB3_meta01;
+            FB4_data2  <= FB3_data2; -- in t_slv_8_arr(1 downto 0);
+            FB4_data3  <= FB3_data3; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta23 <= FB3_meta23;
+            FB4_data4  <= FB3_data4; -- in t_slv_8_arr(1 downto 0);
+            FB4_data5  <= FB3_data5; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta45 <= FB3_meta45;
+            FB4_data6  <= FB3_data6; -- in t_slv_8_arr(1 downto 0);
+            FB4_data7  <= FB3_data7; -- in t_slv_8_arr(1 downto 0);
+            FB4_meta67 <= FB3_meta67;
+            FB4_Valid <= FB3_valid;
+            
+            if FB_sof = '1' then
+                clk_gate <= '1';
+            end if;
+        end if;
+    end process;
+    
+    
+    clk300_gated <= clk300 when clk_gate = '1' else '0';
+    
+    process(clk300_gated)
+    begin
+        if rising_edge(clk300_gated) then
+            FB5_sof   <= FB4_sof;
+            FB5_data0 <= FB4_data0; -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            FB5_data1 <= FB4_data1; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta01 <= FB4_meta01;
+            FB5_data2  <= FB4_data2; -- in t_slv_8_arr(1 downto 0);
+            FB5_data3  <= FB4_data3; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta23 <= FB4_meta23;
+            FB5_data4  <= FB4_data4; -- in t_slv_8_arr(1 downto 0);
+            FB5_data5  <= FB4_data5; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta45 <= FB4_meta45;
+            FB5_data6  <= FB4_data6; -- in t_slv_8_arr(1 downto 0);
+            FB5_data7  <= FB4_data7; -- in t_slv_8_arr(1 downto 0);
+            FB5_meta67 <= FB4_meta67;
+            FB5_Valid <= FB4_valid;
+        end if;
+    end process;
+    
+    
+    FBgen : if g_USE_FILTERBANK = '1' generate
+        corFB_i : entity filterbanks_lib.FB_top_correlator
+        port map (
+            i_data_rst => FB5_sof, -- in std_logic;
+            -- Register interface
+            i_axi_clk => clk300_gated,    -- in std_logic;
+            i_axi_rst => clk300_rst,    -- in std_logic;
+            i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
+            o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
+            -- Configuration (on i_data_clk)
+            i_fineDelayDisable => '0',     -- in std_logic;
+            -- Data input, common valid signal, expects packets of 4096 samples
+            i_SOF    => FB5_sof,
+            i_data0  => FB5_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            i_data1  => FB5_data1, -- in t_slv_8_arr(1 downto 0);
+            i_meta01 => FB5_meta01,
+            i_data2  => FB5_data2, -- in t_slv_8_arr(1 downto 0);
+            i_data3  => FB5_data3, -- in t_slv_8_arr(1 downto 0);
+            i_meta23 => FB5_meta23,
+            i_data4  => FB5_data4, -- in t_slv_8_arr(1 downto 0);
+            i_data5  => FB5_data5, -- in t_slv_8_arr(1 downto 0);
+            i_meta45 => FB5_meta45,
+            i_data6  => FB5_data6, -- in t_slv_8_arr(1 downto 0);
+            i_data7  => FB5_data7, -- in t_slv_8_arr(1 downto 0);
+            i_meta67 => FB5_meta67,
+            i_dataValid => FB5_valid, -- in std_logic;
+            -- Data out; bursts of 3456 clocks for each channel.
+            -- Correlator filterbank data output
+            o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_ctFrame        => FD_ctFrame,        -- out (1:0);
+            o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+            o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
+            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
+            o_DataValid      => FD_dataValid,      -- out std_logic
+            -- i_SOF delayed by 16384 clocks;
+            -- i_sof occurs at the start of each new block of 4 virtual channels.
+            -- Delay of 16384 is enough to ensure that o_sof falls in the gap
+            -- between data packets at the filterbank output that occurs due to the filterbank preload.
+            o_sof => FB_out_sof, -- out std_logic;
+            -- Correlator filterbank output as packets
+            -- Each output packet contains all the data for:
+            --  - Single time step
+            --  - Single polarisation
+            --  - single coarse channel
+            -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
+            -- The data is transferred in bursts of 433 clocks.
+            o_packetData  => FB_to_100G_data, -- out std_logic_vector(127 downto 0);
+            o_packetValid => FB_to_100G_valid, -- out std_logic;
+            i_packetReady => FB_to_100G_ready  -- in std_logic
+        );
+        
+    end generate;
+
+    FB_to_100G_ready <= '1';
+
+---- write CT1 output to a file
+--    process
+--		file logfile: TEXT;
+--		--variable data_in : std_logic_vector((BIT_WIDTH-1) downto 0);
+--		variable line_out : Line;
+--    begin
+--	    FILE_OPEN(logfile, g_CT1_OUT_FILENAME, WRITE_MODE);
+--		loop
+--            wait until rising_edge(clk300);
+--            if fb_valid = '1' then
+                
+--                if fb_valid_del = '0' and fb_valid = '1' then
+--                    -- Rising edge of fb_valid, write out the meta data
+--                    line_out := "";
+--                    hwrite(line_out,hex_one,RIGHT,1);
+--                    hwrite(line_out,fb_meta01.HDeltaP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.HOffsetP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.VDeltaP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.VOffsetP,RIGHT,5);
+--                    hwrite(line_out,fb_meta01.integration,RIGHT,9);
+--                    hwrite(line_out,"00" & fb_meta01.ctFrame,RIGHT,2);
+--                    hwrite(line_out,fb_meta01.virtualChannel,RIGHT,5);
+--                    writeline(logfile,line_out);
+    
+--    -- write out the samples to the file
+--                line_out := "";
+--                hwrite(line_out,hex_five,RIGHT,1);
+--                hwrite(line_out,fb_data0(0),RIGHT,3);
+--                hwrite(line_out,fb_data0(1),RIGHT,3);
+--                hwrite(line_out,fb_data1(0),RIGHT,3);
+--                hwrite(line_out,fb_data1(1),RIGHT,3);
+--                hwrite(line_out,fb_data2(0),RIGHT,3);
+--                hwrite(line_out,fb_data2(1),RIGHT,3);
+--                hwrite(line_out,fb_data3(0),RIGHT,3);
+--                hwrite(line_out,fb_data3(1),RIGHT,3);
+                
+--        end loop;
+--    end process;
 
 end Behavioral;

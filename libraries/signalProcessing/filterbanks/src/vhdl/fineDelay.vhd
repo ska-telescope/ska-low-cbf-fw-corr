@@ -55,12 +55,12 @@ entity fineDelay is
         -- data and header in
         i_data        : in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
         i_dataValid   : in std_logic;
-        i_header      : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .HOffsetP, .VOffsetP, .frameCount(36:0), virtualChannel(15:0), .valid
+        i_header      : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .HOffsetP(31:0), .VOffsetP(31:0), integration(31:0), ctFrame(1:0), virtualChannel(15:0); 
         i_headerValid : in std_logic;  -- Must be a 1 clock pulse on the first clock of the packet.
         -- Data and Header out
         o_data        : out t_ctc_output_payload;   -- 8 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
         o_dataValid   : out std_logic;
-        o_header      : out t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
+        o_header      : out t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .HOffsetP(31:0), .VOffsetP(31:0), integration(31:0), ctFrame(1:0), virtualChannel(15:0);
         o_headerValid : out std_logic;
         -------------------------------------------
         -- control and monitoring
@@ -96,35 +96,36 @@ architecture Behavioral of fineDelay is
     signal RFIScale : std_logic_vector(4 downto 0);
     
     signal headerDel1, headerDel2, headerDel3, headerDel4, headerDel5, headerDel6, headerDel7, headerDel8, headerDel9 : t_CT1_META_out;
-    signal headerDel10, headerDel11, headerDel12, headerDel13, headerDel14, headerDel15, headerDel16, headerDel17, headerDel18 : t_CT1_META_out;
+    signal headerDel10, headerDel11, headerDel12, headerDel13, headerDel14, headerDel15, headerDel16, headerDel17, headerDel18, headerDel19, headerDel20 : t_CT1_META_out;
     signal validDel1, validDel2, validDel3, validDel4, validDel5, validDel6, validDel7, validDel8, validDel9 : std_logic;
-    signal validDel10, validDel11, validDel12, validDel13, validDel14, validDel15, validDel16, validDel17, validDel18 : std_logic;
-    signal hpol_phase_shift_ext : std_logic_vector(27 downto 0);
-    signal hpol_phase_shift_extx2 : std_logic_vector(27 downto 0);
-    signal hpol_phase_shift_extx8 : std_logic_vector(27 downto 0);
-    signal hpol_phase_shift_extx16 : std_logic_vector(27 downto 0);
-    signal hpol_phase_x3 : std_logic_vector(27 downto 0);
-    signal hpol_phase_x24 : std_logic_vector(27 downto 0);
-    signal hpol_phase_x27 : std_logic_vector(27 downto 0);
+    signal validDel10, validDel11, validDel12, validDel13, validDel14, validDel15, validDel16, validDel17, validDel18, validDel19, validDel20 : std_logic;
+    signal hpol_phase_shift_ext : std_logic_vector(43 downto 0);
+    signal hpol_phase_shift_extx2 : std_logic_vector(43 downto 0);
+    signal hpol_phase_shift_extx8 : std_logic_vector(43 downto 0);
+    signal hpol_phase_shift_extx16 : std_logic_vector(43 downto 0);
+    signal hpol_phase_x3 : std_logic_vector(43 downto 0);
+    signal hpol_phase_x24 : std_logic_vector(43 downto 0);
+    signal hpol_phase_x27 : std_logic_vector(43 downto 0);
 
-    signal vpol_phase_shift_ext : std_logic_vector(27 downto 0);
-    signal vpol_phase_shift_extx2 : std_logic_vector(27 downto 0);
-    signal vpol_phase_shift_extx8 : std_logic_vector(27 downto 0);
-    signal vpol_phase_shift_extx16 : std_logic_vector(27 downto 0);
-    signal vpol_phase_x3 : std_logic_vector(27 downto 0);
-    signal vpol_phase_x24 : std_logic_vector(27 downto 0);
-    signal vpol_phase_x27 : std_logic_vector(27 downto 0);
+    signal vpol_phase_shift_ext : std_logic_vector(43 downto 0);
+    signal vpol_phase_shift_extx2 : std_logic_vector(43 downto 0);
+    signal vpol_phase_shift_extx8 : std_logic_vector(43 downto 0);
+    signal vpol_phase_shift_extx16 : std_logic_vector(43 downto 0);
+    signal vpol_phase_x3 : std_logic_vector(43 downto 0);
+    signal vpol_phase_x24 : std_logic_vector(43 downto 0);
+    signal vpol_phase_x27 : std_logic_vector(43 downto 0);
     
-    signal HpolPhaseCurrent, VpolPhaseCurrent : std_logic_vector(27 downto 0);
+    signal HpolPhaseCurrent, VpolPhaseCurrent : std_logic_vector(43 downto 0);
     signal dataValidDel1, dataValidDel2, dataValidDel3, dataValidDel4, dataValidDel5, dataValidDel6, dataValidDel7, dataValidDel8, dataValidDel9 : std_logic;
-    signal dataValidDel10, dataValidDel11, dataValidDel12, dataValidDel13, dataValidDel14, dataValidDel15, dataValidDel16, dataValidDel17, dataValidDel18 : std_logic;
+    signal dataValidDel10, dataValidDel11, dataValidDel12, dataValidDel13, dataValidDel14, dataValidDel15, dataValidDel16 : std_logic;
+    signal dataValidDel17, dataValidDel18, dataValidDel19, dataValidDel20, dataValidDel21 : std_logic;
     
     signal dataDel1, dataDel2, dataDel3, dataDel4, dataDel5, dataDel6, dataDel7, dataDel8, dataDel9 : t_FB_output_payload;
-    signal dataDel10, dataDel11, dataDel12, dataDel13, dataDel14, dataDel15, dataDel16, dataDel17, dataDel18 : t_FB_output_payload;
+    signal dataDel10, dataDel11 : t_FB_output_payload;
     
     signal HpolMultIn, VpolMultIn : std_logic_vector(31 downto 0); 
     signal HpolMultOut, VpolMultOut : std_logic_vector(79 downto 0);
-    signal HpolPhase, VpolPhase : std_logic_vector(15 downto 0);
+    signal HpolPhase, VpolPhase : std_logic_vector(31 downto 0);
     signal HpolSinCos, VpolSinCos : std_logic_vector(47 downto 0);
     
     signal HpolShiftReal43, VpolShiftReal43 : std_logic_vector(14 downto 0);
@@ -138,7 +139,6 @@ architecture Behavioral of fineDelay is
     signal soverflowCount, s64_127Count, s32_63Count, s16_31Count, s0_15Count : std_logic_vector(2 downto 0);
     signal soverflowCountExt, s64_127CountExt, s32_63CountExt, s16_31CountExt, s0_15CountExt : std_logic_vector(15 downto 0);
     signal countOverflow, count64_127, count32_63, count16_31, count0_15 : std_logic_vector(15 downto 0);
-    signal dataValidDel19 : std_logic;
     signal virtualChannel : std_logic_vector(15 downto 0);
     
     -- create_ip -name dds_compiler -vendor xilinx.com -library ip -version 6.0 -module_name GenSinCos
@@ -148,7 +148,8 @@ architecture Behavioral of fineDelay is
     port (
         aclk                : in std_logic;
         s_axis_phase_tvalid : in std_logic;
-        s_axis_phase_tdata  : in std_logic_vector(15 downto 0);   -- signed input, only bits(12:0) used
+        s_axis_phase_tdata : IN STD_LOGIC_VECTOR(23 DOWNTO 0);    -- signed input, all bits used.
+        --s_axis_phase_tdata  : in std_logic_vector(15 downto 0);   -- signed input, only bits(12:0) used
         m_axis_data_tvalid  : out std_logic;                      -- 6 cycle latency.
         m_axis_data_tdata   : out std_logic_vector(47 downto 0)); -- bits(17:0) = cosine, bits(41:24) = sine, 1/2 scale, so unity is 0x10000 
     end component;
@@ -166,37 +167,39 @@ architecture Behavioral of fineDelay is
         m_axis_dout_tdata  : out std_logic_vector(79 downto 0));  -- 4 cycle latency
     end component;
     
+    signal HpolPhase_int, HpolPhaseRounded, VpolPhase_int, VpolPhaseRounded : std_logic_vector(23 downto 0);
+    signal HpolPhase_frac, VpolPhase_frac : std_logic_vector(4 downto 0);
     
 begin
     
     hpol_phase_shift_ext    <=  
-        "000000000000" & headerDel1.HDeltaP when headerDel1.HDeltaP(15) = '0' else 
+        "000000000000" & headerDel1.HDeltaP when headerDel1.HDeltaP(31) = '0' else 
         "111111111111" & headerDel1.hDeltaP;
     hpol_phase_shift_extx2  <=  
-        "00000000000" & headerDel1.HDeltaP & '0' when headerDel1.HDeltaP(15) = '0' else
+        "00000000000" & headerDel1.HDeltaP & '0' when headerDel1.HDeltaP(31) = '0' else
         "11111111111" & headerDel1.HDeltaP & '0';
     hpol_phase_shift_extx8  <= 
-        "000000000" & headerDel1.HDeltaP & "000" when headerDel1.HDeltaP(15) = '0' else
+        "000000000" & headerDel1.HDeltaP & "000" when headerDel1.HDeltaP(31) = '0' else
         "111111111" & headerDel1.HDeltaP & "000";
     hpol_phase_shift_extx16 <= 
-        "00000000" & headerDel1.HDeltaP & "0000" when headerDel1.HDeltaP(15) = '0' else
+        "00000000" & headerDel1.HDeltaP & "0000" when headerDel1.HDeltaP(31) = '0' else
         "11111111" & headerDel1.HDeltaP & "0000";
 
     vpol_phase_shift_ext    <=  
-        "000000000000" & headerDel1.VDeltaP when headerDel1.VDeltaP(15) = '0' else 
+        "000000000000" & headerDel1.VDeltaP when headerDel1.VDeltaP(31) = '0' else 
         "111111111111" & headerDel1.VDeltaP;
     vpol_phase_shift_extx2  <=  
-        "00000000000" & headerDel1.VDeltaP & '0' when headerDel1.VDeltaP(15) = '0' else
+        "00000000000" & headerDel1.VDeltaP & '0' when headerDel1.VDeltaP(31) = '0' else
         "11111111111" & headerDel1.VDeltaP & '0';
     vpol_phase_shift_extx8  <= 
-        "000000000" & headerDel1.VDeltaP & "000" when headerDel1.VDeltaP(15) = '0' else
+        "000000000" & headerDel1.VDeltaP & "000" when headerDel1.VDeltaP(31) = '0' else
         "111111111" & headerDel1.VDeltaP & "000";
     vpol_phase_shift_extx16 <= 
-        "00000000" & headerDel1.VDeltaP & "0000" when headerDel1.VDeltaP(15) = '0' else
+        "00000000" & headerDel1.VDeltaP & "0000" when headerDel1.VDeltaP(31) = '0' else
         "11111111" & headerDel1.VDeltaP & "0000";
     
-    hpol_phase_x24 <= hpol_phase_x3(24 downto 0) & "000";
-    vpol_phase_x24 <= vpol_phase_x3(24 downto 0) & "000";
+    hpol_phase_x24 <= hpol_phase_x3(40 downto 0) & "000";
+    vpol_phase_x24 <= vpol_phase_x3(40 downto 0) & "000";
     
     process(i_clk)
     begin
@@ -238,24 +241,24 @@ begin
             elsif validDel3 = '1' then 
                 -- validDel3 is a pulse at the start of the packet.
                 if (FBSELECTION = 0) then -- PSS
-                    -- HOffsetP uses 32768 to represent pi radians.
+                    -- HOffsetP uses 32768*65536 to represent pi radians.
                     -- Scale up by 2^5 here.
                     -- Then scale down by 2^8 to get HPolPhase. which is the input to the sin/cos LUT component.
                     -- Input to the sin/cos LUT is 4096 for pi radians. check: 32768 * 2^5 / 2^8 = 4096.
-                    HpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.HOffsetP),28),5) - shift_left(signed(hpol_phase_x27),1));
-                    VpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.VOffsetP),28),5) - shift_left(signed(vpol_phase_x27),1));
+                    HpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.HOffsetP),44),5) - shift_left(signed(hpol_phase_x27),1));
+                    VpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.VOffsetP),44),5) - shift_left(signed(vpol_phase_x27),1));
                 elsif (FBSELECTION = 1) then -- PST, multiply by 4 compared with PSS (216 channels vs. 54)
-                    HpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.HOffsetP),28),7) - shift_left(signed(hpol_phase_x27),3));
-                    VpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.VOffsetP),28),7) - shift_left(signed(vpol_phase_x27),3));
+                    HpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.HOffsetP),44),7) - shift_left(signed(hpol_phase_x27),3));
+                    VpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.VOffsetP),44),7) - shift_left(signed(vpol_phase_x27),3));
                 else  -- Correlator, multiply by 64 compared with PSS (3456 channels vs. 54)
-                    HpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.HOffsetP),28),11) - shift_left(signed(hpol_phase_x27),7));
-                    VpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.VOffsetP),28),11) - shift_left(signed(vpol_phase_x27),7));
+                    HpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.HOffsetP),44),11) - shift_left(signed(hpol_phase_x27),7));
+                    VpolPhaseCurrent <= std_logic_vector(shift_left(resize(signed(headerDel3.VOffsetP),44),11) - shift_left(signed(vpol_phase_x27),7));
                 end if;
             elsif dataValidDel3 = '1' then
                 -- Accumulate the phase across the band.
                 -- Note this only occurs on the second clock of the frame, so headerDel4 is correct.
-                HpolPhaseCurrent <= std_logic_vector(signed(HpolPhaseCurrent) + shift_left(resize(signed(headerDel4.HDeltaP),28),1));
-                VpolPhaseCurrent <= std_logic_vector(signed(VpolPhaseCurrent) + shift_left(resize(signed(headerDel4.VDeltaP),28),1));
+                HpolPhaseCurrent <= std_logic_vector(signed(HpolPhaseCurrent) + shift_left(resize(signed(headerDel4.HDeltaP),44),1));
+                VpolPhaseCurrent <= std_logic_vector(signed(VpolPhaseCurrent) + shift_left(resize(signed(headerDel4.VDeltaP),44),1));
             end if;
             headerDel4 <= headerDel3;
             dataDel4 <= dataDel3;
@@ -299,47 +302,51 @@ begin
             dataValidDel11 <= dataValidDel10;
             
             headerDel12 <= headerDel11;
-            dataDel12 <= dataDel11;
             validDel12 <= validDel11;
             dataValidDel12 <= dataValidDel11;
 
             headerDel13 <= headerDel12;
-            dataDel13 <= dataDel12;
             validDel13 <= validDel12;
             dataValidDel13 <= dataValidDel12;
 
-            -- Phase is valid on del4.
-            --  - 6 clocks for the sinCos lookup
-            --  - 4 clocks for the complex multiplication
-            -- So the result of the complex multiplication is valid on del14.
             headerDel14 <= headerDel13;
-            dataDel14 <= dataDel13;
             validDel14 <= validDel13;
             dataValidDel14 <= dataValidDel13;
             
-            -- Scale by i_RFIScale(4:3) (in "ShiftandRound" modules)
+                    
             headerDel15 <= headerDel14;
-            dataDel15 <= dataDel14;
+            --dataDel15 <= dataDel14;
             validDel15 <= validDel14;
             dataValidDel15 <= dataValidDel14;
             
-            -- Scale by RFIScale(2:0), and calculate the convergent rounding. (in "ShiftandRound" modules)
+            -- Phase is valid on del4.
+            --  - 1 clock for rounding
+            --  - 7 clocks for the sinCos lookup
+            --  - 4 clocks for the complex multiplication
+            -- So the result of the complex multiplication is valid on del16.
             headerDel16 <= headerDel15;
-            dataDel16 <= dataDel15;
             validDel16 <= validDel15;
             dataValidDel16 <= dataValidDel15;
 
-            -- Apply convergent rounding (in "ShiftandRound" modules)
+            -- Scale by i_RFIScale(4:3) (in "ShiftandRound" modules)
             headerDel17 <= headerDel16;
-            dataDel17 <= dataDel16;
             validDel17 <= validDel16;
             dataValidDel17 <= dataValidDel16;
-
-            -- Saturate (in "ShiftandRound" modules)
+            
+            -- Scale by RFIScale(2:0), and calculate the convergent rounding. (in "ShiftandRound" modules)
             headerDel18 <= headerDel17;
-            dataDel18 <= dataDel17;
             validDel18 <= validDel17;
             dataValidDel18 <= dataValidDel17;            
+
+            -- Apply convergent rounding (in "ShiftandRound" modules) 
+            headerDel19 <= headerDel18;
+            validDel19 <= validDel18;
+            dataValidDel19 <= dataValidDel18; 
+            
+            -- Saturate (in "ShiftandRound" modules)
+            headerDel20 <= headerDel19;
+            validDel20 <= validDel19;
+            dataValidDel20 <= dataValidDel19; 
             
             --------------------------------------------------------------------
             -- Log statistics and generate the output data.
@@ -347,17 +354,17 @@ begin
             o_data.Hpol.im <= HpolImagRounded;
             o_data.Vpol.re <= VpolRealRounded;
             o_data.Vpol.im <= VpolImagRounded;
-            o_dataValid <= dataValidDel18;
-            o_header <= headerDel18;
-            o_headerValid <= validDel18;
-            if validDel18 = '1' then -- first output sample in a packet
-                virtualChannel <= headerDel18.virtualChannel;
+            o_dataValid <= dataValidDel20;
+            o_header <= headerDel20;
+            o_headerValid <= validDel20;
+            if validDel20 = '1' then -- first output sample in a packet
+                virtualChannel <= headerDel20.virtualChannel;
                 countOverflow <=  soverflowCountExt;
                 count64_127   <=  s64_127CountExt;
                 count32_63    <=  s32_63CountExt;
                 count16_31    <=  s16_31CountExt;
                 count0_15     <=  s0_15CountExt;
-            elsif dataValidDel18 = '1' then  -- data output samples.
+            elsif dataValidDel20 = '1' then  -- data output samples.
                 countOverflow <= std_logic_vector(unsigned(countOverflow) + unsigned(soverflowCountExt));
                 count64_127   <= std_logic_vector(unsigned(count64_127) + unsigned(s64_127CountExt));
                 count32_63    <= std_logic_vector(unsigned(count32_63) + unsigned(s32_63CountExt));
@@ -365,8 +372,8 @@ begin
                 count0_15     <= std_logic_vector(unsigned(count0_15) + unsigned(s0_15CountExt));
             end if;
             
-            dataValidDel19 <= dataValidDel18;
-            if dataValidDel19 = '1' and dataValidDel18 = '0' then -- falling edge, output the histogram counts
+            dataValidDel21 <= dataValidDel20;
+            if dataValidDel21 = '1' and dataValidDel20 = '0' then -- falling edge, output the histogram counts
                 o_overflow  <= countOverflow; -- Number of fine channels which were clipped.
                 o_64_127    <= count64_127;   -- Number of fine channels in the range 64 to 128.
                 o_32_63     <= count32_63;    -- Number of fine channels in the range 32 to 64.
@@ -386,21 +393,47 @@ begin
     -- it can be incremented by headerDel4.HDeltaP. It then has to be scaled down here to get the correct 
     -- scale at the input to the sin/cos lookup.
     HpolPhase <= 
-        HpolPhaseCurrent(23 downto 8) when (FBSELECTION = 0) else    -- PSS
-        HpolPhaseCurrent(25 downto 10) when (FBSELECTION = 1) else   -- PST
-        HpolPhaseCurrent(27) & HpolPhaseCurrent(27) & HpolPhaseCurrent(27 downto 14);  -- Correlator
+        HpolPhaseCurrent(39 downto 8) when (FBSELECTION = 0) else    -- PSS
+        HpolPhaseCurrent(41 downto 10) when (FBSELECTION = 1) else   -- PST
+        HpolPhaseCurrent(43) & HpolPhaseCurrent(43) & HpolPhaseCurrent(43 downto 14);  -- Correlator
     VpolPhase <= 
-        VpolPhaseCurrent(23 downto 8) when (FBSELECTION = 0) else
-        VpolPhaseCurrent(25 downto 10) when (FBSELECTION = 1) else
-        VpolPhaseCurrent(27) & VpolPhaseCurrent(27) & VpolPhaseCurrent(27 downto 14);
+        VpolPhaseCurrent(39 downto 8) when (FBSELECTION = 0) else
+        VpolPhaseCurrent(41 downto 10) when (FBSELECTION = 1) else
+        VpolPhaseCurrent(43) & VpolPhaseCurrent(43) & VpolPhaseCurrent(43 downto 14);
     
-    -- Phase is represented with 13 bits.
-    -- e.g. An unsigned input value of 4096 corresponds to pi radians.
+    HpolPhase_int <= HpolPhase(28 downto 5);
+    HpolPhase_frac <= HpolPhase(4 downto 0);
+    
+    VpolPhase_int <= VpolPhase(28 downto 5);
+    VpolPhase_frac <= VpolPhase(4 downto 0);
+    
+    process(i_clk)
+    begin
+        if rising_edge(i_clk) then
+            if ((HpolPhase_int(0) = '0' and (HpolPhase_frac(4) = '0' or HpolPhase_frac(4 downto 0) = "10000")) or
+                (HpolPhase_int(0) = '1' and (HpolPhase_frac(4) = '0'))) then
+                HpolPhaseRounded <= HpolPhase_int;
+            else
+                HpolPhaseRounded <= std_logic_vector(unsigned(HpolPhase_int) + 1);
+            end if;
+            
+            if ((VpolPhase_int(0) = '0' and (VpolPhase_frac(4) = '0' or VpolPhase_frac(4 downto 0) = "10000")) or
+                (VpolPhase_int(0) = '1' and (VpolPhase_frac(4) = '0'))) then
+                VpolPhaseRounded <= VpolPhase_int;
+            else
+                VpolPhaseRounded <= std_logic_vector(unsigned(VpolPhase_int) + 1);
+            end if;
+        end if;
+    end process;
+    
+    -- Phase was represented with 13 bits. (e.g. An unsigned input value of 4096 corresponds to pi radians.)
+    -- Phase is now represented with 24 bits.
+    -- 7 clock latency.
     HpolGenSinCos : GenSinCos
     port map (
         aclk => i_clk,
         s_axis_phase_tvalid => '1',
-        s_axis_phase_tdata => HpolPhase,
+        s_axis_phase_tdata => HpolPhaseRounded,
         m_axis_data_tvalid => open,
         m_axis_data_tdata => HpolSinCos
     );    
@@ -409,13 +442,20 @@ begin
     port map (
         aclk => i_clk,
         s_axis_phase_tvalid => '1',
-        s_axis_phase_tdata => VpolPhase,
+        s_axis_phase_tdata => VpolPhaseRounded,
         m_axis_data_tvalid => open,
         m_axis_data_tdata => VpolSinCos    
     );
 
-    HpolMultIn(15 downto 0) <= dataDel10.hpol.re;
-    HpolMultIn(31 downto 16) <= dataDel10.hpol.im;
+    process(i_clk)
+    begin
+        if rising_edge(i_clk) then
+            HpolMultIn(15 downto 0) <= dataDel11.hpol.re;
+            HpolMultIn(31 downto 16) <= dataDel11.hpol.im;
+            VpolMultIn(15 downto 0) <= dataDel11.vpol.re;
+            VpolMultIn(31 downto 16) <= dataDel11.vpol.im;
+        end if;
+    end process;    
 
     HpolMult : FineDelayComplexMult
     port map (
@@ -428,8 +468,6 @@ begin
         m_axis_dout_tdata  => HpolMultOut    -- (79:0), (34:0) = real, (74:40) = imaginary.
     );
 
-    VpolMultIn(15 downto 0) <= dataDel10.vpol.re;
-    VpolMultIn(31 downto 16) <= dataDel10.vpol.im;
 
     VpolMult : FineDelayComplexMult
     port map (

@@ -34,8 +34,8 @@ entity tb_correlatorCore is
         g_CORRELATORS : integer := 2; -- Number of correlator instances to instantiate (0, 1, 2)
         g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
-        g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
-        --g_TEST_CASE : string := "../../../../../../../";
+        --g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        g_TEST_CASE : string := "../../../../../../../";
         -- text file with SPS packets
         g_SPS_DATA_FILENAME : string := "sps_axi_tb_input.txt";
         -- Register initialisation
@@ -275,6 +275,7 @@ architecture Behavioral of tb_correlatorCore is
     
     signal ct2_readout_start  : std_logic := '0';
     signal ct2_readout_buffer : std_logic := '0';
+    signal ct2_readout_frameCount : std_logic_vector(31 downto 0) := x"00000000";
     
     signal cor0_tb_data : std_logic_vector(255 downto 0);
     signal cor0_tb_data_check : t_slv_32_arr(7 downto 0);
@@ -510,6 +511,7 @@ begin
         wait;
     end process;
     ct2_readout_buffer <= '0';
+    ct2_readout_frameCount <= (others => '0');
     
     m00_bram_addr_word <= m00_bram_addr(16 downto 2);
     
@@ -1009,7 +1011,8 @@ begin
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start  => ct2_readout_start, -- in std_logic;
-        i_ct2_readout_buffer => ct2_readout_buffer, -- in std_logic
+        i_ct2_readout_buffer => ct2_readout_buffer, -- in std_logic;
+        i_ct2_readout_frameCount => ct2_readout_frameCount, -- in (31:0);
         ---------------------------------------------------------------
         -- copy of the bus taking data to be written to the HBM.
         -- Used for simulation only, to check against the model data.

@@ -11,6 +11,42 @@ peripherals:
     peripheral_description : "Correlator corner turn 1 configuration"
 
     slave_ports:
+      - slave_name        : polynomial_ram
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Polynomial coefficients and control"
+        fields            :
+          - - field_name        : poly_config_ram
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 65536
+              interface         : simple
+              reset_value       : 0
+              field_description : "65536 fields x 4 bytes = 262144 Bytes of space, of which 163840 bytes is used.
+                                    Bytes 0 to 79 : Config for virtual channel 0, buffer 0 (see below for specification of contents)
+                                    Bytes 80 to 159 : Config for virtual channel 1, buffer 0
+                                    ...
+                                    bytes 81840 to 81919 : Config for virtual channel 1023, first buffer
+                                    bytes 81920 to 163839 : Config for all 1024 virtual channels, second buffer
+                                   
+                                   Each group of 80 bytes is 10 x 8byte words, where each 8-byte word contains : 
+                                    word 0 = c0
+                                     ...  
+                                    word 5 = c5
+                                     - c0 to c5 are double precision floating point values for the delay polynomial :
+                                       c0 + c1*t + c2 * t^2 + c3 * t^3 + c4 * t^4 + c5 * t^5
+                                     - Units for c0,.. c5 are ns/s^k for k=0,1,..5
+                                    word 6 = Sky frequency in GHz
+                                     - Used to convert the delay (in ns) to a phase rotation.
+                                    word 7 = buf_offset_seconds : seconds from the polynomial epoch to the start of the integration period, as a double precision value 
+                                    word 8 = double precision offset in ns for the second polarisation (relative to the first polarisation).
+                                    word 9 = Validity time
+                                     - bits 31:0 = buf_integration : Integration period at which the polynomial becomes valid. Integration period
+                                                   is in units of 0.84934656 seconds, i.e. units of (384 SPS packets) 
+                                     - bit 32 = Entry is valid.
+                                  "
+      
       - slave_name        : config
         slave_type        : reg
         number_of_slaves  : 1
@@ -54,86 +90,7 @@ peripherals:
               reset_value       : 0x0
               field_description : "The integration interval that we are currently writing data for.\
                                    Integration intervals are 849ms blocks of data, and this value counts from the start of the SPS epoch."
-
-          - - field_name        : active_table
-              width             : 1
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "Which table is currently used by the corner turn? Do not change contents of that table unless in reset."        
-        
-          - - field_name        : table0_valid
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Indicates that delay table 0 contains valid data. Table 0 delays will be used if \
-                                   the table is valid, the current packet being processed is greater than or equal to \
-                                   table0_startpacket and table 0 is more recent than table 1, if table 1 is also valid"
-              
-          - - field_name        : table0_startPacket_low
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "low 32 bits of the packet count that the fine delay values in table_0 are referenced to. \
-                                   table 0 is used when the actual packet count passes this value"
-        
-          - - field_name        : table0_startPacket_high
-              width             : 16
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "High 16 bits for the packet count that table0 becomes valid at"
-          
-          - - field_name        : table0_ns_offset
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "ns offset to be used for delay polynomial evaluation for delay table 0."
-          
-          - - field_name        : table1_valid
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Indicates that delay table 1 contains valid data. Table 1 delays will be used if \
-                                   the table is valid, the current packet being processed is greater than or equal to \
-                                   table1_startpacket and table 1 is more recent than table 0, if table 0 is also valid"
-              
-          - - field_name        : table1_startPacket_low
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "low 32 bits of the packet count that the fine delay values in table_1 are referenced to. \
-                                   table 0 is used when the actual packet count passes this value"
-        
-          - - field_name        : table1_startPacket_high
-              width             : 16
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "High 16 bits for the packet count that table1 becomes valid at"
-          
-          - - field_name        : table1_ns_offset
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "ns offset to be used for delay polynomial evaluation for delay table 1."
-          
-          - - field_name        : table_0
-              width             : 32
-              number_of_fields  : 4096
-              access_mode       : RW
-              field_description : "Coarse and fine delay values - Table 0. \
-                                    Each virtual channel C has 4 words, at addresses 4C, 4C+1, 4C+2, 4C+3. \
-                                    Word 0, bits 10:0 = Coarse Delay, bits 31:16 = Hpol DeltaP. \
-                                    Word 1, bits 15:0 = Vpol DeltaP, bits 31:16 = DeltaDelta P (common to both polarisations).\
-                                    Word 2, bits 15:0 = Hpol phase offset for the center frequency, bits(31:16) = Vpol phase offset for the center frequency. \
-                                    Word 3, bits 31:0 = step in the phase offset for the center frequency per output packet. This is common to both polarisations. \
-                                    See confluence documentation for details. \
-                                    TO BE UPDATED TO CONTAIN DELAY POLYNOMIALS "
-
-          - - field_name        : table_1
-              width             : 32
-              number_of_fields  : 4096
-              access_mode       : RW
-              field_description : "Coarse delay values - Table 1. As per the definition for table_0."
-
+                                   
           - - field_name        : early_or_late_count
               width             : 32
               access_mode       : RO
@@ -156,6 +113,7 @@ peripherals:
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
+
               field_description : "Count of SPS packets on the filterbank read out with no data."
               
           - - field_name        : buffers_sent_count

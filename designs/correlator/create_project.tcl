@@ -308,6 +308,8 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_init_memspace.vhd \
 }]
 
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/spead/src/spead_registers.vhd]
+
 ## tcl scripts for ip generation
 source $COMMON_PATH/spead/spead.tcl
 
@@ -356,15 +358,19 @@ source $COMMON_PATH/common/src/args_axi_terminus.tcl
 add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
   $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_eval.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
 ]
 set_property library ct_lib [get_files {\
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+ *libraries/signalProcessing/cornerturn1/poly_eval.vhd \
+ *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
@@ -372,7 +378,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn1/corr_div3.vhd \
 }]
 
-#source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1.tcl
+source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1.tcl
 
 #############################################################
 # output corner turn (between filterbanks and correlator)

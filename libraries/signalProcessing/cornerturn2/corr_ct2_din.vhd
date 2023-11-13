@@ -79,6 +79,7 @@ entity corr_ct2_din is
         i_dataValid       : in std_logic;
         o_trigger_readout : out std_logic; -- Just received the last packet in a frame for a particular virtual channel.
         o_trigger_buffer  : out std_logic;
+        o_trigger_frameCount : out std_logic_vector(31 downto 0);
         --------------------------------------------------------------------
         -- interface to the demap table 
         o_vc_demap_rd_addr   : out std_logic_vector(7 downto 0);
@@ -214,6 +215,7 @@ architecture Behavioral of corr_ct2_din is
 
     signal wait_HBMX_aw_rdy_stuck       : std_logic;
     signal wait_HBMX_aw_rdy_stuck_cnt   : unsigned(15 downto 0) := x"0000";
+    signal trigger_frameCount, recent_frameCount : std_logic_vector(31 downto 0);
     
     COMPONENT ila_0
     PORT (
@@ -455,6 +457,7 @@ begin
             if i_dataValid = '0' and dataValidDel1 = '1' and timeStep(4 downto 0) = "11111" then
                 copyToHBM <= '1';
                 copyToHBM_buffer <= frameCount_849ms(0); -- every 849 ms, alternate halfs within each 3 Gbyte HBM buffer.
+                recent_frameCount <= frameCount_849ms;
                 -- Parameters for this block of data :
                 copyToHBM_time(0) <= timeStep(5); -- first or second half of the 64 time samples per first corner turn frame.
                 copyToHBM_time(2 downto 1) <= frameCount_mod3;
@@ -951,6 +954,7 @@ begin
             if ((dataFIFO_valid(0) = '1' and dataFIFO_dout(0)(513) = '1') or 
                 (dataFIFO_valid(1) = '1' and dataFIFO_dout(1)(513) = '1')) then
                 trigger_readout <= '1';
+                trigger_frameCount <= recent_frameCount;
                 if dataFIFO_valid(0) = '1' then
                     trigger_buffer <= dataFIFO_dout(0)(514);
                 else
@@ -964,5 +968,6 @@ begin
     
     o_trigger_readout <= trigger_readout;
     o_trigger_buffer <= trigger_buffer;
+    o_trigger_frameCount <= trigger_frameCount;
     
 end Behavioral;
