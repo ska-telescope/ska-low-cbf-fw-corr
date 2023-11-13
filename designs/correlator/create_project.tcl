@@ -308,6 +308,8 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_init_memspace.vhd \
 }]
 
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/spead/src/spead_registers.vhd]
+
 ## tcl scripts for ip generation
 source $COMMON_PATH/spead/spead.tcl
 
