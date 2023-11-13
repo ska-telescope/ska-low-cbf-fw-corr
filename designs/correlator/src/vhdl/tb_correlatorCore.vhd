@@ -34,8 +34,8 @@ entity tb_correlatorCore is
         g_CORRELATORS : integer := 2; -- Number of correlator instances to instantiate (0, 1, 2)
         g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
-        g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
-        --g_TEST_CASE : string := "../../../../../../../";
+        --g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        g_TEST_CASE : string := "../../../../../../../";
         -- text file with SPS packets
         g_SPS_DATA_FILENAME : string := "sps_axi_tb_input.txt";
         -- Register initialisation

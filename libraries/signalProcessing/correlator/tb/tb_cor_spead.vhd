@@ -82,6 +82,11 @@ signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal stim_sub_array           : std_logic_vector(7 downto 0); 
 signal stim_freq_index          : std_logic_vector(16 downto 0);
 
+signal stim_time_ref            : std_logic_vector(63 downto 0);
+signal ints_since_epoch         : std_logic_vector(31 downto 0);
+signal no_of_283s               : std_logic_vector(1 downto 0);
+signal time_of_int              : std_logic;
+
 signal data_valid               : std_logic := '0';
 
 constant DEBUG_VEC_SIZE         : integer := 11;
@@ -270,6 +275,11 @@ begin
             init_mem        <= '0';
             cmac_ready      <= '0';
             tb_debug        <= (others => '0');
+            
+            ints_since_epoch<= 32D"0";
+            no_of_283s      <= "00";
+            time_of_int     <= '0';
+            stim_time_ref   <= (others => '0');
         else
             
             if testCount_300 = 1 then
@@ -292,6 +302,8 @@ begin
                 row_count   <= "000000000";
                 data_valid  <= '0';
             end if;
+            
+            stim_time_ref   <= (others => '0');
 
             -- using defaul values send end packets.
             if testCount_300 = 1500 then
@@ -362,6 +374,10 @@ begin
 
                 stim_freq_index <= 17D"0";
                 stim_sub_array  <= 8D"0";
+                
+                stim_time_ref(31 downto 0)  <= 32D"4";
+                stim_time_ref(33 downto 32) <= "01";
+                stim_time_ref(34)           <= '1';
             elsif testCount_300 = 15000 then
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";
@@ -370,6 +386,10 @@ begin
 
                 stim_freq_index <= 17D"1";
                 stim_sub_array  <= 8D"0";
+                
+                stim_time_ref(31 downto 0)  <= 32D"3";
+                stim_time_ref(33 downto 32) <= "00";
+                stim_time_ref(34)           <= '0';
             else
                 i <= 0;
                 meta_data_sel <= '0';
@@ -381,6 +401,8 @@ begin
 
     end if;
 end process;
+
+
 
 DUT : entity correlator_lib.correlator_data_reader generic map ( 
         DEBUG_ILA           => FALSE
@@ -402,7 +424,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_sub_array         => stim_sub_array,
         i_freq_index        => stim_freq_index,
         i_data_valid        => data_valid,
-        i_time_ref          => (others => '0'),
+        i_time_ref          => stim_time_ref,
                             
         i_row               => row,
         i_row_count         => row_count,
