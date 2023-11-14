@@ -2,7 +2,7 @@
 name = "ska-low-cbf-corr-fw"
 version = "0.0.2"
 description = "Low CBF correlator firmware"
-authors = ["Your Name <you@example.com>"]
+authors = ["David Humphrey", "Norbert Abel", "Leon Heimstra", "Andrew Brown"]
 license = "CSIRO Open Source Software License"
 
 [tool.poetry.dependencies]
