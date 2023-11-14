@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "ska-low-cbf-corr-fw"
+version = "0.0.2"
+description = "Low CBF correlator firmware"
+authors = ["David Humphrey", "Norbert Abel", "Leon Heimstra", "Andrew Brown"]
+license = "CSIRO Open Source Software License"
+
+[tool.poetry.dependencies]
+python = "~3.10"
+
+[[tool.poetry.source]]
+name = 'ska'
+url = 'https://artefact.skao.int/repository/pypi-internal/simple'
+secondary = true
+
+
+[tool.poetry.group.docs.dependencies]
+Sphinx = "^6.2.1"
+PyYAML = "^6.0"
+ska-ser-devices = "^0.1.1"
+ska-ser-scpi = "^0.4.0"
+ska-ser-sphinx-theme = "^0.1.1"
+sphinx-rtd-theme = "^1.2.1"
+sphinx-autodoc-typehints = "^1.23.0"
+transitions = "^0.9.0"
+recommonmark = "^0.7.1"
