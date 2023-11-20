@@ -96,9 +96,10 @@ system being used.
 # Changelog
 
 * 0.0.2 - 
-    * Delay Polynomials added
-    * Supports 16 x 16 matrix
-    * SPEAD updates to Hz, Timestamps and INIT packet byte length
+    * Delay Polynomials and Tracking implemented.
+    * Supports upto 16 x 16 matrix.
+    * SPEAD updates to Hz, Timestamps and INIT packet byte length.
+    * FAT release.
 * 0.0.1 - 
     * Two instance correlator.
     * U55C  - xilinx_u55c_gen3x16_xdma_3_202210_1
