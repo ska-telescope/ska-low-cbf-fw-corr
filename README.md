@@ -95,6 +95,8 @@ system being used.
 
 # Changelog
 
+* 0.0.3 - 
+    * IPv4 checksum bug fix.
 * 0.0.2 - 
     * Delay Polynomials and Tracking implemented.
     * Supports upto 16 x 16 matrix.
