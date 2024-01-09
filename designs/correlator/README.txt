@@ -31,6 +31,14 @@ export VITIS_VERSION=2022.2
 export COMMON_PATH=~/projects/perentie/ska-low-cbf-fw-corr/common
 vivado -mode batch -source create_project.tcl
 
+# For v80 design
+export PERSONALITY=correlator
+export TARGET_ALVEO=v80
+export VITIS_VERSION=2023.2
+export COMMON_PATH=~/projects/perentie/ska-low-cbf-fw-corr/common
+
+vivado -mode batch -source create_project_v80.tcl
+
 # 6. Open the project in vivado
 
 # 7. More stuff to do to run vitis...

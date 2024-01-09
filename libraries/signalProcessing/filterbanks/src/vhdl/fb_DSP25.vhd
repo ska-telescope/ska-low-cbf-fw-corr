@@ -24,7 +24,8 @@ use common_lib.common_pkg.all;
 
 entity fb_DSP25 is
     generic (
-        TAPS : integer := 12  -- The module instantiates this number of DSP
+        TAPS : integer := 12;  -- The module instantiates this number of DSP
+        USE_VERSAL : boolean := false
     );
     port(
         clk : in std_logic;
@@ -65,10 +66,33 @@ architecture Behavioral of fb_DSP25 is
         pcout : out std_logic_vector(47 downto 0);
         p     : out std_logic_vector(44 downto 0));
     end component;
+
+    -- Versal versions have a 58 bit wide accumulator.
+    component DSP_AxB_versal
+    port (
+        clk   : in std_logic;
+        a     : in std_logic_vector(26 downto 0);
+        b     : in std_logic_vector(17 downto 0);
+        pcout : out std_logic_vector(57 downto 0);
+        p     : out std_logic_vector(44 downto 0));
+    end component;
+
+    component DSP_AxB_plus_PCIN_versal
+    port (
+        clk   : in std_logic;
+        pcin  : in std_logic_vector(57 downto 0);
+        a     : in std_logic_vector(26 downto 0);
+        b     : in std_logic_vector(17 downto 0);
+        pcout : out std_logic_vector(57 downto 0);
+        p     : out std_logic_vector(57 downto 0));
+    end component;
+
     
     signal pc : t_slv_48_arr((TAPS-1) downto 0);
+    TYPE t_slv_58_arr      IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(57 DOWNTO 0);
+    signal pc58 : t_slv_58_arr((TAPS-1) downto 0);
     signal dataFull : t_slv_27_arr((TAPS-1) downto 0);
-    signal finalSum : std_logic_vector(47 downto 0);
+    signal finalSum : std_logic_vector(57 downto 0);
     
     signal intPart : std_logic_vector(15 downto 0);
     signal fracPart : std_logic_vector(8 downto 0);
@@ -76,46 +100,94 @@ architecture Behavioral of fb_DSP25 is
 begin
 
     -- First filter tap (no pcin)
-    dsp_first : DSP_AxB
-    port map (
-        clk  => clk,
-        a    => dataFull(0), -- in(26:0)
-        b    => coef_i(0),   -- in(17:0)
-        pcout => pc(0),      -- out(47:0)
-        p     => open        -- out(44:0)
-    );
-    
-    dataFull(0) <= data_i(0) & "0000000000000000000";
-    
-    -- Middle filter taps
-    DSPGen : for i in 1 to (TAPS - 2) generate
-        
-        dataFull(i) <= data_i(i) & "0000000000000000000";
-        
-        dspinst : DSP_AxB_plus_PCIN
+    usplus_g0 : if (not USE_VERSAL) generate
+        dsp_first : DSP_AxB
         port map (
             clk  => clk,
-            pcin => pc(i-1),     -- in(47:0)
-            a    => dataFull(i), -- in(26:0)
-            b    => coef_i(i),   -- in(17:0)
-            pcout => pc(i),      -- out(47:0)
-            p     => open        -- out(47:0)
+            a    => dataFull(0), -- in(26:0)
+            b    => coef_i(0),   -- in(17:0)
+            pcout => pc(0),      -- out(47:0)
+            p     => open        -- out(44:0)
+        );
+
+        dataFull(0) <= data_i(0) & "0000000000000000000";
+        
+        -- Middle filter taps
+        DSPGen : for i in 1 to (TAPS - 2) generate
+            
+            dataFull(i) <= data_i(i) & "0000000000000000000";
+            
+            dspinst : DSP_AxB_plus_PCIN
+            port map (
+                clk  => clk,
+                pcin => pc(i-1),     -- in(47:0)
+                a    => dataFull(i), -- in(26:0)
+                b    => coef_i(i),   -- in(17:0)
+                pcout => pc(i),      -- out(47:0)
+                p     => open        -- out(47:0)
+            );
+            
+        end generate;
+        
+        -- Last filter tap
+        dataFull(TAPS - 1) <= data_i(TAPS - 1) & "0000000000000000000";
+        dsp_last : DSP_AxB_plus_PCIN
+        port map (
+            clk  => clk,
+            pcin => pc(TAPS-2),         -- in(47:0)
+            a    => dataFull(TAPS - 1), -- in(26:0)
+            b    => coef_i(TAPS - 1),   -- in(17:0)
+            pcout => open,              -- out(47:0)
+            p     => finalSum(47 downto 0) -- out(47:0)
         );
         
     end generate;
-    
-    -- Last filter tap
-    dataFull(TAPS - 1) <= data_i(TAPS - 1) & "0000000000000000000";
-    dsp_last : DSP_AxB_plus_PCIN
-    port map (
-        clk  => clk,
-        pcin => pc(TAPS-2),         -- in(47:0)
-        a    => dataFull(TAPS - 1), -- in(26:0)
-        b    => coef_i(TAPS - 1),   -- in(17:0)
-        pcout => open,              -- out(47:0)
-        p     => finalSum           -- out(47:0)
-    );
-    
+
+
+    versal_g0 : if (USE_VERSAL) generate
+        dsp_first : DSP_AxB_versal
+        port map (
+            clk  => clk,
+            a    => dataFull(0), -- in(26:0)
+            b    => coef_i(0),   -- in(17:0)
+            pcout => pc58(0),    -- out(57:0)
+            p     => open        -- out(44:0)
+        );
+
+        dataFull(0) <= data_i(0) & "0000000000000000000";
+        
+        -- Middle filter taps
+        DSPGen : for i in 1 to (TAPS - 2) generate
+            
+            dataFull(i) <= data_i(i) & "0000000000000000000";
+            
+            dspinst : DSP_AxB_plus_PCIN_versal
+            port map (
+                clk  => clk,
+                pcin => pc58(i-1),   -- in(57:0)
+                a    => dataFull(i), -- in(26:0)
+                b    => coef_i(i),   -- in(17:0)
+                pcout => pc58(i),    -- out(57:0)
+                p     => open        -- out(57:0)
+            );
+            
+        end generate;
+        
+        -- Last filter tap
+        dataFull(TAPS - 1) <= data_i(TAPS - 1) & "0000000000000000000";
+        dsp_last : DSP_AxB_plus_PCIN_versal
+        port map (
+            clk  => clk,
+            pcin => pc58(TAPS-2),       -- in(57:0)
+            a    => dataFull(TAPS - 1), -- in(26:0)
+            b    => coef_i(TAPS - 1),   -- in(17:0)
+            pcout => open,              -- out(57:0)
+            p     => finalSum           -- out(57:0)
+        );        
+        
+    end generate;
+
+
     --  FIR Scaling:
     --   The largest possible output of a single multiplication is 76139 * 2048 = a bit more than 2^27
     --   The sum of the abs() of the filter taps is assumed < 2^17 (Note 2^17 = 131072).

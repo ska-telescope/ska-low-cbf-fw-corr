@@ -28,7 +28,7 @@ Library xpm;
 use xpm.vcomponents.all;
 
 -------------------------------------------------------------------------------
-ENTITY correlator_core IS
+ENTITY correlator_core_v80 IS
     generic (
         -- GENERICS for use in the testbench 
         g_SIMULATION : boolean := FALSE;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
@@ -260,10 +260,10 @@ ENTITY correlator_core IS
         -- Used in the testbench to trigger download of the data written into the CT2 memory.
         o_FB_out_sof   : out std_logic
     );
-END correlator_core;
+END correlator_core_v80;
 
 -------------------------------------------------------------------------------
-ARCHITECTURE structure OF correlator_core IS
+ARCHITECTURE structure OF correlator_core_v80 IS
 
     -- 300MHz in, 100 MHz and 425 MHz out.
     component clk_gen100MHz

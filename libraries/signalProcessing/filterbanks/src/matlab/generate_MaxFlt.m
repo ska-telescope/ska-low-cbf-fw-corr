@@ -59,7 +59,7 @@ corfh=freqz(corh,2000)*2000;
 ampf=corf.*conj(corf)+corfh.*conj(corfh);
 error = fftshift((ifft(1-ampf)));
 
-
+%keyboard
 %{
 Variable nbuff*nTap is the length of the filter. 
 Typically: 4096 freq channels * 8 taps) 

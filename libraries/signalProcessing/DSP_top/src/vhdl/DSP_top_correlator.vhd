@@ -49,7 +49,8 @@ entity DSP_top_correlator is
         g_PACKET_SAMPLES_DIV16   : integer := 64;  -- Actual number of samples in a correlator SPEAD packet is this value x 16; each sample is 34 bytes; default value => 64*34 = 2176 bytes of data per packet.
         g_CORRELATORS            : integer := 2;
         g_MAX_CORRELATORS        : integer := 2;
-        g_USE_DUMMY_FB           : boolean := FALSE
+        g_USE_DUMMY_FB           : boolean := FALSE;
+        g_USE_VERSAL             : boolean
     );
     port (
         -----------------------------------------------------------------------
@@ -379,7 +380,9 @@ begin
     FBreali : if (not g_USE_DUMMY_FB) generate
 
         corFB_i : entity filterbanks_lib.FB_top_correlator
-        port map (
+        generic map (
+            g_USE_VERSAL => g_USE_VERSAL
+        ) port map (
             i_data_rst => FB_sof, -- in std_logic;
             -- Register interface
             i_axi_clk => i_MACE_clk,    -- in std_logic;

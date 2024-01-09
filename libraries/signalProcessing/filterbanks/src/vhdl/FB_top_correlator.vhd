@@ -25,6 +25,9 @@ use xpm.vcomponents.all;
 USE filterbanks_lib.cor_filterbanks_filterbanks_reg_pkg.ALL;
 
 entity FB_Top_correlator is
+    generic(
+        g_USE_VERSAL : boolean
+    ); 
     port(
         i_data_rst  : in std_logic;
         -- AXI slave interface, 64k word block of space with the fir filter coefficients.
@@ -285,7 +288,8 @@ begin
     corfbi : entity filterbanks_lib.correlatorFBTop25
     generic map(
         METABITS => 614, -- 361,    -- Width in bits of the meta_i and meta_o ports.
-        FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
+        FRAMESTODROP => 11,  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
+        g_USE_VERSAL => g_USE_VERSAL
     ) port map (
         -- processing clock
         clk     => i_axi_clk,
@@ -318,7 +322,8 @@ begin
     corfb2i : entity filterbanks_lib.correlatorFBTop25
     generic map(
         METABITS => 614,    -- Width in bits of the meta_i and meta_o ports.
-        FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
+        FRAMESTODROP => 11,  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
+        g_USE_VERSAL => g_USE_VERSAL
     ) port map (
         -- processing clock
         clk     => i_axi_clk,

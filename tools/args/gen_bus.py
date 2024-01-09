@@ -17,6 +17,7 @@ import collections
 from py_args_lib import *
 from fpga import FPGA
 import numpy as np
+from pprint import pprint
 from gen_slave import tab_aligned
 logger = logging.getLogger('main.gen_bus')
 
@@ -49,8 +50,141 @@ class Bus(object):
         self.indexes = self.calc_indexes()
         self.tcl_replace_dict = {'<fpga_name>':self.fpga.system_name, '<nof_slaves>' : str(self.nof_slaves)}
 
+    def gen_tcl_versal(self):
+        
+        print('!!!!!!!!!!! GEN TCL VERSAL !!!!!!!!!!!!!!!!')
+        lines = []
+        #pprint(self.fpga.address_map)
+        #pprint(vars(self.fpga))
+        pprint(self.tcl_replace_dict)
+        fpga_name = self.tcl_replace_dict['<fpga_name>']
+        
+        lines.append("startgroup\n")
+        lines.append(f"create_bd_design \"{fpga_name}_bd\"\n")
+
+        lines.append("# Create interface ports\n")
+        lines.append("# INI = inter NOC interface \n")
+        lines.append("set S00_INI_0 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:inimm_rtl:1.0 S00_INI_0 ]\n")
+        
+        lines.append("# Create reset and clock ports \n")
+        lines.append("set aresetn_0 [ create_bd_port -dir I -type rst aresetn_0 ] \n")
+        lines.append("set aclk0 [ create_bd_port -dir I -type clk -freq_hz 100000000 aclk0 ] \n")
+        # Not needed, should get inserted when validate is run : lines.append("set_property -dict [ list CONFIG.CLK_DOMAIN {bd_0459_aclk0} ] $aclk0 \n")   
+        lines.append("# Output ports to ARGs slaves \n")
+        slave_count = 0
+        peripheral_dict = {} # dictionary with key = peripheral name, value = ID used in block diagram for the NOC port and smartconnect instance
+        peripheral_slaves = {}   # Number of slaves for each peripheral.
+        peripheral_slave_ports = {}  # indexes of the slave ports connected to this peripheral
+        peripheral_count = 0
+        for slave_attr in self.fpga.address_map.values():
+            slave_ID_num = str(slave_count).zfill(2)
+            _protocol = 'AXI4LITE' if slave_attr['type'] == 'LITE' else 'AXI4'
+            lines.append(f"set M{slave_ID_num}_AXI [create_bd_intf_port -mode Master -vlnv xilinx.com:interface:aximm_rtl:1.0 M{slave_ID_num}_AXI ]\n")
+            lines.append(f"set_property -dict [ list CONFIG.ADDR_WIDTH {64}  CONFIG.DATA_WIDTH {32} CONFIG.PROTOCOL {_protocol} ] $M{slave_ID_num}_AXI \n")
+            # count the number of peripherals and ensure that all slaves for the same peripheral are sequential
+            if slave_attr['peripheral'].name() in peripheral_dict:
+                smartconnect_ID = peripheral_dict[slave_attr['peripheral'].name()]
+                peripheral_slaves[slave_attr['peripheral'].name()] = peripheral_slaves[slave_attr['peripheral'].name()] + 1
+                peripheral_slave_ports[slave_attr['peripheral'].name()].append(slave_count)
+            else:
+                smartconnect_ID = peripheral_count
+                peripheral_dict[slave_attr['peripheral'].name()] = peripheral_count
+                peripheral_slaves[slave_attr['peripheral'].name()] = 1  # just created, so one slave so far
+                peripheral_slave_ports[slave_attr['peripheral'].name()] = [slave_count]
+                peripheral_count += 1
+            slave_count += 1
+        
+        lines.append("# Create instance: axi_noc_0, and set properties \n")
+        lines.append("set axi_noc_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_noc:1.0 axi_noc_0 ]\n")
+        lines.append(f"set_property -dict [list CONFIG.NUM_MI {{{peripheral_count}}} CONFIG.NUM_NSI {{1}} CONFIG.NUM_SI {{0}}] $axi_noc_0 \n")
+        lines.append("connect_bd_net -net aclk_1 [get_bd_ports aclk0] [get_bd_pins axi_noc_0/aclk0] \n")
+        lines.append("connect_bd_intf_net -intf_net S00_INI_0_1 [get_bd_intf_ports S00_INI_0] [get_bd_intf_pins axi_noc_0/S00_INI] \n")
+        # Create smart connect blocks for each peripheral
+        all_M_interfaces = ""
+        all_connections = ""
+        #pprint(peripheral_dict)
+        for peripheral,smartconnect_ID in peripheral_dict.items():
+            lines.append(f"# smart connect for peripheral {peripheral} \n")
+            lines.append(f"set smartconnect_{smartconnect_ID} [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 smartconnect_{smartconnect_ID} ] \n")
+            lines.append(f"set_property -dict [list CONFIG.NUM_MI {peripheral_slaves[peripheral]} CONFIG.NUM_SI {1}] $smartconnect_{smartconnect_ID} \n")
+            for slave_count in range(peripheral_slaves[peripheral]):
+                # Connect the smartconnect AXI outputs to the block diagram ports
+                smartconnect_ID_num = str(slave_count).zfill(2)  # index of the output of the smartconnect block
+                slave_ID_num = str(peripheral_slave_ports[peripheral][slave_count]).zfill(2)  # index of the block diagram slave port 
+                lines.append(f"connect_bd_intf_net -intf_net smartconnect_{smartconnect_ID}_M{slave_ID_num}_AXI [get_bd_intf_ports M{slave_ID_num}_AXI] [get_bd_intf_pins smartconnect_{smartconnect_ID}/M{smartconnect_ID_num}_AXI]\n")
+            lines.append("# connect the smart connect input to the noc \n")
+            smartconnect_ID_num = str(smartconnect_ID).zfill(2)
+            lines.append(f"connect_bd_intf_net -intf_net axi_noc_0_M{smartconnect_ID_num}_AXI [get_bd_intf_pins smartconnect_{smartconnect_ID}/S00_AXI] [get_bd_intf_pins axi_noc_0/M{smartconnect_ID_num}_AXI]\n")
+            lines.append(f"connect_bd_net -net aclk_1 [get_bd_ports aclk0] [get_bd_pins smartconnect_{smartconnect_ID}/aclk]\n")
+            lines.append(f"connect_bd_net -net aresetn_0_1 [get_bd_ports aresetn_0] [get_bd_pins smartconnect_{smartconnect_ID}/aresetn]\n")
+            all_connections += f"M{smartconnect_ID_num}_AXI {{read_bw {{500}} write_bw {{500}} read_avg_burst {{4}} write_avg_burst {{4}}}} "
+            lines.append(f"set_property -dict [ list CONFIG.CONNECTIONS {{M{smartconnect_ID_num}_AXI {{read_bw {{500}} write_bw {{500}} read_avg_burst {{4}} write_avg_burst {{4}}}}}}] [get_bd_intf_pins /axi_noc_0/S00_INI] \n")
+            lines.append("# configure NOC apertures \n")
+            lines.append(f"set_property -dict [ list CONFIG.APERTURES {{{{0x201_0000_0000 1G}}}} CONFIG.CATEGORY {{pl}}] [get_bd_intf_pins /axi_noc_0/M{smartconnect_ID_num}_AXI] \n")
+            if len(all_M_interfaces) == 0:
+                all_M_interfaces += f"M{smartconnect_ID_num}_AXI"
+            else:
+                all_M_interfaces += f":M{smartconnect_ID_num}_AXI"
+        lines.append("# Associate clock with output interfaces\n")
+        lines.append(f"set_property -dict [ list CONFIG.ASSOCIATED_BUSIF {{{all_M_interfaces}}}] [get_bd_pins /axi_noc_0/aclk0]\n")
+        lines.append("# configure NOC quality of service and connect input INI to output MXX interfaces\n")
+        lines.append(f"set_property -dict [list CONFIG.CONNECTIONS {{{all_connections}}}] [get_bd_intf_pins /axi_noc_0/S00_INI] \n")
+
+        # Create the address map
+        slave_count = 0
+        for slave_attr in self.fpga.address_map.values():
+            if isinstance(slave_attr['slave'], Register):
+                if not getattr(slave_attr['slave'], 'isIP', False):
+                    span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
+                else:
+                    span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), 4096))
+            else:
+                span = slave_attr['span']
+            addr_base = slave_attr['base']
+            slave_ID_num = str(slave_count).zfill(2)
+            slave_count += 1
+            lines.append(f"assign_bd_address -offset 0x0201{addr_base:08x} -range 0x{span:08x} -target_address_space [get_bd_addr_spaces S00_INI_0] [get_bd_addr_segs M{slave_ID_num}_AXI/Reg] -force \n")
+
+        lines.append(f"save_bd_design \"{fpga_name}\"\n")
+        lines.append(f"validate_bd_design \n")
+        lines.append("endgroup \n")
+        lines.append(f"set bd_dir \"$workingDir/$proj_dir/{fpga_name}.srcs/sources_1/bd/{fpga_name}_bd\"\n")
+        lines.append(f"generate_target all [get_files $bd_dir/{fpga_name}_bd.bd] \n")
+        lines.append(f"make_wrapper -files [get_files $bd_dir/{fpga_name}_bd.bd] -top \n")
+        lines.append(f"set bd_dir \"$workingDir/$proj_dir/{fpga_name}.gen/sources_1/bd/{fpga_name}_bd\"\n")
+        lines.append(f"read_vhdl $bd_dir/hdl/{fpga_name}_bd_wrapper.vhd \n")
+        lines.append(f"set_property library {fpga_name}_lib [get_files $bd_dir/hdl/{fpga_name}_bd_wrapper.vhd] \n")
+
+        print(f'-- For fpga {fpga_name} : ')
+        for slave_attr in self.fpga.address_map.values():
+            #pprint(slave_attr["peripheral"]._component_name)
+
+            if isinstance(slave_attr['slave'], Register):
+                if not getattr(slave_attr['slave'], 'isIP', False):
+                    span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
+                else:
+                    span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), 4096))
+            else:
+                span = slave_attr['span']
+            addr_base = slave_attr['base']
+            slave_type = slave_attr['type']
+            parent_peripheral = slave_attr['peripheral'].name()
+            
+            print(f'------------------------------------')
+            print(f' -- SPAN = {span}')
+            print(f' -- BASE = {addr_base}')
+            print(f' -- TYPE = {slave_type}')
+            print(f' -- PERIPHERAL = {parent_peripheral}')
+            print(f' -----------------------------------')
+            #pprint(slave_attr)
+        
+        print('!!!!!!!!!! GEN TCL VERSAL FINISHED !!!!!!!!!!!!!!')
+        return lines
+
     def gen_tcl(self):
 
+        print('============= GEN TCL ORIGINAL ==================')
+        pprint(self.tcl_replace_dict)
         lines = []
         with open(self.tmpl_tcl, 'r') as infile:
             input = list(infile)
@@ -160,6 +294,8 @@ class Bus(object):
                         lines.append('# interconnect[{}]  <{}>   base: 0x{:08x} span: 0x{:06x}\n'.format(i, slave_attr['peripheral'].name(), slave_attr['base'], span))
                         _line = get_cmd(line).replace('<range>', str(int(span/1024)))
                         lines.append(_line.replace('<i>',str(i).zfill(2)))
+
+        print('============= GEN TCL ORIGINAL FINISHED ==================')
 
         return lines
 
@@ -272,6 +408,9 @@ class Bus(object):
         if file_type == 'tcl':
             lines = self.gen_tcl()
             out_file = self.fpga.system_name + '_bd.tcl'
+        if file_type == 'tcl_versal':
+            lines = self.gen_tcl_versal()
+            out_file = self.fpga.system_name + 'versal_bd.tcl'
         if file_type == 'pkg':
             lines = self.gen_pkg()
             out_file = self.fpga.system_name + '_bus_pkg.vhd'
@@ -290,6 +429,7 @@ class Bus(object):
         self.gen_file('pkg')
         self.gen_file('vhd')
         self.gen_file('tcl')
+        self.gen_file('tcl_versal')
         return self.output_files
 
     def calc_indexes(self):

@@ -85,7 +85,8 @@ use IEEE.NUMERIC_STD.ALL;
 entity correlatorFBTop25 is
     generic(
         METABITS : integer := 64;     -- Width in bits of the meta_i and meta_o ports.
-        FRAMESTODROP : integer := 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
+        FRAMESTODROP : integer := 11;  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
+        g_USE_VERSAL : boolean
     );
     port(
         -- clock, target is 380 MHz
@@ -160,7 +161,8 @@ begin
 
     cmem : entity filterbanks_lib.correlatorFBMem
     generic map (
-        TAPS => 12)  -- Note only partially parameterized; modification needed to support anything other than 12.
+        TAPS => 12,  -- Note only partially parameterized; modification needed to support anything other than 12.
+        g_USE_VERSAL => g_USE_VERSAL)
     port map (
         clk      => clk,
         -- Write data for the start of the chain
@@ -205,7 +207,8 @@ begin
             
         FIR : entity filterbanks_lib.fb_DSP25
         generic map (
-            TAPS => 12)  -- The module instantiates this number of DSPs
+            TAPS => 12,  -- The module instantiates this number of DSPs
+            USE_VERSAL => g_USE_VERSAL)
         port map (
             clk    => clk,
             data_i => FBRdDataDel(j),  -- in array8bit_type(11 downto 0);
