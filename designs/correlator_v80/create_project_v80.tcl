@@ -17,13 +17,13 @@ set time_raw [clock seconds];
 set date_string [clock format $time_raw -format "%y%m%d_%H%M%S"]
 
 set proj_dir "$env(RADIOHDL)/build/$env(PERSONALITY)/$env(PERSONALITY)_$env(TARGET_ALVEO)_build_$date_string"
-set ARGS_PATH "$env(RADIOHDL)/build/ARGS/correlator"
+set ARGS_PATH "$env(RADIOHDL)/build/ARGS/correlator_v80"
 set DESIGN_PATH "$env(RADIOHDL)/designs/$env(PERSONALITY)"
 set RLIBRARIES_PATH "$env(RADIOHDL)/libraries"
 set COMMON_PATH "$env(RADIOHDL)/common/libraries"
 set BUILD_PATH "$env(RADIOHDL)/build"
 set DEVICE "xcv80*"
-set BOARD "xilinx.com:au55c:part0:1.0"
+#set BOARD "xilinx.com:au55c:part0:1.0"  -- no v80 board, setting DEVICE only is fine.
 
 puts "RADIOHDL directory:"
 puts $env(RADIOHDL)
@@ -102,19 +102,19 @@ set_property target_simulator XSim [current_project]
 # This script uses the construct $workingDir/$proj_dir
 # So $proj_dir must be relative to $workingDir
 # 
-#source $ARGS_PATH/correlator_bd.tcl
+source $ARGS_PATH/correlator_v80versal_bd.tcl
 
 add_files -fileset sources_1 [glob \
-$ARGS_PATH/correlator_bus_pkg.vhd \
-$ARGS_PATH/correlator_bus_top.vhd \
+$ARGS_PATH/correlator_v80_bus_pkg.vhd \
+$ARGS_PATH/correlator_v80_noc_bus_top.vhd \
 $ARGS_PATH/correlator/system/correlator_system_reg_pkg.vhd \
 $ARGS_PATH/correlator/system/correlator_system_reg.vhd \
 ]
-set_property library correlator_lib [get_files {\
-*build/ARGS/correlator/correlator_bus_pkg.vhd \
-*build/ARGS/correlator/correlator_bus_top.vhd \
-*build/ARGS/correlator/correlator/system/correlator_system_reg_pkg.vhd \
-*build/ARGS/correlator/correlator/system/correlator_system_reg.vhd \
+set_property library correlator_v80_lib [get_files {\
+*build/ARGS/correlator_v80/correlator_v80_bus_pkg.vhd \
+*build/ARGS/correlator_v80/correlator_v80_noc_bus_top.vhd \
+*build/ARGS/correlator_v80/correlator/system/correlator_system_reg_pkg.vhd \
+*build/ARGS/correlator_v80/correlator/system/correlator_system_reg.vhd \
 }]
 
 ############################################################
@@ -128,8 +128,6 @@ set_property library correlator_lib [get_files {\
 add_files -fileset sources_1 [glob \
 $DESIGN_PATH/src/vhdl/u55c/correlator.vhd \
 $DESIGN_PATH/src/vhdl/correlator_core_v80.vhd \
-$DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
-$DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
 $DESIGN_PATH/src/vhdl/version_pkg.vhd \
 $COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 $BUILD_PATH/build_details_pkg.vhd \
@@ -140,15 +138,13 @@ $DESIGN_PATH/src/vhdl/tb_correlatorCore.vhd \
 $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd \
 ]
 
-set_property library correlator_lib [get_files {\
-*correlator/src/vhdl/u55c/correlator.vhd \
-*correlator/src/vhdl/correlator_core_v80.vhd \
-*correlator/src/vhdl/cdma_wrapper.vhd \
-*correlator/src/vhdl/krnl_control_axi.vhd \
-*correlator/src/vhdl/tb_correlatorCore.vhd \
-*correlator/src/vhdl/lbus_packet_receive.vhd \
-*correlator/src/vhdl/HBM_axi_tbModel.vhd \
-*correlator/src/vhdl/version_pkg.vhd \
+set_property library correlator_v80_lib [get_files {\
+*correlator_v80/src/vhdl/u55c/correlator.vhd \
+*correlator_v80/src/vhdl/correlator_core_v80.vhd \
+*correlator_v80/src/vhdl/tb_correlatorCore.vhd \
+*correlator_v80/src/vhdl/lbus_packet_receive.vhd \
+*correlator_v80/src/vhdl/HBM_axi_tbModel.vhd \
+*correlator_v80/src/vhdl/version_pkg.vhd \
 *hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 */build_details_pkg.vhd \
 }]
@@ -200,8 +196,6 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/base/common/src/vhdl/common_delay.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_ram_crw_crw.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_pipeline.vhd \
- $COMMON_PATH/base/common/src/vhdl/common_count_saturate.vhd \
- $COMMON_PATH/base/common/src/vhdl/common_accumulate.vhd \
 ]
 set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_reg_r_w.vhd \
@@ -220,8 +214,6 @@ set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_delay.vhd \
  *libraries/base/common/src/vhdl/common_ram_crw_crw.vhd \
  *libraries/base/common/src/vhdl/common_pipeline.vhd \
- *libraries/base/common/src/vhdl/common_count_saturate.vhd \
- *libraries/base/common/src/vhdl/common_accumulate.vhd \
 }]
 
 # AXI4
@@ -265,8 +257,8 @@ add_files -fileset sources_1 [glob \
  $RLIBRARIES_PATH/signalProcessing/LFAADecode100G/src/vhdl/LFAAProcess100G.vhd \
 ]
 set_property library LFAADecode100G_lib [get_files {\
- *build/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
- *build/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg.vhd \
+ *build/ARGS/correlator_v80/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
+ *build/ARGS/correlator_v80/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg.vhd \
  *libraries/signalProcessing/LFAADecode100G/src/vhdl/LFAADecode100G_lfaadecode100g_vcstats_ram.vhd \
  *libraries/signalProcessing/LFAADecode100G/src/vhdl/LFAADecodeTop100G.vhd \
  *libraries/signalProcessing/LFAADecode100G/src/vhdl/LFAAProcess100G.vhd \
@@ -305,14 +297,13 @@ add_files -fileset sources_1 [glob \
 ]
 
 set_property library spead_lib [get_files {\
- *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
- *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg.vhd \
- *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
- *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
+ *build/ARGS/correlator_v80/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ *build/ARGS/correlator_v80/spead/spead_sdp/spead_spead_sdp_reg.vhd \
+ *build/ARGS/correlator_v80/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ *build/ARGS/correlator_v80/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
- *libraries/Packetiser100G/src/vhdl/xpm_fifo_wrapper.vhd \
  *libraries/spead/src/spead_packet_pkg.vhd \
  *libraries/spead/src/spead_packet.vhd \
  *libraries/spead/src/spead_registers.vhd \
@@ -381,8 +372,8 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
 ]
 set_property library ct_lib [get_files {\
- *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
- *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+ *build/ARGS/correlator_v80/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
+ *build/ARGS/correlator_v80/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
  *libraries/signalProcessing/cornerturn1/poly_eval.vhd \
  *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
@@ -409,8 +400,8 @@ add_files -fileset sources_1 [glob \
 ]
 
 set_property library ct_lib [get_files {\
- *build/ARGS/correlator/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
- *build/ARGS/correlator/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
+ *build/ARGS/correlator_v80/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
+ *build/ARGS/correlator_v80/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_din.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
@@ -455,8 +446,8 @@ add_files -fileset sources_1 [glob \
 ]
 
 set_property library filterbanks_lib [get_files {\
-  *build/ARGS/correlator/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
-  *build/ARGS/correlator/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
+  *build/ARGS/correlator_v80/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
+  *build/ARGS/correlator_v80/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
@@ -511,8 +502,8 @@ add_files -fileset sources_1 [glob \
 ]
 
 set_property library correlator_lib [get_files {\
-  *build/ARGS/correlator/cor/config/cor_config_reg_pkg.vhd \
-  *build/ARGS/correlator/cor/config/cor_config_reg.vhd \
+  *build/ARGS/correlator_v80/cor/config/cor_config_reg_pkg.vhd \
+  *build/ARGS/correlator_v80/cor/config/cor_config_reg.vhd \
   *libraries/signalProcessing/correlator/correlator_top.vhd \
   *libraries/signalProcessing/correlator/single_correlator.vhd \
   *libraries/signalProcessing/correlator/full_correlator.vhd \
@@ -613,10 +604,10 @@ add_files -fileset sim_cor_read_spead [glob \
  $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \
 ]
 set_property library spead_lib [get_files {\
- *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
- *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg.vhd \
- *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
- *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
+ *build/ARGS/correlator_v80/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ *build/ARGS/correlator_v80/spead/spead_sdp/spead_spead_sdp_reg.vhd \
+ *build/ARGS/correlator_v80/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ *build/ARGS/correlator_v80/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
  *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
@@ -643,7 +634,7 @@ set_property library spead_lib [get_files {\
  */signalProcessing/correlator/tb/tb_cor_spead.vhd \
 }]
 
-set_property library correlator_lib [get_files {\
+set_property library correlator_v80_lib [get_files {\
  */src/vhdl/HBM_axi_tbModel.vhd \
 }]
 
@@ -678,7 +669,7 @@ $DESIGN_PATH/src/vhdl/tb_correlatorCore.vhd \
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
 update_compile_order -fileset sim_riv
 
-set_property library correlator_lib [get_files {\
+set_property library correlator_v80_lib [get_files {\
  */src/vhdl/HBM_axi_tbModel.vhd \
  */src/vhdl/tb_correlatorCore.vhd \
 }]

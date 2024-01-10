@@ -37,6 +37,8 @@ class Bus(object):
         self.tmpl_mstr_port_cast = os.path.join(self.root_dir, 'templates/template_bus_master_port_casting.vho')
         self.tmpl_bus_pkg = os.path.join(self.root_dir, 'templates/template_bus_pkg.vhd')
         self.tmpl_bus_top = os.path.join(self.root_dir, 'templates/template_bus_top.vhd')
+        self.tmpl_no_noc_bus_top = os.path.join(self.root_dir, 'templates/template_bus_top.vhd')
+        self.tmpl_noc_bus_top = os.path.join(self.root_dir, 'templates/template_noc_bus_top.vhd')
         self.tmpl_tcl = os.path.join(self.root_dir, 'templates/template_create_bd.tcl')
         self.bus_config  = {'burst':'1','lock':'1', 'cache':'1', 'prot':'1', 'qos':'0','region':'0','wstrb':'1'}
         self.lite_slaves = []
@@ -67,8 +69,8 @@ class Bus(object):
         lines.append("set S00_INI_0 [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:inimm_rtl:1.0 S00_INI_0 ]\n")
         
         lines.append("# Create reset and clock ports \n")
-        lines.append("set aresetn_0 [ create_bd_port -dir I -type rst aresetn_0 ] \n")
-        lines.append("set aclk0 [ create_bd_port -dir I -type clk -freq_hz 100000000 aclk0 ] \n")
+        lines.append("set aresetn [ create_bd_port -dir I -type rst aresetn ] \n")
+        lines.append("set aclk [ create_bd_port -dir I -type clk -freq_hz 100000000 aclk ] \n")
         # Not needed, should get inserted when validate is run : lines.append("set_property -dict [ list CONFIG.CLK_DOMAIN {bd_0459_aclk0} ] $aclk0 \n")   
         lines.append("# Output ports to ARGs slaves \n")
         slave_count = 0
@@ -97,7 +99,7 @@ class Bus(object):
         lines.append("# Create instance: axi_noc_0, and set properties \n")
         lines.append("set axi_noc_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_noc:1.0 axi_noc_0 ]\n")
         lines.append(f"set_property -dict [list CONFIG.NUM_MI {{{peripheral_count}}} CONFIG.NUM_NSI {{1}} CONFIG.NUM_SI {{0}}] $axi_noc_0 \n")
-        lines.append("connect_bd_net -net aclk_1 [get_bd_ports aclk0] [get_bd_pins axi_noc_0/aclk0] \n")
+        lines.append("connect_bd_net -net aclk_1 [get_bd_ports aclk] [get_bd_pins axi_noc_0/aclk0] \n")
         lines.append("connect_bd_intf_net -intf_net S00_INI_0_1 [get_bd_intf_ports S00_INI_0] [get_bd_intf_pins axi_noc_0/S00_INI] \n")
         # Create smart connect blocks for each peripheral
         all_M_interfaces = ""
@@ -115,8 +117,8 @@ class Bus(object):
             lines.append("# connect the smart connect input to the noc \n")
             smartconnect_ID_num = str(smartconnect_ID).zfill(2)
             lines.append(f"connect_bd_intf_net -intf_net axi_noc_0_M{smartconnect_ID_num}_AXI [get_bd_intf_pins smartconnect_{smartconnect_ID}/S00_AXI] [get_bd_intf_pins axi_noc_0/M{smartconnect_ID_num}_AXI]\n")
-            lines.append(f"connect_bd_net -net aclk_1 [get_bd_ports aclk0] [get_bd_pins smartconnect_{smartconnect_ID}/aclk]\n")
-            lines.append(f"connect_bd_net -net aresetn_0_1 [get_bd_ports aresetn_0] [get_bd_pins smartconnect_{smartconnect_ID}/aresetn]\n")
+            lines.append(f"connect_bd_net -net aclk_1 [get_bd_ports aclk] [get_bd_pins smartconnect_{smartconnect_ID}/aclk]\n")
+            lines.append(f"connect_bd_net -net aresetn_0_1 [get_bd_ports aresetn] [get_bd_pins smartconnect_{smartconnect_ID}/aresetn]\n")
             all_connections += f"M{smartconnect_ID_num}_AXI {{read_bw {{500}} write_bw {{500}} read_avg_burst {{4}} write_avg_burst {{4}}}} "
             lines.append(f"set_property -dict [ list CONFIG.CONNECTIONS {{M{smartconnect_ID_num}_AXI {{read_bw {{500}} write_bw {{500}} read_avg_burst {{4}} write_avg_burst {{4}}}}}}] [get_bd_intf_pins /axi_noc_0/S00_INI] \n")
             lines.append("# configure NOC apertures \n")
@@ -157,8 +159,6 @@ class Bus(object):
 
         print(f'-- For fpga {fpga_name} : ')
         for slave_attr in self.fpga.address_map.values():
-            #pprint(slave_attr["peripheral"]._component_name)
-
             if isinstance(slave_attr['slave'], Register):
                 if not getattr(slave_attr['slave'], 'isIP', False):
                     span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
@@ -169,15 +169,8 @@ class Bus(object):
             addr_base = slave_attr['base']
             slave_type = slave_attr['type']
             parent_peripheral = slave_attr['peripheral'].name()
-            
-            print(f'------------------------------------')
-            print(f' -- SPAN = {span}')
-            print(f' -- BASE = {addr_base}')
-            print(f' -- TYPE = {slave_type}')
-            print(f' -- PERIPHERAL = {parent_peripheral}')
-            print(f' -----------------------------------')
+            print(f' -- PERIPHERAL = {parent_peripheral}, TYPE = {slave_type}, BASE = {addr_base}, SPAN = {span} ')
             #pprint(slave_attr)
-        
         print('!!!!!!!!!! GEN TCL VERSAL FINISHED !!!!!!!!!!!!!!')
         return lines
 
@@ -403,8 +396,13 @@ class Bus(object):
     def gen_file(self, file_type):
         lines = []
         if file_type == 'vhd':
+            self.tmpl_bus_top = self.tmpl_no_noc_bus_top
             lines = self.gen_vhdl()
             out_file = self.fpga.system_name + '_bus_top.vhd'
+        if file_type == 'vhd_noc':
+            self.tmpl_bus_top = self.tmpl_noc_bus_top
+            lines = self.gen_vhdl()
+            out_file = self.fpga.system_name + '_noc_bus_top.vhd'
         if file_type == 'tcl':
             lines = self.gen_tcl()
             out_file = self.fpga.system_name + '_bd.tcl'
@@ -428,6 +426,7 @@ class Bus(object):
     def gen_firmware(self):
         self.gen_file('pkg')
         self.gen_file('vhd')
+        self.gen_file('vhd_noc')
         self.gen_file('tcl')
         self.gen_file('tcl_versal')
         return self.output_files
