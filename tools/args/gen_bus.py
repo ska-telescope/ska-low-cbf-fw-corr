@@ -137,8 +137,6 @@ class Bus(object):
         print(f'-- For fpga {fpga_name} : ')
         for slave_attr in self.fpga.address_map.values():
             span = slave_attr['span']  # ceil_pow2(max(span, 64<<10)) already applied in fpga.py
-            if span_no_ceil != span:
-                raise ValueError("Ceil did something!")
             addr_base = slave_attr['base']
             slave_ID_num = str(slave_count).zfill(2)
             slave_count += 1
