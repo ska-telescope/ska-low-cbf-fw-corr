@@ -78,7 +78,7 @@ fi
 
 export TARGET_ALVEO=$TARGET_ALVEO
 
-if [ ! -f "$XPFM" ]; then
+if [ ! -f "$XPFM" ] && [ $TARGET_ALVEO != "v80" ]; then
 	echo "Error: can't find XPFM file $XPFM"
     exit 5
 fi
