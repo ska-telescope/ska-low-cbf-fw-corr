@@ -371,7 +371,7 @@ class FPGALibrary(object):
             tic = time.time()
             # read environment variables to change FPGA architecture settings
             fpga_arch_cfg = {}
-            if os.getenv("TARGET_ALVEO").strip().lower().startswith("v"):
+            if os.getenv("TARGET_ALVEO", "").strip().lower().startswith("v"):
                 fpga_arch_cfg = {
                     "min_span": 65536,  # 64K
                     "register_min_span_pow2": True,
