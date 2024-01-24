@@ -56,9 +56,11 @@ else
     echo -e "Valid devices are: ${ALLOWED_ALVEO[*]}"
     exit 2
 fi
-# assume U55 is the default otherwise set U50LV
-export XPFM=/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm
-export VITIS_TARGET=u55
+
+if [ $TARGET_ALVEO = "u55" ]; then
+    export XPFM=/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm
+    export VITIS_TARGET=u55
+fi
 VIVADO_VERSION_IN_USE=2022.2
 kernel="correlator"
 
