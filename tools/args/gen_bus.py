@@ -134,18 +134,18 @@ class Bus(object):
 
         # Create the address map
         slave_count = 0
+        print(f'-- For fpga {fpga_name} : ')
         for slave_attr in self.fpga.address_map.values():
-            if isinstance(slave_attr['slave'], Register):
-                if not getattr(slave_attr['slave'], 'isIP', False):
-                    span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
-                else:
-                    span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), 4096))
-            else:
-                span = slave_attr['span']
+            span = slave_attr['span']  # ceil_pow2(max(span, 64<<10)) already applied in fpga.py
+            if span_no_ceil != span:
+                raise ValueError("Ceil did something!")
             addr_base = slave_attr['base']
             slave_ID_num = str(slave_count).zfill(2)
             slave_count += 1
             lines.append(f"assign_bd_address -offset 0x0201{addr_base:08x} -range 0x{span:08x} -target_address_space [get_bd_addr_spaces S00_INI_0] [get_bd_addr_segs M{slave_ID_num}_AXI/Reg] -force \n")
+            parent_peripheral = slave_attr['peripheral'].name()
+            slave_type = slave_attr['type']
+            print(f' -- PERIPHERAL = {parent_peripheral}, TYPE = {slave_type}, BASE = {addr_base}, SPAN = {span} ')
 
         lines.append(f"save_bd_design \"{fpga_name}\"\n")
         lines.append(f"validate_bd_design \n")
@@ -156,21 +156,6 @@ class Bus(object):
         lines.append(f"set bd_dir \"$workingDir/$proj_dir/{fpga_name}.gen/sources_1/bd/{fpga_name}_bd\"\n")
         lines.append(f"read_vhdl $bd_dir/hdl/{fpga_name}_bd_wrapper.vhd \n")
         lines.append(f"set_property library {fpga_name}_lib [get_files $bd_dir/hdl/{fpga_name}_bd_wrapper.vhd] \n")
-
-        print(f'-- For fpga {fpga_name} : ')
-        for slave_attr in self.fpga.address_map.values():
-            if isinstance(slave_attr['slave'], Register):
-                if not getattr(slave_attr['slave'], 'isIP', False):
-                    span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
-                else:
-                    span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), 4096))
-            else:
-                span = slave_attr['span']
-            addr_base = slave_attr['base']
-            slave_type = slave_attr['type']
-            parent_peripheral = slave_attr['peripheral'].name()
-            print(f' -- PERIPHERAL = {parent_peripheral}, TYPE = {slave_type}, BASE = {addr_base}, SPAN = {span} ')
-            #pprint(slave_attr)
         print('!!!!!!!!!! GEN TCL VERSAL FINISHED !!!!!!!!!!!!!!')
         return lines
 

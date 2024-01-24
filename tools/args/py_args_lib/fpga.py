@@ -211,7 +211,7 @@ class FPGA(object):
         print("[fpga.py] create_address_map('{:s}')".format(self.system_name))
 
         # Largest peripheral will determine spacing between peripheral base addresses
-        largest_addr_range = 4096 # minimal allowed address-decode spacing with Xilinx interconnect
+        largest_addr_range = (64<<10) # minimal allowed address-decode spacing with Xilinx interconnect
         for peripheral in self.peripherals.values():
             if peripheral.reg_len > largest_addr_range:
                 largest_addr_range = peripheral.reg_len
@@ -233,7 +233,9 @@ class FPGA(object):
             for periph_num in range(peripheral.number_of_peripherals()):
                 assigned_reg = False
                 for slave in peripheral.slaves:
+                    slave_type = None
                     if isinstance(slave, Register) and not getattr(slave, 'isIP', False):
+                        slave_type = 'register (not IP)'
                         if assigned_reg == False: #calc for entire register slave port
                             reg_span = cm.ceil_pow2(max(peripheral.reg_len, 4096))
                             lowest_free_addr = int(np.ceil(lowest_free_addr/reg_span)*reg_span)
@@ -242,7 +244,7 @@ class FPGA(object):
                             self.nof_lite = self.nof_lite - 1
                             lowest_free_addr = register_base + (slave.base_address() if not any(slave.rams) else slave.rams[0].base_address())
                         ram_span = slave.base_address() - slave.rams[0].base_address() if any(slave.rams) else  0 
-                        slave_span = slave.address_length()*slave.number_of_slaves()+ram_span
+                        slave_span = cm.ceil_pow2(max(slave.address_length()*slave.number_of_slaves()+ram_span, 64<<10))
                         slave_port_name = peripheral.name() + '_' + slave.name() + (('_' + str(periph_num)) if peripheral.number_of_peripherals() > 1 else '')
                         self.address_map[slave_port_name] = {'base':lowest_free_addr,'span':slave_span,'type':'LITE','port_index':self.nof_lite,'peripheral':peripheral,'periph_num':periph_num,'slave':slave}
                         logger.info("Register for %s has span 0x%x", peripheral.name(), slave_span)
@@ -251,6 +253,7 @@ class FPGA(object):
                         assigned_reg = True
 
                     elif isinstance(slave, Register) and getattr(slave, 'isIP', False):
+                        slave_type = 'register (IP)'
                         slave_span = cm.ceil_pow2(max(slave.address_length()*slave.number_of_slaves(), 4096)) #slave.address_length()*slave.number_of_slaves()#
                         lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
                         slave_port_name = peripheral.name() + '_' +  slave.name() #+ '_reg_ip'
@@ -264,7 +267,7 @@ class FPGA(object):
                     elif isinstance(slave, RAM):
                         slave_type = 'ram'
                         size_in_bytes =  np.ceil(slave.width()/8)*slave.address_length()*cm.ceil_pow2(slave.number_of_slaves())
-                        slave_span = cm.ceil_pow2(max(size_in_bytes, 4096))
+                        slave_span = cm.ceil_pow2(max(size_in_bytes, 64<<10))
                         logger.info("Slave %s has span 0x%x", peripheral.name() + '_' + slave.name() , slave_span)
                         # slave_name = slave.name() + ('_{}'.format(slave_no) if slave.number_of_slaves() >1 else '')
                         lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
@@ -284,6 +287,7 @@ class FPGA(object):
                             self.nof_full = self.nof_full + 1
                             lowest_free_addr = lowest_free_addr + slave_span
 
+                    print(f"SLAVE TYPE {slave_type}\nSLAVE SPAN: {slave_span}")
                     #if slave_span > 65536:
                     #    logger.error("Slave %s has slave span %d. Maximum slave span in Vivado Address Editor is 64kB", slave.name(), slave_span)
                     #    sys.exit()
