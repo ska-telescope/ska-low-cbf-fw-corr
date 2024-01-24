@@ -41,8 +41,15 @@ logger = logging.getLogger('main.fpga')
 class FPGA(object):
     """ A System consist of a set of one or more Peripherals.
     """
-    def __init__(self, file_path_name=None, periph_lib=None):
+    def __init__(self, file_path_name=None, periph_lib=None, min_span: int=4096, register_min_span_pow2: bool=False):
+        """
+        :param min_span: minimal allowed address-decode spacing with Xilinx interconnect
+        :param register_min_span_pow2: apply min_span to register (non-IP) spans and round up to a power of two
+        (other types of slave always use a power of two & min_span)
+        """
         self.file_path_name  = file_path_name
+        self.min_span = min_span
+        self.reg_min_span_pow2 = register_min_span_pow2
         self.root_dir        = os.environ['RADIOHDL']
         if periph_lib is None:
             self.peri_lib        = PeripheralLibrary(self.root_dir)
@@ -211,7 +218,7 @@ class FPGA(object):
         print("[fpga.py] create_address_map('{:s}')".format(self.system_name))
 
         # Largest peripheral will determine spacing between peripheral base addresses
-        largest_addr_range = (64<<10) # minimal allowed address-decode spacing with Xilinx interconnect
+        largest_addr_range = self.min_span
         for peripheral in self.peripherals.values():
             if peripheral.reg_len > largest_addr_range:
                 largest_addr_range = peripheral.reg_len
@@ -237,14 +244,16 @@ class FPGA(object):
                     if isinstance(slave, Register) and not getattr(slave, 'isIP', False):
                         slave_type = 'register (not IP)'
                         if assigned_reg == False: #calc for entire register slave port
-                            reg_span = cm.ceil_pow2(max(peripheral.reg_len, 4096))
+                            reg_span = cm.ceil_pow2(max(peripheral.reg_len, self.min_span))
                             lowest_free_addr = int(np.ceil(lowest_free_addr/reg_span)*reg_span)
                             register_base = lowest_free_addr
                         else :
                             self.nof_lite = self.nof_lite - 1
                             lowest_free_addr = register_base + (slave.base_address() if not any(slave.rams) else slave.rams[0].base_address())
-                        ram_span = slave.base_address() - slave.rams[0].base_address() if any(slave.rams) else  0 
-                        slave_span = cm.ceil_pow2(max(slave.address_length()*slave.number_of_slaves()+ram_span, 64<<10))
+                        ram_span = slave.base_address() - slave.rams[0].base_address() if any(slave.rams) else  0
+                        slave_span = slave.address_length() * slave.number_of_slaves() + ram_span
+                        if self.reg_min_span_pow2:
+                            slave_span = cm.ceil_pow2(max(slave_span, self.min_span))
                         slave_port_name = peripheral.name() + '_' + slave.name() + (('_' + str(periph_num)) if peripheral.number_of_peripherals() > 1 else '')
                         self.address_map[slave_port_name] = {'base':lowest_free_addr,'span':slave_span,'type':'LITE','port_index':self.nof_lite,'peripheral':peripheral,'periph_num':periph_num,'slave':slave}
                         logger.info("Register for %s has span 0x%x", peripheral.name(), slave_span)
@@ -254,9 +263,9 @@ class FPGA(object):
 
                     elif isinstance(slave, Register) and getattr(slave, 'isIP', False):
                         slave_type = 'register (IP)'
-                        slave_span = cm.ceil_pow2(max(slave.address_length()*slave.number_of_slaves(), 4096)) #slave.address_length()*slave.number_of_slaves()#
+                        slave_span = cm.ceil_pow2(max(slave.address_length()*slave.number_of_slaves(), self.min_span))
                         lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
-                        slave_port_name = peripheral.name() + '_' +  slave.name() #+ '_reg_ip'
+                        slave_port_name = peripheral.name() + '_' +  slave.name()
                         self.address_map[slave_port_name] =  {'base':lowest_free_addr, 'span':slave_span, 'type':slave.protocol, 'port_index':eval("self.nof_{}".format(slave.protocol.lower())),'peripheral':peripheral,'periph_num':periph_num,'slave':slave}
                         if slave.protocol.lower() == 'lite':
                             self.nof_lite = self.nof_lite + 1
@@ -267,7 +276,7 @@ class FPGA(object):
                     elif isinstance(slave, RAM):
                         slave_type = 'ram'
                         size_in_bytes =  np.ceil(slave.width()/8)*slave.address_length()*cm.ceil_pow2(slave.number_of_slaves())
-                        slave_span = cm.ceil_pow2(max(size_in_bytes, 64<<10))
+                        slave_span = cm.ceil_pow2(max(size_in_bytes, self.min_span))
                         logger.info("Slave %s has span 0x%x", peripheral.name() + '_' + slave.name() , slave_span)
                         # slave_name = slave.name() + ('_{}'.format(slave_no) if slave.number_of_slaves() >1 else '')
                         lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
@@ -279,7 +288,7 @@ class FPGA(object):
                     elif isinstance(slave, FIFO):
                         slave_type = 'fifo'
                         size_in_bytes =  np.ceil(slave.width()/8)*slave.address_length()
-                        slave_span = cm.ceil_pow2(max(size_in_bytes, 4096))
+                        slave_span = cm.ceil_pow2(max(size_in_bytes, self.min_span))
                         for i in range(slave.number_of_slaves()):
                             lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
                             slave_port_name = peripheral.name() + '_' + slave.name() + '_' + slave_type+ (('_' + str(periph_num)) if peripheral.number_of_peripherals() > 1 else '') + ('_{}'.format(i) if slave.number_of_slaves() > 1 else '')
@@ -360,7 +369,14 @@ class FPGALibrary(object):
         for fpn in file_path_names:
             logger.info("Creating ARGS FPGA object from {}".format(fpn))
             tic = time.time()
-            fpga = FPGA(fpn, periph_lib=periph_lib)
+            # read environment variables to change FPGA architecture settings
+            fpga_arch_cfg = {}
+            if os.getenv("TARGET_ALVEO").strip().lower().startswith("v"):
+                fpga_arch_cfg = {
+                    "min_span": 65536,  # 64K
+                    "register_min_span_pow2": True,
+                }
+            fpga = FPGA(fpn, periph_lib=periph_lib, **fpga_arch_cfg)
             toc = time.time()
             logger.debug("fpga creation for %s took %.4f seconds" %(fpn, toc-tic))
             fpga.show_overview()
