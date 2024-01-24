@@ -126,9 +126,10 @@ set_property library correlator_v80_lib [get_files {\
 # verilog version replaced with vhdl version due to problem with black box generation in IP packaging ($DESIGN_PATH/src/verilog/krnl_control_s_axi.v) 
 
 add_files -fileset sources_1 [glob \
-$DESIGN_PATH/src/vhdl/u55c/correlator.vhd \
+$DESIGN_PATH/src/vhdl/correlator.vhd \
 $DESIGN_PATH/src/vhdl/correlator_core_v80.vhd \
 $DESIGN_PATH/src/vhdl/version_pkg.vhd \
+$DESIGN_PATH/src/vhdl/lbus_packet_receive.vhd \
 $COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 $BUILD_PATH/build_details_pkg.vhd \
 ]
@@ -139,7 +140,7 @@ $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd \
 ]
 
 set_property library correlator_v80_lib [get_files {\
-*correlator_v80/src/vhdl/u55c/correlator.vhd \
+*correlator_v80/src/vhdl/correlator.vhd \
 *correlator_v80/src/vhdl/correlator_core_v80.vhd \
 *correlator_v80/src/vhdl/tb_correlatorCore.vhd \
 *correlator_v80/src/vhdl/lbus_packet_receive.vhd \
@@ -149,7 +150,7 @@ set_property library correlator_v80_lib [get_files {\
 */build_details_pkg.vhd \
 }]
 
-set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correlator.vhd]
+set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/correlator.vhd]
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/correlator_core_v80.vhd]
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
 

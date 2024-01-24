@@ -7,27 +7,25 @@
 ## It synthesizes and produces an output bitfile to be programmed
 ## to an Alveo from the source in this git repository
 
-ALLOWED_ALVEO=(u55) #ALVEO is either U50 or U55 as of Sept 2021
+ALLOWED_ALVEO=(u55 v80) #ALVEO is either U50 or U55 as of Sept 2021
 KERNELS_TO_GEN=(cor)
 XILINX_PATH=/tools/Xilinx
-VIVADO_VERSION_IN_USE=2022.2
-
+VITIS_PROJ=TRUE
 # use ptp submodule (we assume it's initialised)
 PTP_IP="${PWD}/pub-timeslave/hw/cores"
 
 
 ShowHelp()
 {
-    echo "Usage: ${0##*/} [-h] <device> <kernel> <build info> [clean/kernel]"
+    echo "Usage: ${0##*/} [-h] <device> <kernel> <build info> [clean/kernel/args]"
     echo ""
-    echo "e.g. ${0##*/} u55 pst \"This is the build string\""
+    echo "e.g. ${0##*/} u55 \"This is the build string\" kernel"
     echo ""
     echo "-h    Print this help then exit"
     echo "device: ${ALLOWED_ALVEO[*]}"
-    echo "kernel: ${KERNELS_TO_GEN[*]}"
     echo "build info: free text (use quotes)"
     echo "clean: (optional) clean the build directory"
-    echo "OR"
+    echo "args: (optional) stop after ARGs generation"
     echo "kernel: (optional) stop after kernel project generation"
 }
 
@@ -43,7 +41,7 @@ while getopts ":h" option; do
     esac
 done
 
-if [ "$#" -lt 3 ]; then
+if [ "$#" -lt 2 ]; then
     echo "Not enough parameters"
     ShowHelp
     exit 1
@@ -61,10 +59,19 @@ fi
 # assume U55 is the default otherwise set U50LV
 export XPFM=/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm
 export VITIS_TARGET=u55
+VIVADO_VERSION_IN_USE=2022.2
+kernel="correlator"
 
 if [ $TARGET_ALVEO = "u50" ]; then
     export XPFM=/opt/xilinx/platforms/xilinx_u50lv_gen3x4_xdma_2_202010_1/xilinx_u50lv_gen3x4_xdma_2_202010_1.xpfm
     export VITIS_TARGET=u50
+fi
+
+if [ $TARGET_ALVEO = "v80" ]; then
+    VIVADO_VERSION_IN_USE=2023.2
+    export VITIS_TARGET=v80
+    kernel="correlator_v80"
+    VITIS_PROJ=FALSE
 fi
 
 export TARGET_ALVEO=$TARGET_ALVEO
@@ -74,26 +81,26 @@ if [ ! -f "$XPFM" ]; then
     exit 5
 fi
 
-kernel=$(echo $2 | tr "[:upper:]" "[:lower:]")
-if [[ " ${KERNELS_TO_GEN[*]} " =~ " $kernel " ]]; then
-    echo -e "kernel: $kernel"
-    kernel="correlator"
-else
-    echo -e "Invalid kernel: $kernel"
-    echo -e "Valid kernels: ${KERNELS_TO_GEN[*]}"
-    exit 3
-fi
+# kernel=$(echo $2 | tr "[:upper:]" "[:lower:]")
+# if [[ " ${KERNELS_TO_GEN[*]} " =~ " $kernel " ]]; then
+#     echo -e "kernel: $kernel"
+#     kernel="correlator"
+# else
+#     echo -e "Invalid kernel: $kernel"
+#     echo -e "Valid kernels: ${KERNELS_TO_GEN[*]}"
+#     exit 3
+# fi
 
 export PERSONALITY=$kernel
 
-if [ "$3" = "" ]; then
+if [ "$2" = "" ]; then
     echo -e "Please supply a buildinfo string that will be associated with the .xcbin and .ccfg in the output files directory"
     echo -e './RunMe.sh u50 cnic "This is the build string"'
     echo -e ' Optionally supply the parameter "clean" to clean the output and build directories'
     echo -e './RunMe.sh u50 cnic "This is the build string" clean'
     exit 4
 fi
-BUILDINFO=$3
+BUILDINFO=$2
 echo "Build Info: $BUILDINFO"
 
 export GITREPO=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
@@ -104,13 +111,12 @@ export SVN=$GITREPO
 echo -e "\nBase Git directory: $GITREPO"
 
 ##Clean the build directory if we pass in a command line parameter called clean
-if [ "$4" = "clean" ]; then
-    echo -e "Deleting Build Directory $GITREPO/build/alveo"
+if [ "$3" = "clean" ]; then
+    echo -e "Deleting ARGS and Build Directory $GITREPO/build"
     echo -e "Deleting output Directory $GITREPO/output"
-    rm -rf $GITREPO/build/alveo
-    rm -rf $GITREPO/output
-    echo "Deleting existing ARGS $GITREPO/build/ARGS"
     rm -rf $GITREPO/build/ARGS
+    rm -rf $GITREPO/build/$kernel
+    rm -rf $GITREPO/output
 fi
 
 if [ -z "`which ccze`" ]; then
@@ -153,17 +159,12 @@ echo
 echo "<><><><><><><><><><><><><>  Automatic Register Generation System (ARGS)  <><><><><><><><><><><><><>" | $TEE_LOG
 echo
 
-if [ -n "$XILINX_REFERENCE_DESIGN" ]; then
-    echo "XILINX_REFERENCE_DESIGN: Using Existing ARGS FILES"
-    echo
-else
-    echo "SKA Design: Re-generating ARGS from configuration YAML files in $GITREPO/libraries"
-    source $GITREPO/tools/bin/setup_radiohdl.sh 
-    echo
-    python3 $GITREPO/tools/radiohdl/base/vivado_config.py -l $kernel -a | $TEE_LOG | $COLOUR
-fi
+echo "SKA Design: Re-generating ARGS from configuration YAML files in $GITREPO/libraries"
+source $GITREPO/tools/bin/setup_radiohdl.sh 
+echo
+python3 $GITREPO/tools/radiohdl/base/vivado_config.py -l $kernel -a | $TEE_LOG | $COLOUR
 
-if [ "$4" = "args" ]; then
+if [ "$3" = "args" ]; then
     exit 0
 fi
 
@@ -191,7 +192,9 @@ source ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh
 
 vivado $STACK_ARG -mode batch -source $GITREPO/designs/$kernel/create_project.tcl -tclargs $kernel | $TEE_LOG | $COLOUR
 
-
+if [ "$VITIS_PROJ" = "FALSE" ]; then
+    exit 0
+fi
 
 ##Find latest Vivado project directorys
 PRJ_DIR=$GITREPO/build/$kernel/
@@ -226,7 +229,7 @@ echo
 
 echo $BUILDINFO >> $PRJ_DIR/buildinfo.txt
 
-if [ "$4" = "kernel" ]; then
+if [ "$3" = "kernel" ]; then
     exit 0
 fi
 
