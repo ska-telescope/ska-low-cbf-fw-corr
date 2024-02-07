@@ -33,11 +33,11 @@ entity cor_rd_HBM_queue_manager is
     Generic ( 
         DEBUG_ILA               : BOOLEAN := FALSE;
         META_FIFO_WRITE_WIDTH   : INTEGER := 512;
+        META_FIFO_WRITE_DEPTH   : INTEGER := 128;
         META_FIFO_READ_WIDTH    : INTEGER := 32;
-        META_FIFO_WRITE_DEPTH   : INTEGER := 32;
-        META_FIFO_READ_DEPTH    : INTEGER := 128;
+        META_FIFO_READ_DEPTH    : INTEGER := 512;
 
-        HBM_DATA_DEPTH          : INTEGER := 128;
+        HBM_DATA_DEPTH          : INTEGER := 4096;
         HBM_DATA_WIDTH          : INTEGER := 512
     );
     Port ( 
@@ -106,7 +106,8 @@ signal hbm_data_fifo_full     : std_logic;
 signal hbm_data_fifo_wr_count : std_logic_vector(((ceil_log2(hbm_data_depth))) downto 0);
 
 -- HBM meta from correlator.
-signal hbm_meta_fifo_in_reset : std_logic;
+signal hbm_meta_rd_rst_busy   : std_logic;
+signal hbm_meta_wr_rst_busy   : std_logic;
 signal hbm_meta_fifo_rd       : std_logic;
 signal hbm_meta_fifo_q        : std_logic_vector((META_FIFO_READ_WIDTH-1) downto 0);
 signal hbm_meta_fifo_q_valid  : std_logic;
@@ -144,6 +145,7 @@ signal vis_data_addr        : unsigned(31 downto 0) := (others => '0');
 
 signal hbm_retrieval_trac   : unsigned(7 downto 0) := (others => '0');
 signal hbm_returned_trac    : unsigned(7 downto 0) := (others => '0');
+signal hbm_reqs_status      : unsigned(7 downto 0) := (others => '0');
 
 signal hbm_axi_ar_valid     : std_logic := '0';
 signal hbm_axi_ar_addr      : std_logic_vector(31 downto 0);
@@ -208,24 +210,25 @@ hbm_axi_ar_len      <= x"07";
 hbm_req_track_proc : process(clk)
 begin
     if rising_edge(clk) then
-        -- if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') AND (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
-        --     hbm_retrieval_trac <= hbm_retrieval_trac;
-        -- elsif (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') then
-        --     hbm_retrieval_trac <= hbm_retrieval_trac + 8;
-        -- elsif (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
-        --     hbm_retrieval_trac <= hbm_retrieval_trac - 8;
-        -- end if;
-
         if (HBM_reader_fsm = IDLE) or (reset = '1') then
             hbm_retrieval_trac  <= (others => '0');
             hbm_returned_trac   <= (others => '0');
+            hbm_reqs_status     <= (others => '0');
         else
             if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') then
-                hbm_retrieval_trac  <= hbm_retrieval_trac + 8;
+                hbm_retrieval_trac  <= hbm_retrieval_trac + 1;
             end if;
 
             if (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
-                hbm_returned_trac   <= hbm_returned_trac + 8;
+                hbm_returned_trac   <= hbm_returned_trac + 1;
+            end if;
+
+            if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') AND (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
+                hbm_reqs_status     <= hbm_reqs_status;
+            elsif (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') then
+                hbm_reqs_status     <= hbm_reqs_status + 1;
+            elsif (i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1') then
+                hbm_reqs_status     <= hbm_reqs_status - 1;
             end if;
         end if;
     end if;
@@ -270,16 +273,16 @@ begin
                     meta_data_addr      <= META_OFFSET_256MB + (x"0" & i_hbm_base_addr(31 downto 4));
                     vis_data_addr       <= i_hbm_base_addr;
                     -- 8 rds per 512KB.
-                    meta_data_quantity  <= i_number_of_64b_rds(16 downto 3);
+                    meta_data_quantity  <= i_number_of_64b_rds(13 downto 0);
 
                 when CALC =>
                     hbm_reader_fsm_debug    <= x"1";
                     -- assume 1 rd of meta data and 2 of data per 16x16
-                    if meta_data_quantity < 8 then
-                        meta_data_quantity  <= (others => '0');
-                    else
-                        meta_data_quantity  <= meta_data_quantity - 8;    
-                    end if;
+                    -- if meta_data_quantity < 8 then
+                    --     meta_data_quantity  <= (others => '0');
+                    -- else
+                        meta_data_quantity  <= meta_data_quantity - 1;    
+                    -- end if;
                     HBM_reader_fsm      <= RD_META;
 
                 when RD_META =>
@@ -323,19 +326,19 @@ begin
 
                 when DATA_2 => 
                     hbm_reader_fsm_debug    <= x"6";
-                    -- request 8k of data and wait until it is drain to 25% before next loop.
-                    if unsigned(hbm_data_fifo_rd_count) < 2048 then
+                    if meta_data_quantity = 0 then
+                        HBM_reader_fsm      <= COMPLETE;
+                    -- request 8k of data and wait until it is drain to 50% before next loop.
+                    elsif unsigned(hbm_data_fifo_rd_count) < 3072 then
                         HBM_reader_fsm      <= CHECK;
                     end if;
 
 
                 when CHECK =>
                     hbm_reader_fsm_debug    <= x"7";
-                    if meta_data_quantity = 0 then
-                        HBM_reader_fsm      <= COMPLETE;
-                    else
-                        HBM_reader_fsm      <= CALC;
-                    end if;
+
+                    HBM_reader_fsm          <= CALC;
+
 
                 when COMPLETE =>
                     hbm_reader_fsm_debug    <= x"8";
@@ -372,14 +375,16 @@ begin
     end if;
 end process;
 
-    o_fifo_in_rst       <= hbm_data_fifo_in_reset;
+    o_fifo_in_rst       <= hbm_data_fifo_in_reset OR hbm_meta_rd_rst_busy OR hbm_meta_wr_rst_busy;
 
     hbm_data_fifo_data  <= i_HBM_axi_r.data;
     hbm_data_fifo_wr    <= i_HBM_axi_r.valid AND hbm_data_sel;
 
+    -- URAMs have a natural width of 4K x 72 bits
+    -- 512W should use 8 URAMs which would give an effectively 4K x 4096
     hbm_data_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper
         Generic map (
-            FIFO_MEMORY_TYPE    => "block",
+            FIFO_MEMORY_TYPE    => "uram",
             READ_MODE           => "fwft",
             FIFO_DEPTH          => hbm_data_depth,
             DATA_WIDTH          => hbm_data_width
@@ -409,30 +414,31 @@ end process;
 -- constant META_FIFO_READ_WIDTH  : integer := 64;
 -- constant META_FIFO_WRITE_DEPTH : integer := 512;
 -- constant META_FIFO_READ_DEPTH  : integer := FIFO_WRITE_DEPTH*WRITE_DATA_WIDTH/READ_DATA_WIDTH;
+
     hbm_meta_cache_fifo : xpm_fifo_sync
         generic map (
             DOUT_RESET_VALUE    => "0",    
             ECC_MODE            => "no_ecc",
             FIFO_MEMORY_TYPE    => "block", 
             FIFO_READ_LATENCY   => 0,
+            WRITE_DATA_WIDTH    => META_FIFO_WRITE_WIDTH,     
             FIFO_WRITE_DEPTH    => 64,     
             FULL_RESET_VALUE    => 0,      
             PROG_EMPTY_THRESH   => 0,    
             PROG_FULL_THRESH    => 0,     
-            RD_DATA_COUNT_WIDTH => ((ceil_log2(META_FIFO_READ_DEPTH))+1),  
-            READ_DATA_WIDTH     => META_FIFO_READ_WIDTH,      
             READ_MODE           => "fwft",  
             SIM_ASSERT_CHK      => 0,      
             USE_ADV_FEATURES    => "1404", 
             WAKEUP_TIME         => 0,      
-            WRITE_DATA_WIDTH    => 512,     
+            RD_DATA_COUNT_WIDTH => ((ceil_log2(META_FIFO_READ_DEPTH))+1),  
+            READ_DATA_WIDTH     => META_FIFO_READ_WIDTH,      
             WR_DATA_COUNT_WIDTH => ((ceil_log2(META_FIFO_WRITE_DEPTH))+1)   
         )
         port map (
             rst           => i_fifo_reset, 
             wr_clk        => clk, 
-            rd_rst_busy   => open,
-            wr_rst_busy   => open,
+            rd_rst_busy   => hbm_meta_rd_rst_busy,
+            wr_rst_busy   => hbm_meta_wr_rst_busy,
 
             --------------------------------
             --rd_data_count => op, 
@@ -479,7 +485,7 @@ gen_debug_ila : IF DEBUG_ILA GENERATE
         probe0(81 downto 50)    => i_HBM_axi_r.data(31 downto 0),
 
         probe0(89 downto 82)    => std_logic_vector(hbm_retrieval_trac),
-        probe0(97 downto 90)    => hbm_data_fifo_rd_count,
+        probe0(97 downto 90)    => (others => '0'),
         probe0(98)              => hbm_data_fifo_rd,
         probe0(99)              => hbm_data_fifo_wr,
         
@@ -507,7 +513,7 @@ gen_debug_ila : IF DEBUG_ILA GENERATE
         probe0(165)             => i_HBM_axi_arready,
         probe0(169 downto 166)  => hbm_reader_fsm_debug,
         probe0(170)             => hbm_data_sel,
-        probe0(178 downto 171)  => hbm_data_fifo_wr_count,
+        probe0(178 downto 171)  => (others => '0'),
         probe0(186 downto 179)  => std_logic_vector(hbm_returned_trac),
         probe0(187)             => hbm_data_fifo_wr,
         probe0(191 downto 188)  => std_logic_vector(hbm_data_sel_cnt(3 downto 0))

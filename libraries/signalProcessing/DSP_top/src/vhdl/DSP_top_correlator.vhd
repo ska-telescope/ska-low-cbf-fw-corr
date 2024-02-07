@@ -27,6 +27,7 @@ USE axi4_lib.axi4_full_pkg.ALL;
 
 use spead_lib.ethernet_pkg.ALL;
 use spead_lib.CbfPsrHeader_pkg.ALL;
+use spead_lib.spead_packet_pkg.ALL;
 
 library technology_lib;
 USE technology_lib.tech_mac_100g_pkg.ALL;
@@ -224,14 +225,8 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cmac_reset           : std_logic;
     
     -- SPEAD Signals
-    signal cor_spead_data        : t_slv_512_arr(1 downto 0); --out std_logic_vector(511 downto 0);
-    signal cor_spead_data_rd     : std_logic_vector(1 downto 0); --in std_logic;                         -- FWFT FIFO
-    signal cor_current_array     : t_slv_8_arr(1 downto 0); --out std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-    signal cor_spead_data_rdy    : std_logic_vector(1 downto 0); --out std_logic;
-    signal cor_byte_count        : t_slv_14_arr(1 downto 0); --out std_logic_vector(13 downto 0);
-    signal cor_enabled_array     : t_slv_8_arr(1 downto 0); --in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-    signal cor_freq_index        : t_slv_17_arr(1 downto 0); --out std_logic_vector(16 downto 0);
-    signal cor_time_ref          : t_slv_64_arr(1 downto 0); --out std_logic_vector(63 downto 0)
+    signal from_spead_pack       : t_spead_to_hbm_bus_array(1 downto 0);
+    signal to_spead_pack         : t_hbm_to_spead_bus_array(1 downto 0);
     signal packetiser_enable     : std_logic_vector(1 downto 0); 
 
     -- 100G reset
@@ -655,14 +650,9 @@ begin
         
         ------------------------------------------------------------------        
         -- spead packet interface
-        o_cor_spead_data        => cor_spead_data,
-        i_cor_spead_data_rd     => cor_spead_data_rd,
-        o_cor_current_array     => cor_current_array,
-        o_cor_spead_data_rdy    => cor_spead_data_rdy,
-        o_cor_byte_count        => cor_byte_count,
-        i_cor_enabled_array     => cor_enabled_array,
-        o_cor_freq_index        => cor_freq_index,
-        o_cor_time_ref          => cor_time_ref,
+        i_from_spead_pack   => from_spead_pack,
+        o_to_spead_pack     => to_spead_pack,
+
         i_packetiser_enable     => packetiser_enable,
         
         -- ARGs Debug
@@ -723,14 +713,9 @@ begin
         i_tx_axis_tready    => i_axis_tready,
 
         -- Packed up Correlator Data.
-        i_spead_data        => cor_spead_data,
-        o_spead_data_rd     => cor_spead_data_rd,
-        i_current_array     => cor_current_array,
-        i_spead_data_rdy    => cor_spead_data_rdy,
-        i_byte_count        => cor_byte_count,
-        o_enabled_array     => cor_enabled_array,
-        i_freq_index        => cor_freq_index,
-        i_time_ref          => cor_time_ref,
+        o_from_spead_pack   => from_spead_pack,
+        i_to_spead_pack     => to_spead_pack,
+
         o_packetiser_enable => packetiser_enable,
         
         i_debug             => (others => '0'),

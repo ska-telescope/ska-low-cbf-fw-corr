@@ -10,13 +10,14 @@
 --    - Long term accumulator
 --    - HBM interface and packetiser
 ----------------------------------------------------------------------------------
-library IEEE, correlator_lib, common_lib;
+library IEEE, correlator_lib, common_lib, spead_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 USE common_lib.common_pkg.ALL;
+use spead_lib.spead_packet_pkg.ALL;
 
 entity single_correlator is
     generic (
@@ -88,14 +89,8 @@ entity single_correlator is
         o_HBM_axi_rready  : out std_logic;
         ---------------------------------------------------------------
         -- data out to SPEAD Packetiser
-        o_spead_data        : out std_logic_vector(511 downto 0);
-        i_spead_data_rd     : in std_logic;                         -- FWFT FIFO
-        o_current_array     : out std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-        o_spead_data_rdy    : out std_logic;
-        o_byte_count        : out std_logic_vector(13 downto 0);
-        i_enabled_array     : in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-        o_freq_index        : out std_logic_vector(16 downto 0);
-        o_time_ref          : out std_logic_vector(63 downto 0);
+        i_from_spead_pack   : in spead_to_hbm_bus;
+        o_to_spead_pack     : out hbm_to_spead_bus;
 
         i_packetiser_enable : in std_logic;
         
@@ -337,7 +332,7 @@ begin
 
 
     HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
-        DEBUG_ILA           => FALSE
+        DEBUG_ILA           => TRUE
     )
     Port map ( 
         -- clock used for all data input and output from this module (300 MHz)
@@ -370,14 +365,8 @@ begin
         o_HBM_axi_rready    => o_HBM_axi_rready,
         
         -- Packed up Correlator Data.
-        o_spead_data        => o_spead_data,
-        i_spead_data_rd     => i_spead_data_rd,
-        o_current_array     => o_current_array,
-        o_spead_data_rdy    => o_spead_data_rdy,
-        o_byte_count        => o_byte_count,
-        i_enabled_array     => i_enabled_array,
-        o_freq_index        => o_freq_index,
-        o_time_ref          => o_time_ref
+        i_from_spead_pack   => i_from_spead_pack,
+        o_to_spead_pack     => o_to_spead_pack
 
     );
 

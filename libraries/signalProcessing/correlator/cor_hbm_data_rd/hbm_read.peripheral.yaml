@@ -50,7 +50,68 @@ peripherals:
               width             : 8
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Number of correlation instructions cached in FIFO for HBM read out passed from Correlator."              
+              field_description : "Number of correlation instructions cached in FIFO for HBM read out passed from Correlator."
+         #################################
+          - - field_name        : testmode_select
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "This will allow the user to generate instructions to test SPEAD Data packets.
+                                   HBM will have to filled with appropriate data and the correlator not configured.
+                                   Default - 0, 0 = Correlator instruction, 1 = Test Instruction
+                                   
+                                   Example readout of a 8x8 using subarray 1 values in the packetiser from the base of HBM is
+                                   hbm_start_addr  = 0
+                                   row             = 0
+                                   row_count       = 8
+                                   stim_freq_index = 0
+                                   stim_sub_array  = 1
+                                   time_ref        = 0
+                                   "
+         #################################
+          - - field_name        : testmode_hbm_start_addr
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Byte address in HBM of the start of a strip from the visibility matrix.
+                                   Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)"
+         #################################
+          - - field_name        : testmode_subarray
+              width             : 8
+              access_mode       : Rw
+              reset_value       : 0x0
+              field_description : "number between 0 - 127 which lines up with the parameters in the spead packet memories"
+         #################################
+          - - field_name        : testmode_freqindex
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "17 bit. subarray will stream out with this starting from 0."
+         #################################
+          - - field_name        : testmode_time_ref
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Placeholder for future development"
+         #################################
+          - - field_name        : testmode_row
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "The index of the first row that is available, counts from zero every 256. Valid values 0,256,512"
+         #################################
+          - - field_name        : testmode_row_count
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "The number of rows available to be read out. Valid range is 1 to 256."
+         #################################
+          - - field_name        : testmode_load_instruct
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "1 - load, toggle back to zero."
+
 
   - peripheral_name        : hbm_rd_debug_2
     peripheral_description : "debug and statistic registers"
@@ -97,3 +158,69 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "Number of correlation instructions cached in FIFO for HBM read out passed from Correlator."
+         #################################
+          - - field_name        : testmode_select
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "This will allow the user to generate instructions to test SPEAD Data packets.
+                                   HBM will have to filled with appropriate data and the correlator not configured.
+                                   Default - 0, 0 = Correlator instruction, 1 = Test Instruction
+                                   
+                                   Example readout of a 8x8 using subarray 1 values in the packetiser from the base of HBM is
+                                   hbm_start_addr  = 0
+                                   row             = 0
+                                   row_count       = 8
+                                   stim_freq_index = 0
+                                   stim_sub_array  = 1
+                                   time_ref        = 0
+                                   "
+         #################################
+          - - field_name        : testmode_hbm_start_addr
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Byte address in HBM of the start of a strip from the visibility matrix.
+                                   Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)"
+         #################################
+          - - field_name        : testmode_subarray
+              width             : 8
+              access_mode       : Rw
+              reset_value       : 0x0
+              field_description : "number between 0 - 127 which lines up with the parameters in the spead packet memories"
+         #################################
+          - - field_name        : testmode_freqindex
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "17 bit. subarray will stream out with this starting from 0."
+         #################################
+          - - field_name        : testmode_time_ref
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Placeholder for future development"
+         #################################
+          - - field_name        : testmode_time_ref_upper_bytes
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Placeholder for future development"
+         #################################
+          - - field_name        : testmode_row
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "The index of the first row that is available, counts from zero every 256. Valid values 0,256,512"
+         #################################
+          - - field_name        : testmode_row_count
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "The number of rows available to be read out. Valid range is 1 to 256."
+         #################################
+          - - field_name        : testmode_load_instruct
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "1 - load, toggle back to zero."
