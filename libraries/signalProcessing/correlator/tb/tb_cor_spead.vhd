@@ -15,6 +15,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use spead_lib.ethernet_pkg.ALL;
 use spead_lib.CbfPsrHeader_pkg.ALL;
+use spead_lib.spead_packet_pkg.ALL;
 use common_lib.common_pkg.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
@@ -62,14 +63,10 @@ signal HBM_axi_arready          : std_logic;
 signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
 signal HBM_axi_rready           : std_logic;
 
-signal spead_data               : t_slv_512_arr(1 downto 0);
-signal spead_data_rd            : std_logic_vector(1 downto 0); 
-signal current_array            : t_slv_8_arr(1 downto 0); 
-signal spead_data_rdy           : std_logic_vector(1 downto 0);
-signal byte_count               : t_slv_14_arr(1 downto 0); 
-signal enabled_array            : t_slv_8_arr(1 downto 0); 
-signal freq_index               : t_slv_17_arr(1 downto 0);
-signal time_ref                 : t_slv_64_arr(1 downto 0);
+-- SPEAD Signals
+signal from_spead_pack          : t_spead_to_hbm_bus_array(1 downto 0);
+signal to_spead_pack            : t_hbm_to_spead_bus_array(1 downto 0);
+
 signal packetiser_enable        : std_logic_vector(1 downto 0); 
 
 signal i_spead_lite_axi_mosi    : t_axi4_lite_mosi_arr(1 downto 0); 
@@ -331,6 +328,19 @@ begin
                 j <= j + 1;
             end if;
 
+-- HEAP data size rams
+-- ADDR    Config      Value(inc Epoch offset)
+-- 0       6x6         722         0x2d2
+-- 1       8x8         1232        0x4d0
+-- 2       12x12       2660        0xa64
+-- 3       16x16       4632        0x1218
+-- 4       18x18       5822        0x16be
+-- 5       20x20       7148        0x1bec
+-- 6       22x22       8610        0x21a2
+-- 7       24x24       10208       0x27e0
+-- 8       26x26       11942       0x2ea6
+-- 9       28x28       13812       0x35f4
+
             -- some stimulus for initial triangle testing.
             if testCount_300 = 1000 then 
                 -- META DATA FROM CORRELATOR SIM
@@ -348,7 +358,7 @@ begin
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"0";
+                stim_sub_array  <= 8D"1";
                 
             elsif testCount_300 = 7000 then
                 -- META DATA FROM CORRELATOR SIM
@@ -357,7 +367,7 @@ begin
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"0";
+                stim_sub_array  <= 8D"2";
             elsif testCount_300 = 10000 then
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";
@@ -365,28 +375,53 @@ begin
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"0";
+                stim_sub_array  <= 8D"3";
             elsif testCount_300 = 13000 then
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";
-                row_count       <= 9D"20";
+                row_count       <= 9D"18";
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"0";
-                stim_sub_array  <= 8D"0";
+                stim_sub_array  <= 8D"4";
                 
                 stim_time_ref(31 downto 0)  <= 32D"4";
                 stim_time_ref(33 downto 32) <= "01";
                 stim_time_ref(34)           <= '1';
-            elsif testCount_300 = 15000 then
+            elsif testCount_300 = 17000 then
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";
                 row_count       <= 9D"20";
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"0";
+                stim_sub_array  <= 8D"5";
                 
+                stim_time_ref(31 downto 0)  <= 32D"3";
+                stim_time_ref(33 downto 32) <= "00";
+                stim_time_ref(34)           <= '0';
+            elsif testCount_300 = 21000 then
+                -- META DATA FROM CORRELATOR SIM
+                row             <= 13D"0";
+                row_count       <= 9D"22";
+                data_valid      <= '1';
+
+                stim_freq_index <= 17D"1";
+                stim_sub_array  <= 8D"6";
+                
+                stim_time_ref(31 downto 0)  <= 32D"3";
+                stim_time_ref(33 downto 32) <= "00";
+                stim_time_ref(34)           <= '0';
+
+            elsif testCount_300 = 25000 then
+                -- META DATA FROM CORRELATOR SIM
+                row             <= 13D"0";
+                row_count       <= 9D"50";
+                data_valid      <= '1';
+
+                stim_freq_index <= 17D"0";
+                stim_sub_array  <= 8D"11";
+
                 stim_time_ref(31 downto 0)  <= 32D"3";
                 stim_time_ref(33 downto 32) <= "00";
                 stim_time_ref(34)           <= '0';
@@ -438,19 +473,11 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         o_HBM_axi_rready    => HBM_axi_rready,
         
         -- Packed up Correlator Data.
-        o_spead_data        => spead_data(0),
-        i_spead_data_rd     => spead_data_rd(0),
-        o_current_array     => current_array(0),
-        o_spead_data_rdy    => spead_data_rdy(0),
-        o_byte_count        => byte_count(0),
-        i_enabled_array     => enabled_array(0),
-        o_freq_index        => freq_index(0),
-        o_time_ref          => time_ref(0)
+        i_from_spead_pack   => from_spead_pack(0),
+        o_to_spead_pack     => to_spead_pack(0)
 
     );
 
-    spead_data_rdy(1)       <= '0';
-    current_array(1)        <= (others => '0');
 
     HBM_interface : entity correlator_lib.HBM_axi_tbModel
     generic map (
@@ -519,6 +546,9 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_init_fname            => init_fname
     );
 
+    -- place holder for the RR logic
+    to_spead_pack(1).spead_data_rdy     <= '0';
+
 DUT_2 : entity spead_lib.spead_top generic map ( 
         g_CORRELATORS       => 2,
         g_DEBUG_VEC_SIZE    => DEBUG_VEC_SIZE,
@@ -543,14 +573,9 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_tx_axis_tready    => cmac_ready,
 
         -- Packed up Correlator Data.
-        i_spead_data        => spead_data,
-        o_spead_data_rd     => spead_data_rd,
-        i_current_array     => current_array,
-        i_spead_data_rdy    => spead_data_rdy,
-        i_byte_count        => byte_count,
-        o_enabled_array     => enabled_array,
-        i_freq_index        => freq_index,
-        i_time_ref          => time_ref,
+        o_from_spead_pack   => from_spead_pack,
+        i_to_spead_pack     => to_spead_pack,
+
         o_packetiser_enable => packetiser_enable,
 
         i_debug             => tb_debug,

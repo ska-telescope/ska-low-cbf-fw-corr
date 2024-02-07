@@ -110,7 +110,7 @@
 --      - Module to write to HBM.
 --      - Packetiser (reads from HBM and generates SPEAD packets).
 ----------------------------------------------------------------------------------
-library IEEE, correlator_lib, common_lib, xpm;
+library IEEE, correlator_lib, common_lib, xpm, spead_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 library DSP_top_lib;
@@ -121,6 +121,7 @@ use xpm.vcomponents.all;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
+use spead_lib.spead_packet_pkg.ALL;
 
 entity correlator_top is
     generic (
@@ -219,17 +220,10 @@ entity correlator_top is
 
         ------------------------------------------------------------------        
         -- spead packet interface
-        o_cor_spead_data        : out t_slv_512_arr(1 downto 0); --out std_logic_vector(511 downto 0);
-        i_cor_spead_data_rd     : in std_logic_vector(1 downto 0); --in std_logic;                         -- FWFT FIFO
-        o_cor_current_array     : out t_slv_8_arr(1 downto 0); --out std_logic_vector(7 downto 0);     -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-        o_cor_spead_data_rdy    : out std_logic_vector(1 downto 0); --out std_logic;
-        o_cor_byte_count        : out t_slv_14_arr(1 downto 0); --out std_logic_vector(13 downto 0);
-        i_cor_enabled_array     : in t_slv_8_arr(1 downto 0); --in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128, zero-based.
-        o_cor_freq_index        : out t_slv_17_arr(1 downto 0); --out std_logic_vector(16 downto 0);
-        o_cor_time_ref          : out t_slv_64_arr(1 downto 0); --out std_logic_vector(63 downto 0)
+        i_from_spead_pack       : in t_spead_to_hbm_bus_array(1 downto 0);
+        o_to_spead_pack         : out t_hbm_to_spead_bus_array(1 downto 0);
 
         i_packetiser_enable     : in std_logic_vector(1 downto 0);
-        
         
         -- Output HBM
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi_arr(1 downto 0);
@@ -352,14 +346,8 @@ begin
             o_HBM_axi_rready  => o_cor0_axi_rready,  -- out std_logic;
             ---------------------------------------------------------------
             -- data out to SPEAD Packetiser        
-            o_spead_data        => o_cor_spead_data(0),
-            i_spead_data_rd     => i_cor_spead_data_rd(0),
-            o_current_array     => o_cor_current_array(0),
-            o_spead_data_rdy    => o_cor_spead_data_rdy(0),
-            o_byte_count        => o_cor_byte_count(0),
-            i_enabled_array     => i_cor_enabled_array(0),
-            o_freq_index        => o_cor_freq_index(0),
-            o_time_ref          => o_cor_time_ref(0),
+            i_from_spead_pack   => i_from_spead_pack(0),
+            o_to_spead_pack     => o_to_spead_pack(0),
     
             i_packetiser_enable => i_packetiser_enable(0),
             
@@ -457,14 +445,8 @@ begin
             o_HBM_axi_rready  => o_cor1_axi_rready,  -- out std_logic;
             ---------------------------------------------------------------
             -- data out to SPEAD Packetiser        
-            o_spead_data        => o_cor_spead_data(1),
-            i_spead_data_rd     => i_cor_spead_data_rd(1),
-            o_current_array     => o_cor_current_array(1),
-            o_spead_data_rdy    => o_cor_spead_data_rdy(1),
-            o_byte_count        => o_cor_byte_count(1),
-            i_enabled_array     => i_cor_enabled_array(1),
-            o_freq_index        => o_cor_freq_index(1),
-            o_time_ref          => o_cor_time_ref(1),
+            i_from_spead_pack   => i_from_spead_pack(1),
+            o_to_spead_pack     => o_to_spead_pack(1),
 
             i_packetiser_enable => i_packetiser_enable(1),
             
