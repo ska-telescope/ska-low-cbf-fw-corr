@@ -273,6 +273,10 @@ signal testmode_row_count			: std_logic_vector(15 downto 0);
 signal testmode_load_instruct		: std_logic;
 signal testmode_load_instruct_d		: std_logic;
 
+signal spead_data_heap_size         : std_logic_vector(7 downto 0);
+signal bytes_to_send                : unsigned(13 downto 0);
+
+signal hbm_readout_complete         : std_logic;
 
 --------------------------------------------------------------------------------
 begin
@@ -293,6 +297,7 @@ begin
     o_to_spead_pack.byte_count              <= byte_count;
     o_to_spead_pack.freq_index              <= cor_tri_freq_index;
     o_to_spead_pack.time_ref                <= cor_tri_time_ref;
+    o_to_spead_pack.hbm_readout_complete    <= hbm_readout_complete;
 
 
     ---------------------------------------------------------------------------
@@ -364,10 +369,12 @@ begin
                 hbm_start           <= '0';
                 cor_tri_row         <= ( others => '0' );
                 cor_tri_row_count   <= ( others => '0' );
+                hbm_readout_complete    <= '0';
             else
                 case cor_triangle_fsm is
                     when idle => 
                         cor_tri_fsm_debug       <= x"0";
+                        hbm_readout_complete    <= '0';
                         meta_cache_fifo_rd      <= '0';
                         cor_read_cells          <= ( others => '0' );
                         cells_to_retrieve       <= ( others => '0' );
@@ -449,6 +456,7 @@ begin
                         end if;
 
                     when complete =>
+                        hbm_readout_complete    <= '1';
                         cor_tri_fsm_debug       <= x"6";
                         meta_cache_fifo_rd      <= '0';
                         cor_triangle_fsm        <= idle;
@@ -885,12 +893,30 @@ end process;
                 -- 8192 bytes is 128 reads.
                 --if unsigned(packed_fifo_rd_count) >= 128 then               -- packets of 8kish when dealing with larger stations
 
+                spead_data_heap_size    <= i_from_spead_pack.spead_data_heap_size(13 downto 6);
+
+                if spead_data_heap_size = x"40" then    -- 4096
+                    bytes_to_send   <= 14D"4096";
+                elsif spead_data_heap_size = x"20" then    -- 2048
+                    bytes_to_send   <= 14D"2048";
+                elsif spead_data_heap_size = x"10" then    -- 1024
+                    bytes_to_send   <= 14D"1024";
+                elsif spead_data_heap_size = x"08" then    -- 512
+                    bytes_to_send   <= 14D"512";
+                elsif spead_data_heap_size = x"04" then    -- 256
+                    bytes_to_send   <= 14D"256";
+                elsif spead_data_heap_size = x"02" then    -- 128
+                    bytes_to_send   <= 14D"128";
+                else
+                    bytes_to_send   <= 14D"8192";
+                end if;
+
                 -- 128 deep = 8K data + vis, match this against the programmed desired data chunk size.
                 -- i_from_spead_pack.spead_data_heap_size(15 downto 0)      8192 = bit 13.
 
-                if packed_fifo_rd_count(7 downto 0) >= i_from_spead_pack.spead_data_heap_size(13 downto 6) then               -- packets of 8kish when dealing with larger stations
+                if packed_fifo_rd_count(7 downto 0) >= i_from_spead_pack.spead_data_heap_size(13 downto 6) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
                     send_spead_data     <= "01";
-                    bytes_to_packetise  <= 14D"8192";                       -- stream out 8k.
+                    bytes_to_packetise  <= bytes_to_send; --14D"8192";                       -- stream out 8k.
                 elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
                     bytes_to_packetise  <= bytes_to_process(13 downto 0);
                     send_spead_data     <= "01";

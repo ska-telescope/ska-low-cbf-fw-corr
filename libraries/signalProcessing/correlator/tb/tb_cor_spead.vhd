@@ -354,20 +354,20 @@ begin
             elsif testCount_300 = 4000 then
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";
-                row_count       <= 9D"8";
+                row_count       <= 9D"6";
                 data_valid      <= '1';
 
                 stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"1";
+                stim_sub_array  <= 8D"0";
                 
             elsif testCount_300 = 7000 then
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";
-                row_count       <= 9D"12";
+                row_count       <= 9D"6";
                 data_valid      <= '1';
 
-                stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"2";
+                stim_freq_index <= 17D"0";
+                stim_sub_array  <= 8D"0";
             elsif testCount_300 = 10000 then
                 -- META DATA FROM CORRELATOR SIM
                 row             <= 13D"0";

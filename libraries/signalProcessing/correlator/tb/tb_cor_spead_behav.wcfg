@@ -25,15 +25,18 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="892.916 ns"></ZoomStartTime>
-      <ZoomEndTime time="1,021.417 ns"></ZoomEndTime>
-      <Cursor1Time time="1,000.000 ns"></Cursor1Time>
+      <ZoomStartTime time="12,961.967 ns"></ZoomStartTime>
+      <ZoomEndTime time="13,223.368 ns"></ZoomEndTime>
+      <Cursor1Time time="13,152.167 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="254"></NameColumnWidth>
-      <ValueColumnWidth column_width="100"></ValueColumnWidth>
+      <ValueColumnWidth column_width="92"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="340" />
+   <WVObjectSize size="351" />
+   <wave_markers>
+      <marker label="" time="216100000" />
+   </wave_markers>
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -1134,6 +1137,40 @@
       <obj_property name="label">SPEAD</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
+   <wvobject type="vbus" fp_name="vbus400">
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[13]">
+         <obj_property name="ElementShortName">[13]</obj_property>
+         <obj_property name="ObjectShortName">[13]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[12]">
+         <obj_property name="ElementShortName">[12]</obj_property>
+         <obj_property name="ObjectShortName">[12]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[11]">
+         <obj_property name="ElementShortName">[11]</obj_property>
+         <obj_property name="ObjectShortName">[11]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[10]">
+         <obj_property name="ElementShortName">[10]</obj_property>
+         <obj_property name="ObjectShortName">[10]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[9]">
+         <obj_property name="ElementShortName">[9]</obj_property>
+         <obj_property name="ObjectShortName">[9]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[8]">
+         <obj_property name="ElementShortName">[8]</obj_property>
+         <obj_property name="ObjectShortName">[8]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[7]">
+         <obj_property name="ElementShortName">[7]</obj_property>
+         <obj_property name="ObjectShortName">[7]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[6]">
+         <obj_property name="ElementShortName">[6]</obj_property>
+         <obj_property name="ObjectShortName">[6]</obj_property>
+      </wvobject>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_rd_count">
       <obj_property name="ElementShortName">packed_fifo_rd_count[9:0]</obj_property>
       <obj_property name="ObjectShortName">packed_fifo_rd_count[9:0]</obj_property>
@@ -1198,9 +1235,41 @@
       <obj_property name="ElementShortName">spead_sm</obj_property>
       <obj_property name="ObjectShortName">spead_sm</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/spead_data_header">
+      <obj_property name="ElementShortName">spead_data_header</obj_property>
+      <obj_property name="ObjectShortName">spead_data_header</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/heap_counter_data_calc">
+      <obj_property name="ElementShortName">heap_counter_data_calc[16:0]</obj_property>
+      <obj_property name="ObjectShortName">heap_counter_data_calc[16:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_packet_bytes_remain">
+      <obj_property name="ElementShortName">data_packet_bytes_remain[13:0]</obj_property>
+      <obj_property name="ObjectShortName">data_packet_bytes_remain[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/o_bytes_to_transmit">
+      <obj_property name="ElementShortName">o_bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="ObjectShortName">o_bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/udp_total_bytes">
+      <obj_property name="ElementShortName">udp_total_bytes[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_total_bytes[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/ipv4_total_bytes_to_calc">
+      <obj_property name="ElementShortName">ipv4_total_bytes_to_calc[15:0]</obj_property>
+      <obj_property name="ObjectShortName">ipv4_total_bytes_to_calc[15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/i_data_to_player_rdy">
       <obj_property name="ElementShortName">i_data_to_player_rdy</obj_property>
       <obj_property name="ObjectShortName">i_data_to_player_rdy</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/spead_data_pending">
+      <obj_property name="ElementShortName">spead_data_pending</obj_property>
+      <obj_property name="ObjectShortName">spead_data_pending</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/current_ipv4.total_length">
       <obj_property name="ElementShortName">.total_length[15:0]</obj_property>
@@ -1246,11 +1315,6 @@
       <obj_property name="ObjectShortName">bytes_coming_from_cor[13:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_packet_bytes_remain">
-      <obj_property name="ElementShortName">data_packet_bytes_remain[13:0]</obj_property>
-      <obj_property name="ObjectShortName">data_packet_bytes_remain[13:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/pack_data_vector">
       <obj_property name="ElementShortName">pack_data_vector[1:0][511:0]</obj_property>
       <obj_property name="ObjectShortName">pack_data_vector[1:0][511:0]</obj_property>
@@ -1263,11 +1327,6 @@
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_to_player_wr">
       <obj_property name="ElementShortName">data_to_player_wr</obj_property>
       <obj_property name="ObjectShortName">data_to_player_wr</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/o_bytes_to_transmit">
-      <obj_property name="ElementShortName">o_bytes_to_transmit[13:0]</obj_property>
-      <obj_property name="ObjectShortName">o_bytes_to_transmit[13:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/o_data_to_player">
       <obj_property name="ElementShortName">o_data_to_player[511:0]</obj_property>
@@ -1471,10 +1530,12 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/destination_udp_data">
       <obj_property name="ElementShortName">destination_udp_data[15:0]</obj_property>
       <obj_property name="ObjectShortName">destination_udp_data[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/destination_udp_addr">
       <obj_property name="ElementShortName">destination_udp_addr[10:0]</obj_property>
       <obj_property name="ObjectShortName">destination_udp_addr[10:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_ipv4_total_bytes_to_calc">
       <obj_property name="ElementShortName">i_ipv4_total_bytes_to_calc[15:0]</obj_property>
@@ -1513,9 +1574,30 @@
       <obj_property name="ElementShortName">o_current_ethernet</obj_property>
       <obj_property name="ObjectShortName">o_current_ethernet</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_to_spead_pack.spead_data_rdy">
+      <obj_property name="ElementShortName">.spead_data_rdy</obj_property>
+      <obj_property name="ObjectShortName">.spead_data_rdy</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_to_spead_pack.spead_data_pending">
+      <obj_property name="ElementShortName">.spead_data_pending</obj_property>
+      <obj_property name="ObjectShortName">.spead_data_pending</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_data_packet_sending">
+      <obj_property name="ElementShortName">i_data_packet_sending</obj_property>
+      <obj_property name="ObjectShortName">i_data_packet_sending</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_to_spead_pack.hbm_readout_complete">
+      <obj_property name="ElementShortName">.hbm_readout_complete</obj_property>
+      <obj_property name="ObjectShortName">.hbm_readout_complete</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_dest_port_data">
+      <obj_property name="ElementShortName">udp_dest_port_data[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_dest_port_data[15:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/o_current_udp">
       <obj_property name="ElementShortName">o_current_udp</obj_property>
       <obj_property name="ObjectShortName">o_current_udp</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/o_spead_data_packet">
       <obj_property name="ElementShortName">o_spead_data_packet</obj_property>
