@@ -25,7 +25,6 @@ Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 USE common_lib.common_pkg.ALL;
-use spead_lib.ethernet_pkg.ALL;
 library xpm;
 use xpm.vcomponents.all;
 

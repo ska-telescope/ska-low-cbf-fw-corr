@@ -98,6 +98,7 @@ system being used.
 * 0.0.4 - 
     * Multi-packet DATA Heap added to support greater than 16x16
     * Timestamping update for Epoch Offset calculation.
+    * Add mechanism for rate control for all three SPEAD packets.
 * 0.0.3 - 
     * IPv4 checksum bug fix.
 * 0.0.2 - 

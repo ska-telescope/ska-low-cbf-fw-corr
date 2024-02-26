@@ -24,9 +24,6 @@ USE common_lib.common_mem_pkg.ALL;
 USE axi4_lib.axi4_lite_pkg.ALL;
 USE axi4_lib.axi4_stream_pkg.ALL;
 USE axi4_lib.axi4_full_pkg.ALL;
-
-use spead_lib.ethernet_pkg.ALL;
-use spead_lib.CbfPsrHeader_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
 
 library technology_lib;
@@ -235,7 +232,6 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal FB_to_100G_data : std_logic_vector(127 downto 0);
     signal FB_to_100G_valid : std_logic;
     signal FB_to_100G_ready : std_logic;
-    signal packet_stream_out : t_packetiser_stream_out(2 downto 0);
     signal cor_ready, cor_valid, cor_last, cor_final : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
     signal cor_tileType, cor_first : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
     signal cor_data : t_slv_256_arr((g_MAX_CORRELATORS-1) downto 0);
