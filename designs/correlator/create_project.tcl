@@ -170,7 +170,6 @@ set_property library technology_lib [get_files {\
 
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/base/common/src/vhdl/common_reg_r_w.vhd \
- $COMMON_PATH/base/common/src/vhdl/common_reg_r_w_dc.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_pkg.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_str_pkg.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_mem_pkg.vhd \
@@ -180,17 +179,12 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/base/common/src/vhdl/common_network_layers_pkg.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_network_total_header_pkg.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_components_pkg.vhd \
- $COMMON_PATH/base/common/src/vhdl/common_spulse.vhd \
- $COMMON_PATH/base/common/src/vhdl/common_switch.vhd \
- $COMMON_PATH/base/common/src/vhdl/common_delay.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_ram_crw_crw.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_pipeline.vhd \
- $COMMON_PATH/base/common/src/vhdl/common_count_saturate.vhd \
  $COMMON_PATH/base/common/src/vhdl/common_accumulate.vhd \
 ]
 set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_reg_r_w.vhd \
- *libraries/base/common/src/vhdl/common_reg_r_w_dc.vhd \
  *libraries/base/common/src/vhdl/common_pkg.vhd \
  *libraries/base/common/src/vhdl/common_str_pkg.vhd \
  *libraries/base/common/src/vhdl/common_mem_pkg.vhd \
@@ -200,12 +194,8 @@ set_property library common_lib [get_files {\
  *libraries/base/common/src/vhdl/common_network_layers_pkg.vhd \
  *libraries/base/common/src/vhdl/common_network_total_header_pkg.vhd \
  *libraries/base/common/src/vhdl/common_components_pkg.vhd \
- *libraries/base/common/src/vhdl/common_spulse.vhd \
- *libraries/base/common/src/vhdl/common_switch.vhd \
- *libraries/base/common/src/vhdl/common_delay.vhd \
  *libraries/base/common/src/vhdl/common_ram_crw_crw.vhd \
  *libraries/base/common/src/vhdl/common_pipeline.vhd \
- *libraries/base/common/src/vhdl/common_count_saturate.vhd \
  *libraries/base/common/src/vhdl/common_accumulate.vhd \
 }]
 
@@ -242,33 +232,22 @@ set_property library tech_memory_lib [get_files {\
 #############################################################
 # 100G LFAA decode
 
+source $COMMON_PATH/LFAA_decode_100G/LFAADecode.tcl
+
 add_files -fileset sources_1 [glob \
  $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
  $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg.vhd \
- $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_vcstats_ram.vhd \
- $RLIBRARIES_PATH/signalProcessing/LFAADecode100G/src/vhdl/LFAADecodeTop100G.vhd \
- $RLIBRARIES_PATH/signalProcessing/LFAADecode100G/src/vhdl/LFAAProcess100G.vhd \
+ $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAADecodeTop100G.vhd \
+ $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAAProcess100G.vhd \
+ $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \
 ]
 set_property library LFAADecode100G_lib [get_files {\
- *build/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
- *build/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg.vhd \
- *build/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_vcstats_ram.vhd \
- *libraries/signalProcessing/LFAADecode100G/src/vhdl/LFAADecodeTop100G.vhd \
- *libraries/signalProcessing/LFAADecode100G/src/vhdl/LFAAProcess100G.vhd \
+ *LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
+ *LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg.vhd \
+ *LFAA_decode_100G/src/vhdl/LFAADecodeTop100G.vhd \
+ *LFAA_decode_100G/src/vhdl/LFAAProcess100G.vhd \
+ *LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \
 }]
-# test_bench_files
-#add_files -fileset sim_1 [glob \
-# $RLIBRARIES_PATH/signalProcessing/LFAADecode100G/tb/tb_LFAADecode100G.vhd \
-#]
-#set_property library LFAADecode100G_lib [get_files {\
-# *libraries/signalProcessing/LFAADecode/tb/tb_LFAADecode100G.vhd \
-#}]
-
-# tcl scripts for ip generation
-source $ARGS_PATH/LFAADecode100G/lfaadecode100g/ip_LFAADecode100G_lfaadecode100g_vcstats_ram.tcl
-
-## tcl scripts for ip generation
-#source $RLIBRARIES_PATH/signalProcessing/timingControl/ptpclk125.tcl
 
 #############################################################
 # SPEAD

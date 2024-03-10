@@ -95,6 +95,9 @@ system being used.
 
 # Changelog
 
+* 0.0.5 - 
+    * LFAA_decode upgraded to support SPS packets v1, v2, v3 without configuration.
+    * LFAA_decode address map update to include CDC updates to ARGs, see YAML.
 * 0.0.4 - 
     * Multi-packet DATA Heap added to support greater than 16x16
     * Timestamping update for Epoch Offset calculation.

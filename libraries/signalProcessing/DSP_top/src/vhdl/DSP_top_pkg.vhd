@@ -90,7 +90,7 @@ package DSP_top_pkg is
 
     -- Packet header at the input of the coarse corner turn (and also at the output of the LFAA ingest)
     type t_ctc_input_header is record
-        packet_count      : std_logic_vector(31 downto 0);
+        packet_count      : std_logic_vector(39 downto 0);
         virtual_channel   : std_logic_vector(15 downto 0);
         channel_frequency : std_logic_vector(15 downto 0);
         station_id        : std_logic_vector(15 downto 0);

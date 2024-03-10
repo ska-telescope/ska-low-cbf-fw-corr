@@ -12,21 +12,50 @@ peripherals:
       - slave_name        : VCStats
         slave_type        : RAM
         number_of_slaves  : 1
-        slave_description : "Status for each virtual channel. 8 words per virtual channel. Each group of 8 words has
+        slave_description : " VC_STATS
+                              Base Address 0, range 8192
+                              Status for each virtual channel. 8 words per virtual channel. Each group of 8 words has
                               (1) most recent logical channel in bits(15:0), most recent nof_contributing_antennas in bits(31:16),
                               (2) Most recent packet number, 
-                              (3) bits(31:28) = 4 bit count of packets with out of order packet numbers (wraps on overflow), bits(27:0) = Time stamp for the most recent packet count (units of 16 ns),
-                              (4) high 32 bits of the timestamp for the most recent packet (units of 2^32 ns). 
+                              (3) bits(31:28) = 4 bit count of packets with out of order packet numbers (wraps on overflow), bits(27:0) = PTP uptime fractional second (31 -> 4), units of 16ns
+                              (4) PTP uptime whole seconds (Bits 64 -> 32) of the 80 bit timestamp.
                               (5) most recent SPEAD timestamp bits(31:0),
                               (6) most recent SPEAD timestamp bits(47:32), 
                               (7) most recent SPEAD sync time, bits(31:0), 
-                              (8) most recent SPEAD sync time, bits(47:32)."
+                              (8) most recent SPEAD sync time, bits(47:32).
+
+                              VC_TABLE
+                              Base Address 8192, range 4096
+                              Virtual channel table. Two copies in addresses 0-2047 and 2048-4095. The one used is determined by bit 1 of the control register.
+                                   Each entry has 2 words :\
+                                    First word : \
+                                      bits 2:0   = substation_id, \
+                                      bits 12:3  = station_id,    \
+                                      bits 16:13 = beam_id, \
+                                      bits 25:17 = frequency_id  \
+                                      bits 30:26 = subarray_id \
+                                      bit  31    = set to '1' to indicate this entry is valid \
+                                    Second Word : \
+                                      bits (9:0) =  Virtual channel.  \
+                                   The maximum number of valid entries in this table is defined by total_channels.\
+                                   Used virtual channels must be packed into the lower end of the addresses in the VCTable.\
+                                   For example, if there are 128 virtual channels, then they must be in entries 0 to 127 of this table.\
+                                   Virtual channels must be sorted according to the value in the first word in each entry. \
+                                   So for example if there are 3 stations with ids (5, 10, 12) and 2 channels with ids (100, 101), 
+                                   then they would be listed in this table as
+                                    0 - station 5, channel 100 \
+                                    1 - station 10, channel 100 \
+                                    2 - station 12, channel 100 \
+                                    3 - station 5, channel 101 \
+                                    4 - station 10, channel 101 \
+                                    5 - station 12, channel 101 \
+                              "
         fields            :
           - - field_name        : data
               width             : 32
               user_width        : 32
               access_mode       : RW
-              number_of_fields  : 8192
+              number_of_fields  : 16384
               interface         : simple
               reset_value       : 0
               field_description : "Status for each virtual channel."
@@ -35,7 +64,7 @@ peripherals:
         slave_type        : reg
         number_of_slaves  : 1
         slave_description : "Registers associated with LFAA Decode"
-        dual_clock        : true
+        dual_clock        : false
         fields:
           - - field_name        : table_select
               width             : 1
@@ -43,11 +72,23 @@ peripherals:
               reset_value       : 0x0
               field_description : "Select which virtual channel table to use; 0 for first half (table addresses 0-1023), 1 for second half (table addresses 1024-2047)"
           #################################
+          - - field_name        : total_stations
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Not used in CORRELATOR, generated due to common VHDL code."
+          #################################
+          - - field_name        : total_coarse
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Not used in CORRELATOR, generated due to common VHDL code."
+          #################################
           - - field_name        : total_channels
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Total number of virtual channels to process in this FPGA. This includes virtual channels that have been skipped in order to ensure all groups of 4 virtual channels are for the same subarray and beam."
+              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse."
           #################################
           - - field_name        : SPEAD_packet_count
               width             : 32
@@ -91,40 +132,17 @@ peripherals:
               reset_value       : 0x0
               field_description : "Count of packets that match spead v2 headers, 32 bit wrapping, reset on write."
           #################################
+          - - field_name        : spead_v3_packet_found
+              width             : 32
+              access_mode       : CW
+              reset_value       : 0x0
+              field_description : "Count of packets that match spead v3 headers, 32 bit wrapping, reset on write."
+          #################################
           - - field_name        : non_spead_packet_found
               width             : 32
               access_mode       : CW
               reset_value       : 0x0
               field_description : "Count of packets that match spead headers, 32 bit wrapping, reset on write."              
-          ################################# 
-          - - field_name        : VCTable
-              width             : 32
-              access_mode       : RW
-              number_of_fields  : 4096
-              field_description : "Virtual channel table. Two copies in addresses 0-2047 and 2048-4095. The one used is determined by bit 1 of the control register.
-                                   Each entry has 2 words :\
-                                    First word : \
-                                      bits 2:0   = substation_id, \
-                                      bits 12:3  = station_id,    \
-                                      bits 16:13 = beam_id, \
-                                      bits 25:17 = frequency_id  \
-                                      bits 30:26 = subarray_id \
-                                      bit  31    = set to '1' to indicate this entry is valid \
-                                    Second Word : \
-                                      bits (9:0) =  Virtual channel.  \
-                                   The maximum number of valid entries in this table is defined by total_channels.\
-                                   Used virtual channels must be packed into the lower end of the addresses in the VCTable.\
-                                   For example, if there are 128 virtual channels, then they must be in entries 0 to 127 of this table.\
-                                   Virtual channels must be sorted according to the value in the first word in each entry. \
-                                   So for example if there are 3 stations with ids (5, 10, 12) and 2 channels with ids (100, 101), 
-                                   then they would be listed in this table as
-                                    0 - station 5, channel 100 \
-                                    1 - station 10, channel 100 \
-                                    2 - station 12, channel 100 \
-                                    3 - station 5, channel 101 \
-                                    4 - station 10, channel 101 \
-                                    5 - station 12, channel 101 \
-                                    "
           #################################
           - - field_name        : HBM_reset
               width             : 1
@@ -167,4 +185,3 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "If this returns 0xF, then held in reset otherwise it is running"
-              
