@@ -270,6 +270,8 @@ begin
     -- Takes in data from the 100GE port, checks it is a valid SPEAD packet, then
     --  - Notifies the corner turn, which generates the write address part of the AXI memory interface.
     --  - Outputs the data part of the packet on the wdata part of the AXI memory interface.
+    LFAAingest_packetCount(47 downto 40)    <= x"00";
+    
     LFAAin : entity LFAADecode100G_lib.LFAADecodeTop100G
     port map(
         -- Data in from the 100GE MAC
@@ -278,11 +280,12 @@ begin
         i_axis_tlast     => i_axis_tlast, --  in std_logic;                      
         i_axis_tuser     => i_axis_tuser, --  in (79:0);  -- Timestamp for the packet, from the PTP core
         i_axis_tvalid    => i_axis_tvalid, -- in std_logic;
-        i_data_clk       => i_clk_100GE,   -- 322 MHz from the 100GE MAC; note 512 bits x 322 MHz = 165 Mbit/sec, so even full rate traffic will have .valid low 1/3rd of the time.
-        i_data_rst       => '0',            -- in std_logic;
+        i_100GE_clk      => i_clk_100GE,   -- 322 MHz from the 100GE MAC; note 512 bits x 322 MHz = 165 Mbit/sec, so even full rate traffic will have .valid low 1/3rd of the time.
+        i_100GE_rst      => eth100G_rst,
+        --i_data_rst       => '0',            -- in std_logic;
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
         o_virtualChannel => LFAAingest_virtualChannel,  -- out(15:0), single number to uniquely identify the channel+station for this packet.
-        o_packetCount    => LFAAingest_packetCount(31 downto 0),     -- out(31:0). Packet count from the SPEAD header.
+        o_packetCount    => LFAAingest_packetCount(39 downto 0),     -- out(31:0). Packet count from the SPEAD header.
         o_valid          => LFAAingest_valid,           -- out std_logic; o_virtualChannel and o_packetCount are valid.
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
         o_axi_w      => o_HBM_axi_w(0),      -- w data bus (.wvalid, .wdata, .wlast)
