@@ -94,7 +94,9 @@ system being used.
 * $MODEL_TECH_DIR = Modelsim directory
 
 # Changelog
-
+* 0.0.6 - 
+    * Fix for SPEAD v3, timestamps.
+    * LFAA statistic RAMs update to have common layout for SPEAD v1,v2,v3
 * 0.0.5 - 
     * LFAA_decode upgraded to support SPS packets v1, v2, v3 without configuration.
     * LFAA_decode address map update to include CDC updates to ARGs, see YAML.
