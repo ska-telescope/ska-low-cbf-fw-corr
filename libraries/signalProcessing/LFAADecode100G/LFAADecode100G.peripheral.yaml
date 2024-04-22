@@ -13,16 +13,17 @@ peripherals:
         slave_type        : RAM
         number_of_slaves  : 1
         slave_description : " VC_STATS
+                              This address space arrangement has been optimised for all 3 SPEAD formats, some fields return 0 when not used.
                               Base Address 0, range 8192
                               Status for each virtual channel. 8 words per virtual channel. Each group of 8 words has
                               (1) most recent logical channel in bits(15:0), most recent nof_contributing_antennas in bits(31:16),
-                              (2) Most recent packet number, 
+                              (2) most recent SPEAD timestamp bits(31:0) for V1 and V2, 0 for v3 
                               (3) bits(31:28) = 4 bit count of packets with out of order packet numbers (wraps on overflow), bits(27:0) = PTP uptime fractional second (31 -> 4), units of 16ns
                               (4) PTP uptime whole seconds (Bits 64 -> 32) of the 80 bit timestamp.
-                              (5) most recent SPEAD timestamp bits(31:0),
-                              (6) most recent SPEAD timestamp bits(47:32), 
-                              (7) most recent SPEAD sync time, bits(31:0), 
-                              (8) most recent SPEAD sync time, bits(47:32).
+                              (5) latest packet number bits(31:0),
+                              (6) latest packet number bits(47:32), 
+                              (7) most recent SPEAD sync time, bits(31:0) for V1 and V2, 0 for v3 
+                              (8) most recent SPEAD sync time, bits(47:32) for V1 and V2, 0 for v3.
 
                               VC_TABLE
                               Base Address 8192, range 4096
