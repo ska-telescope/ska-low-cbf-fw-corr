@@ -92,6 +92,20 @@ psi-low-test:
     CORR_FW_VERSION: ${CI_COMMIT_SHORT_SHA}
     CORR_FW_SOURCE: "gitlab"
 
+ska-low-cbf-fw-testing:
+  stage: integration
+  rules:
+    - *low_psi_rules
+  needs:
+    - publish dev package
+  trigger:
+    project: "ska-telescope/low-cbf/ska-low-cbf-fw-testing"
+  variables:
+    # version is actually something like "0.0.1-main.5a9cbb45" or "0.0.1-dev.b9faa971",
+    # but inserting the main/dev string here is annoying. Hash alone should be ok
+    CORR_FW_VERSION: ${CI_COMMIT_SHORT_SHA}
+    CORR_FW_SOURCE: "gitlab"
+
 ####################################################################################################################
 ### Example of how to add jobs to build for a different platform/card.
 ### Update & un-comment to enable the next generation card for testing.
