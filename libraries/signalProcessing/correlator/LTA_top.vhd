@@ -153,7 +153,7 @@ architecture Behavioral of LTA_top is
     signal fifo_wr_en : std_logic;
     signal integratedReadEnDel : std_logic_vector(20 downto 0);
     signal rst_del1 : std_logic;
-    type t_data_deliver_fsm is (idle, send_vis_start, send_vis, send_vis_wait, send_tci, send_tci_wait);
+    type t_data_deliver_fsm is (idle, send_vis_start, send_vis, send_vis_wait, send_tci, send_tci_wait, end_cell);
     signal data_deliver_fsm : t_data_deliver_fsm := idle;
     
     signal deliver_totalTimes : std_logic_Vector(7 downto 0);
@@ -186,6 +186,8 @@ architecture Behavioral of LTA_top is
     signal deliverTotalStationsDel : t_slv_16_arr(15 downto 0);
     signal deliverSubarrayBeamDel : t_slv_8_arr(15 downto 0);
     signal cellLastDel : std_logic_vector(15 downto 0);
+    
+    signal end_cell_cnt     : unsigned(1 downto 0);
     
 begin
     
@@ -603,7 +605,8 @@ begin
                     cellReadoutCount <= (others => '0'); -- which cell in the tile are we up to ? (0 to axi_cellMax)
                     visReadoutCount <= (others => '0'); -- which visibility in the cell are we up to  (0 to 255 for every cell)
                     TCIReadoutCount <= (others => '0'); -- DV/TCI word. read out words are 256 bits wide, with 16 read out in a burst (16 words * 32 bytes = 1 cell = (1 DV + 1 TCI) * 16 * 16 stations = 512 bytes)
-                
+                    end_cell_cnt    <= "00";
+                    
                 when send_vis_start =>
                     -- check there is data in the FIFO to send.
                     -- Once there is data in the FIFO to send, there should be 256 words to send, because data is 
@@ -638,12 +641,20 @@ begin
                         if (cellReadoutCount = deliver_cellMax) then
                             data_deliver_fsm <= idle;
                         else
-                            data_deliver_fsm <= send_vis_start;
+                            data_deliver_fsm <= end_cell;
                         end if;
                     else
                         if i_stop = '1' then
                             data_deliver_fsm <= send_tci_wait;
                         end if;
+                    end if;
+                    
+                when end_cell =>
+                    if end_cell_cnt = 2 then
+                        data_deliver_fsm <= send_vis_start;
+                        end_cell_cnt     <= "00";
+                    else
+                        end_cell_cnt     <= end_cell_cnt + 1;
                     end if;
                 
                 when send_tci_wait =>

@@ -13,7 +13,7 @@ library IEEE,technology_lib, PSR_Packetiser_lib, signal_processing_common, HBM_P
 library correlator_lib, common_lib, spead_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use spead_lib.ethernet_pkg.ALL;
+use signal_processing_common.ethernet_pkg.ALL;
 use spead_lib.CbfPsrHeader_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
 use common_lib.common_pkg.ALL;
@@ -29,7 +29,16 @@ end tb_cor_spead;
 architecture Behavioral of tb_cor_spead is
 constant fname          : string := "";
 -- assuming stim in base of repo for the moment.
-constant init_fname     : string := "../../../../../../../HBM_read_out_test_triangle.txt";
+--constant init_fname     : string := "../../../../../../../HBM_read_out_test_triangle.txt";
+
+constant g_TEST_CASE        : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_17stations/";
+--constant g_VIS_CHECK_FILE   : string := "LTA_vis_check.txt";
+constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
+
+constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
+
+constant USE_TEST_CASE      : BOOLEAN := TRUE;
+
 constant HBM_addr_width         : integer := 32;
 
 signal init_mem     : std_logic     := '0';
@@ -288,7 +297,7 @@ begin
                 init_mem    <= '0';
             end if;
 
-            hbm_start_addr  <= x"00000000";
+            
 
             if testCount_300 = 50 then
                 row         <= 5D"0" & zero_byte;
@@ -328,6 +337,33 @@ begin
                 j <= j + 1;
             end if;
 
+
+            if USE_TEST_CASE = TRUE then
+                if testCount_300 = 1000 then 
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"50";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"50";
+                    hbm_start_addr  <= x"00000000";
+                end if;
+                
+                if testCount_300 = 10000 then 
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"48";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"48";
+                    hbm_start_addr  <= x"00000000";
+                end if;
+
+            end if;
+
+            if USE_TEST_CASE = FALSE then
 -- HEAP data size rams
 -- ADDR    Config      Value(inc Epoch offset)
 -- 0       6x6         722         0x2d2
@@ -341,96 +377,99 @@ begin
 -- 8       26x26       11942       0x2ea6
 -- 9       28x28       13812       0x35f4
 
-            -- some stimulus for initial triangle testing.
-            if testCount_300 = 1000 then 
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"6";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"0";
-                stim_sub_array  <= 8D"0";
-
-            elsif testCount_300 = 4000 then
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"6";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"0";
-                
-            elsif testCount_300 = 7000 then
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"6";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"0";
-                stim_sub_array  <= 8D"0";
-            elsif testCount_300 = 10000 then
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"16";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"3";
-            elsif testCount_300 = 13000 then
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"18";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"0";
-                stim_sub_array  <= 8D"4";
-                
-                stim_time_ref(31 downto 0)  <= 32D"4";
-                stim_time_ref(33 downto 32) <= "01";
-                stim_time_ref(34)           <= '1';
-            elsif testCount_300 = 17000 then
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"20";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"5";
-                
-                stim_time_ref(31 downto 0)  <= 32D"3";
-                stim_time_ref(33 downto 32) <= "00";
-                stim_time_ref(34)           <= '0';
-            elsif testCount_300 = 21000 then
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"22";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"1";
-                stim_sub_array  <= 8D"6";
-                
-                stim_time_ref(31 downto 0)  <= 32D"3";
-                stim_time_ref(33 downto 32) <= "00";
-                stim_time_ref(34)           <= '0';
-
-            elsif testCount_300 = 25000 then
-                -- META DATA FROM CORRELATOR SIM
-                row             <= 13D"0";
-                row_count       <= 9D"50";
-                data_valid      <= '1';
-
-                stim_freq_index <= 17D"0";
-                stim_sub_array  <= 8D"11";
-
-                stim_time_ref(31 downto 0)  <= 32D"3";
-                stim_time_ref(33 downto 32) <= "00";
-                stim_time_ref(34)           <= '0';
-            else
-                i <= 0;
-                meta_data_sel <= '0';
-                cmac_ready  <= '1';
+                -- some stimulus for initial triangle testing.
+                if testCount_300 = 1000 then 
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"6";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"0";
+    
+                elsif testCount_300 = 4000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"6";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"1";
+                    stim_sub_array  <= 8D"0";
+                    
+                elsif testCount_300 = 7000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"6";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"0";
+                elsif testCount_300 = 10000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"16";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"1";
+                    stim_sub_array  <= 8D"3";
+                elsif testCount_300 = 13000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"18";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"4";
+                    
+                    stim_time_ref(31 downto 0)  <= 32D"4";
+                    stim_time_ref(33 downto 32) <= "01";
+                    stim_time_ref(34)           <= '1';
+                elsif testCount_300 = 17000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"20";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"1";
+                    stim_sub_array  <= 8D"5";
+                    
+                    stim_time_ref(31 downto 0)  <= 32D"3";
+                    stim_time_ref(33 downto 32) <= "00";
+                    stim_time_ref(34)           <= '0';
+                elsif testCount_300 = 21000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"22";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"1";
+                    stim_sub_array  <= 8D"6";
+                    
+                    stim_time_ref(31 downto 0)  <= 32D"3";
+                    stim_time_ref(33 downto 32) <= "00";
+                    stim_time_ref(34)           <= '0';
+    
+                elsif testCount_300 = 25000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"50";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"11";
+    
+                    stim_time_ref(31 downto 0)  <= 32D"3";
+                    stim_time_ref(33 downto 32) <= "00";
+                    stim_time_ref(34)           <= '0';
+                end if;
+            
             end if;
-                HBM_axi_r.resp  <= "00";
+            
+            i <= 0;
+            meta_data_sel <= '0';
+            cmac_ready  <= '1';
+        
+            HBM_axi_r.resp  <= "00";
 
         end if;
 
@@ -587,5 +626,4 @@ DUT_2 : entity spead_lib.spead_top generic map (
         o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
 
-    
 end Behavioral;

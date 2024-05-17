@@ -225,7 +225,7 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutFirst : std_logic;
     signal cur_station_offset_ext : std_logic_vector(22 downto 0);
     signal cur_station_offset : std_logic_vector(1 downto 0);
-    signal cur_station_ext, cur_station_offset_x4, up_to_station : std_logic_vector(15 downto 0);
+    signal cur_station_ext, cur_station_offset_x4, up_to_station : unsigned(15 downto 0);
     signal readoutStationOffset : std_logic_vector(1 downto 0);
     signal arFIFO_wr_count : std_logic_vector(6 downto 0);
     signal cor_last_int, cor_first_int : std_logic := '0';
@@ -276,14 +276,15 @@ begin
     cur_tileColumn_plus1 <= std_logic_vector(unsigned(cur_tileColumn) + 1);
     cur_station_offset_ext <= "000000000000000000000" & cur_station_offset;
     
-    cur_station_ext <= "0000" & cur_station;
-    cur_station_offset_x4 <= "000000000000" & cur_station_offset & "00";
+    cur_station_ext         <= unsigned("0000" & cur_station);
+    cur_station_offset_x4   <= unsigned("000000000000" & cur_station_offset & "00");
     
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
         
-            up_to_station <= std_logic_vector(unsigned(cur_station_ext) + unsigned(cur_station_offset_x4) + 4);
+            --up_to_station <= std_logic_vector(unsigned(cur_station_ext) + unsigned(cur_station_offset_x4) + 4);
+            up_to_station <= cur_station_ext + cur_station_offset_x4 + 4;
             SB_del <= '0' & i_SB;
             
             if HBM_addr_valid = '1' then
@@ -377,7 +378,8 @@ begin
                             
                             first_req_in_integration <= '0';
                             cur_station_offset <= std_logic_vector(unsigned(cur_station_offset) + 1);
-                            if (unsigned(SB_stations) > unsigned(up_to_station)) then
+                            --if (unsigned(SB_stations) > up_to_station) then
+                            if (unsigned(SB_stations) > unsigned(up_to_station)) and (unsigned(cur_station_offset) < 3) then
                                 ar_fsm <= set_ar2;
                             else
                                 ar_fsm <= update_addr;
@@ -570,7 +572,7 @@ begin
                 arFIFO_din(28 downto 25) <= cur_timeGroup;   -- 4 bits
                 arFIFO_din(36 downto 29) <= cur_station(11 downto 4); -- 8 bits, index of the first of the 16 stations we are getting with this ar request.
                 arFIFO_din(37) <= '0';
-                arFIFO_din(39 downto 38) <= "00"; -- Indicates a block of 2048 bytes from the HBM
+                arFIFO_din(39 downto 38) <= "00"; -- "00" for normal data, "01" start correlation (end of block for row+col memories), "10" for end of tile = end of integration.
                 arFIFO_din(47 downto 40) <= cur_tileRow & cur_tileColumn;
                 
                 -- Number of stations in the row memories to process for this tile.

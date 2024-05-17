@@ -94,6 +94,8 @@ system being used.
 * $MODEL_TECH_DIR = Modelsim directory
 
 # Changelog
+* 0.0.7 - 
+    * Enable above 16x16 baselines.
 * 0.0.6 - 
     * Fix for SPEAD v3, timestamps.
     * LFAA statistic RAMs update to have common layout for SPEAD v1,v2,v3

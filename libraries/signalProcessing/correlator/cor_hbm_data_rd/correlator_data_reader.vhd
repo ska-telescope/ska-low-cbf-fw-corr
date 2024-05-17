@@ -493,7 +493,8 @@ begin
             -- HBM config
             i_begin                     => hbm_start,
             i_hbm_base_addr             => unsigned(cor_tri_hbm_start_addr),
-            i_number_of_64b_rds         => cells_to_retrieve,
+            i_row_start                 => unsigned(cor_tri_row),
+            i_number_of_rows            => unsigned(cor_tri_row_count),
             o_done                      => hbm_rq_complete,
 
             -- Visibility Data FIFO RD interface
@@ -579,7 +580,7 @@ begin
 
                     when LOOPS =>
                         pack_it_fsm_debug   <= x"1";
-                        if unsigned(hbm_data_fifo_rd_count) >= hbm_data_cache_level then
+                        if (unsigned(hbm_data_fifo_rd_count) >= hbm_data_cache_level) OR (hbm_rq_complete = '1') then
                             -- chop up the cell into 16 row lots.
                             -- if less then process remaining and set exit condition of 0.
                             if row_count_rd_out(8 downto 0) >= 16 then
@@ -677,7 +678,7 @@ begin
 
                     when WAIT_RETURN =>
                         matrix_packed(0)        <= '0';
-                        if hbm_reader_fsm_debug = x"0" then     -- All data has returned.
+                        if hbm_rq_complete = '1' then     -- All data has returned.
                             pack_it_fsm         <= COMPLETE;
                             reset_cache_fifos   <= '1';
                         end if;
