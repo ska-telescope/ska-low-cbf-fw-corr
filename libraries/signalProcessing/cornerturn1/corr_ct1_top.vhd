@@ -288,6 +288,8 @@ architecture Behavioral of corr_ct1_top is
     signal poly_addr : std_logic_vector(14 downto 0); 
     signal poly_rddata : std_logic_vector(63 downto 0);
     
+    signal delay_poly_no_valid_buffer : std_logic_vector(31 downto 0);
+    
 begin
     
     ------------------------------------------------------------------------------------
@@ -354,6 +356,8 @@ begin
     -- registers to note if something terrible happened.
     config_ro.error_input_overflow <= aw_overflow; -- std_logic;
     config_ro.error_read_overflow <= readOverflow_set; -- std_logic;
+    
+    config_ro.delay_poly_no_valid_buffer    <= delay_poly_no_valid_buffer;
 
     o_rst   <= config_rw.full_reset;
     
@@ -904,6 +908,7 @@ begin
         i_axi_r       => i_m01_axi_r,      -- in  t_axi4_full_data;
         o_axi_rready  => o_m01_axi_rready, -- out std_logic;
         -- errors and debug
+        o_delay_poly_no_valid_buffer    => delay_poly_no_valid_buffer,
         -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
         o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
         o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)

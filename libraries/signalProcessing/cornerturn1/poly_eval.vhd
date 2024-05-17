@@ -184,7 +184,10 @@ entity poly_eval is
         o_Hpol_phase : out std_logic_vector(31 downto 0);
         o_Vpol_deltaP : out std_logic_vector(31 downto 0);
         o_Vpol_phase : out std_logic_vector(31 downto 0);
-        o_valid : out std_logic
+        o_valid : out std_logic;
+        
+        -- debug
+        o_delay_poly_no_valid_buffer    : out std_logic_vector(31 downto 0)
     );
 end poly_eval;
 
@@ -290,7 +293,7 @@ architecture Behavioral of poly_eval is
     signal ct_frame : std_logic_vector(1 downto 0);
     signal vc_count : std_logic_vector((g_VC_LOG2-1) downto 0);
     signal vc_count_del : t_slv_2_arr(47 downto 0);
-    signal no_valid_buffer_count : std_logic_vector(15 downto 0) := x"0000";
+    signal no_valid_buffer_count : std_logic_vector(31 downto 0) := x"00000000";
     signal state_count : std_logic_vector(7 downto 0);
     
     signal cur_time, cur_poly_state, cur_time_n : t_slv_64_arr((g_VIRTUAL_CHANNELS-1) downto 0);
@@ -991,6 +994,8 @@ begin
             elsif poly_fsm_del(7) = get_validity_buf1 and buf0_ok_del7 = '0' and buf1_ok_del7 = '0' then
                 no_valid_buffer_count <= std_logic_vector(unsigned(no_valid_buffer_count) + 1);
             end if;
+            
+            o_delay_poly_no_valid_buffer    <= no_valid_buffer_count;
             
             -----------------------------------------------------------------------------
             -- Input to the int to float conversion

@@ -63,7 +63,7 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "status. "
-        ###########################################################################      
+        ###########################################################################
           - - field_name        : output_cycles
               width             : 16
               access_mode       : RW
@@ -140,4 +140,9 @@ peripherals:
               number_of_fields  : 1024
               access_mode       : RO
               field_description : "Number of valid input blocks read for each channel."
-
+        ###########################################################################
+          - - field_name        : delay_poly_no_valid_buffer
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Counter from CT1 logic that will wrap."

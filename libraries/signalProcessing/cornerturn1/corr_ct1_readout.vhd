@@ -168,6 +168,7 @@ entity corr_ct1_readout is
         o_axi_rready  : out std_logic;
         
         -- errors and debug
+        o_delay_poly_no_valid_buffer    : out std_logic_vector(31 downto 0);
         -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
         o_readOverflow : out std_logic;     -- Pulses high in the shared_clk domain.
         o_Unexpected_rdata : out std_logic; -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
@@ -1391,7 +1392,10 @@ begin
         o_Hpol_phase => delay_Hpol_phase, -- out std_logic_vector(31 downto 0);
         o_Vpol_deltaP => delay_Vpol_deltaP, -- out std_logic_vector(31 downto 0);
         o_Vpol_phase  => delay_Vpol_phase, -- out std_logic_vector(31 downto 0);
-        o_valid       => delay_valid -- out std_logic
+        o_valid       => delay_valid, -- out std_logic
+        
+        -- debug mappings
+        o_delay_poly_no_valid_buffer    => o_delay_poly_no_valid_buffer
     );
     
     
