@@ -34,8 +34,8 @@ entity tb_correlatorCore is
         g_CORRELATORS : integer := 2; -- Number of correlator instances to instantiate (0, 1, 2)
         g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
-        --g_TEST_CASE : string := "../../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
-        g_TEST_CASE : string := "../../../../../../../";
+        g_TEST_CASE : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_17stations/";
+        --g_TEST_CASE : string := "../../../../../../../";
         -- text file with SPS packets
         g_SPS_DATA_FILENAME : string := "sps_axi_tb_input.txt";
         -- Register initialisation
@@ -52,6 +52,7 @@ entity tb_correlatorCore is
         g_CT2_HBM_CORR2_FILENAME : string := "";
         --
         --
+        g_LOAD_VIS_CHECK_FILE   : boolean := TRUE;
         -- Text file to use to check against the visibility data going to the HBM from the correlator.
         g_VIS_CHECK_FILE : string := "LTA_vis_check.txt";
         -- Text file to use to check the meta data going to the HBM from the correlator
@@ -62,7 +63,12 @@ entity tb_correlatorCore is
         --  ceil(virtual_channels/4) * (512 bytes) * (3456 fine channels) * (2 timegroups (of 32 times each))
         g_CT2_HBM_DUMP_SIZE : integer := 8388608;  
         g_CT2_HBM_DUMP_ADDR : integer := 0; -- Address to start the memory dump at.
-        g_CT2_HBM_DUMP_FNAME : string := "ct2_hbm_dump.txt"
+        g_CT2_HBM_DUMP_FNAME : string := "ct2_hbm_dump.txt";
+        
+        g_RDOUT_HBM_DUMP_SIZE : integer := 32768;  
+        g_RDOUT_HBM_DUMP_ADDR : integer := 0; -- Address to start the memory dump at.
+        g_RDOUT_HBM_DUMP_FNAME : string := "RDOUT_hbm_dump.txt"
+        
     );
 end tb_correlatorCore;
 
@@ -294,6 +300,10 @@ architecture Behavioral of tb_correlatorCore is
     signal sof_count : integer := 0;
     signal FB_out_sof : std_logic := '0';
     
+    signal Dump_packet_hbm : std_logic;
+    
+    signal load_packet_buffer : std_logic;
+    
     
     -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
     -- +bid buser
@@ -373,12 +383,14 @@ begin
         variable regSize : std_logic_vector(31 downto 0);
         variable regData : std_logic_vector(31 downto 0);
         variable readResult : std_logic_vector(31 downto 0);
-    begin        
+    begin
+        Dump_packet_hbm <= '0';        
         SetupDone <= '0';
         ap_rst_n <= '1';
         load_ct1_HBM <= '0';
         load_ct2_HBM_corr1 <= '0';
         load_ct2_HBM_corr2 <= '0';
+        load_packet_buffer <= '0';
         FILE_OPEN(RegCmdfile, g_TEST_CASE & g_REGISTER_INIT_FILENAME, READ_MODE);
         
         for i in 1 to 10 loop
@@ -398,13 +410,18 @@ begin
         end if;
         if g_LOAD_CT2_HBM_CORR2 then
             load_ct2_HBM_corr2 <= '1';
-        end if;        
+        end if;  
+        
+        if g_LOAD_VIS_CHECK_FILE then
+            load_packet_buffer  <= '1';
+        end if;
         
         wait until rising_edge(ap_clk);
         
-        load_ct1_HBM <= '0';
-        load_ct2_HBM_corr1 <= '0';
-        load_ct2_HBM_corr2 <= '0';
+        load_ct1_HBM        <= '0';
+        load_ct2_HBM_corr1  <= '0';
+        load_ct2_HBM_corr2  <= '0';
+        load_packet_buffer  <= '0';
         
         
         for i in 1 to 100 loop
@@ -507,6 +524,10 @@ begin
         end if;
         
         SetupDone <= '1';
+        
+        -- Trigger to dump HBM output
+        WAIT for 60 us;
+        Dump_packet_hbm <= '1';
         
         wait;
     end process;
@@ -1272,15 +1293,17 @@ begin
         axi_rlast    => HBM_axi_rlast(3),
         axi_rvalid   => HBM_axi_rvalid(3),
         axi_rready   => HBM_axi_rready(3),
-        i_write_to_disk => '0', -- : in std_logic;
-        i_fname => "", -- : in string
-        i_write_to_disk_addr => 0, -- : in integer; -- address to start the memory dump at.
-        i_write_to_disk_size => 0, -- : in integer; -- size in bytes
+        i_write_to_disk => Dump_packet_hbm, -- : in std_logic;
+
+        i_fname                 => g_TEST_CASE & g_RDOUT_HBM_DUMP_FNAME,  -- in string
+        i_write_to_disk_addr    => g_RDOUT_HBM_DUMP_ADDR,     -- in integer; Address to start the memory dump at.
+        i_write_to_disk_size    => g_RDOUT_HBM_DUMP_SIZE, -- in integer; Size in bytes
+
         -- Initialisation of the memory
-        i_init_mem   => '0',   -- in std_logic;
-        i_init_fname => ""  -- in string
+        i_init_mem   => load_packet_buffer,   -- in std_logic;
+        i_init_fname => "g_TEST_CASE & g_VIS_CHECK_FILE"  -- in string
     );
-    
+
     -- 512 MBytes visibilities output buffer for the second correlator cell.
     HBM512M_2 : entity correlator_lib.HBM_axi_tbModel
     generic map (

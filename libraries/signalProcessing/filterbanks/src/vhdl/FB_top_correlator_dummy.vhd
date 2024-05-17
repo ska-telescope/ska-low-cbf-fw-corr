@@ -94,7 +94,7 @@ architecture Behavioral of FB_Top_correlator_dummy is
     signal firtap_wr_data : std_logic_vector(17 downto 0);
     
     signal CorDin0, CorDin1, CorDin2, CorDin3 : t_slv_8_arr(1 downto 0);
-    signal CorrelatorMetaIn, CorrelatorMetaOut : std_logic_vector(360 downto 0);
+    signal CorrelatorMetaIn, CorrelatorMetaOut : std_logic_vector(613 downto 0);
     signal CorDout0, CorDout1, CorDout2, CorDout3 : t_slv_16_arr(1 downto 0);
     signal CorValidOut, CorValidOutDel : std_logic;
     
@@ -109,7 +109,7 @@ architecture Behavioral of FB_Top_correlator_dummy is
     signal DataValid : std_logic;
     
     signal corFBDout0, corFBDout1, corFBDout2, corFBDout3, corFBDout4, corFBDout5, corFBDout6, corFBDout7, corFBDout8 : t_slv_16_arr(1 downto 0);
-    signal corMetaOut : std_logic_vector(360 downto 0);
+    signal corMetaOut : std_logic_vector(613 downto 0);
     
     signal corFBHeaderValid : std_logic;
     
@@ -163,36 +163,36 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            CorrelatorMetaIn(15 downto 0) <= i_meta01.HDeltaP;
-            CorrelatorMetaIn(31 downto 16) <= i_meta01.VDeltaP;
-            CorrelatorMetaIn(47 downto 32) <= i_meta01.HOffsetP;
-            CorrelatorMetaIn(63 downto 48) <= i_meta01.VOffsetP;
-            CorrelatorMetaIn(79 downto 64) <= i_meta01.virtualChannel;
-            CorrelatorMetaIn(80) <= i_meta01.valid; -- note that .valid is just a qualifier for the meta data. The meta data is only valid if both this and i_datavalid are high.
+            CorrelatorMetaIn(31 downto 0)               <= i_meta01.HDeltaP;
+            CorrelatorMetaIn(63 downto 32)              <= i_meta01.VDeltaP;
+            CorrelatorMetaIn(95 downto 64)              <= i_meta01.HOffsetP;
+            CorrelatorMetaIn(127 downto 96)             <= i_meta01.VOffsetP;
+            CorrelatorMetaIn(143 downto 128)            <= i_meta01.virtualChannel;
+            CorrelatorMetaIn(144)                       <= i_meta01.valid; -- note that .valid is just a qualifier for the meta data. The meta data is only valid if both this and i_datavalid are high.
             
-            CorrelatorMetaIn(15+81 downto 0+81) <= i_meta23.HDeltaP;
-            CorrelatorMetaIn(31+81 downto 16+81) <= i_meta23.VDeltaP;
-            CorrelatorMetaIn(47+81 downto 32+81) <= i_meta23.HOffsetP;
-            CorrelatorMetaIn(63+81 downto 48+81) <= i_meta23.VOffsetP;
-            CorrelatorMetaIn(79+81 downto 64+81) <= i_meta23.virtualChannel;
-            CorrelatorMetaIn(80+81) <= i_meta23.valid;
+            CorrelatorMetaIn(31+145 downto 0+145)       <= i_meta23.HDeltaP;
+            CorrelatorMetaIn(63+145 downto 32+145)      <= i_meta23.VDeltaP;
+            CorrelatorMetaIn(95+145 downto 64+145)      <= i_meta23.HOffsetP;
+            CorrelatorMetaIn(127+145 downto 96+145)     <= i_meta23.VOffsetP;
+            CorrelatorMetaIn(143+145 downto 128+145)    <= i_meta23.virtualChannel;
+            CorrelatorMetaIn(144+145)                   <= i_meta23.valid;
             
-            CorrelatorMetaIn(15+162 downto 0+162) <= i_meta45.HDeltaP;
-            CorrelatorMetaIn(31+162 downto 16+162) <= i_meta45.VDeltaP;
-            CorrelatorMetaIn(47+162 downto 32+162) <= i_meta45.HOffsetP;
-            CorrelatorMetaIn(63+162 downto 48+162) <= i_meta45.VOffsetP;
-            CorrelatorMetaIn(79+162 downto 64+162) <= i_meta45.virtualChannel;
-            CorrelatorMetaIn(80+162) <= i_meta45.valid;
+            CorrelatorMetaIn(31+290 downto 0+290)       <= i_meta45.HDeltaP;
+            CorrelatorMetaIn(63+290 downto 32+290)      <= i_meta45.VDeltaP;
+            CorrelatorMetaIn(95+290 downto 64+290)      <= i_meta45.HOffsetP;
+            CorrelatorMetaIn(127+290 downto 96+290)     <= i_meta45.VOffsetP;
+            CorrelatorMetaIn(143+290 downto 128+290)    <= i_meta45.virtualChannel;
+            CorrelatorMetaIn(144+290)                   <= i_meta45.valid;
 
-            CorrelatorMetaIn(15+243 downto 0+243) <= i_meta67.HDeltaP;
-            CorrelatorMetaIn(31+243 downto 16+243) <= i_meta67.VDeltaP;
-            CorrelatorMetaIn(47+243 downto 32+243) <= i_meta67.HOffsetP;
-            CorrelatorMetaIn(63+243 downto 48+243) <= i_meta67.VOffsetP;
-            CorrelatorMetaIn(79+243 downto 64+243) <= i_meta67.virtualChannel;
-            CorrelatorMetaIn(80+243) <= i_meta67.valid;
+            CorrelatorMetaIn(31+435 downto 0+435)       <= i_meta67.HDeltaP;
+            CorrelatorMetaIn(63+435 downto 32+435)      <= i_meta67.VDeltaP;
+            CorrelatorMetaIn(95+435 downto 64+435)      <= i_meta67.HOffsetP;
+            CorrelatorMetaIn(127+435 downto 96+435)     <= i_meta67.VOffsetP;
+            CorrelatorMetaIn(143+435 downto 128+435)    <= i_meta67.virtualChannel;
+            CorrelatorMetaIn(144+435)                   <= i_meta67.valid;
             
-            CorrelatorMetaIn(31+324 downto 0+324) <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
-            CorrelatorMetaIn(33+324 downto 32+324) <= i_meta01.ctFrame;
+            CorrelatorMetaIn(31+580 downto 0+580)       <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
+            CorrelatorMetaIn(33+580 downto 32+580)      <= i_meta01.ctFrame;
             
             DataValid <= i_DataValid;
             
@@ -248,7 +248,7 @@ begin
     
     corfbi : entity filterbanks_lib.correlatorFBTop_dummy
     generic map(
-        METABITS => 361,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 614,    -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
         -- clock, target is 380 MHz
@@ -316,41 +316,41 @@ begin
     corDout_arr(3).hpol.im <= corFBDout7(1);
     
     --o_CorDataValid <= CorValidOut;
-    corFBHeader(0).HDeltaP <= corMetaOut(15 downto 0);
-    corFBHeader(0).VDeltaP <= corMetaOut(31 downto 16);
-    corFBHeader(0).HOffsetP <= corMetaOut(47 downto 32);
-    corFBHeader(0).VOffsetP <= corMetaOut(63 downto 48);
-    corFBHeader(0).virtualChannel <= corMetaOut(79 downto 64);
-    corFBHeader(0).valid <= corMetaOut(80);
-    corFBHeader(0).integration <= corMetaOut(31+324 downto 0+324);
-    corFBHeader(0).ctFrame <= corMetaOut(33+324 downto 32+324);
+    corFBHeader(0).HDeltaP          <= corMetaOut(31 downto 0);
+    corFBHeader(0).VDeltaP          <= corMetaOut(63 downto 32);
+    corFBHeader(0).HOffsetP         <= corMetaOut(95 downto 64);
+    corFBHeader(0).VOffsetP         <= corMetaOut(127 downto 96);
+    corFBHeader(0).virtualChannel   <= corMetaOut(143 downto 128);
+    corFBHeader(0).valid            <= corMetaOut(144);
+    corFBHeader(0).integration      <= corMetaOut(31+580 downto 0+580);
+    corFBHeader(0).ctFrame          <= corMetaOut(33+580 downto 32+580);
     
-    corFBHeader(1).HDeltaP <= corMetaOut(15+81 downto 0+81);
-    corFBHeader(1).VDeltaP <= corMetaOut(31+81 downto 16+81);
-    corFBHeader(1).HOffsetP <= corMetaOut(47+81 downto 32+81);
-    corFBHeader(1).VOffsetP <= corMetaOut(63+81 downto 48+81);
-    corFBHeader(1).virtualChannel <= corMetaOut(79+81 downto 64+81);
-    corFBHeader(1).valid <= corMetaOut(80+81);
-    corFBHeader(1).integration <= corMetaOut(31+324 downto 0+324);
-    corFBHeader(1).ctFrame <= corMetaOut(33+324 downto 32+324);
+    corFBHeader(1).HDeltaP          <= x"0000" & corMetaOut(15+81 downto 0+81);
+    corFBHeader(1).VDeltaP          <= x"0000" & corMetaOut(31+81 downto 16+81);
+    corFBHeader(1).HOffsetP         <= x"0000" & corMetaOut(47+81 downto 32+81);
+    corFBHeader(1).VOffsetP         <= x"0000" & corMetaOut(63+81 downto 48+81);
+    corFBHeader(1).virtualChannel   <= corMetaOut(79+81 downto 64+81);
+    corFBHeader(1).valid            <= corMetaOut(80+81);
+    corFBHeader(1).integration      <= corMetaOut(31+580 downto 0+580);
+    corFBHeader(1).ctFrame          <= corMetaOut(33+580 downto 32+580);
     
-    corFBHeader(2).HDeltaP <= corMetaOut(15+162 downto 0+162);
-    corFBHeader(2).VDeltaP <= corMetaOut(31+162 downto 16+162);
-    corFBHeader(2).HOffsetP <= corMetaOut(47+162 downto 32+162);
-    corFBHeader(2).VOffsetP <= corMetaOut(63+162 downto 48+162);
-    corFBHeader(2).virtualChannel <= corMetaOut(79+162 downto 64+162);
-    corFBHeader(2).valid <= corMetaOut(80+162);
-    corFBHeader(2).integration <= corMetaOut(31+324 downto 0+324);
-    corFBHeader(2).ctFrame <= corMetaOut(33+324 downto 32+324);
+    corFBHeader(2).HDeltaP          <= x"0000" & corMetaOut(15+162 downto 0+162);
+    corFBHeader(2).VDeltaP          <= x"0000" & corMetaOut(31+162 downto 16+162);
+    corFBHeader(2).HOffsetP         <= x"0000" & corMetaOut(47+162 downto 32+162);
+    corFBHeader(2).VOffsetP         <= x"0000" & corMetaOut(63+162 downto 48+162);
+    corFBHeader(2).virtualChannel   <= corMetaOut(79+162 downto 64+162);
+    corFBHeader(2).valid            <= corMetaOut(80+162);
+    corFBHeader(2).integration      <= corMetaOut(31+580 downto 0+580);
+    corFBHeader(2).ctFrame          <= corMetaOut(33+580 downto 32+580);
     
-    corFBHeader(3).HDeltaP <= corMetaOut(15+243 downto 0+243);
-    corFBHeader(3).VDeltaP <= corMetaOut(31+243 downto 16+243);
-    corFBHeader(3).HOffsetP <= corMetaOut(47+243 downto 32+243);
-    corFBHeader(3).VOffsetP <= corMetaOut(63+243 downto 48+243);
-    corFBHeader(3).virtualChannel <= corMetaOut(79+243 downto 64+243);
-    corFBHeader(3).valid <= corMetaOut(80+243);
-    corFBHeader(3).integration <= corMetaOut(31+324 downto 0+324);
-    corFBHeader(3).ctFrame <= corMetaOut(33+324 downto 32+324);
+    corFBHeader(3).HDeltaP          <= x"0000" & corMetaOut(15+243 downto 0+243);
+    corFBHeader(3).VDeltaP          <= x"0000" & corMetaOut(31+243 downto 16+243);
+    corFBHeader(3).HOffsetP         <= x"0000" & corMetaOut(47+243 downto 32+243);
+    corFBHeader(3).VOffsetP         <= x"0000" & corMetaOut(63+243 downto 48+243);
+    corFBHeader(3).virtualChannel   <= corMetaOut(79+243 downto 64+243);
+    corFBHeader(3).valid            <= corMetaOut(80+243);
+    corFBHeader(3).integration      <= corMetaOut(31+580 downto 0+580);
+    corFBHeader(3).ctFrame          <= corMetaOut(33+580 downto 32+580);
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     

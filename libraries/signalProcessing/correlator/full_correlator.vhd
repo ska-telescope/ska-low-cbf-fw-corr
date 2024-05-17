@@ -233,7 +233,7 @@ architecture Behavioral of full_correlator is
     type t_slv_17x17_arr24 is array(16 downto 0) of t_slv_24_arr(16 downto 0);
     signal array_visData :  t_slv_17x17_arr48; -- 48 bit
     signal centroid : t_slv_17x17_arr24;
-    signal shiftOutAdv : std_logic_vector(5 downto 0) := "000000";
+    signal shiftOutAdv : std_logic_vector(4 downto 0) := "00000";
     signal cell_visOutput, cell_visOutputDel1, cell_visOutputDel2, cell_visOutputDel3 : t_slv_48_arr(15 downto 0);
     signal cell_visOutputDel4, cell_visOutputDel5, cell_visOutputDel6 : t_slv_48_arr(15 downto 0);
     signal cell_centroidOutput, cell_centroidOutputDel1, cell_centroidOutputDel2 : t_slv_24_arr(15 downto 0);
@@ -658,7 +658,8 @@ begin
                         cellCount <= std_logic_vector(unsigned(cellCount) + 1);
                         if cur_tileType = '0' then -- triangle
                             -- say 16 stations, then colStations = "000010000", and stop when colRdVC = 0, i.e. only do one 16x16 correlator cell.
-                            if colRdVC = cur_colStations_minus1(7 downto 4) then
+                            --if colRdVC = cur_colStations_minus1(7 downto 4) then
+                            if colRdVC = rowRdVC then -- triangle, so once the column = row, go to the next row
                                 colRdVC <= "0000";
                                 rowRdVC <= std_logic_vector(unsigned(rowRdVC) + 1);
                                 if rowRdVC = cur_rowStations_minus1(7 downto 4) then
@@ -861,8 +862,8 @@ begin
 
             -- First entry in the shift out pipeline needs to align with valid data in the first cmac_quad.
             -- So 5 cycle latency here:
-            shiftOutAdv(5 downto 1) <= shiftOutAdv(4 downto 0);
-            shiftOut(0)(0) <= shiftOutAdv(5);
+            shiftOutAdv(4 downto 1) <= shiftOutAdv(3 downto 0);
+            shiftOut(0)(0) <= shiftOutAdv(4); -- 5 cycles = 4 in shiftOutAdv pipeline, then 1 to get shiftOut(0)(0)
 
         end if;
     end process;            
@@ -1023,19 +1024,19 @@ begin
         i_rst => i_cor_rst, -- in std_logic;  -- resets selection of read and write buffers, should not be needed unless something goes very wrong.
         ----------------------------------------------------------------------------------------
         -- Write side interface : 
-        i_cell    => cellDel(23),    -- in (7:0); 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
+        i_cell    => cellDel(22),    -- in (7:0); 16x16 = 256 possible different cells being accumulated in the ultraRAM buffer at a time.
         -- i_valid can be high continuously, i_cellStart indicates the start of the burst of 64 clocks for a particular cell.
-        i_cellStart => cellStartDel(23), -- in std_logic; 
-        i_tile    => tileDel(23),    -- in (9:0);  tile index, passed to the output.
-        i_channel => channelDel(23), -- in (23:0); first fine channel index for this correlation
-        i_totalStations => totalStationsDel(23), -- in (15:0);
-        i_subarrayBeam => subarrayBeamDel(23),   -- in (7:0);
+        i_cellStart => cellStartDel(22), -- in std_logic; 
+        i_tile    => tileDel(22),    -- in (9:0);  tile index, passed to the output.
+        i_channel => channelDel(22), -- in (23:0); first fine channel index for this correlation
+        i_totalStations => totalStationsDel(22), -- in (15:0);
+        i_subarrayBeam => subarrayBeamDel(22),   -- in (7:0);
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
-        i_first   => tileFirstDel(23), -- in std_logic; 
-        i_last    => lastCellDel(23),  -- in std_logic;  This is the last integration for the last cell; after this, the buffers switch and the completed cells are read out.
-        i_totalTimes => totalTimesDel(23), -- in (7:0);  Total time samples being integrated, e.g. 192. 
-        i_totalChannels => totalChannelsDel(23), -- in (4:0);  Number of channels integrated, typically 24.
+        i_first   => tileFirstDel(22), -- in std_logic; 
+        i_last    => lastCellDel(22),  -- in std_logic;  This is the last integration for the last cell; after this, the buffers switch and the completed cells are read out.
+        i_totalTimes => totalTimesDel(22), -- in (7:0);  Total time samples being integrated, e.g. 192. 
+        i_totalChannels => totalChannelsDel(22), -- in (4:0);  Number of channels integrated, typically 24.
         -- valid goes high for a burst of 64 clocks, to get all the data from the correlation array.
         i_valid     => array_visValid(0)(16), -- in std_logic; -- indicates valid data, 4 clocks in advance of i_data. Needed since there is a long latency on the ultraRAM reads.
         -- 16 parrallel data streams with 3+3 byte visibilities from the correlation array. 
