@@ -1453,7 +1453,7 @@ begin
             
             o_dbg_vec(191 downto 0) <= dbg_vec_del2(191 downto 0);
             o_dbg_vec(223 downto 192) <= poly_result_fp32;
-            o_dbg_vec(225 downto 224) <= poly_time_fp32;
+            o_dbg_vec(255 downto 224) <= poly_time_fp32;
             o_dbg_valid <= dbg_valid_del2;
             
         end if;
