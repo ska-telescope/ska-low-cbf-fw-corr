@@ -1440,7 +1440,7 @@ begin
             dbg_vec(95 downto 64) <= delay_Hpol_phase;
             dbg_vec(127 downto 96) <= delay_Hpol_deltaP;
             dbg_vec(159 downto 128) <= dbg_poly_integration(29 downto 0) & dbg_poly_ct_frame;
-            dbg_vec(175 downto 160) <= poly_buffer_select & "000" & delayFIFO_wrDataCount(0);
+            dbg_vec(175 downto 160) <= poly_buffer_select & "0000" & delayFIFO_wrDataCount(0);
             dbg_vec(191 downto 176) <= x"0000"; -- to be used for other signals at the higher level.
             dbg_vec(223 downto 192) <= x"00000000";
             dbg_vec(255 downto 224) <= x"00000000";
