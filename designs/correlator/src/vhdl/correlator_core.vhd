@@ -540,7 +540,8 @@ begin
         m02_shared => HBM_shared(1),  -- out(63:0)
         m03_shared => HBM_shared(2),  -- out(63:0)
         m04_shared => HBM_shared(3),  -- out(63:0)
-        m05_shared => HBM_shared(4)  -- out(63:0)
+        m05_shared => HBM_shared(4),  -- out(63:0)
+        m06_shared => HBM_shared(5)   -- out(63:0)
     );
     
     ap_idle <= '0' when (idle_int = '0' or (idle_int = '1' and ap_start = '1')) else '1';
@@ -893,19 +894,19 @@ begin
         o_spead_full_axi_miso(1)    => mc_full_miso(c_spead_sdp_2_full_index),
 
         -----------------------------------------------------------------------
-        -- AXI interfaces to HBM memory (5 interfaces used)
-        -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
+        -- AXI interfaces to HBM memory (6 interfaces used)
+        -- write address buses : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
         o_HBM_axi_aw      => logic_HBM_axi_aw,       
         i_HBM_axi_awready => logic_HBM_axi_awreadyi, -- in std_logic_vector(4:0);
-        -- w data buses : out t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
+        -- w data buses : out t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
         o_HBM_axi_w       => logic_HBM_axi_w,        
         i_HBM_axi_wready  => logic_HBM_axi_wreadyi,  -- in std_logic_vector(4:0);
-        -- write response bus : in t_axi4_full_b_arr(4:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        -- write response bus : in t_axi4_full_b_arr(5:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         i_HBM_axi_b       => logic_HBM_axi_b,
-        -- read address bus : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
+        -- read address bus : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
         o_HBM_axi_ar      => logic_HBM_axi_ar,
-        i_HBM_axi_arready => logic_HBM_axi_arreadyi, -- in std_logic_vector(4:0);
-        -- r data bus : in t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_arready => logic_HBM_axi_arreadyi, -- in std_logic_vector(5:0);
+        -- r data bus : in t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
         i_HBM_axi_r       => logic_HBM_axi_r,
         o_HBM_axi_rready  => logic_HBM_axi_rreadyi,  -- out std_logic_vector(4:0);
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
@@ -934,7 +935,7 @@ begin
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
-    axi_HBM_gen : for i in 0 to 4 generate
+    axi_HBM_gen : for i in 0 to 5 generate
         -- reset blocks for HBM interfaces.
         hbm_resetter : entity correlator_lib.hbm_axi_reset_handler 
             generic map (

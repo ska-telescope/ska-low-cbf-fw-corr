@@ -184,7 +184,15 @@ entity poly_eval is
         o_Hpol_phase : out std_logic_vector(31 downto 0);
         o_Vpol_deltaP : out std_logic_vector(31 downto 0);
         o_Vpol_phase : out std_logic_vector(31 downto 0);
-        o_valid : out std_logic
+        o_valid : out std_logic;
+        ----------------------------------------------------------------------
+        -- Debug Data, valid on o_valid
+        o_poly_result : out std_logic_vector(63 downto 0);
+        o_poly_time   : out std_logic_vector(63 downto 0);
+        o_buffer_select : out std_logic;
+        o_integration : out std_logic_vector(31 downto 0); -- 32 bits
+        o_ct_frame    : out std_logic_vector(1 downto 0);  -- 2 bits
+        o_uptime      : out std_logic_vector(47 downto 0)  -- 48 bits, count of 300 MHz clocks.
     );
 end poly_eval;
 
@@ -306,6 +314,7 @@ architecture Behavioral of poly_eval is
     signal Vpol_deltaP, Vpol_phase : t_slv_32_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     
     signal poly_rd_addr : std_logic_vector(19 downto 0);
+    signal uptime : std_logic_vector(47 downto 0);
     
 begin
     
@@ -462,6 +471,8 @@ begin
     process(clk)
     begin
         if rising_edge(clk) then
+            
+            uptime <= std_logic_vector(unsigned(uptime) + 1);
             
             if i_start = '1' then
                 poly_fsm <= start;
@@ -886,6 +897,13 @@ begin
                 o_Vpol_deltaP <= Vpol_deltaP(to_integer(unsigned(vc_count)));
                 o_Vpol_phase <= Vpol_phase(to_integer(unsigned(vc_count)));
                 o_valid <= '1';
+                -- debug data
+                o_poly_result <= cur_poly_state(to_integer(unsigned(vc_count)));
+                o_poly_time <= cur_time(to_integer(unsigned(vc_count)));
+                o_buffer_select <= buffer_select(to_integer(unsigned(vc_count))); -- 1 bit
+                o_integration <= integration; -- 32 bits
+                o_ct_frame <= ct_frame;  -- 2 bits
+                o_uptime <= uptime;   -- 48 bits, count of 300 MHz clocks.
             else
                 o_vc <= (others => '0');
                 o_packet <= (others => '0'); -- out std_logic_vector(15 downto 0);

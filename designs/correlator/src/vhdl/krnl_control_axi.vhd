@@ -81,7 +81,8 @@ entity krnl_control_axi is
         m02_shared : out std_logic_vector(63 downto 0);
         m03_shared : out std_logic_vector(63 downto 0);
         m04_shared : out std_logic_vector(63 downto 0);
-        m05_shared : out std_logic_vector(63 downto 0)
+        m05_shared : out std_logic_vector(63 downto 0);
+        m06_shared : out std_logic_vector(63 downto 0)
     );
 end krnl_control_axi;
 
@@ -106,6 +107,8 @@ architecture Behavioral of krnl_control_axi is
     constant ADDR_M04_SHARED_1 : std_logic_vector(6 downto 0) := "1000000";
     constant ADDR_M05_SHARED_0 : std_logic_vector(6 downto 0) := "1000100";
     constant ADDR_M05_SHARED_1 : std_logic_vector(6 downto 0) := "1001000";
+    constant ADDR_M06_SHARED_0 : std_logic_vector(6 downto 0) := "1001100";
+    constant ADDR_M06_SHARED_1 : std_logic_vector(6 downto 0) := "1010000";
     
     type wr_fsm_type is (wrIdle, wrData, wrResp);
     type rd_fsm_type is (rdIdle, rdData);
@@ -137,6 +140,7 @@ architecture Behavioral of krnl_control_axi is
     signal int_m03_shared : std_logic_vector(63 downto 0) := (others => '0');
     signal int_m04_shared : std_logic_vector(63 downto 0) := (others => '0');
     signal int_m05_shared : std_logic_vector(63 downto 0) := (others => '0');
+    signal int_m06_shared : std_logic_vector(63 downto 0) := (others => '0');
     signal AWREADYint : std_logic;
     signal ARREADYint : std_logic;
     signal WreadyInt : std_logic;
@@ -269,6 +273,10 @@ begin
                         rdata <= int_m05_shared(31 downto 0);
                     when ADDR_M05_SHARED_1 =>
                         rdata <= int_m05_shared(63 downto 32);
+                    when ADDR_M06_SHARED_0 =>
+                        rdata <= int_m06_shared(31 downto 0);
+                    when ADDR_M06_SHARED_1 =>
+                        rdata <= int_m06_shared(63 downto 32);
                         
                     when others =>
                         rdata <= (others => '0');
@@ -428,6 +436,18 @@ begin
             elsif (w_hs = '1' and (waddr = ADDR_M05_SHARED_1)) then
                 int_m05_shared(63 downto 32) <= (WDATA(31 downto 0) and wmask) or (int_m05_shared(63 downto 32) and (not wmask));
             end if;
+
+            -- m06_shared
+            if (ARESET = '1') then
+                int_m06_shared(31 downto 0) <= (others => '0');
+            elsif (w_hs = '1' and (waddr = ADDR_M06_SHARED_0)) then
+                int_m06_shared(31 downto 0) <= (WDATA(31 downto 0) and wmask) or (int_m06_shared(31 downto 0) and (not wmask));
+            end if;
+            if (ARESET = '1') then
+                int_m06_shared(63 downto 32) <= (others => '0');
+            elsif (w_hs = '1' and (waddr = ADDR_M06_SHARED_1)) then
+                int_m06_shared(63 downto 32) <= (WDATA(31 downto 0) and wmask) or (int_m06_shared(63 downto 32) and (not wmask));
+            end if;
             
         end if;
     end process;
@@ -445,5 +465,6 @@ begin
     m03_shared   <= int_m03_shared;
     m04_shared   <= int_m04_shared;
     m05_shared   <= int_m05_shared;
+    m06_shared   <= int_m06_shared;
     
 end Behavioral;

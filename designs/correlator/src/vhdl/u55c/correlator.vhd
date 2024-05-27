@@ -60,14 +60,18 @@ ENTITY correlator IS
         M03_AXI_ADDR_WIDTH : integer := 64;  
         M03_AXI_DATA_WIDTH : integer := 512;
         M03_AXI_ID_WIDTH   : integer := 1;
-        -- M04, 2 Gbytes HBM; Visibilities from first correlator instance
+        -- M04, 0.5 Gbytes HBM; Visibilities from first correlator instance
         M04_AXI_ADDR_WIDTH : integer := 64;  
         M04_AXI_DATA_WIDTH : integer := 512;
         M04_AXI_ID_WIDTH   : integer := 1;
-        -- M05, 2 Gbytes HBM; Visibilities from second correlator instance
+        -- M05, 0.5 Gbytes HBM; Visibilities from second correlator instance
         M05_AXI_ADDR_WIDTH : integer := 64;  
         M05_AXI_DATA_WIDTH : integer := 512;
-        M05_AXI_ID_WIDTH   : integer := 1
+        M05_AXI_ID_WIDTH   : integer := 1;
+        -- M06, 2 Gbytes HBM; debug data
+        M06_AXI_ADDR_WIDTH : integer := 64;
+        M06_AXI_DATA_WIDTH : integer := 512;
+        M06_AXI_ID_WIDTH   : integer := 1
     );
     PORT (
         ap_clk : in std_logic;
@@ -366,7 +370,48 @@ ENTITY correlator IS
         m05_axi_rdata     : in std_logic_vector(M05_AXI_DATA_WIDTH-1 downto 0);
         m05_axi_rlast     : in std_logic;
         m05_axi_rid       : in std_logic_vector(M05_AXI_ID_WIDTH - 1 downto 0);
-        m05_axi_rresp     : in std_logic_vector(1 downto 0);             
+        m05_axi_rresp     : in std_logic_vector(1 downto 0);
+
+        -- M06 = Debug data; 2 Gbytes
+        m06_axi_awvalid : out std_logic;
+        m06_axi_awready : in std_logic;
+        m06_axi_awaddr : out std_logic_vector(M06_AXI_ADDR_WIDTH-1 downto 0);
+        m06_axi_awid   : out std_logic_vector(M06_AXI_ID_WIDTH - 1 downto 0);
+        m06_axi_awlen   : out std_logic_vector(7 downto 0);
+        m06_axi_awsize   : out std_logic_vector(2 downto 0);
+        m06_axi_awburst  : out std_logic_vector(1 downto 0);
+        m06_axi_awlock   : out std_logic_vector(1 downto 0);
+        m06_axi_awcache  : out std_logic_vector(3 downto 0);
+        m06_axi_awprot   : out std_logic_vector(2 downto 0);
+        m06_axi_awqos    : out std_logic_vector(3 downto 0);
+        m06_axi_awregion : out std_logic_vector(3 downto 0);
+        m06_axi_wvalid    : out std_logic;
+        m06_axi_wready    : in std_logic;
+        m06_axi_wdata     : out std_logic_vector(M06_AXI_DATA_WIDTH-1 downto 0);
+        m06_axi_wstrb     : out std_logic_vector(M06_AXI_DATA_WIDTH/8-1 downto 0);
+        m06_axi_wlast     : out std_logic;
+        m06_axi_bvalid    : in std_logic;
+        m06_axi_bready    : out std_logic;
+        m06_axi_bresp     : in std_logic_vector(1 downto 0);
+        m06_axi_bid       : in std_logic_vector(M06_AXI_ID_WIDTH - 1 downto 0);
+        m06_axi_arvalid   : out std_logic;
+        m06_axi_arready   : in std_logic;
+        m06_axi_araddr    : out std_logic_vector(M06_AXI_ADDR_WIDTH-1 downto 0);
+        m06_axi_arid      : out std_logic_vector(M06_AXI_ID_WIDTH-1 downto 0);
+        m06_axi_arlen     : out std_logic_vector(7 downto 0);
+        m06_axi_arsize    : out std_logic_vector(2 downto 0);
+        m06_axi_arburst   : out std_logic_vector(1 downto 0);
+        m06_axi_arlock    : out std_logic_vector(1 downto 0);
+        m06_axi_arcache   : out std_logic_vector(3 downto 0);
+        m06_axi_arprot    : out std_logic_Vector(2 downto 0);
+        m06_axi_arqos     : out std_logic_vector(3 downto 0);
+        m06_axi_arregion  : out std_logic_vector(3 downto 0);
+        m06_axi_rvalid    : in std_logic;
+        m06_axi_rready    : out std_logic;
+        m06_axi_rdata     : in std_logic_vector(M06_AXI_DATA_WIDTH-1 downto 0);
+        m06_axi_rlast     : in std_logic;
+        m06_axi_rid       : in std_logic_vector(M06_AXI_ID_WIDTH - 1 downto 0);
+        m06_axi_rresp     : in std_logic_vector(1 downto 0);
         
         -- GT pins
         -- clk_gt_freerun is a 50MHz free running clock, according to the GT kernel Example Design user guide.
@@ -384,7 +429,7 @@ END correlator;
 
 ARCHITECTURE structure OF correlator IS
     
-    constant g_HBM_INTERFACES       : integer := 5;
+    constant g_HBM_INTERFACES       : integer := 6;
     constant g_HBM_AXI_ADDR_WIDTH   : integer := 64;
     constant g_HBM_AXI_DATA_WIDTH   : integer := 512;
     constant g_HBM_AXI_ID_WIDTH     : integer := 1;
@@ -977,5 +1022,48 @@ begin
     HBM_axi_rlast(4)    <= m05_axi_rlast;     
     HBM_axi_rid(4)      <= m05_axi_rid;       
     HBM_axi_rresp(4)    <= m05_axi_rresp;
+
+
+    ------------------------------------------------------------------------------------------
+    -- Debug data
+    HBM_axi_awvalid(5)  <= m06_axi_awvalid;  
+    HBM_axi_awready(5)  <= m06_axi_awready;   
+    HBM_axi_awaddr(5)   <= m06_axi_awaddr;    
+    HBM_axi_awid(5)     <= m06_axi_awid;      
+    HBM_axi_awlen(5)    <= m06_axi_awlen;     
+    HBM_axi_awsize(5)   <= m06_axi_awsize;    
+    HBM_axi_awburst(5)  <= m06_axi_awburst;   
+    HBM_axi_awlock(5)   <= m06_axi_awlock;    
+    HBM_axi_awcache(5)  <= m06_axi_awcache;   
+    HBM_axi_awprot(5)   <= m06_axi_awprot;    
+    HBM_axi_awqos(5)    <= m06_axi_awqos;     
+    HBM_axi_awregion(5) <= m06_axi_awregion;  
+    HBM_axi_wvalid(5)   <= m06_axi_wvalid;    
+    HBM_axi_wready(5)   <= m06_axi_wready;    
+    HBM_axi_wdata(5)    <= m06_axi_wdata;     
+    HBM_axi_wstrb(5)    <= m06_axi_wstrb;     
+    HBM_axi_wlast(5)    <= m06_axi_wlast;     
+    HBM_axi_bvalid(5)   <= m06_axi_bvalid;    
+    HBM_axi_bready(5)   <= m06_axi_bready;    
+    HBM_axi_bresp(5)    <= m06_axi_bresp;     
+    HBM_axi_bid(5)      <= m06_axi_bid;       
+    HBM_axi_arvalid(5)  <= m06_axi_arvalid;   
+    HBM_axi_arready(5)  <= m06_axi_arready;   
+    HBM_axi_araddr(5)   <= m06_axi_araddr;    
+    HBM_axi_arid(5)     <= m06_axi_arid;      
+    HBM_axi_arlen(5)    <= m06_axi_arlen;     
+    HBM_axi_arsize(5)   <= m06_axi_arsize;    
+    HBM_axi_arburst(5)  <= m06_axi_arburst;   
+    HBM_axi_arlock(5)   <= m06_axi_arlock;    
+    HBM_axi_arcache(5)  <= m06_axi_arcache;   
+    HBM_axi_arprot(5)   <= m06_axi_arprot;    
+    HBM_axi_arqos(5)    <= m06_axi_arqos;     
+    HBM_axi_arregion(5) <= m06_axi_arregion;  
+    HBM_axi_rvalid(5)   <= m06_axi_rvalid;    
+    HBM_axi_rready(5)   <= m06_axi_rready;    
+    HBM_axi_rdata(5)    <= m06_axi_rdata;     
+    HBM_axi_rlast(5)    <= m06_axi_rlast;     
+    HBM_axi_rid(5)      <= m06_axi_rid;       
+    HBM_axi_rresp(5)    <= m06_axi_rresp;
     
 END structure;

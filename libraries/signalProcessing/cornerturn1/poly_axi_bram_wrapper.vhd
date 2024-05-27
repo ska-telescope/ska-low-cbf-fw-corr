@@ -39,7 +39,11 @@ entity poly_axi_bram_wrapper is
         ------------------------------------------------------
         -- AXI full interface
         i_vd_full_axi_mosi : in  t_axi4_full_mosi;
-        o_vd_full_axi_miso : out t_axi4_full_miso
+        o_vd_full_axi_miso : out t_axi4_full_miso;
+        ------------------------------------------------------
+        -- debug
+        o_dbg_wrEn : out std_logic;
+        o_dbg_wrAddr : out std_logic_vector(14 downto 0)
     );
 end poly_axi_bram_wrapper;
 
@@ -259,6 +263,14 @@ begin
         sbiterrb                => open,
         dbiterrb                => open
     );    
+
+    process(i_clk)
+    begin
+        if rising_edge(i_clk) then
+            o_dbg_wrEn <= axi_bram_wrEn_low or axi_bram_wrEn_high;
+            o_dbg_wrAddr <= axi_bram_addr(17 downto 3);
+        end if;
+    end process;
 
 end Behavioral;
 

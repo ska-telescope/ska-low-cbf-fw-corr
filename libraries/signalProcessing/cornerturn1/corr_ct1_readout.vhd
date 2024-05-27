@@ -172,7 +172,9 @@ entity corr_ct1_readout is
         o_readOverflow : out std_logic;     -- Pulses high in the shared_clk domain.
         o_Unexpected_rdata : out std_logic; -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
         o_dataMissing : out std_logic;      -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
-        o_bad_readstart : out std_logic     -- read start occured prior to delay calculation finishing for the previous read.
+        o_bad_readstart : out std_logic;    -- Read start occured prior to delay calculation finishing for the previous read.
+        o_dbg_vec : out std_logic_vector(255 downto 0);
+        o_dbg_valid : out std_logic
     );
 end corr_ct1_readout;
 
@@ -352,6 +354,27 @@ architecture Behavioral of corr_ct1_readout is
     signal delayFIFO_rden : std_logic_vector(3 downto 0);
     signal readout_delay_vc : t_slv_16_arr(3 downto 0);
     signal readout_delay_packet : t_slv_8_arr(3 downto 0);
+    
+    component fp64_to_fp32
+    port (
+        aclk : IN STD_LOGIC;
+        s_axis_a_tvalid : IN STD_LOGIC;
+        s_axis_a_tdata : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        m_axis_result_tvalid : OUT STD_LOGIC;
+        m_axis_result_tdata : OUT STD_LOGIC_VECTOR(31 DOWNTO 0));
+    end component;
+    
+    signal poly_result : std_logic_vector(63 downto 0);
+    signal poly_time : std_logic_vector(63 downto 0);
+    signal poly_buffer_select : std_logic;
+    signal dbg_poly_integration : std_logic_vector(31 downto 0);
+    signal dbg_poly_ct_frame : std_logic_vector(1 downto 0);
+    signal poly_uptime : std_logic_vector(47 downto 0);
+    signal dbg_valid, dbg_valid_del1, dbg_valid_del2 : std_logic;
+    signal dbg_vec : std_logic_vector(255 downto 0);
+    signal dbg_vec_del1, dbg_vec_del2 : std_logic_vector(255 downto 0);
+    signal fp32_delay_valid, fp32_delay_valid2 : std_logic;
+    signal poly_result_fp32, poly_time_fp32 : std_logic_vector(31 downto 0);
     
 begin
     
@@ -1388,12 +1411,71 @@ begin
         --                                   0.5 coarse samples = pi/2 radians at the band edge = 8192 * 65536
         o_Hpol_deltaP => delay_Hpol_deltaP, -- out std_logic_vector(31 downto 0);
         -- Phase uses 32768 * 65536 to represent pi radians. Note this differs by a factor of 2 compared with Hpol_deltaP.
-        o_Hpol_phase => delay_Hpol_phase, -- out std_logic_vector(31 downto 0);
+        o_Hpol_phase => delay_Hpol_phase,   -- out std_logic_vector(31 downto 0);
         o_Vpol_deltaP => delay_Vpol_deltaP, -- out std_logic_vector(31 downto 0);
-        o_Vpol_phase  => delay_Vpol_phase, -- out std_logic_vector(31 downto 0);
-        o_valid       => delay_valid -- out std_logic
+        o_Vpol_phase  => delay_Vpol_phase,  -- out std_logic_vector(31 downto 0);
+        o_valid       => delay_valid,       -- out std_logic
+        ----------------------------------------------------------------------
+        -- Debug Data, valid on o_valid
+        o_poly_result => poly_result, --  out std_logic_vector(63 downto 0);
+        o_poly_time   => poly_time,   --  out std_logic_vector(63 downto 0);
+        o_buffer_select => poly_buffer_select, --  out std_logic;
+        o_integration => dbg_poly_integration,  -- out std_logic_vector(31 downto 0); -- 32 bits
+        o_ct_frame    => dbg_poly_ct_frame,     -- out std_logic_vector(1 downto 0);  -- 2 bits
+        o_uptime      => poly_uptime        -- out std_logic_vector(47 downto 0)  -- 48 bits, count of 300 MHz clocks.
     );
     
+
+    
+    -- Generate a 256 bit word to write to the debug ILA
+    process(shared_clk)
+    begin
+        if rising_edge(shared_clk) then
+            
+            dbg_valid <= delay_valid;
+            dbg_vec(31 downto 0) <= poly_uptime(39 downto 8);
+            dbg_vec(41 downto 32) <= delay_vc(9 downto 0);
+            dbg_vec(47 downto 42) <= delay_packet(5 downto 0);
+            dbg_vec(63 downto 48) <= "0000" & delay_offset;
+            dbg_vec(95 downto 64) <= delay_Hpol_phase;
+            dbg_vec(127 downto 96) <= delay_Hpol_deltaP;
+            dbg_vec(159 downto 128) <= dbg_poly_integration(29 downto 0) & dbg_poly_ct_frame;
+            dbg_vec(175 downto 160) <= poly_buffer_select & "000" & delayFIFO_wrDataCount(0);
+            dbg_vec(191 downto 176) <= x"0000"; -- to be used for other signals at the higher level.
+            dbg_vec(223 downto 192) <= x"00000000";
+            dbg_vec(255 downto 224) <= x"00000000";
+            
+            dbg_vec_del1 <= dbg_vec;
+            dbg_valid_del1 <= dbg_valid;
+            
+            dbg_vec_del2 <= dbg_vec_del1;
+            dbg_valid_del2 <= dbg_valid_del1;
+            
+            o_dbg_vec(191 downto 0) <= dbg_vec_del2(191 downto 0);
+            o_dbg_vec(223 downto 192) <= poly_result_fp32;
+            o_dbg_vec(225 downto 224) <= poly_time_fp32;
+            o_dbg_valid <= dbg_valid_del2;
+            
+        end if;
+    end process;
+    
+    fp64_to_fp32_1i : fp64_to_fp32
+    port map (
+        aclk => shared_clk,
+        s_axis_a_tvalid => delay_valid,
+        s_axis_a_tdata => poly_result,
+        m_axis_result_tvalid => fp32_delay_valid,
+        m_axis_result_tdata => poly_result_fp32
+    );
+
+    fp64_to_fp32_2i : fp64_to_fp32
+    port map (
+        aclk => shared_clk,
+        s_axis_a_tvalid => delay_valid,
+        s_axis_a_tdata  => poly_time,
+        m_axis_result_tvalid => fp32_delay_valid2,
+        m_axis_result_tdata => poly_time_fp32
+    );
     
     --------------------------------------------------------------------------------------------
     -- Signals that control readout to the filterbank:
