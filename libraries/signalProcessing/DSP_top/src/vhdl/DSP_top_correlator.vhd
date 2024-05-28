@@ -139,8 +139,8 @@ entity DSP_top_correlator is
         o_FB_out_sof   : out std_logic;
         --------------------------------------------------------------
         -- HBM reset
-        o_hbm_reset    : out std_logic_vector(4 downto 0);
-        i_hbm_status   : in std_logic_vector(4 downto 0)
+        o_hbm_reset    : out std_logic_vector(5 downto 0);
+        i_hbm_status   : in std_logic_vector(5 downto 0)
     );
 end DSP_top_correlator;
 
@@ -258,7 +258,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
 begin
     
     gnd <= (others => '0');
-    o_hbm_reset(4 downto 1) <= x"0";
+    o_hbm_reset(5 downto 1) <= "00000";
     --------------------------------------------------------------------------
     -- Signal Processing signal Chains
     --------------------------------------------------------------------------
