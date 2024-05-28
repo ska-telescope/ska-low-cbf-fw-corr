@@ -47,7 +47,7 @@ architecture Behavioral of hbm_ila is
     signal wcount : std_logic_vector(6 downto 0) := "0000000";
     signal fifo_din : std_logic_vector(512 downto 0);
     signal to_send_count : std_logic_vector(7 downto 0) := x"00";
-    type aw_fsm_t is (set_aw, wait_aw, next_addr, done);
+    type aw_fsm_t is (set_aw, wait_aw, next_addr, wait_done0, wait_done1, done);
     signal aw_fsm : aw_fsm_t := done;
     signal wr_rst_busy_del, wr_rst_busy, dsp_rst, aw_req_sent : std_logic := '0';
     signal valid_final, send_aw : std_logic := '0';
@@ -217,6 +217,12 @@ begin
                     when next_addr =>
                         aw_addr <= std_logic_Vector(unsigned(aw_addr) + 4096);
                         o_HBM_axi_aw.valid <= '0';
+                        aw_fsm <= wait_done0;
+                    
+                    when wait_done0 => -- wait until "to_send_count" is updated
+                        aw_fsm <= wait_done1;
+                    
+                    when wait_done1 =>
                         aw_fsm <= done;
                     
                     when done =>

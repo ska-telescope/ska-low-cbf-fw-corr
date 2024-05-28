@@ -314,7 +314,7 @@ architecture Behavioral of poly_eval is
     signal Vpol_deltaP, Vpol_phase : t_slv_32_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     
     signal poly_rd_addr : std_logic_vector(19 downto 0);
-    signal uptime : std_logic_vector(47 downto 0);
+    signal uptime : std_logic_vector(47 downto 0) := x"000000000000";
     
 begin
     

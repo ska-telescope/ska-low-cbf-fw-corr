@@ -769,13 +769,13 @@ begin
     --------------------------------------------------------------------
 
 
-    m06_awaddr <= m01_axi_aw.addr(31 downto 0);
-    m06_awlen <= m01_axi_aw.len;
-    m06_awvalid <= m01_axi_aw.valid;
+    m06_awaddr <= m06_axi_aw.addr(31 downto 0);
+    m06_awlen <= m06_axi_aw.len;
+    m06_awvalid <= m06_axi_aw.valid;
     
-    m06_araddr <= m01_axi_ar.addr(31 downto 0);
-    m06_arlen <= m01_axi_ar.len;
-    m06_arvalid <= m01_axi_ar.valid;
+    m06_araddr <= m06_axi_ar.addr(31 downto 0);
+    m06_arlen <= m06_axi_ar.len;
+    m06_arvalid <= m06_axi_ar.valid;
     
     -- Other unused axi ports
     m06_awsize <= get_axi_size(M06_DATA_WIDTH);
