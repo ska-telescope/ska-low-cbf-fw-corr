@@ -368,8 +368,8 @@ ARCHITECTURE structure OF correlator_core IS
     signal logic_HBM_axi_rreadyi    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
 
     -- HBM reset
-    signal hbm_reset                : std_logic_vector(4 downto 0);
-    signal hbm_status               : std_logic_vector(4 downto 0);
+    signal hbm_reset                : std_logic_vector(5 downto 0);
+    signal hbm_status               : std_logic_vector(5 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
 

@@ -32,7 +32,7 @@ entity ct1_tb is
         g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
-        g_USE_FILTERBANK : std_logic := '1'
+        g_USE_FILTERBANK : std_logic := '0'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
@@ -216,7 +216,7 @@ architecture Behavioral of ct1_tb is
     signal fb5_meta01, fb5_meta23, fb5_meta45, fb5_meta67  : t_CT1_META_out;    
     
     signal write_HBM_to_disk : std_logic;
-    signal hbm_dump_addr : integer;
+    signal hbm_dump_addr, hbm_dump_addr2 : integer;
     signal hbm_dump_filename, init_fname : string(1 to 9) := "dummy.txt";
     signal init_mem : std_logic;
     signal rst_n : std_logic;
@@ -247,6 +247,7 @@ architecture Behavioral of ct1_tb is
     signal FB_to_100G_valid : std_logic;
     signal FB_to_100G_ready : std_logic;
     signal clk300_gated : std_logic := '0';
+    signal write_HBM_to_disk2, init_mem2 : std_logic := '0';
     
 begin
     
@@ -653,17 +654,17 @@ begin
         -------------------------------------------------------------
         -- debug data dump to HBM
         o_m06_axi_aw      => m06_axi_aw, --  out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_m06_axi_awready => m06_axi_awready, -- in std_logic;
+        i_m06_axi_awready => m06_awready, -- in std_logic;
         -- b bus - write response
         o_m06_axi_w       => m06_axi_w,  -- out t_axi4_full_data; -- (.valid, .data , .last, .resp(1:0))
-        i_m06_axi_wready  => m06_axi_wready, -- in std_logic;
+        i_m06_axi_wready  => m06_wready, -- in std_logic;
         i_m06_axi_b       => m06_axi_b,  -- in t_axi4_full_b;  -- (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         -- ar bus - read address
         o_m06_axi_ar      => m06_axi_ar, -- out t_axi4_full_addr; -- (.valid, .addr(39:0), .len(7:0))
-        i_m06_axi_arready => m06_axi_arready, -- : in std_logic;
+        i_m06_axi_arready => m06_arready, -- : in std_logic;
         -- r bus - read data
         i_m06_axi_r       => m06_axi_r,  -- in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
-        o_m06_axi_rready  => m06_axi_rready --  out std_logic
+        o_m06_axi_rready  => m06_rready --  out std_logic
     );
     
     m01_awaddr <= m01_axi_aw.addr(31 downto 0);
@@ -798,7 +799,7 @@ begin
     m06_arregion <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     
     -- m02 HBM interface : 2nd stage corner turn between filterbanks and beamformer, 2x256 MBytes.
-    HBM3G_1 : entity correlator_lib.HBM_axi_tbModel
+    HBM_ila_i : entity correlator_lib.HBM_axi_tbModel
     generic map (
         AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
         AXI_ID_WIDTH => 1, -- integer := 1;
@@ -867,7 +868,7 @@ begin
     --hbm_dump_filename <= "";
     init_mem2 <= '0';
     --init_fname <= "dummy.vhd";
-
+    
 
     --------------------------------------------------------------------------------
     -- Filterbank 
