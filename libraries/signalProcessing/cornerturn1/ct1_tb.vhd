@@ -29,15 +29,16 @@ entity ct1_tb is
         g_PACKET_GAP : integer := 1000;
 
         -- 
-        g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
-        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
-        g_USE_FILTERBANK : std_logic := '0'
+        --g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
+        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
+        --g_USE_FILTERBANK : std_logic := '0'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
-        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2.txt";
-        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2_ct1_out.txt"
+        g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2.txt";
+        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2_ct1_out.txt";
+        g_USE_FILTERBANK : std_logic := '0'
         
         -- x000000EC8F40 = 64 packets prior to the first valid integration in delays1080_8vc.txt
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"000000EC8F40"; -- x"03421AFE0350";

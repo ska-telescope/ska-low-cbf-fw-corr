@@ -21,7 +21,7 @@
             <arg name="M03Addr"      addressQualifier="1" id="6" port="m03_axi" size="0x8" offset="0x34" hostOffset="0x0" hostSize="0x8" type="int*"/>
             <arg name="M04Addr"      addressQualifier="1" id="7" port="m04_axi" size="0x8" offset="0x3C" hostOffset="0x0" hostSize="0x8" type="int*"/>
             <arg name="M05Addr"      addressQualifier="1" id="8" port="m05_axi" size="0x8" offset="0x44" hostOffset="0x0" hostSize="0x8" type="int*"/>
-            <arg name="M06Addr"      addressQualifier="1" id="8" port="m06_axi" size="0x8" offset="0x4C" hostOffset="0x0" hostSize="0x8" type="int*"/>
+            <arg name="M06Addr"      addressQualifier="1" id="9" port="m06_axi" size="0x8" offset="0x4C" hostOffset="0x0" hostSize="0x8" type="int*"/>
         </args>
     </kernel>
 </root>
