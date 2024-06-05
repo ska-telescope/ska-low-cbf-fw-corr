@@ -186,6 +186,8 @@ type cor_triangle_fsm_type is   (idle, check_enable, calculate_reads,
                                 complete, pop_instruction, cleanup, start);
 signal cor_triangle_fsm : cor_triangle_fsm_type;
 
+signal cor_tri_fsm_cnt          : unsigned(3 downto 0);
+
 signal last_instruct_subarray   : std_logic_vector(7 downto 0);
 signal cor_tri_time_ref         : std_logic_vector(63 downto 0);
 signal cor_tri_hbm_start_addr   : std_logic_vector(31 downto 0);
@@ -369,6 +371,7 @@ begin
                 cor_tri_row         <= ( others => '0' );
                 cor_tri_row_count   <= ( others => '0' );
                 hbm_readout_complete    <= '0';
+                cor_tri_fsm_cnt     <= x"0";
             else
                 case cor_triangle_fsm is
                     when idle => 
@@ -379,6 +382,7 @@ begin
                         cells_to_retrieve       <= ( others => '0' );
                         cells_to_add            <= x"001";
                         pack_start              <= '0';
+                        cor_tri_fsm_cnt         <= x"0";
 
                         if meta_cache_fifo_empty = '0' then
                             cor_triangle_fsm        <= check_enable;
@@ -448,8 +452,12 @@ begin
 
                     when cleanup => 
                         cor_tri_fsm_debug       <= x"5";
+                        -- wait a few cycles for pipeline to get data into FIFO.
+                        if cor_tri_fsm_cnt(3) = '0' then
+                            cor_tri_fsm_cnt         <= cor_tri_fsm_cnt + 1;
+                        end if;
                         -- not ready until all data passed off to the packetiser, FIFO is empty.
-                        if packed_fifo_empty = '1' then
+                        if packed_fifo_empty = '1' AND (cor_tri_fsm_cnt(3) = '1') then
                             meta_cache_fifo_rd      <= '1';
                             cor_triangle_fsm        <= complete;
                         end if;

@@ -14,7 +14,7 @@ library correlator_lib, common_lib, spead_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use signal_processing_common.ethernet_pkg.ALL;
-use spead_lib.CbfPsrHeader_pkg.ALL;
+--use spead_lib.CbfPsrHeader_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
 use common_lib.common_pkg.ALL;
 Library axi4_lib;
@@ -54,6 +54,8 @@ signal testCount_322        : integer   := 0;
 signal clock_400_rst        : std_logic := '1';
 signal clock_300_rst        : std_logic := '1';
 signal clock_322_rst        : std_logic := '1';
+
+signal tb_300_rst           : std_logic := '0';
 
 signal power_up_rst_clock_400   : std_logic_vector(31 downto 0) := c_ones_dword;
 signal power_up_rst_clock_300   : std_logic_vector(31 downto 0) := c_ones_dword;
@@ -339,28 +341,59 @@ begin
 
 
             if USE_TEST_CASE = TRUE then
+                tb_300_rst      <= '0';
                 if testCount_300 = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"50";
+                    row_count       <= 9D"1";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"50";
+                    stim_sub_array  <= 8D"64";
                     hbm_start_addr  <= x"00000000";
+                end if;
+                
+                    
+                if testCount_300 = 5000 then 
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"2";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"65";
+                    hbm_start_addr  <= x"00000000";
+                end if;
+
+                if testCount_300 = 9990 then
+                    tb_300_rst      <= '1';
                 end if;
                 
                 if testCount_300 = 10000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"48";
+                    row_count       <= 9D"3";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"48";
+                    stim_sub_array  <= 8D"66";
                     hbm_start_addr  <= x"00000000";
                 end if;
-
+                
+                if testCount_300 = 14990 then
+                    tb_300_rst      <= '1';
+                end if;
+                
+                if testCount_300 = 15000 then 
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"4";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"67";
+                    hbm_start_addr  <= x"00000000";
+                end if;
             end if;
 
             if USE_TEST_CASE = FALSE then
@@ -376,6 +409,18 @@ begin
 -- 7       24x24       10208       0x27e0
 -- 8       26x26       11942       0x2ea6
 -- 9       28x28       13812       0x35f4
+-- 32	    246	        1032962	    0xFC302
+-- 33	    247	        1041360	    0xFE3D0
+-- 34	    248	        1049792	    0x1004C0
+-- 35	    249	        1058258	    0x1025D2
+-- 36	    250	        1066758	    0x104706
+-- 37	    251	        1075292	    0x10685C
+-- 38	    252	        1083860	    0x1089D4
+-- 39	    253	        1092462	    0x10AB6E
+-- 40	    254	        1101098	    0x10CD2A
+-- 41	    255	        1109768	    0x10EF08
+-- 42	    256	        1118472	    0x111108
+
 
                 -- some stimulus for initial triangle testing.
                 if testCount_300 = 1000 then 

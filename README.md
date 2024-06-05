@@ -95,7 +95,8 @@ system being used.
 
 # Changelog
 * 0.0.7 - 
-    * Enable above 16x16 baselines.
+    * Enable above 16x16 baselines, up to 246.
+    * Correct single station readout bug.
 * 0.0.6 - 
     * Fix for SPEAD v3, timestamps.
     * LFAA statistic RAMs update to have common layout for SPEAD v1,v2,v3
