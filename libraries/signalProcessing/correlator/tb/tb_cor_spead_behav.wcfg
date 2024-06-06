@@ -8,7 +8,6 @@
             <top_module name="axi4_full_pkg" />
             <top_module name="axi4_lite_pkg" />
             <top_module name="axi_bram_ctrl_funcs" />
-            <top_module name="cbfpsrheader_pkg" />
             <top_module name="common_mem_pkg" />
             <top_module name="common_pkg" />
             <top_module name="ethernet_pkg" />
@@ -25,17 +24,17 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="72.023334 us"></ZoomStartTime>
-      <ZoomEndTime time="99.283335 us"></ZoomEndTime>
-      <Cursor1Time time="76.566667 us"></Cursor1Time>
+      <ZoomStartTime time="8,652.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="9,870.001 ns"></ZoomEndTime>
+      <Cursor1Time time="9,210.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="200"></NameColumnWidth>
-      <ValueColumnWidth column_width="66"></ValueColumnWidth>
+      <NameColumnWidth column_width="276"></NameColumnWidth>
+      <ValueColumnWidth column_width="135"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="409" />
+   <WVObjectSize size="411" />
    <wave_markers>
-      <marker label="" time="216100000" />
+      <marker label="" time="121000000" />
    </wave_markers>
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
@@ -109,19 +108,6 @@
       <obj_property name="ElementShortName">HBM_axi_ar</obj_property>
       <obj_property name="ObjectShortName">HBM_axi_ar</obj_property>
       <obj_property name="isExpanded"></obj_property>
-      <wvobject type="logic" fp_name="/tb_cor_spead/HBM_axi_ar.valid">
-         <obj_property name="ElementShortName">.valid</obj_property>
-         <obj_property name="ObjectShortName">.valid</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/HBM_axi_ar.addr">
-         <obj_property name="ElementShortName">.addr[39:0]</obj_property>
-         <obj_property name="ObjectShortName">.addr[39:0]</obj_property>
-         <obj_property name="Radix">HEXRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/HBM_axi_ar.len">
-         <obj_property name="ElementShortName">.len[7:0]</obj_property>
-         <obj_property name="ObjectShortName">.len[7:0]</obj_property>
-      </wvobject>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/HBM_axi_arready">
       <obj_property name="ElementShortName">HBM_axi_arready</obj_property>
@@ -1111,7 +1097,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/vis_data_addr">
       <obj_property name="ElementShortName">vis_data_addr[27:0]</obj_property>
       <obj_property name="ObjectShortName">vis_data_addr[27:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/CELL_OFFSET_ROW">
       <obj_property name="ElementShortName">CELL_OFFSET_ROW[27:0]</obj_property>
@@ -1124,7 +1110,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/row_cell_offset">
       <obj_property name="ElementShortName">row_cell_offset[27:0]</obj_property>
       <obj_property name="ObjectShortName">row_cell_offset[27:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/next_cell_row">
       <obj_property name="ElementShortName">next_cell_row[27:0]</obj_property>
@@ -1147,7 +1133,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/next_data_addr">
       <obj_property name="ElementShortName">next_data_addr[27:0]</obj_property>
       <obj_property name="ObjectShortName">next_data_addr[27:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject type="other" fp_name="/tb_cor_spead/DUT/RD_manager/HBM_reader_fsm">
       <obj_property name="ElementShortName">HBM_reader_fsm</obj_property>
@@ -1185,7 +1171,6 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/o_HBM_axi_ar">
       <obj_property name="ElementShortName">o_HBM_axi_ar</obj_property>
       <obj_property name="ObjectShortName">o_HBM_axi_ar</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/i_HBM_axi_arready">
       <obj_property name="ElementShortName">i_HBM_axi_arready</obj_property>
@@ -1524,6 +1509,16 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/heap_counter_data_calc">
       <obj_property name="ElementShortName">heap_counter_data_calc[16:0]</obj_property>
       <obj_property name="ObjectShortName">heap_counter_data_calc[16:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_from_spead_pack">
+      <obj_property name="ElementShortName">i_from_spead_pack</obj_property>
+      <obj_property name="ObjectShortName">i_from_spead_pack</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/o_to_spead_pack">
+      <obj_property name="ElementShortName">o_to_spead_pack</obj_property>
+      <obj_property name="ObjectShortName">o_to_spead_pack</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_packet_bytes_remain">
       <obj_property name="ElementShortName">data_packet_bytes_remain[13:0]</obj_property>
