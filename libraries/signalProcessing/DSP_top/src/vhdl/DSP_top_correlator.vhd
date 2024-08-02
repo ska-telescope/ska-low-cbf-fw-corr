@@ -140,7 +140,7 @@ entity DSP_top_correlator is
         --------------------------------------------------------------
         -- HBM reset
         o_hbm_reset    : out std_logic_vector(4 downto 0);
-        i_hbm_status   : in std_logic_vector(4 downto 0)
+        i_hbm_status   : in t_slv_8_arr(4 downto 0)
     );
 end DSP_top_correlator;
 
