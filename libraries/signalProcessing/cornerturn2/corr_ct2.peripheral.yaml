@@ -149,3 +149,40 @@ peripherals:
                                     Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
                                    "
           #################################
+          - - field_name        : HBM_reset_corr_1
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Set this to 1 and then monitor HBM_reset status."
+          #################################
+          - - field_name        : HBM_reset_status_corr_1
+              width             : 8
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "When the lower nibble reads 1 then both HBM read and WR queues have been zeroed out, ready to reconfigure logic.
+                                   upper nibble indicates the state of the HBM reset SM.
+                                   0 - IDLE
+                                   1 - Waiting for WR queue to balance
+                                   2 - WRs diabled
+                                   3 - Wait for Reads to complete
+                                   4 - HBM transfers now complete and resets can occur, at this point the lower nibble should show 1."
+          #################################
+          - - field_name        : HBM_reset_corr_2
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Set this to 1 and then monitor HBM_reset status."
+          #################################
+          - - field_name        : HBM_reset_status_corr_2
+              width             : 8
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "When the lower nibble reads 1 then both HBM read and WR queues have been zeroed out, ready to reconfigure logic.
+                                   upper nibble indicates the state of the HBM reset SM.
+                                   0 - IDLE
+                                   1 - Waiting for WR queue to balance
+                                   2 - WRs diabled
+                                   3 - Wait for Reads to complete
+                                   4 - HBM transfers now complete and resets can occur, at this point the lower nibble should show 1."
+          #################################
+
