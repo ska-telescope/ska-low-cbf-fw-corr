@@ -395,10 +395,10 @@ begin
     
     -- HBM reset vector
     statctrl_ro.hbm_reset_status_corr_1 <= i_hbm_status_c1; 
-    statctrl_rw.hbm_reset_corr_1        <= o_hbm_reset_c1;
+    o_hbm_reset_c1                      <= statctrl_rw.hbm_reset_corr_1;
     
     statctrl_ro.hbm_reset_status_corr_2 <= i_hbm_status_c2; 
-    statctrl_rw.hbm_reset_corr_2        <= o_hbm_reset_c2;
+    o_hbm_reset_c2                      <= statctrl_rw.hbm_reset_corr_2;
     
     last_channel_16bit <= "00000" & last_channel;   
     
