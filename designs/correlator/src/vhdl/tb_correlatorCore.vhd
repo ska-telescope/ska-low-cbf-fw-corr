@@ -34,8 +34,10 @@ entity tb_correlatorCore is
         g_CORRELATORS : integer := 2; -- Number of correlator instances to instantiate (0, 1, 2)
         g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
-        g_TEST_CASE : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_17stations/";
-        --g_TEST_CASE : string := "../../../../../../../";
+        --g_TEST_CASE : string := "/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations/";
+        g_TEST_CASE        : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations/";
+        --/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations
+        --g_TEST_CASE : string := "../../../../../../";
         -- text file with SPS packets
         g_SPS_DATA_FILENAME : string := "sps_axi_tb_input.txt";
         -- Register initialisation
@@ -304,6 +306,8 @@ architecture Behavioral of tb_correlatorCore is
     
     signal load_packet_buffer : std_logic;
     
+    signal input_HBM_reset      : std_logic;
+    
     
     -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
     -- +bid buser
@@ -384,6 +388,7 @@ begin
         variable regData : std_logic_vector(31 downto 0);
         variable readResult : std_logic_vector(31 downto 0);
     begin
+        input_HBM_reset <= '0';
         Dump_packet_hbm <= '0';        
         SetupDone <= '0';
         ap_rst_n <= '1';
@@ -525,6 +530,9 @@ begin
         
         SetupDone <= '1';
         
+        -- trigger HBM reset
+        WAIT for 2.3 us;
+        input_HBM_reset <= '1';
         -- Trigger to dump HBM output
         WAIT for 60 us;
         Dump_packet_hbm <= '1';
@@ -771,7 +779,7 @@ begin
     end process;
 
     
-    -- Check visibility meta data
+--     Check visibility meta data
     process
         file vis_meta_check_file: TEXT;
         variable line_in : Line;
@@ -1034,6 +1042,8 @@ begin
         i_ct2_readout_start  => ct2_readout_start, -- in std_logic;
         i_ct2_readout_buffer => ct2_readout_buffer, -- in std_logic;
         i_ct2_readout_frameCount => ct2_readout_frameCount, -- in (31:0);
+        
+        i_input_HBM_reset   => input_HBM_reset,
         ---------------------------------------------------------------
         -- copy of the bus taking data to be written to the HBM.
         -- Used for simulation only, to check against the model data.
@@ -1301,7 +1311,7 @@ begin
 
         -- Initialisation of the memory
         i_init_mem   => load_packet_buffer,   -- in std_logic;
-        i_init_fname => "g_TEST_CASE & g_VIS_CHECK_FILE"  -- in string
+        i_init_fname => g_TEST_CASE & g_VIS_CHECK_FILE  -- in string
     );
 
     -- 512 MBytes visibilities output buffer for the second correlator cell.

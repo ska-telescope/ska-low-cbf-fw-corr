@@ -61,7 +61,7 @@ ENTITY correlator_core IS
         g_HBM_AXI_ID_WIDTH   : integer := 1;
         -- Number of correlator blocks to instantiate.
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
-        g_CORRELATORS        : integer := 2;  -- 1 or 2
+        g_CORRELATORS        : integer := 1;  -- 1 or 2
         g_USE_DUMMY_FB       : boolean := FALSE -- Should be FALSE for normal operation.
     );
     port (
@@ -245,6 +245,8 @@ ENTITY correlator_core IS
         i_ct2_readout_start  : in std_logic;
         i_ct2_readout_buffer : in std_logic;
         i_ct2_readout_frameCount : in std_logic_vector(31 downto 0);
+        
+        i_input_HBM_reset       : in std_logic;
         ---------------------------------------------------------------
         -- Copy of the bus taking data to be written to the HBM,
         -- for the first correlator instance.
@@ -369,7 +371,8 @@ ARCHITECTURE structure OF correlator_core IS
 
     -- HBM reset
     signal hbm_reset                : std_logic_vector(4 downto 0);
-    signal hbm_status               : std_logic_vector(4 downto 0);
+    signal hbm_status               : t_slv_8_arr(4 downto 0);
+    signal hbm_reset_combined       : std_logic_vector(4 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
 
@@ -932,18 +935,22 @@ begin
         i_hbm_status   => hbm_status
     );
     
+    hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
+    hbm_reset_combined(4 downto 1)      <= hbm_reset(4 downto 1);
+    
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
     axi_HBM_gen : for i in 0 to 4 generate
+
         -- reset blocks for HBM interfaces.
         hbm_resetter : entity correlator_lib.hbm_axi_reset_handler 
             generic map (
-                DEBUG_ILA               => FALSE )
+                DEBUG_ILA               => TRUE )
             port map ( 
                 i_clk                   => ap_clk,
                 i_reset                 => ap_rst,
         
-                i_logic_reset           => hbm_reset(i),
+                i_logic_reset           => hbm_reset_combined(i),
                 o_in_reset              => open,
                 o_reset_complete        => hbm_status(i),
                 -----------------------------------------------------
