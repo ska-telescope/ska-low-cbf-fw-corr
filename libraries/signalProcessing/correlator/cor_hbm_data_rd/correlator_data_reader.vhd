@@ -300,6 +300,9 @@ begin
     o_to_spead_pack.time_ref                <= cor_tri_time_ref;
     o_to_spead_pack.hbm_readout_complete    <= hbm_readout_complete;
 
+    o_to_spead_pack.valid_del_poly          <= '1';
+    o_to_spead_pack.statically_flagged      <= '0';
+    o_to_spead_pack.dynamically_flagged     <= '1';
 
     ---------------------------------------------------------------------------
     meta_reg_proc : process(clk)
