@@ -756,9 +756,10 @@ begin
         -- clk_freerun is a 100MHz free running clock.
         clk_freerun    => clk_freerun,
         
-        i_ct2_readout_start  => '0',
-        i_ct2_readout_buffer => '0',
-        i_ct2_readout_frameCount => (others => '0')
+        i_ct2_readout_start     => '0',
+        i_ct2_readout_buffer    => '0',
+        i_ct2_readout_frameCount => (others => '0'),
+        i_input_HBM_reset       => '0'
     );
     
         

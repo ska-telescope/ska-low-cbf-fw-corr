@@ -140,7 +140,7 @@ entity DSP_top_correlator is
         --------------------------------------------------------------
         -- HBM reset
         o_hbm_reset    : out std_logic_vector(4 downto 0);
-        i_hbm_status   : in std_logic_vector(4 downto 0)
+        i_hbm_status   : in t_slv_8_arr(4 downto 0)
     );
 end DSP_top_correlator;
 
@@ -258,7 +258,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
 begin
     
     gnd <= (others => '0');
-    o_hbm_reset(4 downto 1) <= x"0";
+    o_hbm_reset(4 downto 3) <= "00";
     --------------------------------------------------------------------------
     -- Signal Processing signal Chains
     --------------------------------------------------------------------------
@@ -501,7 +501,13 @@ begin
         i_axi_rst   => i_MACE_rst, -- in std_logic;
         -- pipelined reset from first stage corner turn ?
         i_rst  => ct_rst_del2,  --  in std_logic;
-        --
+        -- hbm reset   
+        o_hbm_reset_c1      => o_hbm_reset(1),
+        i_hbm_status_c1     => i_hbm_status(1),
+        
+        o_hbm_reset_c2      => o_hbm_reset(2),
+        i_hbm_status_c2     => i_hbm_status(2),
+        --        
         i_virtualChannels => totalChannels(10 downto 0),  
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 

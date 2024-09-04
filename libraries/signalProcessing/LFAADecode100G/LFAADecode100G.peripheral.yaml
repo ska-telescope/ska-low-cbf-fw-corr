@@ -152,7 +152,7 @@ peripherals:
               field_description : "Set this to 1 and then monitor HBM_reset status."
           #################################
           - - field_name        : HBM_reset_status
-              width             : 4
+              width             : 8
               access_mode       : RO
               reset_value       : 0x0
               field_description : "When this reads 1 then both HBM read and WR queues have been zeroed out, ready to reconfigure logic."

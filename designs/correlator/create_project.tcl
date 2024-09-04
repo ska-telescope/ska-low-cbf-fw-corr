@@ -317,7 +317,8 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
- $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+ $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
+ $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
@@ -326,7 +327,11 @@ set_property library signal_processing_common [get_files {\
  */common/src/vhdl/xpm_fifo_wrapper.vhd \
  */common/src/vhdl/memory_tdp_wrapper.vhd \
  */common/src/vhdl/args_axi_terminus.vhd \
- */Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+}]
+
+set_property library ethernet_lib [get_files {\
+*ethernet/src/vhdl/ethernet_pkg.vhd \
+*ethernet/src/vhdl/ipv4_chksum.vhd \
 }]
 
 source $COMMON_PATH/common/src/args_axi_terminus.tcl

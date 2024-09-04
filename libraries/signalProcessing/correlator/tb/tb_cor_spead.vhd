@@ -10,10 +10,10 @@
 
 
 library IEEE,technology_lib, PSR_Packetiser_lib, signal_processing_common, HBM_PktController_lib; 
-library correlator_lib, common_lib, spead_lib;
+library correlator_lib, common_lib, spead_lib, ethernet_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use signal_processing_common.ethernet_pkg.ALL;
+use ethernet_lib.ethernet_pkg.ALL;
 --use spead_lib.CbfPsrHeader_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
 use common_lib.common_pkg.ALL;

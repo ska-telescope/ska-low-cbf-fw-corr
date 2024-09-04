@@ -94,6 +94,14 @@ entity corr_ct2_top is
         o_axi_miso : out t_axi4_lite_miso;
         -- pipelined reset from first stage corner turn ?
         i_rst : in std_logic;   -- First data received after this reset is placed in the first 283ms block in a 849 ms integration.
+        
+        -- hbm reset   
+        o_hbm_reset_c1      : out std_logic;
+        i_hbm_status_c1     : in std_logic_vector(7 downto 0);
+        
+        o_hbm_reset_c2      : out std_logic;
+        i_hbm_status_c2     : in std_logic_vector(7 downto 0);
+        
         -- configuration data from registers in other modules
         i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
@@ -384,6 +392,13 @@ begin
             
         end if;
     end process;
+    
+    -- HBM reset vector
+    statctrl_ro.hbm_reset_status_corr_1 <= i_hbm_status_c1; 
+    o_hbm_reset_c1                      <= statctrl_rw.hbm_reset_corr_1;
+    
+    statctrl_ro.hbm_reset_status_corr_2 <= i_hbm_status_c2; 
+    o_hbm_reset_c2                      <= statctrl_rw.hbm_reset_corr_2;
     
     last_channel_16bit <= "00000" & last_channel;   
     
