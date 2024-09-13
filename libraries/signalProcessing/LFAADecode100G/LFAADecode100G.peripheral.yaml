@@ -186,3 +186,51 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "If this returns 0xF, then held in reset otherwise it is running"
+          #################################
+          - - field_name        : uram_buffer_level
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "This is has a max value of 4096."
+          #################################
+          - - field_name        : uram_buffer_fill_warn
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Bit 15 will indicate > 4000 positions in the FIFO used, lower bits will record max value"
+          #################################
+          - - field_name        : inc_packet_burst_warn
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Rolling counter that indicates how often the following occurs.
+                                   The peak data rate for 100 consecutive packets on a link shall
+                                   be no more than 20% above the average data rate of 69.3 Gbps. NOT IMPLEMENTED"
+          #################################
+          - - field_name        : inc_data_rate_sec
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Four values spread across the vector.
+                                   Each value is 8 bit, upper 7 bits have a max value of 99 and the
+                                   remaining bit indicates 0.5
+                                    7->0    = 0    - 0.25 sec
+                                    15->8   = 0.25 - 0.5
+                                    23->16  = 0.5  - 0.75
+                                    31->24  = 0.75 - 1 sec
+                                    NOT IMPLEMENTED
+                                  "
+          #################################
+          - - field_name        : inc_data_rate_min
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Four values spread across the vector.
+                                   Each value is 8 bit, upper 7 bits have a max value of 99 and the
+                                   remaining bit indicates 0.5
+                                    7->0    = 0    - 0.25 min
+                                    15->8   = 0.25 - 0.5
+                                    23->16  = 0.5  - 0.75
+                                    31->24  = 0.75 - 1 min
+                                    NOT IMPLEMENTED
+                                  "

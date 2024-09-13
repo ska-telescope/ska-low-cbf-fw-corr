@@ -532,7 +532,7 @@ begin
         
         -- trigger HBM reset
         WAIT for 2.3 us;
-        input_HBM_reset <= '1';
+        input_HBM_reset <= '0';
         -- Trigger to dump HBM output
         WAIT for 60 us;
         Dump_packet_hbm <= '1';

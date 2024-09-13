@@ -945,7 +945,7 @@ begin
         -- reset blocks for HBM interfaces.
         hbm_resetter : entity correlator_lib.hbm_axi_reset_handler 
             generic map (
-                DEBUG_ILA               => TRUE )
+                DEBUG_ILA               => FALSE )
             port map ( 
                 i_clk                   => ap_clk,
                 i_reset                 => ap_rst,
