@@ -629,13 +629,13 @@ begin
                         -- Put the write addresses into the FIFO
                         -- Generates 16 write addresses, each 8 beats.
                         -- 16 writes * 8 beats * 64 bytes/beat = 8192 bytes
-                        awFIFO_din(31 downto 13) <= sps_addr(31 downto 13);
-                        awFIFO_din(12 downto 9) <= awCount;
-                        awFIFO_din(8 downto 1) <= "00000000";  -- each burst is 8 beats * 64 bytes = 512 bytes, so all writes are 512 byte aligned.
+                        awFIFO_din(31 downto 13)    <= sps_addr(31 downto 13);
+                        awFIFO_din(12)              <= awCount(0);
+                        awFIFO_din(11 downto 1)     <= (others => '0');  -- each burst is 64 beats * 64 bytes = 4096 bytes.
                         awFIFO_din(0) <= drop_packet; -- not used for the axi transaction, just used to avoid writing to the valid memory
                         awCount <= std_logic_vector(unsigned(awCount) + 1);
                         AWFIFO_wrEn <= '1';
-                        if awCount = "1111" then
+                        if awCount = "0001" then
                             input_fsm <= check_advance_buffer;
                         end if;
                     
@@ -807,7 +807,7 @@ begin
     -- Number of beats in a burst -1; 
     -- 8 beats * 64 byte wide bus = 512 bytes per burst, so 16 bursts for a full LFAA packet of 8192 bytes.
     -- Warning : The "wlast" signal generated in the LFAA ingest module (in "LFAAProcess100G.vhd") assumes that this value is 7 (=8 beats per burst).
-    o_m01_axi_aw.len   <= "00000111"; -- out std_logic_vector(7 downto 0); 
+    o_m01_axi_aw.len   <= x"3F"; -- Update to 4096 bytes per transfer from 512. "00000111"; -- out std_logic_vector(7 downto 0); 
     
     -----------------------------------------------------------------------------------------------
     -- Valid memory keeps track of whether data has been written to each 8192 byte block in the shared memory.
@@ -819,7 +819,7 @@ begin
     process(i_shared_clk)
     begin
         if rising_edge(i_shared_clk) then
-            if (AWFIFO_empty = '0') and (i_m01_axi_awready = '1') and (AWFIFO_dout(12 downto 9) = "1111") and (AWFIFO_dout(0) = '0') then
+            if (AWFIFO_empty = '0') and (i_m01_axi_awready = '1') and (AWFIFO_dout(12) = '1') and (AWFIFO_dout(0) = '0') then
                 -- bit 0 of AWFIFO_dout indicates that the packet is being dropped.
                 validMemSetWrEn <= '1';
                 validMemSetWrAddr <= AWFIFO_dout(31 downto 13);
