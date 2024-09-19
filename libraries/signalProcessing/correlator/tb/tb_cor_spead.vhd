@@ -315,15 +315,15 @@ begin
 
             -- using defaul values send end packets.
             if testCount_300 = 1500 then
-                tb_debug(3)        <= '0';
+                tb_debug(3)        <= '0';  -- trigger END
             end if;
 
             if testCount_300 = 26500 then
-                tb_debug(3)        <= '0';
+                tb_debug(3)        <= '0';  -- trigger END
             end if;
 
             if testCount_300 = 30000 then
-                tb_debug(2)        <= '0';
+                tb_debug(2)        <= '1';  -- trigger INIT
             end if;
             
             if HBM_axi_r.valid = '1' then
