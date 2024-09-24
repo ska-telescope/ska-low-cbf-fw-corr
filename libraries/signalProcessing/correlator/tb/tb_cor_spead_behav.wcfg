@@ -24,13 +24,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="200,951.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="202,187.001 ns"></ZoomEndTime>
-      <Cursor1Time time="201,419.000 ns"></Cursor1Time>
+      <ZoomStartTime time="205,780.480 ns"></ZoomStartTime>
+      <ZoomEndTime time="205,904.481 ns"></ZoomEndTime>
+      <Cursor1Time time="205,883.780 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="276"></NameColumnWidth>
-      <ValueColumnWidth column_width="127"></ValueColumnWidth>
+      <ValueColumnWidth column_width="123"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="465" />
    <wave_markers>
@@ -1746,27 +1746,14 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/additional_packetiser_gen/cor_speader/host_interface/scratch_pad/i_offsets_array">
       <obj_property name="ElementShortName">i_offsets_array[2:0][15:0]</obj_property>
       <obj_property name="ObjectShortName">i_offsets_array[2:0][15:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/additional_packetiser_gen/cor_speader/host_interface/scratch_pad/offsets_array">
       <obj_property name="ElementShortName">offsets_array[2:0][15:0]</obj_property>
       <obj_property name="ObjectShortName">offsets_array[2:0][15:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
       <obj_property name="isExpanded"></obj_property>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/additional_packetiser_gen/cor_speader/host_interface/scratch_pad/offsets_array[2]">
-         <obj_property name="ElementShortName">[2][15:0]</obj_property>
-         <obj_property name="ObjectShortName">[2][15:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/additional_packetiser_gen/cor_speader/host_interface/scratch_pad/offsets_array[1]">
-         <obj_property name="ElementShortName">[1][15:0]</obj_property>
-         <obj_property name="ObjectShortName">[1][15:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/additional_packetiser_gen/cor_speader/host_interface/scratch_pad/offsets_array[0]">
-         <obj_property name="ElementShortName">[0][15:0]</obj_property>
-         <obj_property name="ObjectShortName">[0][15:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/additional_packetiser_gen/cor_speader/host_interface/scratch_pad/addr_offsets_array">
       <obj_property name="ElementShortName">addr_offsets_array[2:0][5:0]</obj_property>
@@ -1844,6 +1831,15 @@
       <obj_property name="ObjectShortName">bytes_to_transmit[1:0][13:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
       <obj_property name="isExpanded"></obj_property>
+      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/bytes_to_transmit[1]">
+         <obj_property name="ElementShortName">[1][13:0]</obj_property>
+         <obj_property name="ObjectShortName">[1][13:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/bytes_to_transmit[0]">
+         <obj_property name="ElementShortName">[0][13:0]</obj_property>
+         <obj_property name="ObjectShortName">[0][13:0]</obj_property>
+         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/data_to_player">
       <obj_property name="ElementShortName">data_to_player[1:0][511:0]</obj_property>
