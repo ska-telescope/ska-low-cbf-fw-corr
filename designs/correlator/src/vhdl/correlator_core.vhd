@@ -370,9 +370,9 @@ ARCHITECTURE structure OF correlator_core IS
     signal logic_HBM_axi_rreadyi    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
 
     -- HBM reset
-    signal hbm_reset                : std_logic_vector(4 downto 0);
-    signal hbm_status               : t_slv_8_arr(4 downto 0);
-    signal hbm_reset_combined       : std_logic_vector(4 downto 0);
+    signal hbm_reset                : std_logic_vector(5 downto 0);
+    signal hbm_status               : t_slv_8_arr(5 downto 0);
+    signal hbm_reset_combined       : std_logic_vector(5 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
 
@@ -937,7 +937,7 @@ begin
     );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
-    hbm_reset_combined(4 downto 1)      <= hbm_reset(4 downto 1);
+    hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
