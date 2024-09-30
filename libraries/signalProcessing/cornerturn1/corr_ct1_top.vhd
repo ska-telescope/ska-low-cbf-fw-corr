@@ -1134,7 +1134,7 @@ begin
         end if;
     end process;
     
-    dbg_vec_final(175 downto 0) <= dbg_vec(175 downto 0);
+    dbg_vec_final(175 downto 0)   <= dbg_vec(175 downto 0);
     dbg_vec_final(191 downto 176) <= poly_wr_occurred & poly_wr_addr;
     dbg_vec_final(255 downto 192) <= dbg_vec(255 downto 192);
     
