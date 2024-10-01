@@ -307,6 +307,9 @@ architecture Behavioral of corr_ct1_top is
     signal dbg_vec_final : std_logic_vector(255 downto 0);
     signal dbg_vec_valid : std_logic;
     signal dbg_vec : std_logic_vector(255 downto 0);
+    signal hbm_ila_addr : std_logic_vector(31 downto 0);
+    signal m06_axi_aw : t_axi4_full_addr;
+    signal m06_axi_w : t_axi4_full_data;
     
 begin
     
@@ -1144,22 +1147,39 @@ begin
         -- 16 bytes of debug data, and valid.
         i_ila_data       => dbg_vec_final, -- in std_logic_vector(255 downto 0);
         i_ila_data_valid => dbg_vec_valid, -- in std_logic;
-        o_hbm_addr       => open, -- out std_logic_vector(31 downto 0); -- Address we are up to in the HBM.
+        o_hbm_addr       => hbm_ila_addr, -- out std_logic_vector(31 downto 0); -- Address we are up to in the HBM.
         -- Write out to the HBM
         -- write address buses : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
         axi_clk  => i_shared_clk, -- in std_logic;
         axi_rst  => i_shared_rst, -- in std_logic;
-        o_HBM_axi_aw      => o_m06_axi_aw,      -- out t_axi4_full_addr;
+        o_HBM_axi_aw      => m06_axi_aw,      -- out t_axi4_full_addr;
         i_HBM_axi_awready => i_m06_axi_awready, -- in std_logic;
         -- w data buses : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_w       => o_m06_axi_w, -- out t_axi4_full_data;
+        o_HBM_axi_w       => m06_axi_w, -- out t_axi4_full_data;
         i_HBM_axi_wready  => i_m06_axi_wready  -- in std_logic  -- in std_logic;
     );
+    
+    o_m06_axi_aw <= m06_axi_aw;
+    o_m06_axi_w <= m06_axi_w;
     
     -- never read the debug memory
     o_m06_axi_ar.valid <= '0';
     o_m06_axi_ar.addr <= (others => '0');
     o_m06_axi_ar.len <= (others => '0');
     o_m06_axi_rready <= '1';
+    
+    HBM_ila_ila : ila_beamData
+    port map (
+        clk => i_shared_clk,   -- IN STD_LOGIC;
+        probe0(63 downto 0) => dbg_vec_final(63 downto 0), --  IN STD_LOGIC_VECTOR(119 DOWNTO 0)
+        probe0(95 downto 64) => hbm_ila_addr(31 downto 0),
+        probe0(96) => dbg_vec_valid,
+        probe0(97) => i_m06_axi_awready,
+        probe0(98) => i_m06_axi_wready,
+        probe0(99) => m06_axi_aw.valid,
+        probe0(100) => m06_axi_w.valid,
+        probe0(119 downto 101) => m06_axi_aw.addr(18 downto 0)
+    );
+    
     
 end Behavioral;

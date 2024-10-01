@@ -258,7 +258,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
 begin
     
     gnd <= (others => '0');
-    o_hbm_reset(4 downto 3) <= "00";
+    o_hbm_reset(5 downto 3) <= "000";
     --------------------------------------------------------------------------
     -- Signal Processing signal Chains
     --------------------------------------------------------------------------
