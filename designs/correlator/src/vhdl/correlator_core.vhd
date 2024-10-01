@@ -1134,7 +1134,7 @@ begin
         probe0(94 downto 93) => HBM_axi_bresp(5)(1 downto 0),
         probe0(95) => HBM_axi_bvalid(5),
         probe0(96) => HBM_axi_bready(5),
-        probe0(99 downto 97) => "00",
+        probe0(99 downto 97) => "000",
         probe0(163 downto 100) => HBM_axi_wdata(5)(63 downto 0),
         probe0(171 downto 164) => hbm_status(5),
         probe0(191 downto 172) => (others => '0')
