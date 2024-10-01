@@ -1114,10 +1114,31 @@ begin
             m_axi_rlast    => HBM_axi_rlast(i),    -- IN STD_LOGIC;
             m_axi_rvalid   => HBM_axi_rvalid(i),   -- IN STD_LOGIC;
             m_axi_rready   => HBM_axi_rready(i)    --: OUT STD_LOGIC
-        );        
+        );
         
         
     end generate;
+    
+    
+    u_othermem_ila : ila_0
+    port map (
+        clk => ap_clk,
+        probe0(39 downto 0) => HBM_shared(5)(39 downto 0),
+        probe0(79 downto 40) => HBM_axi_awaddr(5)(39 downto 0),
+        probe0(80) => HBM_axi_awvalid(5),
+        probe0(81) => HBM_axi_awready(5),
+        probe0(89 downto 82) => HBM_axi_awlen(5)(7 downto 0),
+        probe0(90) => HBM_axi_wvalid(5),
+        probe0(91) => HBM_axi_wready(5),
+        probe0(92) => HBM_axi_wlast(5),
+        probe0(94 downto 93) => HBM_axi_bresp(5)(1 downto 0),
+        probe0(95) => HBM_axi_bvalid(5),
+        probe0(96) => HBM_axi_bready(5),
+        probe0(99 downto 97) => "00",
+        probe0(163 downto 100) => HBM_axi_wdata(5)(63 downto 0),
+        probe0(171 downto 164) => hbm_status(5),
+        probe0(191 downto 172) => (others => '0')
+    );
     
 
     ILA_GEN : if g_DEBUG_ILA GENERATE    

@@ -1171,7 +1171,8 @@ begin
     HBM_ila_ila : ila_beamData
     port map (
         clk => i_shared_clk,   -- IN STD_LOGIC;
-        probe0(63 downto 0) => dbg_vec_final(63 downto 0), --  IN STD_LOGIC_VECTOR(119 DOWNTO 0)
+        probe0(31 downto 0) => dbg_vec_final(31 downto 0), --  IN STD_LOGIC_VECTOR(119 DOWNTO 0)
+        probe0(63 downto 32) => m06_axi_w.data(31 downto 0),
         probe0(95 downto 64) => hbm_ila_addr(31 downto 0),
         probe0(96) => dbg_vec_valid,
         probe0(97) => i_m06_axi_awready,
