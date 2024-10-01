@@ -444,7 +444,7 @@ begin
             end if;
             if (ARESET = '1') then
                 int_m06_shared(63 downto 32) <= (others => '0');
-            elsif (w_hs = '1' and (waddr = ADDR_M05_SHARED_1)) then
+            elsif (w_hs = '1' and (waddr = ADDR_M06_SHARED_1)) then
                 int_m06_shared(63 downto 32) <= (WDATA(31 downto 0) and wmask) or (int_m06_shared(63 downto 32) and (not wmask));
             end if;
             
