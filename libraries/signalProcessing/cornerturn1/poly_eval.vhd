@@ -425,9 +425,9 @@ begin
                             --   sample_diff = 1  --> Hpol_deltaP <= "01" & fp64_to_int_dout(31 downto 18);  i.e. fine delay is positive, greater than 1 sample
                             --   sample_diff = -1 --> Hpol_deltaP <= "11" & fp64_to_int_dout(31 downto 18);  i.e. fine delay is negative.
                             Hpol_deltaP(i)(29 downto 0) <= fp64_to_int_dout(31 downto 2);
-                            if (unsigned(fp64_to_int_dout(43 downto 32)) > unsigned(sample_offset(i))) then
+                            if (signed(fp64_to_int_dout(43 downto 32)) > signed(sample_offset(i))) then
                                 Hpol_deltaP(i)(31 downto 30) <= "01";
-                            elsif (unsigned(fp64_to_int_dout(43 downto 32)) = unsigned(sample_offset(i))) then
+                            elsif (signed(fp64_to_int_dout(43 downto 32)) = signed(sample_offset(i))) then
                                 Hpol_deltaP(i)(31 downto 30) <= "00";
                             else
                                 Hpol_deltaP(i)(31 downto 30) <= "11";
@@ -440,9 +440,9 @@ begin
                         -- fine delay for Vpol is same calculation as for Hpol, except that
                         -- the integer delay is set by Hpol sample delay (V and H have same integer delay).
                         Vpol_deltaP(i)(29 downto 0) <= fp64_to_int_dout(31 downto 2);
-                        if (unsigned(fp64_to_int_dout(43 downto 32)) > unsigned(sample_offset(i))) then
+                        if (signed(fp64_to_int_dout(43 downto 32)) > signed(sample_offset(i))) then
                             Vpol_deltaP(i)(31 downto 30) <= "01";
-                        elsif (unsigned(fp64_to_int_dout(43 downto 32)) = unsigned(sample_offset(i))) then
+                        elsif (signed(fp64_to_int_dout(43 downto 32)) = signed(sample_offset(i))) then
                             Vpol_deltaP(i)(31 downto 30) <= "00";
                         else
                             Vpol_deltaP(i)(31 downto 30) <= "11";

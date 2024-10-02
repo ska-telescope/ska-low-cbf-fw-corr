@@ -121,7 +121,52 @@ architecture Behavioral of ct1_tb is
     signal m01_rlast :  std_logic;
     signal m01_rid :  std_logic_vector(0 downto 0);
     signal m01_rresp :  std_logic_vector(1 downto 0);
-
+    
+    --
+    constant M06_DATA_WIDTH : integer := 512;
+    signal m06_axi_aw : t_axi4_full_addr;
+    signal m06_axi_b : t_axi4_full_b;
+    signal m06_axi_ar : t_axi4_full_addr;
+    signal m06_axi_r : t_axi4_full_data;
+    signal m06_axi_w : t_axi4_full_data;
+    
+    signal m06_awvalid : std_logic;
+    signal m06_awready : std_logic;
+    signal m06_awaddr : std_logic_vector(31 downto 0);
+    signal m06_awid : std_logic_vector(0 downto 0);
+    signal m06_awlen : std_logic_vector(7 downto 0);
+    signal m06_awsize : std_logic_vector(2 downto 0);
+    signal m06_awburst : std_logic_vector(1 downto 0);
+    signal m06_awlock :  std_logic_vector(1 downto 0);
+    signal m06_awcache :  std_logic_vector(3 downto 0);
+    signal m06_awprot :  std_logic_vector(2 downto 0);
+    signal m06_awqos :  std_logic_vector(3 downto 0);
+    signal m06_awregion :  std_logic_vector(3 downto 0);
+    signal m06_wready :  std_logic;
+    signal m06_wstrb :  std_logic_vector(63 downto 0);
+    signal m06_bvalid : std_logic;
+    signal m06_bready :  std_logic;
+    signal m06_bresp :  std_logic_vector(1 downto 0);
+    signal m06_bid :  std_logic_vector(0 downto 0);
+    signal m06_arvalid :  std_logic;
+    signal m06_arready :  std_logic;
+    signal m06_araddr :  std_logic_vector(31 downto 0);
+    signal m06_arid :  std_logic_vector(0 downto 0);
+    signal m06_arlen :  std_logic_vector(7 downto 0);
+    signal m06_arsize :  std_logic_vector(2 downto 0);
+    signal m06_arburst : std_logic_vector(1 downto 0);
+    signal m06_arlock :  std_logic_vector(1 downto 0);
+    signal m06_arcache :  std_logic_vector(3 downto 0);
+    signal m06_arprot :  std_logic_Vector(2 downto 0);
+    signal m06_arqos :  std_logic_vector(3 downto 0);
+    signal m06_arregion :  std_logic_vector(3 downto 0);
+    signal m06_rvalid :  std_logic;
+    signal m06_rready :  std_logic;
+    signal m06_rdata :  std_logic_vector((M01_DATA_WIDTH-1) downto 0);
+    signal m06_rlast :  std_logic;
+    signal m06_rid :  std_logic_vector(0 downto 0);
+    signal m06_rresp :  std_logic_vector(1 downto 0);
+    
     signal clk300, clk300_rst, data_rst : std_logic := '0';
     signal virtual_channels : std_logic_vector(10 downto 0);
     
@@ -171,7 +216,7 @@ architecture Behavioral of ct1_tb is
     signal fb5_meta01, fb5_meta23, fb5_meta45, fb5_meta67  : t_CT1_META_out;    
     
     signal write_HBM_to_disk : std_logic;
-    signal hbm_dump_addr : integer;
+    signal hbm_dump_addr, hbm_dump_addr2 : integer;
     signal hbm_dump_filename, init_fname : string(1 to 9) := "dummy.txt";
     signal init_mem : std_logic;
     signal rst_n : std_logic;
@@ -202,6 +247,7 @@ architecture Behavioral of ct1_tb is
     signal FB_to_100G_valid : std_logic;
     signal FB_to_100G_ready : std_logic;
     signal clk300_gated : std_logic := '0';
+    signal write_HBM_to_disk2, init_mem2 : std_logic := '0';
     
 begin
     
@@ -604,7 +650,21 @@ begin
         i_m01_axi_arready => m01_arready, -- in std_logic;
         -- r bus - read data
         i_m01_axi_r       => m01_axi_r, --  in  t_axi4_full_data;
-        o_m01_axi_rready  => m01_rready  --  out std_logic
+        o_m01_axi_rready  => m01_rready,  --  out std_logic
+        -------------------------------------------------------------
+        -- debug data dump to HBM
+        o_m06_axi_aw      => m06_axi_aw, --  out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_m06_axi_awready => m06_awready, -- in std_logic;
+        -- b bus - write response
+        o_m06_axi_w       => m06_axi_w,  -- out t_axi4_full_data; -- (.valid, .data , .last, .resp(1:0))
+        i_m06_axi_wready  => m06_wready, -- in std_logic;
+        i_m06_axi_b       => m06_axi_b,  -- in t_axi4_full_b;  -- (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        -- ar bus - read address
+        o_m06_axi_ar      => m06_axi_ar, -- out t_axi4_full_addr; -- (.valid, .addr(39:0), .len(7:0))
+        i_m06_axi_arready => m06_arready, -- : in std_logic;
+        -- r bus - read data
+        i_m06_axi_r       => m06_axi_r,  -- in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
+        o_m06_axi_rready  => m06_rready --  out std_logic
     );
     
     m01_awaddr <= m01_axi_aw.addr(31 downto 0);
@@ -706,6 +766,109 @@ begin
     --hbm_dump_filename <= "";
     init_mem <= '0';
     --init_fname <= "dummy.vhd";
+    --------------------------------------------------------------------
+
+
+    m06_awaddr <= m06_axi_aw.addr(31 downto 0);
+    m06_awlen <= m06_axi_aw.len;
+    m06_awvalid <= m06_axi_aw.valid;
+    
+    m06_araddr <= m06_axi_ar.addr(31 downto 0);
+    m06_arlen <= m06_axi_ar.len;
+    m06_arvalid <= m06_axi_ar.valid;
+    
+    -- Other unused axi ports
+    m06_awsize <= get_axi_size(M06_DATA_WIDTH);
+    m06_awburst <= "01";   -- "01" indicates incrementing addresses for each beat in the burst. 
+    m06_bready  <= '1';  -- Always accept acknowledgement of write transactions. -- out std_logic;
+    m06_wstrb  <= (others => '1');  -- We always write all bytes in the bus. --  out std_logic_vector(63 downto 0);
+    m06_arsize  <= get_axi_size(M06_DATA_WIDTH);   -- 6 = 64 bytes per beat = 512 bit wide bus. -- out std_logic_vector(2 downto 0);
+    m06_arburst <= "01";    -- "01" = incrementing address for each beat in the burst. -- out std_logic_vector(1 downto 0);
+    
+    m06_arlock <= "00";
+    m06_awlock <= "00";
+    m06_awid(0) <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
+    m06_awcache <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+    m06_awprot  <= "000";   -- Has no effect in Vitis environment. -- out std_logic_vector(2 downto 0);
+    m06_awqos   <= "0000";  -- Has no effect in vitis environment, -- out std_logic_vector(3 downto 0);
+    m06_awregion <= "0000"; -- Has no effect in Vitis environment. -- out std_logic_vector(3 downto 0);
+    m06_arid(0) <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
+    m06_arcache <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+    m06_arprot  <= "000";   -- Has no effect in vitis environment; out std_logic_Vector(2 downto 0);
+    m06_arqos    <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+    m06_arregion <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+    
+    -- m02 HBM interface : 2nd stage corner turn between filterbanks and beamformer, 2x256 MBytes.
+    HBM_ila_i : entity correlator_lib.HBM_axi_tbModel
+    generic map (
+        AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
+        AXI_ID_WIDTH => 1, -- integer := 1;
+        AXI_DATA_WIDTH => 512, -- integer := 256;  -- Must be a multiple of 32 bits.
+        READ_QUEUE_SIZE => 16, --  integer := 16;
+        MIN_LAG => 60,  -- integer := 80   
+        INCLUDE_PROTOCOL_CHECKER => TRUE,
+        RANDSEED => 43526, -- : natural := 12345;
+        LATENCY_LOW_PROBABILITY => 97, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+        LATENCY_ZERO_PROBABILITY => 97 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
+    ) Port map (
+        i_clk        => clk300,
+        i_rst_n      => rst_n,
+        axi_awaddr   => m06_awaddr(31 downto 0),
+        axi_awid     => m06_awid, -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_awlen    => m06_awlen,
+        axi_awsize   => m06_awsize,
+        axi_awburst  => m06_awburst,
+        axi_awlock   => m06_awlock,
+        axi_awcache  => m06_awcache,
+        axi_awprot   => m06_awprot,
+        axi_awqos    => m06_awqos, -- in(3:0)
+        axi_awregion => m06_awregion, -- in(3:0)
+        axi_awvalid  => m06_awvalid,
+        axi_awready  => m06_awready,
+        axi_wdata    => m06_axi_w.data,
+        axi_wstrb    => m06_wstrb,
+        axi_wlast    => m06_axi_w.last,
+        axi_wvalid   => m06_axi_w.valid,
+        axi_wready   => m06_wready,
+        axi_bresp    => m06_bresp,
+        axi_bvalid   => m06_bvalid,
+        axi_bready   => m06_bready,
+        axi_bid      => m06_bid, -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+        axi_araddr   => m06_araddr(31 downto 0),
+        axi_arlen    => m06_arlen,
+        axi_arsize   => m06_arsize,
+        axi_arburst  => m06_arburst,
+        axi_arlock   => m06_arlock,
+        axi_arcache  => m06_arcache,
+        axi_arprot   => m06_arprot,
+        axi_arvalid  => m06_arvalid,
+        axi_arready  => m06_arready,
+        axi_arqos    => m06_arqos,
+        axi_arid     => m06_arid,
+        axi_arregion => m06_arregion,
+        axi_rdata    => m06_axi_r.data,
+        axi_rresp    => m06_axi_r.resp,
+        axi_rlast    => m06_axi_r.last,
+        axi_rvalid   => m06_axi_r.valid,
+        axi_rready   => m06_rready,
+        i_write_to_disk => write_HBM_to_disk2, -- in std_logic;
+        i_write_to_disk_addr => hbm_dump_addr2, -- address to start the memory dump at.
+        -- 4 Mbytes = first 8 data streams
+        i_write_to_disk_size => 4194304, -- size in bytes
+        i_fname => hbm_dump_filename, -- : in string
+        -- Initialisation of the memory
+        -- The memory is loaded with the contents of the file i_init_fname in 
+        -- any clock cycle where i_init_mem is high.
+        i_init_mem   => init_mem2, --  in std_logic;
+        i_init_fname => init_fname -- : in string
+    );
+
+    write_HBM_to_disk2 <= '0';
+    hbm_dump_addr2 <= 0;
+    --hbm_dump_filename <= "";
+    init_mem2 <= '0';
+    --init_fname <= "dummy.vhd";
+    
 
     --------------------------------------------------------------------------------
     -- Filterbank 
