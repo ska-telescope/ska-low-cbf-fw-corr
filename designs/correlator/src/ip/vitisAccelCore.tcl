@@ -53,6 +53,10 @@ create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila
 set_property -dict [list CONFIG.C_PROBE0_WIDTH {120} CONFIG.C_DATA_DEPTH {8192}] [get_ips ila_beamData]
 create_ip_run [get_ips ila_beamData]
 
+create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_120_16k
+set_property -dict [list CONFIG.C_PROBE0_WIDTH {120} CONFIG.C_DATA_DEPTH {16384}] [get_ips ila_120_16k]
+create_ip_run [get_ips ila_120_16k]
+
 # Generate other clocks from the 300MHz input clock
 create_ip -name clk_wiz -vendor xilinx.com -library ip -version 6.0 -module_name clk_gen100MHz
 set_property -dict [list CONFIG.Component_Name {clk_gen100MHz} CONFIG.PRIM_SOURCE {Global_buffer} CONFIG.PRIM_IN_FREQ {100.000} CONFIG.USE_LOCKED {false} CONFIG.USE_RESET {false} CONFIG.CLKIN1_JITTER_PS {33.330000000000005} CONFIG.MMCM_CLKFBOUT_MULT_F {4.000} CONFIG.MMCM_CLKIN1_PERIOD {3.333} CONFIG.MMCM_CLKIN2_PERIOD {10.0} CONFIG.CLKOUT1_JITTER {101.475} CONFIG.CLKOUT1_PHASE_ERROR {77.836}] [get_ips clk_gen100MHz]

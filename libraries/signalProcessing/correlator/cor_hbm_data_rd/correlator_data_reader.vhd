@@ -1019,25 +1019,25 @@ end process;
 
     ---------------------------------------------------------------------------
 
-    hbm_wide_rd_ila_debug : ila_0 PORT MAP (
-        clk                     => clk,
+--    hbm_wide_rd_ila_debug : ila_0 PORT MAP (
+--        clk                     => clk,
             
-        probe0(3 downto 0)      => pack_it_fsm_debug,
-        probe0(7 downto 4)      => cor_tri_fsm_debug,
-        probe0(11 downto 8)     => hbm_reader_fsm_debug,
-        probe0(20 downto 12)    => testmode_row_count(8 downto 0),
+--        probe0(3 downto 0)      => pack_it_fsm_debug,
+--        probe0(7 downto 4)      => cor_tri_fsm_debug,
+--        probe0(11 downto 8)     => hbm_reader_fsm_debug,
+--        probe0(20 downto 12)    => testmode_row_count(8 downto 0),
 
-        probe0(33 downto 21)    => testmode_row(12 downto 0),
-        probe0(50 downto 34)    => testmode_freqindex(16 downto 0),
-        probe0(58 downto 51)    => testmode_subarray(7 downto 0),
-        probe0(90 downto 59)    => testmode_hbm_start_addr(31 downto 0),
-        probe0(91)              => testmode_load_instruct,
-        probe0(92)              => testmode_load_instruct_d,
-        probe0(93)              => meta_cache_fifo_wr,
-        probe0(94)              => testmode_select,
+--        probe0(33 downto 21)    => testmode_row(12 downto 0),
+--        probe0(50 downto 34)    => testmode_freqindex(16 downto 0),
+--        probe0(58 downto 51)    => testmode_subarray(7 downto 0),
+--        probe0(90 downto 59)    => testmode_hbm_start_addr(31 downto 0),
+--        probe0(91)              => testmode_load_instruct,
+--        probe0(92)              => testmode_load_instruct_d,
+--        probe0(93)              => meta_cache_fifo_wr,
+--        probe0(94)              => testmode_select,
 
-        probe0(191 downto 95)  => (others => '0')
-        );
+--        probe0(191 downto 95)  => (others => '0')
+--        );
 
 
     ---------------------------------------------------------------------------

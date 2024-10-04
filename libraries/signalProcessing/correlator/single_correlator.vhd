@@ -138,11 +138,39 @@ architecture Behavioral of single_correlator is
     signal ro_row_count : std_logic_vector(8 downto 0);
     signal ro_valid : std_logic;
     
+    component ila_120_16k
+    port (
+        clk : in std_logic;
+        probe0 : in std_logic_vector(119 downto 0)); 
+    end component;
+    
     signal packetiser_reset : std_logic;
+    signal cor_ready_int : std_logic;
+    
+    signal dbg_i_cor_time : std_logic_vector(7 downto 0);  -- Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+    signal dbg_i_cor_station : std_logic_vector(11 downto 0); 
+    signal dbg_i_cor_valid : std_logic;
+    signal dbg_i_cor_first : std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+    signal dbg_i_cor_last  : std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+    signal dbg_i_cor_final : std_logic;
+    signal dbg_i_cor_frameCount : std_logic_vector(31 downto 0);
+    signal dbg_i_cor_tileChannel : std_logic_vector(23 downto 0);
+    signal dbg_o_cor_ready : std_logic;
+    
+    signal dbg_ro_HBM_start_addr : std_logic_vector(31 downto 0); -- (32 bit)
+    signal dbg_ro_subarray  : std_logic_vector(3 downto 0);  -- (4 bit)
+    signal dbg_ro_freq_index : std_logic_vector(15 downto 0);  -- 
+    signal dbg_ro_valid : std_logic;
+    signal dbg_ro_valid_del2, dbg_ro_valid_del1 : std_logic;
+    signal time_since_f0, f0_clk_count : std_logic_vector(31 downto 0);
+    signal freq_index0_repeat, time_since_f0_set : std_logic := '0';
+    
 begin
 
     ----------------------------------------------------------------------------------
     -- 1st instance of correlator, long term accumulator, and HBM dump:
+    
+    o_cor_ready <= cor_ready_int;
     
     cor1i : entity correlator_lib.full_correlator
     port map (
@@ -157,7 +185,7 @@ begin
         --
         -- correlator is ready to receive a new block of data. This will go low once data starts to be received.
         -- A block of data consists of data for 1 fine channel, 64 times, and 256 cells (i.e. 256 stations if on the diagonal, or up to 512 stations if row and column data is different)
-        o_cor_ready => o_cor_ready, --  out std_logic;  
+        o_cor_ready => cor_ready_int, --  out std_logic;  
         -- Each 256 bit word : two time samples, 4 consecutive virtual channels
         -- (31:0) = time 0, virtual channel 0; (63:32) = time 0, virtual channel 1; (95:64) = time 0, virtual channel 2; (127:96) = time 0, virtual channel 3;
         -- (159:128) = time 1, virtual channel 0; (191:160) = time 1, virtual channel 1; (223:192) = time 1, virtual channel 2; (255:224) = time 1, virtual channel 3;
@@ -332,7 +360,7 @@ begin
 
 
     HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
-        DEBUG_ILA           => TRUE
+        DEBUG_ILA           => FALSE
     )
     Port map ( 
         -- clock used for all data input and output from this module (300 MHz)
@@ -369,7 +397,72 @@ begin
         o_to_spead_pack     => o_to_spead_pack
 
     );
+    
+    
+    -- ILA
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            dbg_ro_HBM_start_addr <= ro_HBM_start_addr; -- (32 bit)
+            dbg_ro_subarray <= ro_subarray(3 downto 0); -- (4 bit)
+            dbg_ro_freq_index <= ro_freq_index(15 downto 0); -- 
+            dbg_ro_valid <= ro_valid;
+            
+            dbg_i_cor_time <= i_cor_time; -- in std_logic_vector(7 downto 0);  -- Time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+            dbg_i_cor_station <= i_cor_station; -- : in std_logic_vector(11 downto 0); 
+            dbg_i_cor_valid <= i_cor_valid; -- : in std_logic;
+            dbg_i_cor_first <= i_cor_first; -- : in std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
+            dbg_i_cor_last <= i_cor_last; --   : in std_logic;  -- last word in a block for correlation; Indicates that the correlator can start processing the data just delivered.
+            dbg_i_cor_final <= i_cor_final; --  : in std_logic;
+            dbg_i_cor_frameCount <= i_cor_frameCount; --   : in std_logic_vector(31 downto 0);
+            -- Fine channel being delivered, relative to the start of the data HBM.
+            dbg_i_cor_tileChannel <= i_cor_tileChannel; -- : in std_logic_vector(23 downto 0);            
+            dbg_o_cor_ready <= cor_ready_int; --  out std_logic;
+            
+            dbg_ro_valid_del1 <= dbg_ro_valid;
+            dbg_ro_valid_del2 <= dbg_ro_valid_del1;
+            if dbg_ro_valid = '1' and dbg_ro_valid_del1 = '0' and (unsigned(dbg_ro_freq_index) = 0) then
+                time_since_f0 <= f0_clk_count;
+                time_since_f0_set <= '1';
+                f0_clk_count <= (others => '0');
+            else
+                f0_clk_count <= std_logic_vector(unsigned(f0_clk_count) + 1);
+                time_since_f0_set <= '0';
+            end if;
+            
+            -- There should be 849 ms = 254700000 (300MHz) clocks between readouts with freq index 0, assuming a single subarray.
+            if time_since_f0_set = '1' and (unsigned(time_since_f0) < 100000000) then
+                freq_index0_repeat <= '1';
+            else
+                freq_index0_repeat <= '0';
+            end if;
+            
+        end if;
+    end process;
+     
+    
+    trigger_ila : ila_120_16k
+    port map (
+        clk => i_axi_clk,   -- IN STD_LOGIC;
+        probe0(31 downto 0) => dbg_ro_HBM_start_addr(31 downto 0),
+        probe0(47 downto 32) => dbg_ro_freq_index,
+        probe0(51 downto 48) => dbg_ro_subarray,
+        probe0(52) => dbg_ro_valid,
+        probe0(53) => freq_index0_repeat,
+        probe0(77 downto 54) => f0_clk_count(31 downto 8),
+        probe0(78) => '0',
+        probe0(79) => dbg_o_cor_ready,
+        probe0(87 downto 80) => dbg_i_cor_time,
+        probe0(91 downto 88) => dbg_i_cor_station(3 downto 0),
+        probe0(92) => dbg_i_cor_valid,
+        probe0(93) => dbg_i_cor_first,
+        probe0(94) => dbg_i_cor_last,
+        probe0(95) => dbg_i_cor_final,
+        probe0(103 downto 96) => dbg_i_cor_frameCount(7 downto 0),
+        probe0(119 downto 104) => dbg_i_cor_tileChannel(15 downto 0)
+    );
+    
 
-
+    
     
 end Behavioral;
