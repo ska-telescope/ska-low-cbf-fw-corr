@@ -112,7 +112,9 @@ entity single_correlator is
         o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+        --
+        o_freq_index0_repeat : out std_logic
     );
 end single_correlator;
 
@@ -437,30 +439,31 @@ begin
                 freq_index0_repeat <= '0';
             end if;
             
+            o_freq_index0_repeat <= freq_index0_repeat;
         end if;
     end process;
      
     
-    trigger_ila : ila_120_16k
-    port map (
-        clk => i_axi_clk,   -- IN STD_LOGIC;
-        probe0(31 downto 0) => dbg_ro_HBM_start_addr(31 downto 0),
-        probe0(47 downto 32) => dbg_ro_freq_index,
-        probe0(51 downto 48) => dbg_ro_subarray,
-        probe0(52) => dbg_ro_valid,
-        probe0(53) => freq_index0_repeat,
-        probe0(77 downto 54) => f0_clk_count(31 downto 8),
-        probe0(78) => '0',
-        probe0(79) => dbg_o_cor_ready,
-        probe0(87 downto 80) => dbg_i_cor_time,
-        probe0(91 downto 88) => dbg_i_cor_station(3 downto 0),
-        probe0(92) => dbg_i_cor_valid,
-        probe0(93) => dbg_i_cor_first,
-        probe0(94) => dbg_i_cor_last,
-        probe0(95) => dbg_i_cor_final,
-        probe0(103 downto 96) => dbg_i_cor_frameCount(7 downto 0),
-        probe0(119 downto 104) => dbg_i_cor_tileChannel(15 downto 0)
-    );
+--    trigger_ila : ila_120_16k
+--    port map (
+--        clk => i_axi_clk,   -- IN STD_LOGIC;
+--        probe0(31 downto 0) => dbg_ro_HBM_start_addr(31 downto 0),
+--        probe0(47 downto 32) => dbg_ro_freq_index,
+--        probe0(51 downto 48) => dbg_ro_subarray,
+--        probe0(52) => dbg_ro_valid,
+--        probe0(53) => freq_index0_repeat,
+--        probe0(77 downto 54) => f0_clk_count(31 downto 8),
+--        probe0(78) => '0',
+--        probe0(79) => dbg_o_cor_ready,
+--        probe0(87 downto 80) => dbg_i_cor_time,
+--        probe0(91 downto 88) => dbg_i_cor_station(3 downto 0),
+--        probe0(92) => dbg_i_cor_valid,
+--        probe0(93) => dbg_i_cor_first,
+--        probe0(94) => dbg_i_cor_last,
+--        probe0(95) => dbg_i_cor_final,
+--        probe0(103 downto 96) => dbg_i_cor_frameCount(7 downto 0),
+--        probe0(119 downto 104) => dbg_i_cor_tileChannel(15 downto 0)
+--    );
     
 
     

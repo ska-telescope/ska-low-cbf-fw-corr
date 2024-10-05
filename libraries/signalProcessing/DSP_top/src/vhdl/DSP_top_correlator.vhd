@@ -254,6 +254,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal FB_out_sof : std_logic;
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
     signal reset_to_ct_1 : std_logic;
+    signal freq_index0_repeat : std_logic;
     
 begin
     
@@ -568,7 +569,8 @@ begin
         -- so we don't have to wait for the previous processing stages to complete.
         i_readout_start  => i_ct2_readout_start,  -- in std_logic;
         i_readout_buffer => i_ct2_readout_buffer,  -- in std_logic
-        i_readout_frameCount => i_ct2_readout_frameCount  -- in (31:0)
+        i_readout_frameCount => i_ct2_readout_frameCount,  -- in (31:0)
+        i_freq_index0_repeat => freq_index0_repeat
     );
     
     -- Correlator
@@ -701,7 +703,10 @@ begin
         o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
+        o_tb_channel   => o_tb_channel,   -- out (23:0) -- first fine channel index for this correlation.
+        
+        --
+        o_freq_index0_repeat => freq_index0_repeat
     );
     
     

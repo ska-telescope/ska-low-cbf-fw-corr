@@ -155,7 +155,14 @@ entity corr_ct2_dout is
         o_HBM_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_HBM_axi_arready : in  std_logic;
         i_HBM_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_rready  : out std_logic
+        o_HBM_axi_rready  : out std_logic;
+        
+        ----------------------------------------------------------------
+        -- debug info
+        o_ar_fsm_dbg : out std_logic_vector(3 downto 0);
+        o_readout_fsm_dbg : out std_logic_vector(3 downto 0);
+        o_arFIFO_wr_count : out std_logic_vector(6 downto 0);
+        o_dataFIFO_wrCount : out std_logic_vector(9 downto 0)
     );
 end corr_ct2_dout;
 
@@ -234,8 +241,15 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutTotalStations : std_logic_vector(15 downto 0);
     signal readFrameCount : std_logic_vector(31 downto 0);
     signal readoutFrameCount : std_logic_vector(31 downto 0);
+    signal ar_fsm_dbg : std_logic_vector(3 downto 0);
+    signal readout_fsm_dbg : std_logic_vector(3 downto 0);
     
 begin
+    
+    o_ar_fsm_dbg <= ar_fsm_dbg;
+    o_readout_fsm_dbg <= readout_fsm_dbg;
+    o_arFIFO_wr_count <= arFIFO_wr_count;
+    o_dataFIFO_wrCount <= dataFIFO_wrCount;
     
     hbm_addri : entity ct_lib.get_ct2_HBM_addr
     port map(
@@ -306,15 +320,18 @@ begin
                 readFrameCount <= i_frameCount;
                 o_SB_req <= '0';
                 first_req_in_integration <= '1';
+                ar_fsm_dbg <= "0000";
             else
                 case ar_fsm is
                 
                     when get_SB_data =>
+                        ar_fsm_dbg <= "0001";
                         o_SB_req <= '1';
                         ar_fsm <= wait_SB_data;
                         clear_hold <= '0';  -- Hold of the output of the address calculation.
                     
                     when wait_SB_data =>
+                        ar_fsm_dbg <= "0010";
                         o_SB_req <= '0';
                         if i_SB_done = '1' then
                             ar_fsm <= done;
@@ -346,6 +363,7 @@ begin
                         clear_hold <= '0';
                 
                     when check_arFIFO =>
+                        ar_fsm_dbg <= "0011";
                         -- check there is space in the ar FIFO.
                         -- Up to 4 requests get made at a time, so make sure there is 
                         -- at least 4 slots free in the ar fifo.
@@ -357,6 +375,7 @@ begin
                         o_SB_req <= '0';
                     
                     when set_ar =>
+                        ar_fsm_dbg <= "0100";
                         -- This sets the HBM address for the first 512 byte block in a group of 4 blocks
                         clear_hold <= '1';
                         o_SB_req <= '0';
@@ -371,6 +390,7 @@ begin
                         end if;
                         
                     when wait_ar =>
+                        ar_fsm_dbg <= "0101";
                         clear_hold <= '0';
                         o_SB_req <= '0';
                         if i_HBM_axi_arready = '1' then
@@ -387,13 +407,14 @@ begin
                         end if;
                     
                     when set_ar2 =>
+                        ar_fsm_dbg <= "0110";
                         -- Set the HBM address for (up to) 3 remaining 512-byte blocks.
                         o_HBM_axi_ar.addr(31 downto 9) <= std_logic_vector(unsigned(HBM_addr_hold(31 downto 9)) + unsigned(cur_station_offset_ext));
                         o_HBM_axi_ar.valid <= '1';
                         ar_fsm <= wait_ar;
                         
                     when update_addr =>
-                        
+                        ar_fsm_dbg <= "0111";
                         --  For subarray = 1:total_subarrays    -- This is handled in the level above; Each new subarray is a read from the subarray-beam table. Once all are done, i_SB_done goes high.
                         --      For cur_fineChannelBase = 0:SB_fineIntegrations:SB_N_fine
                         --          - i.e. Step each block of fine channels that get integrated together.
@@ -453,6 +474,7 @@ begin
                         end if;
                     
                     when next_fine => -- Advance to the next fine channel within a group of fine channels that are being integrated.
+                        ar_fsm_dbg <= "1000";
                         -- Advancing to the next fine channel is a separate state to the update_addr state since at this point we have finished a full block of row and col mem data for the correlator. 
                         if (unsigned(cur_fineChannelOffset) = (unsigned(SB_fineIntegrations) - 1)) then
                             cur_fineChannelOffset <= (others => '0');
@@ -484,6 +506,7 @@ begin
                         end if;
                         
                     when next_tile =>
+                        ar_fsm_dbg <= "1001";
                         first_req_in_integration <= '1';
                         cur_timeGroup <= cur_timeBase;
                         cur_FineChannelOffset <= (others => '0');
@@ -509,6 +532,7 @@ begin
                         end if;
                         
                     when next_timeBase =>
+                        ar_fsm_dbg <= "1010";
                         if SB_timeIntegrations = "00" then 
                             -- only integrating over 283 ms, go to the next timebase
                             case cur_timeBase is
@@ -533,11 +557,13 @@ begin
                         end if;
                        
                     when next_fineBase =>
+                        ar_fsm_dbg <= "1011";
                         cur_fineChannelBase <= std_logic_vector(unsigned(cur_fineChannelBase) + unsigned(SB_fineIntegrations));
                         cur_correlationChannelCount <= std_logic_vector(unsigned(cur_correlationChannelCount) + 1);
                         ar_fsm <= check_fineBase;
                      
                     when check_fineBase =>
+                        ar_fsm_dbg <= "1100";
                         if (unsigned(cur_fineChannelBase) >= unsigned(SB_N_fine)) then
                             if (i_SB_done = '1') then
                                 ar_fsm <= done;
@@ -551,6 +577,7 @@ begin
                         end if;
                     
                     when done =>
+                        ar_fsm_dbg <= "1101";
                         o_SB_req <= '0';
                         ar_fsm <= done; -- Wait until we get i_start again.
                 end case;
@@ -733,6 +760,7 @@ begin
             
             case readout_fsm is
                 when idle =>
+                    readout_fsm_dbg <= "0000";
                     if arFIFO_valid = '1' then
                         readoutFrameCount <= arFIFO_dout(132 downto 101);
                         readoutTriangle <= arFIFO_dout(0); -- 1 bit
@@ -765,38 +793,46 @@ begin
                     sendCount <= (others => '0');
                     
                 when wait_data =>
+                    readout_fsm_dbg <= "0001";
                     if (unsigned(dataFIFO_rdCount) >= 16) then
                         readout_fsm <= send_data;
                     end if;
                     sendCount <= (others => '0');
                     
                 when send_data =>
+                    readout_fsm_dbg <= "0010";
                     sendCount <= std_logic_vector(unsigned(sendCount) + 1);
                     if unsigned(sendCount) = 15 then
                         readout_fsm <= idle;
                     end if;
                 
                 when signal_correlator =>
+                    readout_fsm_dbg <= "0011";
                     -- send notification to the correlator to run the correlator, or that the correlation is done.
                     readout_fsm <= wait_correlator_ready1;
                 
                 when wait_correlator_ready1 =>
+                    readout_fsm_dbg <= "0100";
                     -- takes a few clocks to notify the correlator that the data is complete,
                     -- and for the correlator to indicate if it is ready for more data or not.
                     readout_fsm <= wait_correlator_ready2;
                 
                 when wait_correlator_ready2 =>
+                    readout_fsm_dbg <= "0101";
                     readout_fsm <= wait_correlator_ready3;
                     
                 when wait_correlator_ready3 =>
+                    readout_fsm_dbg <= "0110";
                     readout_fsm <= wait_correlator_ready;
                 
                 when wait_correlator_ready =>
+                    readout_fsm_dbg <= "0111";
                     if i_cor_ready = '1' then
                         readout_fsm <= idle;
                     end if;
                 
                 when others =>
+                    readout_fsm_dbg <= "1111";
                     readout_fsm <= idle;
             end case;
             
