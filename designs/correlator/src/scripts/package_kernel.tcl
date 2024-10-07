@@ -148,6 +148,7 @@ ipx::associate_bus_interfaces -busif m02_axi -clock ap_clk [ipx::current_core]
 ipx::associate_bus_interfaces -busif m03_axi -clock ap_clk [ipx::current_core]
 ipx::associate_bus_interfaces -busif m04_axi -clock ap_clk [ipx::current_core]
 ipx::associate_bus_interfaces -busif m05_axi -clock ap_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif m06_axi -clock ap_clk [ipx::current_core]
 ipx::associate_bus_interfaces -busif s_axi_control -clock ap_clk [ipx::current_core]
 
 ipx::add_bus_interface $__intfName [ipx::current_core]

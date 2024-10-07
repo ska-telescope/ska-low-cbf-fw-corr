@@ -109,15 +109,15 @@ entity DSP_top_correlator is
         -----------------------------------------------------------------------
         -- AXI interfaces to shared memory
         -- Uses the same clock as MACE (300MHz)
-        o_HBM_axi_aw      : out t_axi4_full_addr_arr(4 downto 0); -- write address bus (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready : in std_logic_vector(4 downto 0);
-        o_HBM_axi_w       : out t_axi4_full_data_arr(4 downto 0); -- w data bus : (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  : in std_logic_vector(4 downto 0);
-        i_HBM_axi_b       : in t_axi4_full_b_arr(4 downto 0);     -- write response bus : (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        o_HBM_axi_ar      : out t_axi4_full_addr_arr(4 downto 0); -- read address bus : (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_arready : in std_logic_vector(4 downto 0);
-        i_HBM_axi_r       : in t_axi4_full_data_arr(4 downto 0); -- r data bus (.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_rready  : out std_logic_vector(4 downto 0);
+        o_HBM_axi_aw      : out t_axi4_full_addr_arr(5 downto 0); -- write address bus (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_awready : in std_logic_vector(5 downto 0);
+        o_HBM_axi_w       : out t_axi4_full_data_arr(5 downto 0); -- w data bus : (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_wready  : in std_logic_vector(5 downto 0);
+        i_HBM_axi_b       : in t_axi4_full_b_arr(5 downto 0);     -- write response bus : (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM_axi_ar      : out t_axi4_full_addr_arr(5 downto 0); -- read address bus : (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_arready : in std_logic_vector(5 downto 0);
+        i_HBM_axi_r       : in t_axi4_full_data_arr(5 downto 0); -- r data bus (.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_rready  : out std_logic_vector(5 downto 0);
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start  : in std_logic;
@@ -139,8 +139,8 @@ entity DSP_top_correlator is
         o_FB_out_sof   : out std_logic;
         --------------------------------------------------------------
         -- HBM reset
-        o_hbm_reset    : out std_logic_vector(4 downto 0);
-        i_hbm_status   : in t_slv_8_arr(4 downto 0)
+        o_hbm_reset    : out std_logic_vector(5 downto 0);
+        i_hbm_status   : in t_slv_8_arr(5 downto 0)
     );
 end DSP_top_correlator;
 
@@ -254,11 +254,12 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal FB_out_sof : std_logic;
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
     signal reset_to_ct_1 : std_logic;
+    signal freq_index0_repeat : std_logic;
     
 begin
     
     gnd <= (others => '0');
-    o_hbm_reset(4 downto 3) <= "00";
+    o_hbm_reset(5 downto 3) <= "000";
     --------------------------------------------------------------------------
     -- Signal Processing signal Chains
     --------------------------------------------------------------------------
@@ -366,7 +367,21 @@ begin
         i_m01_axi_arready => i_HBM_axi_arready(0), -- in std_logic;
         -- r bus - read data
         i_m01_axi_r      => i_HBM_axi_r(0),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
-        o_m01_axi_rready => o_HBM_axi_rready(0)    -- out std_logic;
+        o_m01_axi_rready => o_HBM_axi_rready(0),   -- out std_logic;
+        -------------------------------------------------------------
+        -- HBM ILA
+        o_m06_axi_aw      => o_HBM_axi_aw(5),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_m06_axi_awready => i_HBM_axi_awready(5), -- in std_logic;
+        -- b bus - write response
+        o_m06_axi_w       => o_HBM_axi_w(5),       -- t_axi4_full_data; -- (.valid, .data , .last, .resp(1:0))
+        i_m06_axi_wready  => i_HBM_axi_wready(5),  -- in std_logic;
+        i_m06_axi_b  => i_HBM_axi_b(5),            -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        -- ar bus - read address
+        o_m06_axi_ar => o_HBM_axi_ar(5),           -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
+        i_m06_axi_arready => i_HBM_axi_arready(5), -- in std_logic;
+        -- r bus - read data
+        i_m06_axi_r      => i_HBM_axi_r(5),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
+        o_m06_axi_rready => o_HBM_axi_rready(5)   -- out std_logic;        
     );
     
     -- Correlator filterbank and fine delay.
@@ -554,7 +569,8 @@ begin
         -- so we don't have to wait for the previous processing stages to complete.
         i_readout_start  => i_ct2_readout_start,  -- in std_logic;
         i_readout_buffer => i_ct2_readout_buffer,  -- in std_logic
-        i_readout_frameCount => i_ct2_readout_frameCount  -- in (31:0)
+        i_readout_frameCount => i_ct2_readout_frameCount,  -- in (31:0)
+        i_freq_index0_repeat => freq_index0_repeat
     );
     
     -- Correlator
@@ -687,7 +703,10 @@ begin
         o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
+        o_tb_channel   => o_tb_channel,   -- out (23:0) -- first fine channel index for this correlation.
+        
+        --
+        o_freq_index0_repeat => freq_index0_repeat
     );
     
     

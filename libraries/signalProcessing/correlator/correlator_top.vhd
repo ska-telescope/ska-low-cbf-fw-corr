@@ -253,7 +253,9 @@ entity correlator_top is
         o_tb_dcount    : out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
         o_tb_cell      : out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
         o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   : out std_logic_vector(23 downto 0) -- first fine channel index for this correlation.
+        o_tb_channel   : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+        --
+        o_freq_index0_repeat : out std_logic
         
     );
 end correlator_top;
@@ -368,7 +370,9 @@ begin
             o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
             o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
             o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-            o_tb_channel   => o_tb_channel   -- out (23:0) -- first fine channel index for this correlation.
+            o_tb_channel   => o_tb_channel,   -- out (23:0) -- first fine channel index for this correlation.
+            --
+            o_freq_index0_repeat => o_freq_index0_repeat -- out std_logic
         );
     end generate;
     

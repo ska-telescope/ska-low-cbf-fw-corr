@@ -293,6 +293,12 @@ ARCHITECTURE structure OF correlator_core IS
         probe0 : IN STD_LOGIC_VECTOR(575 DOWNTO 0)
         );
     END COMPONENT;
+    
+    component ila_beamData
+    port (
+        clk : in std_logic;
+        probe0 : in std_logic_vector(119 downto 0)); 
+    end component;
 
     signal ap_rst : std_logic;
     signal ap_idle, idle_int : std_logic;
@@ -370,9 +376,9 @@ ARCHITECTURE structure OF correlator_core IS
     signal logic_HBM_axi_rreadyi    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
 
     -- HBM reset
-    signal hbm_reset                : std_logic_vector(4 downto 0);
-    signal hbm_status               : t_slv_8_arr(4 downto 0);
-    signal hbm_reset_combined       : std_logic_vector(4 downto 0);
+    signal hbm_reset                : std_logic_vector(5 downto 0);
+    signal hbm_status               : t_slv_8_arr(5 downto 0);
+    signal hbm_reset_combined       : std_logic_vector(5 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
 
@@ -543,7 +549,8 @@ begin
         m02_shared => HBM_shared(1),  -- out(63:0)
         m03_shared => HBM_shared(2),  -- out(63:0)
         m04_shared => HBM_shared(3),  -- out(63:0)
-        m05_shared => HBM_shared(4)  -- out(63:0)
+        m05_shared => HBM_shared(4),  -- out(63:0)
+        m06_shared => HBM_shared(5)   -- out(63:0)
     );
     
     ap_idle <= '0' when (idle_int = '0' or (idle_int = '1' and ap_start = '1')) else '1';
@@ -899,18 +906,18 @@ begin
         -- AXI interfaces to HBM memory (5 interfaces used)
         -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
         o_HBM_axi_aw      => logic_HBM_axi_aw,       
-        i_HBM_axi_awready => logic_HBM_axi_awreadyi, -- in std_logic_vector(4:0);
-        -- w data buses : out t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_awready => logic_HBM_axi_awreadyi, -- in std_logic_vector(5:0);
+        -- w data buses : out t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
         o_HBM_axi_w       => logic_HBM_axi_w,        
-        i_HBM_axi_wready  => logic_HBM_axi_wreadyi,  -- in std_logic_vector(4:0);
-        -- write response bus : in t_axi4_full_b_arr(4:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_wready  => logic_HBM_axi_wreadyi,  -- in std_logic_vector(5:0);
+        -- write response bus : in t_axi4_full_b_arr(5:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         i_HBM_axi_b       => logic_HBM_axi_b,
-        -- read address bus : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
+        -- read address bus : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
         o_HBM_axi_ar      => logic_HBM_axi_ar,
-        i_HBM_axi_arready => logic_HBM_axi_arreadyi, -- in std_logic_vector(4:0);
-        -- r data bus : in t_axi4_full_data_arr(4:0)(.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_arready => logic_HBM_axi_arreadyi, -- in std_logic_vector(5:0);
+        -- r data bus : in t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
         i_HBM_axi_r       => logic_HBM_axi_r,
-        o_HBM_axi_rready  => logic_HBM_axi_rreadyi,  -- out std_logic_vector(4:0);
+        o_HBM_axi_rready  => logic_HBM_axi_rreadyi,  -- out std_logic_vector(5:0);
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start => i_ct2_readout_start,
@@ -936,11 +943,11 @@ begin
     );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
-    hbm_reset_combined(4 downto 1)      <= hbm_reset(4 downto 1);
+    hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
-    axi_HBM_gen : for i in 0 to 4 generate
+    axi_HBM_gen : for i in 0 to 5 generate
 
         -- reset blocks for HBM interfaces.
         hbm_resetter : entity correlator_lib.hbm_axi_reset_handler 
@@ -1113,10 +1120,31 @@ begin
             m_axi_rlast    => HBM_axi_rlast(i),    -- IN STD_LOGIC;
             m_axi_rvalid   => HBM_axi_rvalid(i),   -- IN STD_LOGIC;
             m_axi_rready   => HBM_axi_rready(i)    --: OUT STD_LOGIC
-        );        
+        );
         
         
     end generate;
+    
+    
+--    u_othermem_ila : ila_0
+--    port map (
+--        clk => ap_clk,
+--        probe0(39 downto 0) => HBM_shared(5)(39 downto 0),
+--        probe0(79 downto 40) => HBM_axi_awaddr(5)(39 downto 0),
+--        probe0(80) => HBM_axi_awvalid(5),
+--        probe0(81) => HBM_axi_awready(5),
+--        probe0(89 downto 82) => HBM_axi_awlen(5)(7 downto 0),
+--        probe0(90) => HBM_axi_wvalid(5),
+--        probe0(91) => HBM_axi_wready(5),
+--        probe0(92) => HBM_axi_wlast(5),
+--        probe0(94 downto 93) => HBM_axi_bresp(5)(1 downto 0),
+--        probe0(95) => HBM_axi_bvalid(5),
+--        probe0(96) => HBM_axi_bready(5),
+--        probe0(99 downto 97) => "000",
+--        probe0(163 downto 100) => HBM_axi_wdata(5)(63 downto 0),
+--        probe0(171 downto 164) => hbm_status(5),
+--        probe0(191 downto 172) => (others => '0')
+--    );
     
 
     ILA_GEN : if g_DEBUG_ILA GENERATE    

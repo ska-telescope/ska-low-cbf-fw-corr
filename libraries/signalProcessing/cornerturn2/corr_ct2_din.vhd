@@ -951,11 +951,11 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            if ((dataFIFO_valid(0) = '1' and dataFIFO_dout(0)(513) = '1') or 
-                (dataFIFO_valid(1) = '1' and dataFIFO_dout(1)(513) = '1')) then
+            if ((dataFIFO_rden(0) = '1' and dataFIFO_dout(0)(513) = '1') or 
+                (dataFIFO_rden(1) = '1' and dataFIFO_dout(1)(513) = '1')) then
                 trigger_readout <= '1';
                 trigger_frameCount <= recent_frameCount;
-                if dataFIFO_valid(0) = '1' then
+                if dataFIFO_rden(0) = '1' then
                     trigger_buffer <= dataFIFO_dout(0)(514);
                 else
                     trigger_buffer <= dataFIFO_dout(1)(514);

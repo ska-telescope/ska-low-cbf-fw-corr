@@ -173,7 +173,21 @@ entity corr_ct1_top is
         i_m01_axi_arready : in std_logic;
         -- r bus - read data
         i_m01_axi_r       : in  t_axi4_full_data;
-        o_m01_axi_rready  : out std_logic
+        o_m01_axi_rready  : out std_logic;
+        -------------------------------------------------------------
+        -- debug data dump to HBM
+        o_m06_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_m06_axi_awready : in std_logic;
+        -- b bus - write response
+        o_m06_axi_w       : out t_axi4_full_data; -- (.valid, .data , .last, .resp(1:0))
+        i_m06_axi_wready  : in std_logic;
+        i_m06_axi_b       : in t_axi4_full_b;  -- (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        -- ar bus - read address
+        o_m06_axi_ar      : out t_axi4_full_addr; -- (.valid, .addr(39:0), .len(7:0))
+        i_m06_axi_arready : in std_logic;
+        -- r bus - read data
+        i_m06_axi_r       : in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
+        o_m06_axi_rready  : out std_logic
     );
     
     -- prevent optimisation across module boundaries.
@@ -288,6 +302,15 @@ architecture Behavioral of corr_ct1_top is
     signal poly_addr : std_logic_vector(14 downto 0); 
     signal poly_rddata : std_logic_vector(63 downto 0);
     
+    signal poly_dbg_wrEn, poly_wr_occurred : std_logic;
+    signal poly_dbg_wrAddr, poly_wr_addr : std_logic_vector(14 downto 0);
+    signal dbg_vec_final : std_logic_vector(255 downto 0);
+    signal dbg_vec_valid : std_logic;
+    signal dbg_vec : std_logic_vector(255 downto 0);
+    signal hbm_ila_addr : std_logic_vector(31 downto 0);
+    signal m06_axi_aw : t_axi4_full_addr;
+    signal m06_axi_w : t_axi4_full_data;
+    
 begin
     
     ------------------------------------------------------------------------------------
@@ -331,7 +354,10 @@ begin
         -------------------------------------------------------
         -- ARGs axi interface
         i_vd_full_axi_mosi => i_poly_full_axi_mosi, -- in  t_axi4_full_mosi
-        o_vd_full_axi_miso => o_poly_full_axi_miso  -- out t_axi4_full_miso
+        o_vd_full_axi_miso => o_poly_full_axi_miso, -- out t_axi4_full_miso
+        --
+        o_dbg_wrEn   => poly_dbg_wrEn, --  out std_logic;
+        o_dbg_wrAddr => poly_dbg_wrAddr --  out std_logic_vector(14 downto 0)
     );
 	
     -- Three buffers in the HBM. 
@@ -907,7 +933,9 @@ begin
         -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
         o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
         o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
-        o_dataMissing => dataMissing  -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
+        o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
+        o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
+        o_dbg_valid => dbg_vec_valid  -- out std_logic
     );
     o_data0 <= data0;
     o_data1 <= data1;
@@ -1093,6 +1121,66 @@ begin
     output_count_in.rd_en <= '1';
     output_count_in.clk <= i_shared_clk;
     output_count_in.rst <= '0';
+
+    -------------------------------------------------------------------------
+    -- debug data dump to the HBM
+    process(i_shared_clk)
+    begin
+        if rising_edge(i_shared_clk) then
+            if poly_dbg_wrEn = '1' then
+                poly_wr_occurred <= '1';
+                poly_wr_addr <= poly_dbg_wraddr;
+            elsif dbg_vec_valid = '1' then
+                poly_wr_occurred <= '0';
+            end if;
+            
+        end if;
+    end process;
+    
+    dbg_vec_final(175 downto 0)   <= dbg_vec(175 downto 0);
+    dbg_vec_final(191 downto 176) <= poly_wr_occurred & poly_wr_addr;
+    dbg_vec_final(255 downto 192) <= dbg_vec(255 downto 192);
+    
+    hbm_ilai : entity ct_lib.hbm_ila
+    port map (
+        dsp_clk    => i_shared_clk, -- : in std_logic;
+        -- 16 bytes of debug data, and valid.
+        i_ila_data       => dbg_vec_final, -- in std_logic_vector(255 downto 0);
+        i_ila_data_valid => dbg_vec_valid, -- in std_logic;
+        o_hbm_addr       => hbm_ila_addr, -- out std_logic_vector(31 downto 0); -- Address we are up to in the HBM.
+        -- Write out to the HBM
+        -- write address buses : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        axi_clk  => i_shared_clk, -- in std_logic;
+        axi_rst  => i_shared_rst, -- in std_logic;
+        o_HBM_axi_aw      => m06_axi_aw,      -- out t_axi4_full_addr;
+        i_HBM_axi_awready => i_m06_axi_awready, -- in std_logic;
+        -- w data buses : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_w       => m06_axi_w, -- out t_axi4_full_data;
+        i_HBM_axi_wready  => i_m06_axi_wready  -- in std_logic  -- in std_logic;
+    );
+    
+    o_m06_axi_aw <= m06_axi_aw;
+    o_m06_axi_w <= m06_axi_w;
+    
+    -- never read the debug memory
+    o_m06_axi_ar.valid <= '0';
+    o_m06_axi_ar.addr <= (others => '0');
+    o_m06_axi_ar.len <= (others => '0');
+    o_m06_axi_rready <= '1';
+    
+--    HBM_ila_ila : ila_beamData
+--    port map (
+--        clk => i_shared_clk,   -- IN STD_LOGIC;
+--        probe0(31 downto 0) => dbg_vec_final(31 downto 0), --  IN STD_LOGIC_VECTOR(119 DOWNTO 0)
+--        probe0(63 downto 32) => m06_axi_w.data(31 downto 0),
+--        probe0(95 downto 64) => hbm_ila_addr(31 downto 0),
+--        probe0(96) => dbg_vec_valid,
+--        probe0(97) => i_m06_axi_awready,
+--        probe0(98) => i_m06_axi_wready,
+--        probe0(99) => m06_axi_aw.valid,
+--        probe0(100) => m06_axi_w.valid,
+--        probe0(119 downto 101) => m06_axi_aw.addr(18 downto 0)
+--    );
     
     
 end Behavioral;

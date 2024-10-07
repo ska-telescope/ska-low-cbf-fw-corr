@@ -1018,6 +1018,7 @@ end process;
     testmode_load_instruct		<= hbm_rd_debug_rw.testmode_load_instruct;
 
     ---------------------------------------------------------------------------
+ila_gen : if DEBUG_ILA generate
 
     hbm_wide_rd_ila_debug : ila_0 PORT MAP (
         clk                     => clk,
@@ -1038,7 +1039,7 @@ end process;
 
         probe0(191 downto 95)  => (others => '0')
         );
-
+end generate;
 
     ---------------------------------------------------------------------------
 
