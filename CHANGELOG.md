@@ -5,6 +5,8 @@
     * SPS input support 100G burst traffic.
     * HBM reset modules added for CT2 to allow for config change.
     * Added update mechanism to SPEAD packetiser scratchpad to allow dynamic updates to INIT packet.
+    * Fix for delay polynomials zero crossing.
+    * Fix for duplicate timestamps.
 * 0.0.7 - 
     * Enable above 16x16 baselines, up to 246.
     * Correct single station readout bug.
