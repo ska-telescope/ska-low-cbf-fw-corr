@@ -80,17 +80,39 @@ raw-build:
 
 psi-low-test:
   stage: integration
+  tags:
+    - shell  # doesn't really need to be shell, just need to find an appropriate docker image
   rules:
     - *low_psi_rules
   needs:
     - publish dev package
-  trigger:
-    project: "ska-telescope/low-cbf/ska-low-cbf-integration"
   variables:
-    # version is actually something like "0.0.1-main.5a9cbb45" or "0.0.1-dev.b9faa971",
-    # but inserting the main/dev string here is annoying. Hash alone should be ok
-    CORR_FW_VERSION: ${CI_COMMIT_SHORT_SHA}
-    CORR_FW_SOURCE: "gitlab"
+    # GitLab ID for ska-telescope/low-cbf/ska-low-cbf-integration
+    TRIGGER_PROJECT: 48248401
+    TRIGGER_REF: main
+  script:
+    - source common/scripts/util.sh
+    - VERSION=$(get_version .)
+    - echo Base version $VERSION
+    # append -main, -dev, or nothing
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then
+        echo "Release";
+      elif [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" && "$MAIN_BUILD_TAG" == "TRUE" ]]; then
+        echo "Main branch";
+        VERSION="${VERSION}-main.${CI_COMMIT_SHORT_SHA}";
+      else
+        echo "Dev branch";
+        VERSION=${VERSION}-dev.${CI_COMMIT_SHORT_SHA};
+      fi
+    - echo Full version $VERSION
+    # Note that when using CI_JOB_TOKEN to trigger pipelines, the triggering project
+    # must be in the allow list of the triggered project.
+    - curl --fail
+      --request POST
+      --form "token=${CI_JOB_TOKEN}"
+      --form "ref=${TRIGGER_REF}"
+      --form "variables\[CORR_FW_VERSION\]=${VERSION}"
+      "${CI_API_V4_URL}/projects/${TRIGGER_PROJECT}/trigger/pipeline"
 
 ska-low-cbf-fw-testing:
   stage: integration
