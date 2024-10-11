@@ -310,6 +310,38 @@ architecture Behavioral of corr_ct1_top is
     signal hbm_ila_addr : std_logic_vector(31 downto 0);
     signal m06_axi_aw : t_axi4_full_addr;
     signal m06_axi_w : t_axi4_full_data;
+    signal sof_int,  sofFull_int : std_logic;
+    signal m01_axi_rready : std_logic;
+    
+    component ila_120_16k
+    port (
+        clk : in std_logic;
+        probe0 : in std_logic_vector(119 downto 0)); 
+    end component;
+    
+    signal m01_axi_ar :  t_axi4_full_addr;
+    
+    signal dbg_input_fsm_dbg : std_logic_vector(4 downto 0);
+    signal dbg_running : std_logic;
+    signal dbg_wr_buffer : std_logic_vector(1 downto 0);
+    signal dbg_first_readout : std_logic;
+    signal dbg_waiting_to_latch_on : std_logic;
+    signal dbg_readOverflow_set : std_logic;
+    signal dbg_readoverflow : std_logic;
+    signal dbg_chan0 : std_logic_vector(9 downto 0);
+    signal dbg_integration : std_logic_vector(31 downto 0);
+    signal dbg_ctFrame : std_logic_vector(1 downto 0);
+    signal dbg_o_valid : std_logic;
+    signal dbg_sof_int : std_logic;
+    signal dbg_sofFull_int : std_logic;
+    signal time_since_sofFull : std_logic_vector(31 downto 0);
+    signal dbg_hbm_aw_valid : std_logic;
+    signal dbg_hbm_aw_ready : std_logic;
+    signal dbg_hbm_r_ready : std_logic;
+    signal dbg_hbm_ar_addr : std_logic_vector(31 downto 0);
+    signal dbg_hbm_ar_valid : std_logic;
+    signal dbg_hbm_ar_ready : std_logic;
+    signal dbg_hbm_r_valid : std_logic;
     
 begin
     
@@ -901,8 +933,8 @@ begin
         
         -- Data output to the filterbanks
         -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
-        o_sof   => o_sof,   -- out std_logic; start of frame.
-        o_sofFull => o_sofFull, -- out std_logic; -- start of a full frame, i.e. 60ms of data.
+        o_sof   => sof_int,   -- out std_logic; start of frame.
+        o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 60ms of data.
         
         o_HPol0 => data0,  -- out t_slv_8_arr(1 downto 0);
         o_VPol0 => data1,  -- out t_slv_8_arr(1 downto 0);
@@ -924,11 +956,11 @@ begin
         
         -- AXI read address and data input buses
         -- ar bus - read address
-        o_axi_ar      => o_m01_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        o_axi_ar      => m01_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_axi_arready => i_m01_axi_arready, -- in std_logic;
         -- r bus - read data
         i_axi_r       => i_m01_axi_r,      -- in  t_axi4_full_data;
-        o_axi_rready  => o_m01_axi_rready, -- out std_logic;
+        o_axi_rready  => m01_axi_rready, -- out std_logic;
         -- errors and debug
         -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
         o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
@@ -950,7 +982,10 @@ begin
     o_meta23 <= meta23;
     o_meta45 <= meta45;
     o_meta67 <= meta67;
-    
+    o_sof <= sof_int;
+    o_sofFUll <= sofFull_int;
+    o_m01_axi_rready <= m01_axi_rready;
+    o_m01_axi_ar <= m01_axi_ar;
     
     -- Everything on the same clock domain;
     process(i_shared_clk)
@@ -1181,6 +1216,74 @@ begin
 --        probe0(100) => m06_axi_w.valid,
 --        probe0(119 downto 101) => m06_axi_aw.addr(18 downto 0)
 --    );
+    
+    ---------------------------------------------------------------------------
+    -- debug ILA
+    process(i_shared_clk)
+    begin
+        if rising_edge(i_shared_clk) then
+            
+            dbg_input_fsm_dbg <= input_fsm_dbg;
+            dbg_running <= running;
+            dbg_wr_buffer <= current_wr_buffer;
+            dbg_first_readout <= first_readout;
+            dbg_waiting_to_latch_on <= waiting_to_latch_on;
+            dbg_readOverflow_set <= readOverflow_set;
+            dbg_readoverflow <= readoverflow;
+            dbg_chan0 <= meta01.virtualChannel(9 downto 0);
+            dbg_integration <= wr_integration; -- (31:0); integration in units of 849ms relative to the epoch.
+            --dbg_ctFrame <= FBctFrame; -- 2 bits
+            dbg_o_valid <= validOut;
+            dbg_sof_int <= sof_int;
+            dbg_sofFull_int <= sofFull_int;
+            
+            if dbg_sofFull_int = '1' then
+                time_since_sofFull <= (others => '0');
+            else
+                time_since_sofFull <= std_logic_vector(unsigned(time_since_sofFull) + 1);
+            end if;
+            
+            dbg_hbm_aw_valid <= not AWFIFO_empty;
+            dbg_hbm_aw_ready <= i_m01_axi_awready;
+            
+            dbg_hbm_r_valid <= i_m01_axi_r.valid;
+            dbg_hbm_r_ready <= m01_axi_rready; -- out std_logic;
+            
+            dbg_hbm_ar_addr <= m01_axi_ar.addr(31 downto 0);
+            dbg_hbm_ar_valid <= m01_axi_ar.valid;
+            dbg_hbm_ar_ready <= i_m01_axi_arready;
+            
+        end if;
+    end process;
+    
+
+    
+    ct2_ila : ila_120_16k
+    port map (
+       clk => i_shared_clk,
+       probe0(0) => data_rst,
+       probe0(5 downto 1) => dbg_input_fsm_dbg,
+       probe0(6) => dbg_running,
+       probe0(8 downto 7) => dbg_wr_buffer,
+       probe0(9) => dbg_first_readout,
+       probe0(10) => dbg_waiting_to_latch_on,
+       probe0(11) => dbg_readOverflow_set,
+       probe0(12) => dbg_readoverflow,
+       probe0(22 downto 13) => dbg_chan0,
+       probe0(54 downto 23) => dbg_integration,
+       probe0(56 downto 55) => "00",
+       probe0(57) => dbg_o_valid,
+       probe0(58) => dbg_sof_int,
+       probe0(59) => dbg_sofFull_int,
+       probe0(91 downto 60) => time_since_sofFull,
+       probe0(92) => dbg_hbm_aw_valid,
+       probe0(93) => dbg_hbm_aw_ready,
+       probe0(94) => dbg_hbm_r_valid,
+       probe0(95) => dbg_hbm_r_ready,
+       probe0(96) => dbg_hbm_ar_valid,
+       probe0(97) => dbg_hbm_ar_ready,
+       probe0(119 downto 98) => dbg_hbm_ar_addr(31 downto 10)
+    );
     
     
 end Behavioral;

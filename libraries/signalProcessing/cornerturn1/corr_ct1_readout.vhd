@@ -978,7 +978,7 @@ begin
             -- As data comes back from the memory, generate the fine delays and write to the buffer fifos.
             -- if this is the first beat in the transaction, then fine delay data comes from ar_fifo, 
             -- otherwise the data is the captured version of the fifo output from the first beat.
-            if i_readStart = '1' then  
+            if rstFIFOs = '1' or i_readStart = '1' then  
                 ar_regUsed <= '0';
             elsif ar_regUsed = '0' and i_axi_r.valid = '1' then
                 --rdata_first <= ARFIFO_dout(2);   -- First read of a particular virtual channel for this frame (a "frame" is configurable but nominally 50ms) 
@@ -1558,7 +1558,25 @@ begin
             
             shared_to_FB_valid_del1 <= shared_to_FB_valid;
             
-            if shared_to_FB_valid_del1 = '1' then
+            
+            if rstInternal = '1' then
+                bufReadAddr0 <= (others => '0');
+                bufReadAddr1 <= (others => '0');
+                bufReadAddr2 <= (others => '0');
+                bufReadAddr3 <= (others => '0');
+                channelCount <= (others => '0');
+                rd_fsm <= idle;
+                buf0RdEnable <= '0';
+                buf1RdEnable <= '0';
+                buf2RdEnable <= '0';
+                buf3RdEnable <= '0';
+                bufFIFO_rdEn(0) <= '0';
+                bufFIFO_rdEn(1) <= '0';
+                bufFIFO_rdEn(2) <= '0';
+                bufFIFO_rdEn(3) <= '0';
+                sof <= '0';
+                sofFull <= '0';
+            elsif shared_to_FB_valid_del1 = '1' then
                 -- Start reading out the data from the buffer.
                 -- This occurs once per frame (typically 282 ms).
                 -- Buffers are always emptied at the end of a frame, so we always start from 0.
@@ -1826,7 +1844,7 @@ begin
             bufRdValid(2) <= buf2RdEnableDel2;
             bufRdValid(3) <= buf3RdEnableDel2;
             
-            if rd_fsm = reset_output_fifos or rd_fsm = reset_output_fifos_start then
+            if rstInternal = '1' or rd_fsm = reset_output_fifos or rd_fsm = reset_output_fifos_start then
                 readOutRst <= '1';
             else
                 readOutRst <= '0';
@@ -1854,7 +1872,12 @@ begin
             -- 16 clocks to copy data into the FIFO in corr_ct1_readout_32bit
             -- plus some extra delay for read latency of the buffer in this module 
             -- and read latency of the FIFO.
-            if readoutStartDel(27) = '1' then
+            if (rstInternal = '1') then
+                packetsRemaining <= (others => '0');
+                clockCount <= (others => '0');
+                clockCountZero <= '1';
+                delayFIFO_rden <= "0000";
+            elsif readoutStartDel(27) = '1' then
                 -- Packets are 4096 samples; Number of packets in a burst is 11 preload packets plus half the number of LFAA blocks per frame, since LFAA blocks are 2048 samples.
                 packetsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME /2 + 11,16));
                 clockCount <= (others => '0');

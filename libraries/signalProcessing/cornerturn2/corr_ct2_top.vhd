@@ -1040,71 +1040,71 @@ begin
     end process;
     
     
-    ct2_ila : ila_120_16k
-    port map (
-        clk => i_axi_clk,   -- IN STD_LOGIC;
+--    ct2_ila : ila_120_16k
+--    port map (
+--        clk => i_axi_clk,   -- IN STD_LOGIC;
         
-        -- 13 bits
-        probe0(0) => dbg_i_sof,
-        probe0(4 downto 1) => dbg_i_integration, -- <= i_integration(3 downto 0);
-        probe0(6 downto 5) => dbg_i_ctFrame, -- <= i_ctFrame(1 downto 0);
-        probe0(10 downto 7) => dbg_i_virtualChannel, -- <= i_virtualChannel(0)(3 downto 0);
-        probe0(11) => dbg_i_headerValid, -- <= i_HeaderValid(0);
-        probe0(12) => dbg_i_dataValid, -- <= i_dataValid;
+--        -- 13 bits
+--        probe0(0) => dbg_i_sof,
+--        probe0(4 downto 1) => dbg_i_integration, -- <= i_integration(3 downto 0);
+--        probe0(6 downto 5) => dbg_i_ctFrame, -- <= i_ctFrame(1 downto 0);
+--        probe0(10 downto 7) => dbg_i_virtualChannel, -- <= i_virtualChannel(0)(3 downto 0);
+--        probe0(11) => dbg_i_headerValid, -- <= i_HeaderValid(0);
+--        probe0(12) => dbg_i_dataValid, -- <= i_dataValid;
         
-        -- 20 bits
-        probe0(16 downto 13) => dbg_SB_rd_fsm_dbg, -- <= SB_rd_fsm_dbg;  -- 4 bits
-        probe0(17) => dbg_din_SB_req, -- <= din_SB_req;     -- 1 bit
-        probe0(18) => dbg_dout_SB_req, -- <= dout_SB_req(0);  -- 1 bit
-        probe0(19) => dbg_readout_start, -- <= readout_start;
-        probe0(21 downto 20) => dbg_dout_SB_done, -- <= dout_SB_done(1 downto 0); -- 2 bits
-        probe0(25 downto 22) => dbg_SB_addr, -- <= SB_addr(3 downto 0);
-        probe0(26) => dbg_update_table, -- <= update_table;
-        probe0(27) => dbg_vc_demap_req, -- <= vc_demap_req;
-        probe0(28) => dbg_din_tableSelect, -- <= din_tableSelect;
-        probe0(32 downto 29) => dbg_vc_demap_rd_addr, -- <= vc_demap_rd_addr(3 downto 0);
+--        -- 20 bits
+--        probe0(16 downto 13) => dbg_SB_rd_fsm_dbg, -- <= SB_rd_fsm_dbg;  -- 4 bits
+--        probe0(17) => dbg_din_SB_req, -- <= din_SB_req;     -- 1 bit
+--        probe0(18) => dbg_dout_SB_req, -- <= dout_SB_req(0);  -- 1 bit
+--        probe0(19) => dbg_readout_start, -- <= readout_start;
+--        probe0(21 downto 20) => dbg_dout_SB_done, -- <= dout_SB_done(1 downto 0); -- 2 bits
+--        probe0(25 downto 22) => dbg_SB_addr, -- <= SB_addr(3 downto 0);
+--        probe0(26) => dbg_update_table, -- <= update_table;
+--        probe0(27) => dbg_vc_demap_req, -- <= vc_demap_req;
+--        probe0(28) => dbg_din_tableSelect, -- <= din_tableSelect;
+--        probe0(32 downto 29) => dbg_vc_demap_rd_addr, -- <= vc_demap_rd_addr(3 downto 0);
         
-        -- 2 bits
-        probe0(33) => dbg_vc_demap_data_valid, -- <= vc_demap_data_valid;
-        probe0(34) => dbg_din_SB_valid, -- <= din_SB_valid;
+--        -- 2 bits
+--        probe0(33) => dbg_vc_demap_data_valid, -- <= vc_demap_data_valid;
+--        probe0(34) => dbg_din_SB_valid, -- <= din_SB_valid;
         
-        -- 32 bits
-        probe0(50 downto 35) => dbg_din_copyToHBM_count, -- <= din_status1(15 downto 0);
-        probe0(54 downto 51) => dbg_din_copy_fsm_dbg, -- <= din_status1(19 downto 16);
-        probe0(58 downto 55) => dbg_din_copyData_fsm_dbg, -- <= din_status1(23 downto 20);
-        probe0(64 downto 59) => dbg_din_dataFIFO_dataCount, -- <= din_status1(29 downto 24);
-        probe0(65) => dbg_din_first_aw, -- <= din_status1(30);
-        probe0(66) => dbg_din_copy_fsm_stuck, -- <= din_status1(31);
+--        -- 32 bits
+--        probe0(50 downto 35) => dbg_din_copyToHBM_count, -- <= din_status1(15 downto 0);
+--        probe0(54 downto 51) => dbg_din_copy_fsm_dbg, -- <= din_status1(19 downto 16);
+--        probe0(58 downto 55) => dbg_din_copyData_fsm_dbg, -- <= din_status1(23 downto 20);
+--        probe0(64 downto 59) => dbg_din_dataFIFO_dataCount, -- <= din_status1(29 downto 24);
+--        probe0(65) => dbg_din_first_aw, -- <= din_status1(30);
+--        probe0(66) => dbg_din_copy_fsm_stuck, -- <= din_status1(31);
         
-        -- 8 bits
-        probe0(70 downto 67) => dbg_din_copydata_count, -- <= din_status2(15 downto 12);  -- really 15:0
-        probe0(74 downto 71) => dbg_din_copy_fineChannel, -- <= din_status2(31 downto 28); -- really 31:20
+--        -- 8 bits
+--        probe0(70 downto 67) => dbg_din_copydata_count, -- <= din_status2(15 downto 12);  -- really 15:0
+--        probe0(74 downto 71) => dbg_din_copy_fineChannel, -- <= din_status2(31 downto 28); -- really 31:20
         
-        -- 25 bits  
-        probe0(78 downto 75) => dbg_dout_ar_fsm_dbg, -- <= dout_ar_fsm_dbg; -- : std_logic_vector(3 downto 0);
-        probe0(82 downto 79) => dbg_dout_readout_fsm_dbg, -- <= dout_readout_fsm_dbg; -- : std_logic_vector(3 downto 0);
-        probe0(89 downto 83) => dbg_dout_arFIFO_wr_count, -- <= dout_arFIFO_wr_count; --  : std_logic_vector(6 downto 0);
-        probe0(99 downto 90) => dbg_dout_dataFIFO_wrCount, -- <= dout_dataFIFO_wrCount; -- : std_logic_vector(9 downto 0);
+--        -- 25 bits  
+--        probe0(78 downto 75) => dbg_dout_ar_fsm_dbg, -- <= dout_ar_fsm_dbg; -- : std_logic_vector(3 downto 0);
+--        probe0(82 downto 79) => dbg_dout_readout_fsm_dbg, -- <= dout_readout_fsm_dbg; -- : std_logic_vector(3 downto 0);
+--        probe0(89 downto 83) => dbg_dout_arFIFO_wr_count, -- <= dout_arFIFO_wr_count; --  : std_logic_vector(6 downto 0);
+--        probe0(99 downto 90) => dbg_dout_dataFIFO_wrCount, -- <= dout_dataFIFO_wrCount; -- : std_logic_vector(9 downto 0);
         
-        -- 9 bits
-        probe0(100) => dbg_cor_valid, -- <= cor_valid_int(0);
-        probe0(108 downto 101) => dbg_cor_tileChannel, -- <= o_cor_tileChannel(0)(7 downto 0);
+--        -- 9 bits
+--        probe0(100) => dbg_cor_valid, -- <= cor_valid_int(0);
+--        probe0(108 downto 101) => dbg_cor_tileChannel, -- <= o_cor_tileChannel(0)(7 downto 0);
         
-        -- 1 bit
-        probe0(109) => dbg_freq_index0_repeat, -- <= i_freq_index0_repeat; -- (export from single_correlator.vhd)
+--        -- 1 bit
+--        probe0(109) => dbg_freq_index0_repeat, -- <= i_freq_index0_repeat; -- (export from single_correlator.vhd)
         
-        -- 9 bits
-        probe0(110) => dbg_axi_aw_valid, -- <= o_HBM_axi_aw(0).valid;
-        probe0(111) => dbg_axi_aw_ready, -- <= i_HBM_axi_awready(0);
-        probe0(112) => dbg_axi_w_valid, -- <= o_HBM_axi_w(0).valid;
-        probe0(113) => dbg_axi_w_last, -- <= o_HBM_axi_w(0).last;
-        probe0(114) => dbg_axi_w_ready, -- <= i_HBM_axi_wready(0);
-        probe0(115) => dbg_axi_ar_valid, -- <= o_HBM_axi_ar(0).valid;
-        probe0(116) => dbg_axi_ar_ready, -- <= i_HBM_axi_arready(0);
-        probe0(117) => dbg_axi_r_valid, -- <= i_HBM_axi_r(0).valid;
-        probe0(118) => dbg_axi_r_ready, -- <= o_HBM_axi_rready(0);
-        probe0(119) => '0'
-    );
+--        -- 9 bits
+--        probe0(110) => dbg_axi_aw_valid, -- <= o_HBM_axi_aw(0).valid;
+--        probe0(111) => dbg_axi_aw_ready, -- <= i_HBM_axi_awready(0);
+--        probe0(112) => dbg_axi_w_valid, -- <= o_HBM_axi_w(0).valid;
+--        probe0(113) => dbg_axi_w_last, -- <= o_HBM_axi_w(0).last;
+--        probe0(114) => dbg_axi_w_ready, -- <= i_HBM_axi_wready(0);
+--        probe0(115) => dbg_axi_ar_valid, -- <= o_HBM_axi_ar(0).valid;
+--        probe0(116) => dbg_axi_ar_ready, -- <= i_HBM_axi_arready(0);
+--        probe0(117) => dbg_axi_r_valid, -- <= i_HBM_axi_r(0).valid;
+--        probe0(118) => dbg_axi_r_ready, -- <= o_HBM_axi_rready(0);
+--        probe0(119) => '0'
+--    );
     
     
 end Behavioral;
