@@ -484,6 +484,13 @@ ARCHITECTURE structure OF correlator_core IS
         m_axi_rready : OUT STD_LOGIC);
     END COMPONENT;
     
+    signal hbm_reset_final : std_logic;
+    signal i_axis_tdata_gated : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal i_axis_tkeep_gated : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal i_axis_tlast_gated : std_logic;
+    signal i_axis_tuser_gated : std_logic_vector(79 downto 0); -- Timestamp for the packet.
+    signal i_axis_tvalid_gated : std_logic;
+    
 begin
     
     ---------------------------------------------------------------------------
@@ -838,11 +845,11 @@ begin
         g_USE_DUMMY_FB          => g_USE_DUMMY_FB
     ) port map (
         -- Received data from 100GE
-        i_axis_tdata   => i_axis_tdata,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        i_axis_tkeep   => i_axis_tkeep,  -- in (63:0);  one bit per byte in i_axi_tdata
-        i_axis_tlast   => i_axis_tlast,  -- in std_logic;                      
-        i_axis_tuser   => i_axis_tuser,  -- in (79:0);  Timestamp for the packet.
-        i_axis_tvalid  => i_axis_tvalid, -- in std_logic;
+        i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
+        i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
+        i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
+        i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
         -- Data to be transmitted on 100GE
         o_axis_tdata   => o_axis_tdata,  -- out (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
         o_axis_tkeep   => o_axis_tkeep,  -- out (63:0);  one bit per byte in o_axis_tdata
@@ -945,6 +952,40 @@ begin
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
     hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
     
+    
+    eth_block : entity correlator_lib.eth_disable
+    generic map (
+        -- Number of i_ap_clk clocks to wait after blocking ethernet traffic before driving o_reset
+        -- This allows us to wait a while for e.g. SPS input writes to HBM to complete properly
+        g_HOLDOFF => 1024, -- : integer := 1024;
+        -- Number of i_eth_clk clocks to wait before unblocking ethernet traffic after de-asserting o_reset
+        g_RESTART_HOLDOFF => 2048 -- : integer := 4096
+    ) port map (
+        -- Reset signal is on i_ap_clk
+        i_ap_clk  => ap_clk,  --  in std_logic;
+        i_reset   => hbm_reset_combined(0), --  in std_logic;  
+        o_reset   => hbm_reset_final,       --  out std_logic; -- Goes high following i_reset after the 100G ethernet has been blocked
+        o_fsm_dbg => eth_disable_fsm_dbg, --  out std_logic_vector(4 downto 0); -- fsm state 
+        -----------------------------------------------------
+        -- Everything else is on i_eth_clk
+        i_eth_clk    => i_eth100G_clk, --  in std_logic;
+        -----------------------------------------------------
+        -- Received data from 100GE
+        i_axis_tdata => i_axis_tdata, --  in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep => i_axis_tkeep, -- in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast => i_axis_tlast, -- in std_logic;                      
+        i_axis_tuser => i_axis_tuser, -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid => i_axis_tvalid, -- in std_logic;
+        -- Data output - 1 clock latency from input
+        o_axis_tdata => i_axis_tdata_gated, -- out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        o_axis_tkeep => i_axis_tkeep_gated, -- out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        o_axis_tlast => i_axis_tlast_gated, -- out std_logic;                      
+        o_axis_tuser => i_axis_tuser_gated, -- out std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        o_axis_tvalid => i_axis_tvalid_gated -- out std_logic
+        -----------------------------------------------------
+    );    
+    
+    
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
     axi_HBM_gen : for i in 0 to 5 generate
@@ -957,7 +998,7 @@ begin
                 i_clk                   => ap_clk,
                 i_reset                 => ap_rst,
         
-                i_logic_reset           => hbm_reset_combined(i),
+                i_logic_reset           => hbm_reset_final, -- hbm_reset_combined(i),
                 o_in_reset              => open,
                 o_reset_complete        => hbm_status(i),
                 -----------------------------------------------------
