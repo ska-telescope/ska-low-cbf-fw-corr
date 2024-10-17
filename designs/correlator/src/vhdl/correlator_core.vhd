@@ -490,6 +490,7 @@ ARCHITECTURE structure OF correlator_core IS
     signal i_axis_tlast_gated : std_logic;
     signal i_axis_tuser_gated : std_logic_vector(79 downto 0); -- Timestamp for the packet.
     signal i_axis_tvalid_gated : std_logic;
+    signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
     
 begin
     
