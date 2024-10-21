@@ -140,7 +140,9 @@ entity DSP_top_correlator is
         --------------------------------------------------------------
         -- HBM reset
         o_hbm_reset    : out std_logic_vector(5 downto 0);
-        i_hbm_status   : in t_slv_8_arr(5 downto 0)
+        i_hbm_status   : in t_slv_8_arr(5 downto 0);
+        i_hbm_reset_final : in std_logic;
+        i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0) -- 5 bits
     );
 end DSP_top_correlator;
 
@@ -570,7 +572,11 @@ begin
         i_readout_start  => i_ct2_readout_start,  -- in std_logic;
         i_readout_buffer => i_ct2_readout_buffer,  -- in std_logic
         i_readout_frameCount => i_ct2_readout_frameCount,  -- in (31:0)
-        i_freq_index0_repeat => freq_index0_repeat
+        i_freq_index0_repeat => freq_index0_repeat,
+        -- debug
+        i_hbm_status   => i_hbm_status, -- : in t_slv_8_arr(5 downto 0);
+        i_hbm_reset_final => i_hbm_reset_final, -- : in std_logic;
+        i_eth_disable_fsm_dbg => i_eth_disable_fsm_dbg -- : in std_logic_vector(4 downto 0)
     );
     
     -- Correlator

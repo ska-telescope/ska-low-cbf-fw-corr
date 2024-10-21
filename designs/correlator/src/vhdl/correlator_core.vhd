@@ -947,7 +947,9 @@ begin
 
         -- HBM reset
         o_hbm_reset    => hbm_reset,
-        i_hbm_status   => hbm_status
+        i_hbm_status   => hbm_status,
+        i_hbm_reset_final => hbm_reset_final,   -- 1 bit
+        i_eth_disable_fsm_dbg => eth_disable_fsm_dbg -- 5 bits
     );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
