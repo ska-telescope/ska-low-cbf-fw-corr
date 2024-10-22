@@ -84,7 +84,7 @@ end cor_rd_HBM_queue_manager;
 
 architecture Behavioral of cor_rd_HBM_queue_manager is
 
-COMPONENT ila_0
+COMPONENT ila_8k
 PORT (
     clk : IN STD_LOGIC;
     probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
@@ -207,6 +207,11 @@ signal meta_ready           : std_logic;
 signal row_cell_offset      : unsigned(27 downto 0) := (others => '0');
 signal next_cell_row        : unsigned(27 downto 0) := (others => '0');
 
+signal current_hbm_requests_stored : unsigned(12 downto 0) := (others => '0');
+
+signal enable_hbm_read      : std_logic;
+signal enable_hbm_read_del  : std_logic;
+
 begin
 
 reset_combo <= reset OR i_fifo_reset;
@@ -283,6 +288,22 @@ begin
                 hbm_reqs_status     <= hbm_reqs_status - 1;
             end if;
         end if;
+        
+        -- space in FIFO
+        -- each read request is 512 bytes.
+        -- FIFO stores 64 bytes per line so 8 lines.
+        -- If FIFO is above 7/8 don't request.
+        -- FIFO is 4096 deep = 3584 fill level.
+        -- 
+        current_hbm_requests_stored <= unsigned(hbm_data_fifo_wr_count) + (hbm_reqs_status & "000");
+        
+        if (current_hbm_requests_stored > 3584) then
+            enable_hbm_read <= '0';
+        else
+            enable_hbm_read <= '1';
+        end if;
+        
+        enable_hbm_read_del <= enable_hbm_read;
     end if;
 end process;
 
@@ -453,7 +474,6 @@ begin
 
                 when CALC =>
                     hbm_reader_fsm_debug    <= x"8";
-
                     -- this is wrapping around and used as an exit condition.
                     if cells_required = cell_row_requests then
                         HBM_reader_fsm      <= CELL_ROW;
@@ -467,10 +487,13 @@ begin
 
                 when RD_DATA =>
                     hbm_reader_fsm_debug    <= x"9";
-                    hbm_axi_ar_addr         <= "0000" & std_logic_vector(curr_data_addr);
-                    hbm_axi_ar_valid        <= '1';
-
-                    HBM_reader_fsm          <= RD_DATA_AR;
+                    
+                    if (enable_hbm_read_del = '1') then
+                        hbm_axi_ar_addr         <= "0000" & std_logic_vector(curr_data_addr);
+                        hbm_axi_ar_valid        <= '1';
+    
+                        HBM_reader_fsm          <= RD_DATA_AR;
+                    end if;
 
 
                 when RD_DATA_AR =>
@@ -642,7 +665,7 @@ end process;
 ---------------------------------------------------------------------------
 -- debug
 gen_debug_ila : IF DEBUG_ILA GENERATE
-    hbm_rd_debug : ila_0 PORT MAP (
+    hbm_rd_debug : ila_8k PORT MAP (
         clk                     => clk,
         probe0(3 downto 0)      => hbm_reader_fsm_debug,
         probe0(35 downto 4)     => hbm_axi_ar_addr,
@@ -667,10 +690,13 @@ gen_debug_ila : IF DEBUG_ILA GENERATE
 
         probe0(172 downto 109)  => i_HBM_axi_r.data(319 downto 256),
         
-        probe0(191 downto 173)  => (others => '0')
+        probe0(185 downto 173)  => std_logic_vector(current_hbm_requests_stored),
+        probe0(186)             => enable_hbm_read,
+        
+        probe0(191 downto 187)  => (others => '0')
         );
         
-    hbm_wide_rd_ila_debug : ila_0 PORT MAP (
+    hbm_wide_rd_ila_debug : ila_8k PORT MAP (
         clk                     => clk,
             
         probe0(127 downto 0)    => i_HBM_axi_r.data(127 downto 0),
