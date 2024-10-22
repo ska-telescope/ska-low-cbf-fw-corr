@@ -24,18 +24,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="205,780.480 ns"></ZoomStartTime>
-      <ZoomEndTime time="205,904.481 ns"></ZoomEndTime>
-      <Cursor1Time time="205,883.780 ns"></Cursor1Time>
+      <ZoomStartTime time="1.431150 us"></ZoomStartTime>
+      <ZoomEndTime time="2,505.431151 us"></ZoomEndTime>
+      <Cursor1Time time="595.431150 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="276"></NameColumnWidth>
-      <ValueColumnWidth column_width="123"></ValueColumnWidth>
+      <NameColumnWidth column_width="263"></NameColumnWidth>
+      <ValueColumnWidth column_width="124"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="465" />
-   <wave_markers>
-      <marker label="" time="121000000" />
-   </wave_markers>
+   <WVObjectSize size="469" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -653,6 +650,20 @@
       <obj_property name="label">HBM Data Packing</obj_property>
       <obj_property name="DisplayName">label</obj_property>
    </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/enable_hbm_read_del">
+      <obj_property name="ElementShortName">enable_hbm_read_del</obj_property>
+      <obj_property name="ObjectShortName">enable_hbm_read_del</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/enable_hbm_read">
+      <obj_property name="ElementShortName">enable_hbm_read</obj_property>
+      <obj_property name="ObjectShortName">enable_hbm_read</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/current_hbm_requests_stored">
+      <obj_property name="ElementShortName">current_hbm_requests_stored[12:0]</obj_property>
+      <obj_property name="ObjectShortName">current_hbm_requests_stored[12:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_data">
       <obj_property name="ElementShortName">hbm_data_fifo_data[511:0]</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_data[511:0]</obj_property>
@@ -676,6 +687,11 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/hbm_data_fifo_q">
       <obj_property name="ElementShortName">hbm_data_fifo_q[511:0]</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_q[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/hbm_data_cache_level">
+      <obj_property name="ElementShortName">hbm_data_cache_level[12:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_data_cache_level[12:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/hbm_data_fifo_empty">
       <obj_property name="ElementShortName">hbm_data_fifo_empty</obj_property>
@@ -1659,6 +1675,23 @@
       <obj_property name="ElementShortName">to_spead_pack[1:0]</obj_property>
       <obj_property name="ObjectShortName">to_spead_pack[1:0]</obj_property>
       <obj_property name="isExpanded"></obj_property>
+      <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[1]">
+         <obj_property name="ElementShortName">[1]</obj_property>
+         <obj_property name="ObjectShortName">[1]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+         <obj_property name="isExpanded"></obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[1]">
+         <obj_property name="ElementShortName">[1]</obj_property>
+         <obj_property name="ObjectShortName">[1]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0]">
+         <obj_property name="ElementShortName">[0]</obj_property>
+         <obj_property name="ObjectShortName">[0]</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/pending_packet">
       <obj_property name="ElementShortName">pending_packet[1:0]</obj_property>
@@ -1831,15 +1864,6 @@
       <obj_property name="ObjectShortName">bytes_to_transmit[1:0][13:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
       <obj_property name="isExpanded"></obj_property>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/bytes_to_transmit[1]">
-         <obj_property name="ElementShortName">[1][13:0]</obj_property>
-         <obj_property name="ObjectShortName">[1][13:0]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/bytes_to_transmit[0]">
-         <obj_property name="ElementShortName">[0][13:0]</obj_property>
-         <obj_property name="ObjectShortName">[0][13:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/data_to_player">
       <obj_property name="ElementShortName">data_to_player[1:0][511:0]</obj_property>

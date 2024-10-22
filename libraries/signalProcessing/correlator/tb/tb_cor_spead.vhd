@@ -37,7 +37,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := FALSE;
+constant USE_TEST_CASE      : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -345,23 +345,23 @@ begin
                 if testCount_300 = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"1";
+                    row_count       <= 9D"253";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"64";
+                    stim_sub_array  <= 8D"68";
                     hbm_start_addr  <= x"00000000";
                 end if;
                 
                     
-                if testCount_300 = 5000 then 
+                if testCount_300 = 150000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"2";
+                    row_count       <= 9D"254";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"65";
+                    stim_sub_array  <= 8D"69";
                     hbm_start_addr  <= x"00000000";
                 end if;
 
@@ -369,14 +369,14 @@ begin
                     tb_300_rst      <= '1';
                 end if;
                 
-                if testCount_300 = 10000 then 
+                if testCount_300 = 300000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"3";
+                    row_count       <= 9D"255";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"66";
+                    stim_sub_array  <= 8D"70";
                     hbm_start_addr  <= x"00000000";
                 end if;
                 
@@ -384,14 +384,14 @@ begin
                     tb_300_rst      <= '1';
                 end if;
                 
-                if testCount_300 = 15000 then 
+                if testCount_300 = 450000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"4";
+                    row_count       <= 9D"256";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"67";
+                    stim_sub_array  <= 8D"71";
                     hbm_start_addr  <= x"00000000";
                 end if;
             end if;
@@ -409,17 +409,17 @@ begin
 -- 7       24x24       10208       0x27e0
 -- 8       26x26       11942       0x2ea6
 -- 9       28x28       13812       0x35f4
--- 32	    246	        1032962	    0xFC302
--- 33	    247	        1041360	    0xFE3D0
--- 34	    248	        1049792	    0x1004C0
--- 35	    249	        1058258	    0x1025D2
--- 36	    250	        1066758	    0x104706
--- 37	    251	        1075292	    0x10685C
--- 38	    252	        1083860	    0x1089D4
--- 39	    253	        1092462	    0x10AB6E
--- 40	    254	        1101098	    0x10CD2A
--- 41	    255	        1109768	    0x10EF08
--- 42	    256	        1118472	    0x111108
+-- 
+-- 
+-- 
+-- 64	    249	        1058258	    0x1025D2
+-- 65	    250	        1066758	    0x104706
+-- 66	    251	        1075292	    0x10685C
+-- 67	    252	        1083860	    0x1089D4
+-- 68	    253	        1092462	    0x10AB6E
+-- 69	    254	        1101098	    0x10CD2A
+-- 70	    255	        1109768	    0x10EF08
+-- 71	    256	        1118472	    0x111108
 
 
                 -- some stimulus for initial triangle testing.
