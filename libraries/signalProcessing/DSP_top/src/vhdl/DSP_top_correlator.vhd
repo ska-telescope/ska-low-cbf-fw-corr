@@ -141,6 +141,7 @@ entity DSP_top_correlator is
         -- HBM reset
         o_hbm_reset    : out std_logic_vector(5 downto 0);
         i_hbm_status   : in t_slv_8_arr(5 downto 0);
+        i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0);
         i_hbm_reset_final : in std_logic;
         i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0) -- 5 bits
     );
@@ -383,7 +384,9 @@ begin
         i_m06_axi_arready => i_HBM_axi_arready(5), -- in std_logic;
         -- r bus - read data
         i_m06_axi_r      => i_HBM_axi_r(5),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
-        o_m06_axi_rready => o_HBM_axi_rready(5)   -- out std_logic;        
+        o_m06_axi_rready => o_HBM_axi_rready(5),   -- out std_logic;
+        --
+        i_hbm_rst_dbg  => i_hbm_rst_dbg
     );
     
     -- Correlator filterbank and fine delay.
@@ -576,7 +579,8 @@ begin
         -- debug
         i_hbm_status   => i_hbm_status, -- : in t_slv_8_arr(5 downto 0);
         i_hbm_reset_final => i_hbm_reset_final, -- : in std_logic;
-        i_eth_disable_fsm_dbg => i_eth_disable_fsm_dbg -- : in std_logic_vector(4 downto 0)
+        i_eth_disable_fsm_dbg => i_eth_disable_fsm_dbg, -- : in std_logic_vector(4 downto 0)
+        i_hbm_rst_dbg  => i_hbm_rst_dbg   -- in t_slv_32_arr(5 downto 0);
     );
     
     -- Correlator

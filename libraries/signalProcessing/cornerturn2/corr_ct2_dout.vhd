@@ -83,7 +83,8 @@ entity corr_ct2_dout is
         i_start     : in std_logic; -- start reading out data to the correlators
         i_buffer    : in std_logic; -- which of the double buffers to read out ?
         i_frameCount : in std_logic_vector(31 downto 0); -- 849ms frameCount since epoch
-        
+        -- data path reset
+        i_rst       : in std_logic;
         -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
         o_SB_req    : out std_logic;    -- Rising edge gets the parameters for the next subarray-beam to read out.
         i_SB        : in  std_logic_vector(6 downto 0); -- which subarray-beam are we currently processing from the subarray-beam table.
@@ -301,7 +302,9 @@ begin
             up_to_station <= cur_station_ext + cur_station_offset_x4 + 4;
             SB_del <= '0' & i_SB;
             
-            if HBM_addr_valid = '1' then
+            if i_rst = '1' then
+                HBM_addr_hold_valid <= '0';
+            elsif HBM_addr_valid = '1' then
                 HBM_addr_hold <= HBM_addr;
                 HBM_addr_hold_valid <= '1';
             elsif clear_hold = '1' then
@@ -314,7 +317,13 @@ begin
                 tiles_per_row_minus1 <= SB_stations_div256; 
             end if;
             
-            if i_start = '1' then
+            if i_rst = '1' then
+                ar_fsm <= done;
+                o_SB_req <= '0';
+                first_req_in_integration <= '1';
+                o_HBM_axi_ar.valid <= '0';
+                ar_fsm_dbg <= "1101";
+            elsif i_start = '1' then
                 ar_fsm <= get_SB_data;
                 readBuffer <= i_buffer;
                 readFrameCount <= i_frameCount;
@@ -329,6 +338,7 @@ begin
                         o_SB_req <= '1';
                         ar_fsm <= wait_SB_data;
                         clear_hold <= '0';  -- Hold of the output of the address calculation.
+                        o_HBM_axi_ar.valid <= '0';
                     
                     when wait_SB_data =>
                         ar_fsm_dbg <= "0010";
@@ -361,6 +371,7 @@ begin
                             get_addr <= '1';         -- Get the first address to use
                         end if;
                         clear_hold <= '0';
+                        o_HBM_axi_ar.valid <= '0';
                 
                     when check_arFIFO =>
                         ar_fsm_dbg <= "0011";
@@ -373,6 +384,7 @@ begin
                         get_addr <= '0';
                         clear_hold <= '0';
                         o_SB_req <= '0';
+                        o_HBM_axi_ar.valid <= '0';
                     
                     when set_ar =>
                         ar_fsm_dbg <= "0100";
@@ -472,6 +484,7 @@ begin
                                 ar_fsm <= check_arFIFO;
                             end if;
                         end if;
+                        o_HBM_axi_ar.valid <= '0';
                     
                     when next_fine => -- Advance to the next fine channel within a group of fine channels that are being integrated.
                         ar_fsm_dbg <= "1000";
@@ -504,6 +517,7 @@ begin
                             get_addr <= '1';
                             cur_fineChannelOffset <= std_logic_vector(unsigned(cur_fineChannelOffset) + 1);
                         end if;
+                        o_HBM_axi_ar.valid <= '0';
                         
                     when next_tile =>
                         ar_fsm_dbg <= "1001";
@@ -530,6 +544,7 @@ begin
                             get_addr <= '1';
                             ar_fsm <= check_arFIFO;
                         end if;
+                        o_HBM_axi_ar.valid <= '0';
                         
                     when next_timeBase =>
                         ar_fsm_dbg <= "1010";
@@ -555,12 +570,14 @@ begin
                             get_addr <= '0';
                             ar_fsm <= next_fineBase;
                         end if;
-                       
+                        o_HBM_axi_ar.valid <= '0';
+                        
                     when next_fineBase =>
                         ar_fsm_dbg <= "1011";
                         cur_fineChannelBase <= std_logic_vector(unsigned(cur_fineChannelBase) + unsigned(SB_fineIntegrations));
                         cur_correlationChannelCount <= std_logic_vector(unsigned(cur_correlationChannelCount) + 1);
                         ar_fsm <= check_fineBase;
+                        o_HBM_axi_ar.valid <= '0';
                      
                     when check_fineBase =>
                         ar_fsm_dbg <= "1100";
@@ -575,11 +592,14 @@ begin
                             get_Addr <= '1';
                             ar_fsm <= check_arFIFO;
                         end if;
+                        o_HBM_axi_ar.valid <= '0';
                     
                     when done =>
                         ar_fsm_dbg <= "1101";
                         o_SB_req <= '0';
                         ar_fsm <= done; -- Wait until we get i_start again.
+                        o_HBM_axi_ar.valid <= '0';
+                        
                 end case;
             end if;
             ar_fsm_del1 <= ar_fsm;
@@ -693,7 +713,7 @@ begin
         injectdbiterr => '0',       -- 1-bit input: Double Bit Error Injection
         injectsbiterr => '0',       -- 1-bit input: Single Bit Error Injection: 
         rd_en => arFIFO_RdEn,       -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
-        rst => '0',                 -- 1-bit input: Reset: Must be synchronous to wr_clk.
+        rst => i_rst,               -- 1-bit input: Reset: Must be synchronous to wr_clk.
         sleep => '0',               -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
         wr_clk => i_axi_clk,        -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
         wr_en => arFIFO_wrEn        -- 1-bit input: Write Enable: 
@@ -743,7 +763,7 @@ begin
         injectdbiterr => '0',      -- 1-bit input: Double Bit Error Injection
         injectsbiterr => '0',      -- 1-bit input: Single Bit Error Injection: 
         rd_en => dataFIFO_RdEn,    -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
-        rst => '0',                -- 1-bit input: Reset: Must be synchronous to wr_clk.
+        rst => i_rst,              -- 1-bit input: Reset: Must be synchronous to wr_clk.
         sleep => '0',              -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
         wr_clk => i_axi_clk,       -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
         wr_en => dataFIFO_wrEn     -- 1-bit input: Write Enable: 
@@ -758,83 +778,88 @@ begin
     begin
         if rising_edge(i_axi_clk) then
             
-            case readout_fsm is
-                when idle =>
-                    readout_fsm_dbg <= "0000";
-                    if arFIFO_valid = '1' then
-                        readoutFrameCount <= arFIFO_dout(132 downto 101);
-                        readoutTriangle <= arFIFO_dout(0); -- 1 bit
-                        readoutFineChannel <= arFIFO_dout(24 downto 1); -- 24 bits
-                        readoutTimeGroup <= arFIFO_dout(28 downto 25);  -- 4 bits
-                        readoutVCx16 <= arFIFO_dout(36 downto 29);
-                        readoutKey <= arFIFO_dout(39 downto 38); -- "00" for normal data, "01" start correlation (end of block for row+col memories), "10" for end of tile = end of integration.
-                        readoutTileLocation <= arFIFO_dout(47 downto 40);
-                        readoutRowStations <= arFIFO_dout(56 downto 48);
-                        readoutColStations <= arFIFO_dout(65 downto 57);
-                        readoutTotalChannels <= arFIFO_dout(71 downto 66);
-                        readoutTimeIntegration <= arFIFO_dout(73 downto 72);
-                        readoutFirst <= arFIFO_dout(74);
-                        readoutStationOffset <= arFIFO_dout(76 downto 75); -- 4 ar requests to get 16 stations.
-                        
-                        readoutTotalStations <= arFIFO_dout(92 downto 77);
-                        readoutSB <= arFIFO_dout(100 downto 93);
-                        
-                        if (arFIFO_dout(39 downto 38) = "00") then
-                            if (unsigned(dataFIFO_rdCount) >= 64) then
-                                -- each ar request is for 32 x 64-byte words = 2048 bytes; at the read side of the data fifo this is 64 words.
-                                readout_fsm <= send_data;
+            if i_rst = '1' then
+                readout_fsm <= idle;
+                readout_fsm_dbg <= "0000";
+            else
+                case readout_fsm is
+                    when idle =>
+                        readout_fsm_dbg <= "0000";
+                        if arFIFO_valid = '1' then
+                            readoutFrameCount <= arFIFO_dout(132 downto 101);
+                            readoutTriangle <= arFIFO_dout(0); -- 1 bit
+                            readoutFineChannel <= arFIFO_dout(24 downto 1); -- 24 bits
+                            readoutTimeGroup <= arFIFO_dout(28 downto 25);  -- 4 bits
+                            readoutVCx16 <= arFIFO_dout(36 downto 29);
+                            readoutKey <= arFIFO_dout(39 downto 38); -- "00" for normal data, "01" start correlation (end of block for row+col memories), "10" for end of tile = end of integration.
+                            readoutTileLocation <= arFIFO_dout(47 downto 40);
+                            readoutRowStations <= arFIFO_dout(56 downto 48);
+                            readoutColStations <= arFIFO_dout(65 downto 57);
+                            readoutTotalChannels <= arFIFO_dout(71 downto 66);
+                            readoutTimeIntegration <= arFIFO_dout(73 downto 72);
+                            readoutFirst <= arFIFO_dout(74);
+                            readoutStationOffset <= arFIFO_dout(76 downto 75); -- 4 ar requests to get 16 stations.
+                            
+                            readoutTotalStations <= arFIFO_dout(92 downto 77);
+                            readoutSB <= arFIFO_dout(100 downto 93);
+                            
+                            if (arFIFO_dout(39 downto 38) = "00") then
+                                if (unsigned(dataFIFO_rdCount) >= 64) then
+                                    -- each ar request is for 32 x 64-byte words = 2048 bytes; at the read side of the data fifo this is 64 words.
+                                    readout_fsm <= send_data;
+                                else
+                                    readout_fsm <= wait_data;
+                                end if;
                             else
-                                readout_fsm <= wait_data;
+                                readout_fsm <= signal_correlator;
                             end if;
-                        else
-                            readout_fsm <= signal_correlator;
                         end if;
-                    end if;
-                    sendCount <= (others => '0');
+                        sendCount <= (others => '0');
+                        
+                    when wait_data =>
+                        readout_fsm_dbg <= "0001";
+                        if (unsigned(dataFIFO_rdCount) >= 16) then
+                            readout_fsm <= send_data;
+                        end if;
+                        sendCount <= (others => '0');
+                        
+                    when send_data =>
+                        readout_fsm_dbg <= "0010";
+                        sendCount <= std_logic_vector(unsigned(sendCount) + 1);
+                        if unsigned(sendCount) = 15 then
+                            readout_fsm <= idle;
+                        end if;
                     
-                when wait_data =>
-                    readout_fsm_dbg <= "0001";
-                    if (unsigned(dataFIFO_rdCount) >= 16) then
-                        readout_fsm <= send_data;
-                    end if;
-                    sendCount <= (others => '0');
+                    when signal_correlator =>
+                        readout_fsm_dbg <= "0011";
+                        -- send notification to the correlator to run the correlator, or that the correlation is done.
+                        readout_fsm <= wait_correlator_ready1;
                     
-                when send_data =>
-                    readout_fsm_dbg <= "0010";
-                    sendCount <= std_logic_vector(unsigned(sendCount) + 1);
-                    if unsigned(sendCount) = 15 then
+                    when wait_correlator_ready1 =>
+                        readout_fsm_dbg <= "0100";
+                        -- takes a few clocks to notify the correlator that the data is complete,
+                        -- and for the correlator to indicate if it is ready for more data or not.
+                        readout_fsm <= wait_correlator_ready2;
+                    
+                    when wait_correlator_ready2 =>
+                        readout_fsm_dbg <= "0101";
+                        readout_fsm <= wait_correlator_ready3;
+                        
+                    when wait_correlator_ready3 =>
+                        readout_fsm_dbg <= "0110";
+                        readout_fsm <= wait_correlator_ready;
+                    
+                    when wait_correlator_ready =>
+                        readout_fsm_dbg <= "0111";
+                        if i_cor_ready = '1' then
+                            readout_fsm <= idle;
+                        end if;
+                    
+                    when others =>
+                        readout_fsm_dbg <= "1111";
                         readout_fsm <= idle;
-                    end if;
-                
-                when signal_correlator =>
-                    readout_fsm_dbg <= "0011";
-                    -- send notification to the correlator to run the correlator, or that the correlation is done.
-                    readout_fsm <= wait_correlator_ready1;
-                
-                when wait_correlator_ready1 =>
-                    readout_fsm_dbg <= "0100";
-                    -- takes a few clocks to notify the correlator that the data is complete,
-                    -- and for the correlator to indicate if it is ready for more data or not.
-                    readout_fsm <= wait_correlator_ready2;
-                
-                when wait_correlator_ready2 =>
-                    readout_fsm_dbg <= "0101";
-                    readout_fsm <= wait_correlator_ready3;
-                    
-                when wait_correlator_ready3 =>
-                    readout_fsm_dbg <= "0110";
-                    readout_fsm <= wait_correlator_ready;
-                
-                when wait_correlator_ready =>
-                    readout_fsm_dbg <= "0111";
-                    if i_cor_ready = '1' then
-                        readout_fsm <= idle;
-                    end if;
-                
-                when others =>
-                    readout_fsm_dbg <= "1111";
-                    readout_fsm <= idle;
-            end case;
+                end case;
+            end if;
             
             
             -- Pipeline stage to ensure data output comes from a register

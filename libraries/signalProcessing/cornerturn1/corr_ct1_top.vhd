@@ -187,7 +187,9 @@ entity corr_ct1_top is
         i_m06_axi_arready : in std_logic;
         -- r bus - read data
         i_m06_axi_r       : in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
-        o_m06_axi_rready  : out std_logic
+        o_m06_axi_rready  : out std_logic;
+        --
+        i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0)
     );
     
     -- prevent optimisation across module boundaries.
@@ -342,6 +344,12 @@ architecture Behavioral of corr_ct1_top is
     signal dbg_hbm_ar_valid : std_logic;
     signal dbg_hbm_ar_ready : std_logic;
     signal dbg_hbm_r_valid : std_logic;
+    
+    signal dbg_rd_tracker_bad : std_logic; --  <= i_hbm_rst_dbg(1)(0);
+    signal dbg_wr_tracker_bad : std_logic; -- <= i_hbm_rst_dbg(1)(1);
+    signal dbg_wr_tracker : std_logic_vector(11 downto 0);
+    signal dbg_hbm_reset_fsm : std_logic_vector(3 downto 0);
+    signal dbg_hbm_reset : std_logic;
     
 begin
     
@@ -1253,10 +1261,16 @@ begin
             dbg_hbm_ar_valid <= m01_axi_ar.valid;
             dbg_hbm_ar_ready <= i_m01_axi_arready;
             
+            dbg_rd_tracker_bad <= i_hbm_rst_dbg(1)(0);
+            dbg_wr_tracker_bad <= i_hbm_rst_dbg(1)(1);
+            dbg_wr_tracker <= i_hbm_rst_dbg(1)(27 downto 16);
+            
+            dbg_hbm_reset <= i_hbm_rst_dbg(1)(2);
+            dbg_hbm_reset_fsm <= i_hbm_rst_dbg(1)(31 downto 28);
+            
         end if;
     end process;
     
-
     
     ct2_ila : ila_120_16k
     port map (
@@ -1270,7 +1284,14 @@ begin
        probe0(11) => dbg_readOverflow_set,
        probe0(12) => dbg_readoverflow,
        probe0(22 downto 13) => dbg_chan0,
-       probe0(54 downto 23) => dbg_integration,
+       probe0(35 downto 23) => dbg_integration(12 downto 0),
+       
+       probe0(39 downto 36) => dbg_hbm_reset_fsm,
+       probe0(40) => dbg_hbm_reset,
+       probe0(41) => dbg_rd_tracker_bad,
+       probe0(42) => dbg_wr_tracker_bad,
+       probe0(54 downto 43) => dbg_wr_tracker,
+       
        probe0(56 downto 55) => "00",
        probe0(57) => dbg_o_valid,
        probe0(58) => dbg_sof_int,

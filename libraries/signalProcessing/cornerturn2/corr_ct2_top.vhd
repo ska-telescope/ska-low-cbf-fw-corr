@@ -162,7 +162,8 @@ entity corr_ct2_top is
         -- debug
         i_hbm_status   : in t_slv_8_arr(5 downto 0);
         i_hbm_reset_final : in std_logic;
-        i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0)
+        i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0);
+        i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0)
     );
 end corr_ct2_top;
 
@@ -303,6 +304,10 @@ architecture Behavioral of corr_ct2_top is
     signal dbg_hbm_status0, dbg_hbm_status1 : std_logic_vector(7 downto 0);
     signal dbg_hbm_reset_final : std_logic;
     signal dbg_eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
+    
+    signal dbg_rd_tracker_bad : std_logic; --  <= i_hbm_rst_dbg(1)(0);
+    signal dbg_wr_tracker_bad : std_logic; -- <= i_hbm_rst_dbg(1)(1);
+    signal dbg_wr_tracker : std_logic_vector(11 downto 0);
     
 begin
     
@@ -544,7 +549,8 @@ begin
         i_start     => readout_start_pulse, --  in std_logic; -- start reading out data to the correlators
         i_buffer    => readout_buffer_del1, --  in std_logic; -- which of the double buffers to read out ?
         i_frameCount => readout_frameCount_del1, -- in (31:0); -- 849ms frame since epoch.
-        
+        -- Data path reset
+        i_rst      => rst_del2,          --  in std_logic;
         -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
         o_SB_req   => dout_SB_req(0),    -- Rising edge gets the parameters for the next subarray-beam to read out.
         i_SB       => cur_readout_SB(0), -- in (6:0); which subarray-beam are we currently processing from the subarray-beam table.
@@ -610,7 +616,8 @@ begin
             i_start     => readout_start_pulse, --  in std_logic; -- start reading out data to the correlators
             i_buffer    => readout_buffer_del1, --  in std_logic; -- which of the double buffers to read out ?
             i_frameCount => readout_frameCount_del1, -- in (31:0); -- 849ms frame since epoch.
-            
+            -- data path reset
+            i_rst       => rst_del2, --  in std_logic;
             -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
             o_SB_req   => dout_SB_req(i),    -- Rising edge gets the parameters for the next subarray-beam to read out.
             i_SB       => cur_readout_SB(i), -- in (6:0); which subarray-beam are we currently processing from the subarray-beam table.
@@ -1050,6 +1057,19 @@ begin
             dbg_hbm_reset_final <= i_hbm_reset_final; -- 1 bit
             dbg_eth_disable_fsm_dbg <= i_eth_disable_fsm_dbg; -- 5 bits
             
+            --
+            dbg_rd_tracker_bad <= i_hbm_rst_dbg(1)(0);
+            dbg_wr_tracker_bad <= i_hbm_rst_dbg(1)(1);
+            dbg_wr_tracker <= i_hbm_rst_dbg(1)(27 downto 16);
+            
+            --o_dbg(0) <= rd_tracker_bad;
+            --o_dbg(1) <= wr_tracker_bad;
+            --o_dbg(3 downto 2) <= "00";
+            --o_dbg(15 downto 4) <= std_logic_vector(hbm_rd_tracker);
+            --o_dbg(27 downto 16) <= std_logic_vector(hbm_wr_tracker);
+            --o_dbg(31 downto 28) <= "0000";
+            
+            
         end if;
     end process;
     
@@ -1106,11 +1126,15 @@ begin
         probe0(99 downto 90) => dbg_dout_dataFIFO_wrCount, -- <= dout_dataFIFO_wrCount; -- : std_logic_vector(9 downto 0);
         
         -- 9 bits
-        probe0(100) => dbg_cor_valid, -- <= cor_valid_int(0);
-        probe0(108 downto 101) => dbg_cor_tileChannel, -- <= o_cor_tileChannel(0)(7 downto 0);
+        probe0(100) => dbg_rd_tracker_bad,
+        probe0(101) => dbg_wr_tracker_bad,
+        probe0(109 downto 102) => dbg_wr_tracker(7 downto 0),
+        
+        --probe0(100) => dbg_cor_valid, -- <= cor_valid_int(0);
+        --probe0(108 downto 101) => dbg_cor_tileChannel, -- <= o_cor_tileChannel(0)(7 downto 0);
         
         -- 1 bit
-        probe0(109) => dbg_freq_index0_repeat, -- <= i_freq_index0_repeat; -- (export from single_correlator.vhd)
+        --probe0(109) => dbg_freq_index0_repeat, -- <= i_freq_index0_repeat; -- (export from single_correlator.vhd)
         
         -- 9 bits
         probe0(110) => dbg_axi_aw_valid, -- <= o_HBM_axi_aw(0).valid;

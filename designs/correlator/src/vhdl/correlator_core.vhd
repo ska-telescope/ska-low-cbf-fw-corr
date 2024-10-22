@@ -378,6 +378,7 @@ ARCHITECTURE structure OF correlator_core IS
     -- HBM reset
     signal hbm_reset                : std_logic_vector(5 downto 0);
     signal hbm_status               : t_slv_8_arr(5 downto 0);
+    signal hbm_rst_dbg              : t_slv_32_arr(5 downto 0);
     signal hbm_reset_combined       : std_logic_vector(5 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
@@ -948,6 +949,7 @@ begin
         -- HBM reset
         o_hbm_reset    => hbm_reset,
         i_hbm_status   => hbm_status,
+        i_hbm_rst_dbg  => hbm_rst_dbg,
         i_hbm_reset_final => hbm_reset_final,   -- 1 bit
         i_eth_disable_fsm_dbg => eth_disable_fsm_dbg -- 5 bits
     );
@@ -1004,6 +1006,7 @@ begin
                 i_logic_reset           => hbm_reset_final, -- hbm_reset_combined(i),
                 o_in_reset              => open,
                 o_reset_complete        => hbm_status(i),
+                o_dbg                   => hbm_rst_dbg(i),
                 -----------------------------------------------------
                 -- To HBM
                 -- Data out to the HBM
