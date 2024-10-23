@@ -350,6 +350,11 @@ architecture Behavioral of corr_ct1_top is
     signal dbg_wr_tracker : std_logic_vector(11 downto 0);
     signal dbg_hbm_reset_fsm : std_logic_vector(3 downto 0);
     signal dbg_hbm_reset : std_logic;
+
+    signal uptime : std_logic_vector(39 downto 0);
+    signal time_since_sof, time_since_data_rst, time_since_ivalid, time_since_hbm_rst : std_logic_vector(31 downto 0);
+    signal dbg_vec2 : std_logic_vector(255 downto 0);
+    signal dbg_vec2_valid : std_logic;
     
 begin
     
@@ -1184,12 +1189,99 @@ begin
     dbg_vec_final(191 downto 176) <= poly_wr_occurred & poly_wr_addr;
     dbg_vec_final(255 downto 192) <= dbg_vec(255 downto 192);
     
+    
+    -- Alternate set of signals for the HBM ILA
+    process(i_shared_clk)
+    begin
+        if rising_edge(i_shared_clk) then
+            uptime <= std_logic_vector(unsigned(uptime) + 1);
+            
+            if sof_int = '1' then
+                time_since_sof <= (others => '0');
+            else
+                time_since_sof <= std_logic_vector(unsigned(time_since_sof) + 1);
+            end if;
+            
+            if soffull_int = '1' then
+                time_since_sofFull <= (others => '0');
+            else
+                time_since_sofFull <= std_logic_vector(unsigned(time_since_sofFull) + 1);
+            end if;
+            
+            if data_Rst = '1' then
+                time_since_data_rst <= (others => '0');
+            elsif time_since_data_rst /= x"ffffffff" then
+                time_since_data_rst <= std_logic_vector(unsigned(time_since_data_rst) + 1);
+            end if;
+            
+            if dbg_hbm_reset = '1' then
+                time_since_hbm_rst <= (others => '0');
+            elsif time_since_hbm_rst /= x"ffffffff" then
+                time_since_hbm_rst <= std_logic_vector(unsigned(time_since_hbm_rst) + 1);
+            end if;
+            
+            if i_valid = '1' then
+                time_since_ivalid <= (others => '0');
+            elsif time_since_ivalid /= x"ffffffff" then
+                time_since_ivalid <= std_logic_vector(unsigned(time_since_ivalid) + 1);
+            end if;
+            
+            if validOut = '1' and validOutdel = '0' then
+                dbg_vec2(15 downto 0) <= meta01.virtualChannel(9 downto 0);
+                dbg_vec2(31 downto 16) <= meta01.integration(15 downto 0);
+                dbg_vec2(33 downto 32) <= meta01.ctframe;
+                dbg_vec2(34) <= dbg_rd_tracker_bad;
+                dbg_vec2(35) <= dbg_wr_tracker_bad;
+                dbg_vec2(36) <= waiting_to_latch_on;
+                dbg_vec2(37) <= running;
+                dbg_vec2(38) <= readOverflow_set;
+                dbg_vec2(39) <= readoverflow;
+                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+                dbg_vec2(55 downto 52) <= "0000";
+                dbg_vec2(103 downto 64) <= uptime;
+                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
+                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
+                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
+                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
+                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
+                dbg_vec2(228) <= '1';
+                dbg_vec2(231 downto 229) <= "000";
+                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+                dbg_vec2_valid <= '1';
+            elsif validOut = '0' and validOutDel = '1' then
+                -- Falling edge of validOut
+                dbg_vec2(34) <= dbg_rd_tracker_bad;
+                dbg_vec2(35) <= dbg_wr_tracker_bad;
+                dbg_vec2(36) <= waiting_to_latch_on;
+                dbg_vec2(37) <= running;
+                dbg_vec2(38) <= readOverflow_set;
+                dbg_vec2(39) <= readoverflow;
+                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+                dbg_vec2(55 downto 52) <= "0000";
+                dbg_vec2(103 downto 64) <= uptime;
+                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
+                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
+                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
+                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
+                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
+                dbg_vec2(228) <= '0';
+                dbg_vec2(231 downto 229) <= "000";
+                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+                dbg_vec2_valid <= '1';
+            else
+                dbg_vec2_valid <= '0';
+            end if;
+            
+        end if;
+    end process;
+    
+    
     hbm_ilai : entity ct_lib.hbm_ila
     port map (
         dsp_clk    => i_shared_clk, -- : in std_logic;
         -- 16 bytes of debug data, and valid.
-        i_ila_data       => dbg_vec_final, -- in std_logic_vector(255 downto 0);
-        i_ila_data_valid => dbg_vec_valid, -- in std_logic;
+        i_ila_data       => dbg_vec2, -- dbg_vec_final, -- in std_logic_vector(255 downto 0);
+        i_ila_data_valid => dbg_vec2_valid, -- dbg_vec_valid, -- in std_logic;
         o_hbm_addr       => hbm_ila_addr, -- out std_logic_vector(31 downto 0); -- Address we are up to in the HBM.
         -- Write out to the HBM
         -- write address buses : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
@@ -1244,12 +1336,6 @@ begin
             dbg_o_valid <= validOut;
             dbg_sof_int <= sof_int;
             dbg_sofFull_int <= sofFull_int;
-            
-            if dbg_sofFull_int = '1' then
-                time_since_sofFull <= (others => '0');
-            else
-                time_since_sofFull <= std_logic_vector(unsigned(time_since_sofFull) + 1);
-            end if;
             
             dbg_hbm_aw_valid <= not AWFIFO_empty;
             dbg_hbm_aw_ready <= i_m01_axi_awready;
