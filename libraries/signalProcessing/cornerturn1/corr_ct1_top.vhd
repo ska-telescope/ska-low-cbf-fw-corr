@@ -1227,7 +1227,7 @@ begin
             end if;
             
             if validOut = '1' and validOutdel = '0' then
-                dbg_vec2(15 downto 0) <= meta01.virtualChannel(9 downto 0);
+                dbg_vec2(15 downto 0) <= meta01.virtualChannel(15 downto 0);
                 dbg_vec2(31 downto 16) <= meta01.integration(15 downto 0);
                 dbg_vec2(33 downto 32) <= meta01.ctframe;
                 dbg_vec2(34) <= dbg_rd_tracker_bad;
