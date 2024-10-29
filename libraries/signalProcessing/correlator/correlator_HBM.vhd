@@ -499,7 +499,7 @@ begin
                 -- Byte address of the start of the row of tiles in HBM.
                 o_ro_HBM_start_addr <= "0000" & SPEAD_trigger_dout(54 downto 40) & "0000000000000"; -- out (31:0);
 
-                o_ro_badPoly <= SPEAD_trigger_dout(55);
+                o_ro_bad_Poly <= SPEAD_trigger_dout(55);
                 -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
                 -- integration time.
                 o_ro_time_ref <= (others => '0'); -- TODO - work out how this should be set.
