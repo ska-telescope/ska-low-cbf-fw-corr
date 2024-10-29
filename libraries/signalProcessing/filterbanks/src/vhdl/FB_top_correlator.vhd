@@ -259,7 +259,7 @@ begin
         
     corfbi : entity filterbanks_lib.correlatorFBTop25
     generic map(
-        METABITS => 614, -- 361,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 618, -- 361,    -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
         -- processing clock
@@ -292,7 +292,7 @@ begin
     
     corfb2i : entity filterbanks_lib.correlatorFBTop25
     generic map(
-        METABITS => 614,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 618,    -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
         -- processing clock
