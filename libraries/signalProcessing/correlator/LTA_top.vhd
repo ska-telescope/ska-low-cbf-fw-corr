@@ -694,7 +694,7 @@ begin
                 o_channel <= deliverChannelDel(15);
                 o_totalStations <= delivertotalStationsDel(15);
                 o_subarrayBeam <= deliverSubarrayBeamDel(15);
-                o_badPoly <= deliverSubarrayBeamDel(15);
+                o_badPoly <= deliverBadPolyDel(15);
             else
                 o_data <= dv_tci_dout;
                 o_visValid <= '0';

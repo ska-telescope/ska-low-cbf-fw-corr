@@ -143,7 +143,9 @@ entity DSP_top_correlator is
         i_hbm_status   : in t_slv_8_arr(5 downto 0);
         i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0);
         i_hbm_reset_final : in std_logic;
-        i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0) -- 5 bits
+        i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0); -- 5 bits
+        i_axi_dbg  : in std_logic_vector(127 downto 0); -- 128 bits
+        i_axi_dbg_valid : in std_logic
     );
 end DSP_top_correlator;
 
@@ -358,6 +360,9 @@ begin
         o_data7 => FB_data7,   -- out t_slv_8_arr(1 downto 0);
         o_meta67 => FB_meta67, -- out 
         o_valid => FB_valid,   -- out std_logic;
+        -------------------------------------------------------------
+        i_axi_dbg  => i_axi_dbg, -- : in std_logic_vector(127 downto 0); -- 128 bits
+        i_axi_dbg_valid => i_axi_dbg_valid, -- : in std_logic
         -------------------------------------------------------------
         -- AXI bus to the shared memory. 
         -- This has the aw, b, ar and r buses (the w bus is on the output of the LFAA decode module)

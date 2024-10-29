@@ -403,6 +403,9 @@ ARCHITECTURE structure OF correlator_core IS
     signal HBM_axi_arbursti : t_slv_2_arr(g_HBM_INTERFACES - 1 downto 0);
     signal HBM_shared : t_slv_64_arr(g_HBM_interfaces-1 downto 0);
     
+    signal axi_dbg : std_logic_vector(127 downto 0);
+    signal axi_dbg_valid : std_logic;
+    
     function get_axi_size(AXI_DATA_WIDTH : integer) return std_logic_vector is
     begin
         if AXI_DATA_WIDTH = 8 then
@@ -492,6 +495,7 @@ ARCHITECTURE structure OF correlator_core IS
     signal i_axis_tuser_gated : std_logic_vector(79 downto 0); -- Timestamp for the packet.
     signal i_axis_tvalid_gated : std_logic;
     signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
+    signal hbm_reset_actual : std_logic_vector(5 downto 0);
     
 begin
     
@@ -605,6 +609,30 @@ begin
         MSTR_IN_FULL   => mc_full_miso,
         MSTR_OUT_FULL  => mc_full_mosi
     );
+    
+    process(ap_clk)
+    begin
+        if rising_edge(ap_clk) then
+            axi_dbg(0) <= mc_master_mosi.awvalid;
+            axi_dbg(1) <= mc_master_mosi.wvalid;
+            axi_dbg(2) <= mc_master_mosi.arvalid;
+            axi_dbg(3) <= mc_master_miso.awready;
+            axi_dbg(4) <= mc_master_miso.wready;
+            axi_dbg(5) <= mc_master_miso.arready;
+            axi_dbg(31 downto 6) <= (others => '0');
+            axi_dbg(63 downto 32) <= mc_master_mosi.awaddr(31 downto 0);
+            axi_dbg(95 downto 64) <= mc_master_mosi.wdata(31 downto 0);
+            axi_dbg(127 downto 96) <= mc_master_mosi.araddr(31 downto 0);
+            if ((mc_master_mosi.awvalid = '1' and  mc_master_miso.awready = '1') or
+                (mc_master_mosi.wvalid = '1' and mc_master_miso.wready = '1') or
+                (mc_master_mosi.arvalid = '1' and mc_master_miso.arready = '1')) then
+                axi_dbg_valid <= '1';
+            else
+                axi_dbg_valid <= '0';
+            end if;
+        end if;
+    end process;
+    
     
     o_cmac_mc_lite_mosi <= mc_lite_mosi(c_cmac_lite_index);
     mc_lite_miso(c_cmac_lite_index) <= i_cmac_mc_lite_miso;
@@ -951,7 +979,9 @@ begin
         i_hbm_status   => hbm_status,
         i_hbm_rst_dbg  => hbm_rst_dbg,
         i_hbm_reset_final => hbm_reset_final,   -- 1 bit
-        i_eth_disable_fsm_dbg => eth_disable_fsm_dbg -- 5 bits
+        i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
+        i_axi_dbg => axi_dbg, -- 128 bits
+        i_axi_dbg_valid => axi_dbg_valid
     );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
@@ -991,6 +1021,13 @@ begin
     );    
     
     
+    hbm_reset_actual(0) <= hbm_reset_final;
+    hbm_reset_actual(1) <= hbm_reset_final;
+    hbm_reset_actual(2) <= hbm_reset_final;
+    hbm_reset_actual(3) <= hbm_reset_final;
+    hbm_reset_actual(4) <= hbm_reset_final;
+    hbm_reset_actual(5) <= '0'; -- don't reset the HBM for the ILA, want to be able to see what is happening.
+    
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
     axi_HBM_gen : for i in 0 to 5 generate
@@ -1003,7 +1040,7 @@ begin
                 i_clk                   => ap_clk,
                 i_reset                 => ap_rst,
         
-                i_logic_reset           => hbm_reset_final, -- hbm_reset_combined(i),
+                i_logic_reset           => hbm_reset_actual(i), -- hbm_reset_combined(i),
                 o_in_reset              => open,
                 o_reset_complete        => hbm_status(i),
                 o_dbg                   => hbm_rst_dbg(i),

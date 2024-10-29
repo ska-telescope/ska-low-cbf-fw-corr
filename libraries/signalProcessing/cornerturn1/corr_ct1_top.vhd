@@ -161,6 +161,9 @@ entity corr_ct1_top is
         o_meta67 : out t_CT1_META_out;
         o_valid : out std_logic;
         -------------------------------------------------------------
+        i_axi_dbg  : in std_logic_vector(127 downto 0); -- 128 bits
+        i_axi_dbg_valid : in std_logic;
+        -------------------------------------------------------------
         -- AXI bus to the shared memory. 
         -- This has the aw, b, ar and r buses (the w bus is on the output of the LFAA decode module)
         -- w bus - write data
@@ -1226,7 +1229,53 @@ begin
                 time_since_ivalid <= std_logic_vector(unsigned(time_since_ivalid) + 1);
             end if;
             
-            if validOut = '1' and validOutdel = '0' then
+--            if validOut = '1' and validOutdel = '0' then
+--                dbg_vec2(15 downto 0) <= meta01.virtualChannel(15 downto 0);
+--                dbg_vec2(31 downto 16) <= meta01.integration(15 downto 0);
+--                dbg_vec2(33 downto 32) <= meta01.ctframe;
+--                dbg_vec2(34) <= dbg_rd_tracker_bad;
+--                dbg_vec2(35) <= dbg_wr_tracker_bad;
+--                dbg_vec2(36) <= waiting_to_latch_on;
+--                dbg_vec2(37) <= running;
+--                dbg_vec2(38) <= readOverflow_set;
+--                dbg_vec2(39) <= readoverflow;
+--                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+--                dbg_vec2(55 downto 52) <= "0000";
+--                dbg_vec2(103 downto 64) <= uptime;
+--                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
+--                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
+--                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
+--                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
+--                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
+--                dbg_vec2(228) <= '1';
+--                dbg_vec2(231 downto 229) <= "000";
+--                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+--                dbg_vec2_valid <= '1';
+--            elsif validOut = '0' and validOutDel = '1' then
+--                -- Falling edge of validOut
+--                dbg_vec2(34) <= dbg_rd_tracker_bad;
+--                dbg_vec2(35) <= dbg_wr_tracker_bad;
+--                dbg_vec2(36) <= waiting_to_latch_on;
+--                dbg_vec2(37) <= running;
+--                dbg_vec2(38) <= readOverflow_set;
+--                dbg_vec2(39) <= readoverflow;
+--                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+--                dbg_vec2(55 downto 52) <= "0000";
+--                dbg_vec2(103 downto 64) <= uptime;
+--                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
+--                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
+--                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
+--                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
+--                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
+--                dbg_vec2(228) <= '0';
+--                dbg_vec2(231 downto 229) <= "000";
+--                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+--                dbg_vec2_valid <= '1';
+--            else
+--                dbg_vec2_valid <= '0';
+--            end if;
+            
+            if ((validOut = '1' and validOutdel = '0') or i_axi_dbg_valid = '1') then
                 dbg_vec2(15 downto 0) <= meta01.virtualChannel(15 downto 0);
                 dbg_vec2(31 downto 16) <= meta01.integration(15 downto 0);
                 dbg_vec2(33 downto 32) <= meta01.ctframe;
@@ -1237,19 +1286,17 @@ begin
                 dbg_vec2(38) <= readOverflow_set;
                 dbg_vec2(39) <= readoverflow;
                 dbg_vec2(51 downto 40) <= dbg_wr_tracker;
-                dbg_vec2(55 downto 52) <= "0000";
+                dbg_vec2(52) <= validOut;
+                dbg_vec2(53) <= validOutDel;
+                dbg_vec2(54) <= i_axi_dbg_valid;
+                dbg_vec2(55) <= '0';
                 dbg_vec2(103 downto 64) <= uptime;
                 dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
-                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
-                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
-                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
-                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
-                dbg_vec2(228) <= '1';
-                dbg_vec2(231 downto 229) <= "000";
-                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+                dbg_vec2(255 downto 128) <= i_axi_dbg;
                 dbg_vec2_valid <= '1';
-            elsif validOut = '0' and validOutDel = '1' then
+            elsif ((validOut = '0' and validOutDel = '1') or i_axi_dbg_valid = '1') then
                 -- Falling edge of validOut
+                dbg_vec2(31 downto 0) <= time_since_data_rst(31 downto 0);
                 dbg_vec2(34) <= dbg_rd_tracker_bad;
                 dbg_vec2(35) <= dbg_wr_tracker_bad;
                 dbg_vec2(36) <= waiting_to_latch_on;
@@ -1257,20 +1304,18 @@ begin
                 dbg_vec2(38) <= readOverflow_set;
                 dbg_vec2(39) <= readoverflow;
                 dbg_vec2(51 downto 40) <= dbg_wr_tracker;
-                dbg_vec2(55 downto 52) <= "0000";
+                dbg_vec2(52) <= validOut;
+                dbg_vec2(53) <= validOutDel;
+                dbg_vec2(54) <= i_axi_dbg_valid;
+                dbg_vec2(55) <= '0';
                 dbg_vec2(103 downto 64) <= uptime;
-                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
-                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
-                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
-                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
-                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
-                dbg_vec2(228) <= '0';
-                dbg_vec2(231 downto 229) <= "000";
-                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+                dbg_vec2(127 downto 104) <= time_since_sofFull(23 downto 0);
+                dbg_vec2(255 downto 128) <= i_axi_dbg;
                 dbg_vec2_valid <= '1';
             else
                 dbg_vec2_valid <= '0';
-            end if;
+            end if;            
+            
             
         end if;
     end process;

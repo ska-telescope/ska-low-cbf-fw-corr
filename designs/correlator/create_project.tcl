@@ -377,6 +377,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count6.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count16.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
@@ -388,6 +389,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_din.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count6.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count16.vhd \
  *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
