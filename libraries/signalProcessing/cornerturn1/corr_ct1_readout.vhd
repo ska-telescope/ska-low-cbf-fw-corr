@@ -246,7 +246,7 @@ architecture Behavioral of corr_ct1_readout is
     
     signal bufFIFO_din : std_logic_vector(3 downto 0);
     signal bufFIFO_dout : t_slv_4_arr(3 downto 0);
-    signal delayFIFO_dout : t_slv_128_arr(3 downto 0);
+    signal delayFIFO_dout : t_slv_129_arr(3 downto 0);
     signal bufFIFO_empty : std_logic_vector(3 downto 0);
     signal bufFIFO_rdDataCount : t_slv_11_arr(3 downto 0);
     signal bufFIFO_wrDataCount : t_slv_11_arr(3 downto 0);
@@ -331,7 +331,7 @@ architecture Behavioral of corr_ct1_readout is
     signal delay_valid : std_logic;
     signal delay_offset, delay_offset_inv, delay_offset_neg : std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
     
-    signal delayFIFO_din : std_logic_vector(127 downto 0);
+    signal delayFIFO_din : std_logic_vector(128 downto 0);
     signal delayFIFO_wrEn : std_logic_Vector(3 downto 0);
     
     type poly_fsm_t is (start, wait_done0, wait_done1, wait_done2, check_fifos, update_vc, check_vc, done);
@@ -377,6 +377,7 @@ architecture Behavioral of corr_ct1_readout is
     signal dbg_vec_del1, dbg_vec_del2 : std_logic_vector(255 downto 0);
     signal fp32_delay_valid, fp32_delay_valid2 : std_logic;
     signal poly_result_fp32, poly_time_fp32 : std_logic_vector(31 downto 0);
+    signal bad_poly : std_logic; 
 
 begin
     
@@ -1126,13 +1127,13 @@ begin
             PROG_EMPTY_THRESH => 10,     -- DECIMAL
             PROG_FULL_THRESH => 10,      -- DECIMAL
             RD_DATA_COUNT_WIDTH => 11,   -- DECIMAL
-            READ_DATA_WIDTH => 128,       -- DECIMAL
+            READ_DATA_WIDTH => 129,       -- DECIMAL
             READ_MODE => "fwft",         -- String
             RELATED_CLOCKS => 0,         -- DECIMAL
             SIM_ASSERT_CHK => 0,         -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "0404",  -- String "404" includes read and write data counts.
             WAKEUP_TIME => 0,            -- DECIMAL
-            WRITE_DATA_WIDTH => 128,      -- DECIMAL
+            WRITE_DATA_WIDTH => 129,      -- DECIMAL
             WR_DATA_COUNT_WIDTH => 11    -- DECIMAL
         )
         port map (
@@ -1228,6 +1229,7 @@ begin
             delayFIFO_din(63 downto 32) <= delay_Vpol_deltaP;
             delayFIFO_din(95 downto 64) <= delay_Hpol_phase;
             delayFIFO_din(127 downto 96) <= delay_Vpol_phase;
+            delayFIFO_din(128) <= bad_poly;
             --delayFIFO_din(143 downto 128) <= delay_vc;  -- Just a sanity check, fifo read and write order should be ensure that the correct virtual channel goes to the correct output
             --delayFIFO_din(151 downto 144) <= delay_packet(7 downto 0); -- packet within the corner turn frame
             if delay_valid = '1' then
@@ -1416,6 +1418,7 @@ begin
         o_Hpol_phase => delay_Hpol_phase, -- out std_logic_vector(31 downto 0);
         o_Vpol_deltaP => delay_Vpol_deltaP, -- out std_logic_vector(31 downto 0);
         o_Vpol_phase  => delay_Vpol_phase, -- out std_logic_vector(31 downto 0);
+        o_bad_poly    => bad_poly,         -- out std_logic; No valid polynomial was found.
         o_valid       => delay_valid,      -- out std_logic
         
         ----------------------------------------------------------------------
@@ -1888,21 +1891,25 @@ begin
                 o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
                 o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
                 o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
+                o_meta0.bad_poly <= delayFIFO_dout(0)(128);
                     
                 o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
                 o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
                 o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
                 o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
+                o_meta1.bad_poly <= delayFIFO_dout(1)(128);
                     
                 o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
                 o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
                 o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
                 o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
+                o_meta2.bad_poly <= delayFIFO_dout(2)(128);
                   
                 o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
                 o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
                 o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
                 o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);  
+                o_meta3.bad_poly <= delayFIFO_dout(3)(128);
                 
             elsif (unsigned(packetsRemaining) > 0) then
                 -- Changed to improve timing, was : if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusOne))) then
@@ -1918,21 +1925,25 @@ begin
                     o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
                     o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
                     o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
+                    o_meta0.bad_poly <= delayFIFO_dout(0)(128);
                     
                     o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
                     o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
                     o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
                     o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
+                    o_meta1.bad_poly <= delayFIFO_dout(1)(128);
                     
                     o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
                     o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
                     o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
                     o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
+                    o_meta2.bad_poly <= delayFIFO_dout(2)(128);
                     
                     o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
                     o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
                     o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
-                    o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);                    
+                    o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);
+                    o_meta3.bad_poly <= delayFIFO_dout(3)(128);                    
                     
                     packetsRemaining <= packetsRemaining_minus1;
                     if ((unsigned(packetsRemaining_minus1) <= (g_SPS_PACKETS_PER_FRAME/2)) and

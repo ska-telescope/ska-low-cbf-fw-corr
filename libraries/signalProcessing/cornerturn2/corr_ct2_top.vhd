@@ -110,6 +110,7 @@ entity corr_ct2_top is
         i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      : in std_logic_vector(1 downto 0); -- 283 ms frame within each integration interval
         i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
+        i_bad_poly     : in std_logic;
         i_HeaderValid : in std_logic_vector(3 downto 0);
         i_data        : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
         i_dataValid   : in std_logic;
@@ -140,6 +141,7 @@ entity corr_ct2_top is
         o_cor_colstations       : out t_slv_9_arr(g_MAX_CORRELATORS-1 downto 0); -- number of stations in the col memories to process; up to 256.
         o_cor_totalStations     : out t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- Total number of stations being processing for this subarray-beam.
         o_cor_subarrayBeam      : out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  -- Which entry is this in the subarray-beam table ? 
+        o_cor_badPoly           : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0); -- out std_logic; No valid polynomial for some of the data in the subarray-beam
         -----------------------------------------------------------------
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
@@ -190,8 +192,8 @@ architecture Behavioral of corr_ct2_top is
     signal din_SB_n_fine : std_logic_Vector(23 downto 0);      -- The number of fine channels in this subarray-beam
     signal din_SB_HBM_base_addr : std_logic_vector(31 downto 0); --  Base address in HBM for this subarray-beam.
     signal dout_SB_req      : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
-    signal dout_SB_req_d0   : std_logic_vector(5 downto 0) := (others => '0');
-    signal dout_SB_req_d1   : std_logic_vector(5 downto 0) := (others => '0');
+    signal dout_SB_req_d0   : std_logic := '0'; -- std_logic_vector(5 downto 0) := (others => '0');
+    signal dout_SB_req_d1   : std_logic := '0'; -- std_logic_vector(5 downto 0) := (others => '0');
     signal dout_SB_valid    : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal dout_SB_stations : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);    -- The number of (sub)stations in this subarray-beam
     signal dout_SB_coarseStart : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- The first coarse channel in this subarray-beam
@@ -201,10 +203,11 @@ architecture Behavioral of corr_ct2_top is
     signal dout_SB_timeIntegrations : t_slv_2_arr(g_MAX_CORRELATORS-1 downto 0);  -- in (1:0);  Number of time samples per integration.
     signal dout_SB_HBM_base_addr : t_slv_32_arr(g_MAX_CORRELATORS-1 downto 0);    -- in (31:0)  Base address in HBM for this subarray-beam.
     signal cur_readout_SB : t_slv_7_arr(g_MAX_CORRELATORS-1 downto 0);
+    signal dout_SB_bad_poly : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal total_subarray_beams : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);
     signal dout_SB_done : std_logic_vector(15 downto 0);
-    type SB_rd_fsm_type is (idle, get_din_rd1, get_din_rd2, get_din_rd3, get_din_rd4, get_dout_rd1, get_dout_rd2, get_dout_rd3, get_dout_rd4);
-    signal SB_rd_fsm, SB_rd_fsm_del1, SB_rd_fsm_del2, SB_rd_fsm_del3 : SB_rd_fsm_type;
+    type SB_rd_fsm_type is (idle, get_din_rd1, get_din_rd2, get_din_rd3, get_din_rd4, get_din_wait_done, get_dout_rd1, get_dout_rd2, get_dout_rd3, get_dout_rd4);
+    signal SB_rd_fsm, SB_rd_fsm_del1, SB_rd_fsm_del2, SB_rd_fsm_del3, SB_rd_fsm_del4 : SB_rd_fsm_type;
     signal dout_SB_sel, dout_SB_sel_del1, dout_SB_sel_del2, dout_SB_sel_del3 : std_logic_vector(0 downto 0);
     signal SB_addr : std_logic_vector(10 downto 0);
     signal din_SB_req : std_logic;
@@ -308,6 +311,16 @@ architecture Behavioral of corr_ct2_top is
     signal dbg_rd_tracker_bad : std_logic; --  <= i_hbm_rst_dbg(1)(0);
     signal dbg_wr_tracker_bad : std_logic; -- <= i_hbm_rst_dbg(1)(1);
     signal dbg_wr_tracker : std_logic_vector(11 downto 0);
+    
+    signal cor0_bp_wr_addr : std_logic_vector(7 downto 0);
+    signal cor0_bp_wr_en   : std_logic;
+    signal cor0_bp_wr_data : std_logic;
+    signal cor1_bp_wr_addr : std_logic_vector(7 downto 0);
+    signal cor1_bp_wr_en   : std_logic;
+    signal cor1_bp_wr_data : std_logic;
+    
+    signal cor_bp_rd_addr : std_logic_vector(7 downto 0);
+    signal cor_bp_rd_data : std_logic_vector(1 downto 0);
     
 begin
     
@@ -488,11 +501,11 @@ begin
         -- 
         i_rst              => rst_del1,         -- in std_logic;
         i_sof              => i_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 60ms of data).
-        i_tableSelect      => statctrl_rw.table_select, -- in std_logic;
         -- i_frameCount_mod3 and i_frameCount_849ms are captured on the SECOND cycle of i_datavalid after i_sof
         i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
         i_frameCount_849ms => frameCount_849ms, -- in (31:0)
         i_virtualChannel   => i_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the data streams.
+        i_bad_poly         => i_bad_poly,       -- in std_logic;
         i_lastChannel      => last_channel_16bit, -- in (15:0)
         i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
@@ -500,6 +513,13 @@ begin
         o_trigger_readout  => trigger_readout,  -- out std_logic; All data has been written to the HBM, can start reading out to the correlator.
         o_trigger_buffer   => trigger_buffer,   -- out std_logic;
         o_trigger_frameCount => trigger_frameCount, -- out (31:0)
+        -- interface to the bad poly memory
+        o_bp_addr0    => cor0_bp_wr_addr, -- out std_logic_vector(7 downto 0);
+        o_bp_wr_en0   => cor0_bp_wr_en,   -- out std_logic;
+        o_bp_wr_data0 => cor0_bp_wr_data, -- out std_logic;
+        o_bp_addr1    => cor1_bp_wr_addr, -- out std_logic_vector(7 downto 0);
+        o_bp_wr_en1   => cor1_bp_wr_en,   -- out std_logic;
+        o_bp_wr_data1 => cor1_bp_wr_data, -- out std_logic;
         -- interface to the demap table
         o_vc_demap_rd_addr   => vc_demap_rd_Addr,    -- out (7:0);  address into the demap table, 0-255 = floor(virtual_channel / 4)
         o_vc_demap_req       => vc_demap_req,        -- out std_logic;  -- request a read from address o_vc_demap_rd_addr
@@ -538,6 +558,35 @@ begin
         i_HBM_axi_b       => i_HBM_axi_b(1 downto 0)        -- in  t_axi4_full_b_arr     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.       
     );
     
+    ----------------------------------------
+    -- Bad poly memory
+    -- One bit for each entry in the subarray-beam table
+    -- double buffered, so data is written to one half by corr_ct2_din, 
+    --   while the other half is being read from by corr_ct2_dout
+    -- Write side must be cleared to zeros at the start of a frame. 
+    -- 2 correlators, so 2 memories,
+    -- Each correlator can have up to 256 entries in the subarray-beam table, 
+    -- 2 buffers so 512 total entries.
+    bad_polys : entity ct_lib.corr_ct2_bad_poly_mem
+    port map (
+        clk  => i_axi_clk, -- in std_logic;
+        -- First memory
+        wr_addr0 => cor0_bp_wr_addr, -- in std_logic_vector(7 downto 0);
+        wr_en0   => cor0_bp_wr_en,   -- in std_logic;
+        wr_data0 => cor0_bp_wr_data, -- in std_logic;
+        rd_addr0 => cor_bp_rd_addr, -- in std_logic_vector(7 downto 0);
+        rd_data0 => cor_bp_rd_data(0), -- out std_logic; -- 2 clock read latency
+        -- Second memory
+        wr_addr1 => cor1_bp_wr_addr, -- in std_logic_vector(7 downto 0);
+        wr_en1   => cor1_bp_wr_en,   -- in std_logic;
+        wr_data1 => cor1_bp_wr_data, -- in std_logic;
+        rd_addr1 => cor_bp_rd_addr, -- in std_logic_vector(7 downto 0);
+        rd_data1 => cor_bp_rd_data(1)  -- out std_logic  -- 2 clock read latency
+    );
+    
+    -----------------------------------------------------------------------    
+
+    
     o_HBM_axi_aw <= HBM_axi_aw;
     o_HBM_axi_w <= HBM_axi_w;
     
@@ -563,6 +612,7 @@ begin
         i_fineIntegrations => dout_SB_fineIntegrations(0), -- in (5:0);  Number of fine channels to integrate
         i_timeIntegrations => dout_SB_timeIntegrations(0), -- in (1:0);  Number of time samples per integration.
         i_HBM_base_addr    => dout_SB_HBM_base_addr(0),    -- in (31:0)  Base address in HBM for this subarray-beam.
+        i_bad_poly => dout_SB_bad_poly(0),  -- in std_logic;
         ---------------------------------------------------------------
         -- Data out to the correlator arrays
         --
@@ -590,6 +640,7 @@ begin
         o_cor_colstations       => o_cor_colStations(0), -- out (8:0); Number of stations in the col memories to process; up to 256.
         o_cor_subarray_beam     => o_cor_subarrayBeam(0), -- out (7:0); Which entry is this in the subarray-beam table ? 
         o_cor_totalStations     => o_cor_totalStations(0), -- out (15:0); Total number of stations being processing for this subarray-beam.
+        o_cor_badPoly           => o_cor_badPoly(0),       -- out std_logic; No valid polynomial for some of the data in the subarray-beam
         ----------------------------------------------------------------
         -- read interfaces for the HBM
         o_HBM_axi_ar      => HBM_axi_ar(0),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -630,6 +681,7 @@ begin
             i_fineIntegrations => dout_SB_fineIntegrations(i), -- in (5:0);  Number of fine channels to integrate
             i_timeIntegrations => dout_SB_timeIntegrations(i), -- in (1:0);  Number of time samples per integration.
             i_HBM_base_addr    => dout_SB_HBM_base_addr(i),    -- in (31:0)  Base address in HBM for this subarray-beam.
+            i_bad_poly => dout_SB_bad_poly(i),  -- in std_logic;
             ---------------------------------------------------------------
             -- Data out to the correlator arrays
             --
@@ -657,6 +709,7 @@ begin
             o_cor_colstations       => o_cor_colStations(i), -- out (8:0); Number of stations in the col memories to process; up to 256.
             o_cor_subarray_beam     => o_cor_subarrayBeam(i), -- out (7:0); Which entry is this in the subarray-beam table ? 
             o_cor_totalStations     => o_cor_totalStations(i), -- out (15:0); Total number of stations being processing for this subarray-beam.
+            o_cor_badPoly           => o_cor_badPoly(i),       -- out std_logic; No valid polynomial for some of the data in the subarray-beam
             ----------------------------------------------------------------
             -- read interfaces for the HBM
             o_HBM_axi_ar      => HBM_axi_ar(i),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -820,22 +873,18 @@ begin
                 end loop;
             end if;
 
-            -- capture the config request, and cache it for 4 cycles.
-            -- the SM is 4 cycles and a correlator instance.
+            -- capture the config request, and hold it until it is processed
+             -- the SM is 4 cycles and a correlator instance.
             if dout_SB_req(0) = '1' then
-                dout_SB_req_d0 <= "111111";
+                dout_SB_req_d0 <= '1';
             elsif (SB_rd_fsm = get_dout_rd1) AND (dout_SB_sel(0) = '0') then
-                dout_SB_req_d0 <= (others => '0');
-            else
-                dout_SB_req_d0 <= dout_SB_req_d0(4 downto 0) & '0';
+                dout_SB_req_d0 <= '0';
             end if;
 
             if dout_SB_req(1) = '1' then
-                dout_SB_req_d1 <= "111111";
+                dout_SB_req_d1 <= '1';
             elsif (SB_rd_fsm = get_dout_rd1) AND (dout_SB_sel(0) = '1') then
-                dout_SB_req_d1 <= (others => '0');
-            else
-                dout_SB_req_d1 <= dout_SB_req_d1(4 downto 0) & '0';
+                dout_SB_req_d1 <= '0';
             end if;
 
             -- This fsm handles reading from the subarray-beam table in the registers.
@@ -848,10 +897,9 @@ begin
                     SB_rd_fsm_dbg <= "0000";
                     if din_SB_req = '1' then
                         SB_rd_fsm <= get_din_rd1;
-                    elsif dout_SB_req_d1(5) /= '0' OR dout_SB_req_d0(5) /= '0' then
+                    elsif dout_SB_req_d1 /= '0' OR dout_SB_req_d0 /= '0' then
                         SB_rd_fsm <= get_dout_rd1;
-
-                        if dout_SB_req_d0(5) = '1' then
+                        if dout_SB_req_d0 = '1' then
                             dout_SB_sel(0) <= '0';
                         else
                             dout_SB_sel(0) <= '1';
@@ -878,28 +926,37 @@ begin
                 when get_din_rd4 => 
                     SB_rd_fsm_dbg <= "0100";
                     SB_addr(1 downto 0) <= "11";
-                    SB_rd_fsm <= idle;
+                    SB_rd_fsm <= get_din_wait_done;
+                
+                when get_din_wait_done =>
+                    -- Wait until valid is sent so the fsm doesn't do the same read again. 
+                    SB_rd_fsm_dbg <= "0101";
+                    if (SB_rd_fsm_del4 = get_din_rd4) then
+                        SB_rd_fsm <= idle;
+                    end if;
                 
                 when get_dout_rd1 =>
-                    SB_rd_fsm_dbg <= "0101";
+                    SB_rd_fsm_dbg <= "0110";
                     SB_addr(10) <= readout_tableSelect;
                     SB_addr(9) <= dout_SB_sel(0); -- just 0 or 1; need to expand this to more bits if there are more than 2 correlator cells.
                     SB_addr(8 downto 2) <= cur_readout_SB(to_integer(unsigned(dout_SB_sel)));
+                    cor_bp_rd_addr(7) <= readout_tableSelect;
+                    cor_bp_rd_addr(6 downto 0) <= cur_readout_SB(to_integer(unsigned(dout_SB_sel)));
                     SB_addr(1 downto 0) <= "00";
                     SB_rd_fsm <= get_dout_rd2;
             
                 when get_dout_rd2 =>
-                    SB_rd_fsm_dbg <= "0110";
+                    SB_rd_fsm_dbg <= "0111";
                     SB_addr(1 downto 0) <= "01";
                     SB_rd_fsm <= get_dout_rd3;
                 
                 when get_dout_rd3 =>
-                    SB_rd_fsm_dbg <= "0111";
+                    SB_rd_fsm_dbg <= "1000";
                     SB_addr(1 downto 0) <= "10";
                     SB_rd_fsm <= get_dout_rd4;
                 
                 when get_dout_rd4 =>
-                    SB_rd_fsm_dbg <= "1000";
+                    SB_rd_fsm_dbg <= "1001";
                     SB_addr(1 downto 0) <= "11";
                     SB_rd_fsm <= idle;
                 
@@ -909,7 +966,7 @@ begin
             
             end case;
             
-            -- del1 : SB_addr is valid
+            -- del1 : SB_addr is valid, cor_bp_rd_addr is valid
             SB_rd_fsm_del1 <= SB_rd_fsm;
             dout_SB_sel_del1 <= dout_SB_sel;
             
@@ -921,6 +978,8 @@ begin
             SB_rd_fsm_del3 <= SB_rd_fsm_del2;
             dout_SB_sel_del3 <= dout_SB_sel_del2;
             SB_rd_data <= subarray_beam_out.rd_dat;
+            
+            SB_rd_fsm_del4 <= SB_rd_fsm_del3;
             
             -- Assign din and dout data read from the subarray-beam table
             if (SB_rd_fsm_del3 = get_din_rd1) then
@@ -943,6 +1002,7 @@ begin
             if (SB_rd_fsm_del3 = get_dout_rd1) then
                 dout_SB_stations(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(15 downto 0);
                 dout_SB_coarseStart(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(31 downto 16);
+                dout_SB_bad_poly(to_integer(unsigned(dout_SB_sel_del3))) <= cor_bp_rd_data(to_integer(unsigned(dout_SB_sel_del3)));
             end if;
             if (SB_rd_fsm_del3 = get_dout_rd2) then
                 dout_SB_fineStart(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(15 downto 0);

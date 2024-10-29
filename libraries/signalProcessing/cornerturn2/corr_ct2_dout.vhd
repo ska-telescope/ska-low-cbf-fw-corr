@@ -97,7 +97,7 @@ entity corr_ct2_dout is
         i_fineIntegrations : in std_logic_vector(5 downto 0);  -- Number of fine channels to integrate
         i_timeIntegrations : in std_logic_vector(1 downto 0);  -- Number of time samples per integration.
         i_HBM_base_addr    : in std_logic_vector(31 downto 0); -- Base address in HBM for this subarray-beam.        
-        
+        i_bad_poly    : in std_logic;
         ---------------------------------------------------------------
         -- Data out to the correlator arrays
         --
@@ -150,7 +150,7 @@ entity corr_ct2_dout is
         o_cor_tiletotalChannels : out std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
         o_cor_rowstations       : out std_logic_vector(8 downto 0); -- Number of stations in the row memories to process; up to 256.
         o_cor_colstations       : out std_logic_vector(8 downto 0); -- Number of stations in the col memories to process; up to 256. 
-
+        o_cor_badPoly           : out std_logic;  -- No valid polynomial
         ----------------------------------------------------------------
         -- read interfaces for the HBM
         o_HBM_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -189,7 +189,7 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutVCx16 : std_logic_vector(7 downto 0);
     signal readoutKey : std_logic_vector(1 downto 0);
     signal arFIFO_valid, arFIFO_full, arFIFO_rdEn, arFIFO_wrEn : std_logic;
-    signal arFIFO_din, arFIFO_dout : std_logic_vector(132 downto 0);
+    signal arFIFO_din, arFIFO_dout : std_logic_vector(133 downto 0);
     signal dataFIFO_valid, dataFIFO_rdEn, dataFIFO_wrEn, dataFIFO_full : std_logic;
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
     signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
@@ -244,6 +244,8 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutFrameCount : std_logic_vector(31 downto 0);
     signal ar_fsm_dbg : std_logic_vector(3 downto 0);
     signal readout_fsm_dbg : std_logic_vector(3 downto 0);
+    signal readoutBadPoly : std_logic;
+    signal SB_badPoly : std_logic;
     
 begin
     
@@ -355,6 +357,7 @@ begin
                             SB_timeIntegrations <= i_timeIntegrations; -- 2 bits, number of time samples per integration.
                             SB_base_addr <= i_HBM_base_addr; -- 32 bits, base address in HBM for this subarray-beam.
                             SB_SB <= SB_del;
+                            SB_badPoly <= i_bad_poly;
                             
                             cur_skyFrequency <= i_coarseStart(8 downto 0);
                             cur_fineChannelBase <= "000000000000" & i_fineStart(11 downto 0);
@@ -645,6 +648,7 @@ begin
                 arFIFO_din(92 downto 77) <= SB_stations; -- 16 bit number of stations in this subarray-beam
                 arFIFO_din(100 downto 93) <= SB_SB; -- 8 bit index into the subarray-beam table
                 arFIFO_din(132 downto 101) <= readFrameCount;
+                arFIFO_din(133) <= SB_badPoly;
                 
             elsif ar_fsm_del1 = next_fine then
                 arFIFO_wrEn <= '1';
@@ -684,12 +688,12 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 7,   -- DECIMAL
-        READ_DATA_WIDTH => 133,     -- DECIMAL
+        READ_DATA_WIDTH => 134,     -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 133,    -- DECIMAL
+        WRITE_DATA_WIDTH => 134,    -- DECIMAL
         WR_DATA_COUNT_WIDTH => 7    -- DECIMAL
     ) port map (
         almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -802,6 +806,7 @@ begin
                             
                             readoutTotalStations <= arFIFO_dout(92 downto 77);
                             readoutSB <= arFIFO_dout(100 downto 93);
+                            readoutBadPoly <= arFIFO_dout(133);
                             
                             if (arFIFO_dout(39 downto 38) = "00") then
                                 if (unsigned(dataFIFO_rdCount) >= 64) then
@@ -908,7 +913,7 @@ begin
             o_cor_subarray_beam <= readoutSB; -- out std_logic_vector(7 downto 0);
             -- Total number of stations being processing for this subarray-beam.
             o_cor_totalStations <= readoutTotalStations; -- out std_logic_vector(15 downto 0);
-            
+            o_cor_BadPoly <= readoutBadPoly;
         end if;
     end process;
     

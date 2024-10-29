@@ -71,6 +71,7 @@ entity correlator_data_reader is
                                                                     -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
         i_sub_array         : in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
         i_freq_index        : in std_logic_vector(16 downto 0);
+        i_bad_poly          : in std_logic;
         i_data_valid        : in std_logic;
         i_time_ref          : in std_logic_vector(63 downto 0);     -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms
                                                                     -- integration time.
@@ -302,7 +303,7 @@ begin
 
     o_to_spead_pack.valid_del_poly          <= '1';
     o_to_spead_pack.statically_flagged      <= '0';
-    o_to_spead_pack.dynamically_flagged     <= '1';
+    o_to_spead_pack.dynamically_flagged     <= '0';
 
     ---------------------------------------------------------------------------
     meta_reg_proc : process(clk)

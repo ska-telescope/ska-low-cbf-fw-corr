@@ -75,6 +75,7 @@ entity single_correlator is
         i_cor_colstations       : in std_logic_vector(8 downto 0); -- Number of stations in the col memories to process; up to 256.        
         i_cor_totalStations     : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
         i_cor_subarrayBeam      : in std_logic_vector(7 downto 0);  -- Which entry is this in the subarray-beam table ?
+        i_cor_badPoly           : in std_logic;   -- No valid polynomials for some of the stations.
         ---------------------------------------------------------------
         -- Data out to the HBM
         o_HBM_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -130,6 +131,7 @@ architecture Behavioral of single_correlator is
     signal channel_del : t_slv_24_arr(g_PIPELINE_STAGES downto 0);
     signal totalStations_del : t_slv_16_arr(g_PIPELINE_STAGES downto 0);
     signal subarrayBeam_del : t_slv_8_arr(g_PIPELINE_STAGES downto 0);
+    signal badPoly_del : std_logic_vector(g_PIPELINE_STAGES downto 0);
     signal HBM_stop    : std_logic_vector(g_PIPELINE_STAGES downto 0);
     
     signal ro_HBM_start_addr : std_logic_vector(31 downto 0);
@@ -166,6 +168,7 @@ architecture Behavioral of single_correlator is
     signal dbg_ro_valid_del2, dbg_ro_valid_del1 : std_logic;
     signal time_since_f0, f0_clk_count : std_logic_vector(31 downto 0);
     signal freq_index0_repeat, time_since_f0_set : std_logic := '0';
+    signal ro_bad_poly : std_logic;
     
 begin
 
@@ -226,8 +229,8 @@ begin
         i_cor_row_stations      => i_cor_rowStations, -- in (8:0); Number of stations in the row memories to process; up to 256.
         i_cor_col_stations      => i_cor_colStations, -- in (8:0); Number of stations in the col memories to process; up to 256.
         i_cor_totalStations     => i_cor_totalStations, -- in (15:0); Total number of stations being processing for this subarray-beam.
-        i_cor_subarrayBeam      => i_cor_subarrayBeam,  -- in (7:0);  -- Which entry is this in the subarray-beam table ?
-        
+        i_cor_subarrayBeam      => i_cor_subarrayBeam,  -- in (7:0);  Which entry is this in the subarray-beam table ?
+        i_cor_badPoly           => i_cor_badPoly,       -- in std_logic;
         -- Data out to the HBM
         -- o_data is a burst of 16*16*4*8 = 8192 bytes = 256 clocks with 256 bits per clock, for one cell of visibilities, when o_dtype = '0'
         -- When o_dtype = '1', centroid data is being sent as a block of 16*16*2 = 512 bytes = 16 clocks with 256 bits per clock.
@@ -241,7 +244,7 @@ begin
         o_channel  => channel_del(0),  -- out (23:0); First fine channel index for this correlation.
         o_totalStations => totalStations_del(0), -- out std_logic_vector(15 downto 0); -- total number of stations in this subarray-beam
         o_subarrayBeam  => subarrayBeam_del(0),  -- out std_logic_vector(7 downto 0);  -- Index into the subarray-beam table.
-        
+        o_badPoly => badPoly_del(0), -- out std_logic;
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     => HBM_stop(g_PIPELINE_STAGES)  -- in std_logic
@@ -263,7 +266,7 @@ begin
             channel_del(g_PIPELINE_STAGES downto 1)  <= channel_del(g_PIPELINE_STAGES-1 downto 0);
             totalStations_del(g_PIPELINE_STAGES downto 1) <= totalStations_del(g_PIPELINE_STAGES-1 downto 0);
             subarrayBeam_del(g_PIPELINE_STAGES downto 1)  <= subarrayBeam_del(g_PIPELINE_STAGES-1 downto 0);
-            
+            badPoly_del(g_PIPELINE_STAGES downto 1)  <= badPoly_del(g_PIPELINE_STAGES-1 downto 0);
             -- HBM interface back to the correlator array.
             HBM_stop(g_PIPELINE_STAGES downto 1) <= HBM_stop(g_PIPELINE_STAGES-1 downto 0);
             
@@ -302,6 +305,7 @@ begin
         i_channel   => channel_del(g_PIPELINE_STAGES),  -- in (23:0); First fine channel index for this correlation.
         i_totalStations => totalStations_del(g_PIPELINE_STAGES),
         i_subarrayBeam => subarrayBeam_del(g_PIPELINE_STAGES),
+        i_badPoly => badpoly_del(g_PIPELINE_STAGES),
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         o_stop      => HBM_stop(0),                     --  out std_logic;
@@ -334,6 +338,8 @@ begin
         o_ro_row => ro_row, --  out (12:0);
         -- The number of rows to read out. Valid range is 1 up to 256.
         o_ro_row_count => ro_row_count, -- out (8:0);
+        -- bad poly indicates that some or all of the data used did not have a valid delay polynomial.
+        o_ro_bad_poly => ro_bad_poly, -- out std_logic;
         -- valid indicates that the other signals are valid. 
         -- valid will pulse high for 1 clock cycle when a strip of data from the visibility matrix is available.
         o_ro_valid => ro_valid, -- out std_logic;
@@ -380,6 +386,7 @@ begin
                                                                     -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
         i_sub_array         => ro_subarray,
         i_freq_index        => ro_freq_index,
+        i_bad_poly          => ro_bad_poly,
         i_time_ref          => ro_time_ref,
                             
         i_row               => ro_row,
