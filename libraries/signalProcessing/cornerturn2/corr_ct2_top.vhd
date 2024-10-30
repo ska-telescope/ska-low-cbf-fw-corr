@@ -321,6 +321,7 @@ architecture Behavioral of corr_ct2_top is
     
     signal cor_bp_rd_addr : std_logic_vector(7 downto 0);
     signal cor_bp_rd_data : std_logic_vector(1 downto 0);
+    signal dout_HBM_buffer : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     
 begin
     
@@ -411,6 +412,7 @@ begin
             else
                 readout_start_pulse <= '0';
             end if;
+            
             
             ---------------------------------------------------------------------
             -- Monitoring
@@ -565,8 +567,10 @@ begin
     --   while the other half is being read from by corr_ct2_dout
     -- Write side must be cleared to zeros at the start of a frame. 
     -- 2 correlators, so 2 memories,
-    -- Each correlator can have up to 256 entries in the subarray-beam table, 
-    -- 2 buffers so 512 total entries.
+    -- Each correlator can have up to 128 entries in the subarray-beam table, 
+    -- 2 buffers so 256 total entries for each correlator cell.
+    -- Address bits (6:0) = subarray-beam
+    --                (7) = selects 849 ms frame, alternates with lsb of frameCount_849ms
     bad_polys : entity ct_lib.corr_ct2_bad_poly_mem
     port map (
         clk  => i_axi_clk, -- in std_logic;
@@ -602,6 +606,7 @@ begin
         i_rst      => rst_del2,          --  in std_logic;
         -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
         o_SB_req   => dout_SB_req(0),    -- Rising edge gets the parameters for the next subarray-beam to read out.
+        o_SB_buffer => dout_HBM_buffer(0), -- out std_logic;    -- which of the two HBM buffers are we reading from
         i_SB       => cur_readout_SB(0), -- in (6:0); which subarray-beam are we currently processing from the subarray-beam table.
         i_SB_valid => dout_SB_valid(0),  -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
         i_SB_done  => dout_SB_done(0),   -- Indicates that all the subarray beams for this correlator core has been processed.
@@ -671,6 +676,7 @@ begin
             i_rst       => rst_del2, --  in std_logic;
             -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
             o_SB_req   => dout_SB_req(i),    -- Rising edge gets the parameters for the next subarray-beam to read out.
+            o_SB_buffer => dout_HBM_buffer(i), -- out std_logic;    -- which of the two HBM buffers are we reading from
             i_SB       => cur_readout_SB(i), -- in (6:0); which subarray-beam are we currently processing from the subarray-beam table.
             i_SB_valid => dout_SB_valid(i),  -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
             i_SB_done  => dout_SB_done(i),   -- Indicates that all the subarray beams for this correlator core has been processed.
@@ -940,7 +946,7 @@ begin
                     SB_addr(10) <= readout_tableSelect;
                     SB_addr(9) <= dout_SB_sel(0); -- just 0 or 1; need to expand this to more bits if there are more than 2 correlator cells.
                     SB_addr(8 downto 2) <= cur_readout_SB(to_integer(unsigned(dout_SB_sel)));
-                    cor_bp_rd_addr(7) <= readout_tableSelect;
+                    cor_bp_rd_addr(7) <= dout_HBM_buffer(0);  -- Which of the two HBM buffers are we reading from, will always be the same for the two correlators
                     cor_bp_rd_addr(6 downto 0) <= cur_readout_SB(to_integer(unsigned(dout_SB_sel)));
                     SB_addr(1 downto 0) <= "00";
                     SB_rd_fsm <= get_dout_rd2;

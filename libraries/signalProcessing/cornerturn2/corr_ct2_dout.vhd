@@ -87,6 +87,7 @@ entity corr_ct2_dout is
         i_rst       : in std_logic;
         -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
         o_SB_req    : out std_logic;    -- Rising edge gets the parameters for the next subarray-beam to read out.
+        o_SB_buffer : out std_logic;    -- which of the two HBM buffers are we reading from
         i_SB        : in  std_logic_vector(6 downto 0); -- which subarray-beam are we currently processing from the subarray-beam table.
         i_SB_valid  : in  std_logic;    -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
         i_SB_done   : in std_logic;     -- Indicates that all the subarray beams for this correlator core has been processed.
@@ -288,6 +289,8 @@ begin
     o_HBM_axi_ar.len <= "00000111";
     o_HBM_axi_ar.addr(39 downto 32) <= "00000000";
     o_HBM_axi_ar.addr(8 downto 0) <= "000000000";  -- All reads are 512 byte aligned.
+    
+    o_SB_buffer <= readBuffer;
     
     SB_stations_div256 <= SB_stations(15 downto 8);
     cur_tileColumn_plus1 <= std_logic_vector(unsigned(cur_tileColumn) + 1);
