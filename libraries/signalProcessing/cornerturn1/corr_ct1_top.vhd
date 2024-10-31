@@ -118,6 +118,9 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 
 entity corr_ct1_top is
+    generic (
+        g_GENERATE_ILA      : BOOLEAN := FALSE
+    );
     port (
         -- shared memory interface clock (300 MHz)
         i_shared_clk     : in std_logic;
@@ -1402,7 +1405,7 @@ begin
         end if;
     end process;
     
-    
+debug_ila_gen : if g_GENERATE_ILA GENERATE    
     ct2_ila : ila_120_16k
     port map (
        clk => i_shared_clk,
@@ -1436,6 +1439,6 @@ begin
        probe0(97) => dbg_hbm_ar_ready,
        probe0(119 downto 98) => dbg_hbm_ar_addr(31 downto 10)
     );
-    
+END GENERATE;    
     
 end Behavioral;

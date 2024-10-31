@@ -82,9 +82,10 @@ use xpm.vcomponents.all;
 
 entity corr_ct2_top is
     generic (
-        g_USE_META : boolean := FALSE;   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
-        g_CORRELATORS : integer := 2;    -- Number of correlator cells to instantiate.
-        g_MAX_CORRELATORS : integer := 2 -- Maximum number of correlator cells that can be instantiated.
+        g_USE_META          : boolean := FALSE; -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
+        g_CORRELATORS       : integer := 2;     -- Number of correlator cells to instantiate.
+        g_MAX_CORRELATORS   : integer := 2;     -- Maximum number of correlator cells that can be instantiated.
+        g_GENERATE_ILA      : BOOLEAN := FALSE
     );
     port(
         -- Registers AXI Lite Interface (uses i_axi_clk)
@@ -1139,7 +1140,7 @@ begin
         end if;
     end process;
     
-    
+debug_ila_gen : if g_GENERATE_ILA GENERATE    
     ct2_ila : ila_120_16k
     port map (
         clk => i_axi_clk,   -- IN STD_LOGIC;
@@ -1214,7 +1215,7 @@ begin
         probe0(118) => dbg_axi_r_ready, -- <= o_HBM_axi_rready(0);
         probe0(119) => rst_del2
     );
-    
+END GENERATE;
     
     
 end Behavioral;
