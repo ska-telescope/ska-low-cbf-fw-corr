@@ -56,6 +56,7 @@ entity FB_Top_correlator is
         o_integration    : out std_logic_vector(31 downto 0); -- Which integration frame is this ? Units of 0.849 seconds since epoch.
         o_ctFrame        : out std_logic_vector(1 downto 0);  -- Which 283ms corner turn frame is this ? 
         o_virtualChannel : out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+        o_bad_poly    : out std_logic;
         o_HeaderValid : out std_logic_vector(3 downto 0);
         o_Data        : out t_ctc_output_payload_arr(3 downto 0);
         o_DataValid   : out std_logic;
@@ -93,7 +94,7 @@ architecture Behavioral of FB_Top_correlator is
     signal firtap_wr_data : std_logic_vector(17 downto 0);
     
     signal CorDin0, CorDin1, CorDin2, CorDin3 : t_slv_8_arr(1 downto 0);
-    signal CorrelatorMetaIn, corMetaOut : std_logic_vector(613 downto 0);
+    signal CorrelatorMetaIn, corMetaOut : std_logic_vector(617 downto 0);
     signal CorDout0, CorDout1, CorDout2, CorDout3 : t_slv_16_arr(1 downto 0);
     signal CorValidOut, CorValidOutDel : std_logic;
     
@@ -185,38 +186,12 @@ begin
             CorrelatorMetaIn(144+435) <= i_meta67.valid;
             
             CorrelatorMetaIn(31+580 downto 0+580)  <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
-            CorrelatorMetaIn(33+580 downto 32+580) <= i_meta01.ctFrame;        
+            CorrelatorMetaIn(33+580 downto 32+580) <= i_meta01.ctFrame;
             
---            CorrelatorMetaIn(15 downto 0) <= i_meta01.HDeltaP;
---            CorrelatorMetaIn(31 downto 16) <= i_meta01.VDeltaP;
---            CorrelatorMetaIn(47 downto 32) <= i_meta01.HOffsetP;
---            CorrelatorMetaIn(63 downto 48) <= i_meta01.VOffsetP;
---            CorrelatorMetaIn(79 downto 64) <= i_meta01.virtualChannel;
---            CorrelatorMetaIn(80) <= i_meta01.valid; -- note that .valid is just a qualifier for the meta data. The meta data is only valid if both this and i_datavalid are high.
-            
---            CorrelatorMetaIn(15+81 downto 0+81) <= i_meta23.HDeltaP;
---            CorrelatorMetaIn(31+81 downto 16+81) <= i_meta23.VDeltaP;
---            CorrelatorMetaIn(47+81 downto 32+81) <= i_meta23.HOffsetP;
---            CorrelatorMetaIn(63+81 downto 48+81) <= i_meta23.VOffsetP;
---            CorrelatorMetaIn(79+81 downto 64+81) <= i_meta23.virtualChannel;
---            CorrelatorMetaIn(80+81) <= i_meta23.valid;
-            
---            CorrelatorMetaIn(15+162 downto 0+162) <= i_meta45.HDeltaP;
---            CorrelatorMetaIn(31+162 downto 16+162) <= i_meta45.VDeltaP;
---            CorrelatorMetaIn(47+162 downto 32+162) <= i_meta45.HOffsetP;
---            CorrelatorMetaIn(63+162 downto 48+162) <= i_meta45.VOffsetP;
---            CorrelatorMetaIn(79+162 downto 64+162) <= i_meta45.virtualChannel;
---            CorrelatorMetaIn(80+162) <= i_meta45.valid;
-
---            CorrelatorMetaIn(15+243 downto 0+243) <= i_meta67.HDeltaP;
---            CorrelatorMetaIn(31+243 downto 16+243) <= i_meta67.VDeltaP;
---            CorrelatorMetaIn(47+243 downto 32+243) <= i_meta67.HOffsetP;
---            CorrelatorMetaIn(63+243 downto 48+243) <= i_meta67.VOffsetP;
---            CorrelatorMetaIn(79+243 downto 64+243) <= i_meta67.virtualChannel;
---            CorrelatorMetaIn(80+243) <= i_meta67.valid;
-            
---            CorrelatorMetaIn(31+324 downto 0+324)  <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
---            CorrelatorMetaIn(33+324 downto 32+324) <= i_meta01.ctFrame;
+            CorrelatorMetaIn(614) <= i_meta01.bad_poly;
+            CorrelatorMetaIn(615) <= i_meta23.bad_poly;
+            CorrelatorMetaIn(616) <= i_meta45.bad_poly;
+            CorrelatorMetaIn(617) <= i_meta67.bad_poly;
             
             -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
             for i in 0 to 1 loop
@@ -284,7 +259,7 @@ begin
         
     corfbi : entity filterbanks_lib.correlatorFBTop25
     generic map(
-        METABITS => 614, -- 361,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 618, -- 361,    -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
         -- processing clock
@@ -317,7 +292,7 @@ begin
     
     corfb2i : entity filterbanks_lib.correlatorFBTop25
     generic map(
-        METABITS => 614,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 618,    -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
         -- processing clock
@@ -375,6 +350,7 @@ begin
     corFBHeader(0).valid <= corMetaOut(144);
     corFBHeader(0).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(0).ctFrame <= corMetaOut(33+580 downto 32+580);
+    corFBHeader(0).bad_poly <= corMetaOut(614);
     
     corFBHeader(1).HDeltaP <= corMetaOut(31+145 downto 145+0);
     corFBHeader(1).VDeltaP <= corMetaOut(63+145 downto 32+145);
@@ -384,6 +360,7 @@ begin
     corFBHeader(1).valid <= corMetaOut(144+145);
     corFBHeader(1).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(1).ctFrame <= corMetaOut(33+580 downto 32+580);
+    corFBHeader(1).bad_poly <= corMetaOut(615);
     
     corFBHeader(2).HDeltaP <= corMetaOut(31+290 downto 0+290);
     corFBHeader(2).VDeltaP <= corMetaOut(63+290 downto 32+290);
@@ -393,6 +370,7 @@ begin
     corFBHeader(2).valid <= corMetaOut(144+290);
     corFBHeader(2).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(2).ctFrame <= corMetaOut(33+580 downto 32+580);
+    corFBHeader(2).bad_poly <= corMetaOut(616);
     
     corFBHeader(3).HDeltaP <= corMetaOut(31+435 downto 0+435);
     corFBHeader(3).VDeltaP <= corMetaOut(63+435 downto 32+435);
@@ -402,6 +380,7 @@ begin
     corFBHeader(3).valid <= corMetaOut(144+435);
     corFBHeader(3).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(3).ctFrame <= corMetaOut(33+580 downto 32+580);
+    corFBHeader(3).bad_poly <= corMetaOut(617);
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
@@ -463,6 +442,7 @@ begin
     o_virtualChannel(1) <= FDHeader(1).virtualChannel;
     o_virtualChannel(2) <= FDHeader(2).virtualChannel;
     o_virtualChannel(3) <= FDHeader(3).virtualChannel;
+    o_bad_poly <= FDHeader(0).bad_poly or FDHeader(1).bad_poly or FDHeader(2).bad_poly or FDHeader(3).bad_poly;
     o_integration <= FDHeader(0).integration;
     o_ctFrame <= FDHeader(0).ctFrame;
     o_headerValid <= headerValid;

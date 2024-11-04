@@ -118,6 +118,9 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 
 entity corr_ct1_top is
+    generic (
+        g_GENERATE_ILA      : BOOLEAN := FALSE
+    );
     port (
         -- shared memory interface clock (300 MHz)
         i_shared_clk     : in std_logic;
@@ -161,6 +164,9 @@ entity corr_ct1_top is
         o_meta67 : out t_CT1_META_out;
         o_valid : out std_logic;
         -------------------------------------------------------------
+        i_axi_dbg  : in std_logic_vector(127 downto 0); -- 128 bits
+        i_axi_dbg_valid : in std_logic;
+        -------------------------------------------------------------
         -- AXI bus to the shared memory. 
         -- This has the aw, b, ar and r buses (the w bus is on the output of the LFAA decode module)
         -- w bus - write data
@@ -187,7 +193,9 @@ entity corr_ct1_top is
         i_m06_axi_arready : in std_logic;
         -- r bus - read data
         i_m06_axi_r       : in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
-        o_m06_axi_rready  : out std_logic
+        o_m06_axi_rready  : out std_logic;
+        --
+        i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0)
     );
     
     -- prevent optimisation across module boundaries.
@@ -310,6 +318,49 @@ architecture Behavioral of corr_ct1_top is
     signal hbm_ila_addr : std_logic_vector(31 downto 0);
     signal m06_axi_aw : t_axi4_full_addr;
     signal m06_axi_w : t_axi4_full_data;
+    signal sof_int,  sofFull_int : std_logic;
+    signal m01_axi_rready : std_logic;
+    
+    component ila_120_16k
+    port (
+        clk : in std_logic;
+        probe0 : in std_logic_vector(119 downto 0)); 
+    end component;
+    
+    signal m01_axi_ar :  t_axi4_full_addr;
+    
+    signal dbg_input_fsm_dbg : std_logic_vector(4 downto 0);
+    signal dbg_running : std_logic;
+    signal dbg_wr_buffer : std_logic_vector(1 downto 0);
+    signal dbg_first_readout : std_logic;
+    signal dbg_waiting_to_latch_on : std_logic;
+    signal dbg_readOverflow_set : std_logic;
+    signal dbg_readoverflow : std_logic;
+    signal dbg_chan0 : std_logic_vector(9 downto 0);
+    signal dbg_integration : std_logic_vector(31 downto 0);
+    signal dbg_ctFrame : std_logic_vector(1 downto 0);
+    signal dbg_o_valid : std_logic;
+    signal dbg_sof_int : std_logic;
+    signal dbg_sofFull_int : std_logic;
+    signal time_since_sofFull : std_logic_vector(31 downto 0);
+    signal dbg_hbm_aw_valid : std_logic;
+    signal dbg_hbm_aw_ready : std_logic;
+    signal dbg_hbm_r_ready : std_logic;
+    signal dbg_hbm_ar_addr : std_logic_vector(31 downto 0);
+    signal dbg_hbm_ar_valid : std_logic;
+    signal dbg_hbm_ar_ready : std_logic;
+    signal dbg_hbm_r_valid : std_logic;
+    
+    signal dbg_rd_tracker_bad : std_logic; --  <= i_hbm_rst_dbg(1)(0);
+    signal dbg_wr_tracker_bad : std_logic; -- <= i_hbm_rst_dbg(1)(1);
+    signal dbg_wr_tracker : std_logic_vector(11 downto 0);
+    signal dbg_hbm_reset_fsm : std_logic_vector(3 downto 0);
+    signal dbg_hbm_reset : std_logic;
+
+    signal uptime : std_logic_vector(39 downto 0);
+    signal time_since_sof, time_since_data_rst, time_since_ivalid, time_since_hbm_rst : std_logic_vector(31 downto 0);
+    signal dbg_vec2 : std_logic_vector(255 downto 0);
+    signal dbg_vec2_valid : std_logic;
     
 begin
     
@@ -901,8 +952,8 @@ begin
         
         -- Data output to the filterbanks
         -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
-        o_sof   => o_sof,   -- out std_logic; start of frame.
-        o_sofFull => o_sofFull, -- out std_logic; -- start of a full frame, i.e. 60ms of data.
+        o_sof   => sof_int,   -- out std_logic; start of frame.
+        o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 60ms of data.
         
         o_HPol0 => data0,  -- out t_slv_8_arr(1 downto 0);
         o_VPol0 => data1,  -- out t_slv_8_arr(1 downto 0);
@@ -924,11 +975,11 @@ begin
         
         -- AXI read address and data input buses
         -- ar bus - read address
-        o_axi_ar      => o_m01_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        o_axi_ar      => m01_axi_ar,      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_axi_arready => i_m01_axi_arready, -- in std_logic;
         -- r bus - read data
         i_axi_r       => i_m01_axi_r,      -- in  t_axi4_full_data;
-        o_axi_rready  => o_m01_axi_rready, -- out std_logic;
+        o_axi_rready  => m01_axi_rready, -- out std_logic;
         -- errors and debug
         -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
         o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
@@ -950,7 +1001,10 @@ begin
     o_meta23 <= meta23;
     o_meta45 <= meta45;
     o_meta67 <= meta67;
-    
+    o_sof <= sof_int;
+    o_sofFUll <= sofFull_int;
+    o_m01_axi_rready <= m01_axi_rready;
+    o_m01_axi_ar <= m01_axi_ar;
     
     -- Everything on the same clock domain;
     process(i_shared_clk)
@@ -1141,12 +1195,141 @@ begin
     dbg_vec_final(191 downto 176) <= poly_wr_occurred & poly_wr_addr;
     dbg_vec_final(255 downto 192) <= dbg_vec(255 downto 192);
     
+    
+    -- Alternate set of signals for the HBM ILA
+    process(i_shared_clk)
+    begin
+        if rising_edge(i_shared_clk) then
+            uptime <= std_logic_vector(unsigned(uptime) + 1);
+            
+            if sof_int = '1' then
+                time_since_sof <= (others => '0');
+            else
+                time_since_sof <= std_logic_vector(unsigned(time_since_sof) + 1);
+            end if;
+            
+            if soffull_int = '1' then
+                time_since_sofFull <= (others => '0');
+            else
+                time_since_sofFull <= std_logic_vector(unsigned(time_since_sofFull) + 1);
+            end if;
+            
+            if data_Rst = '1' then
+                time_since_data_rst <= (others => '0');
+            elsif time_since_data_rst /= x"ffffffff" then
+                time_since_data_rst <= std_logic_vector(unsigned(time_since_data_rst) + 1);
+            end if;
+            
+            if dbg_hbm_reset = '1' then
+                time_since_hbm_rst <= (others => '0');
+            elsif time_since_hbm_rst /= x"ffffffff" then
+                time_since_hbm_rst <= std_logic_vector(unsigned(time_since_hbm_rst) + 1);
+            end if;
+            
+            if i_valid = '1' then
+                time_since_ivalid <= (others => '0');
+            elsif time_since_ivalid /= x"ffffffff" then
+                time_since_ivalid <= std_logic_vector(unsigned(time_since_ivalid) + 1);
+            end if;
+            
+--            if validOut = '1' and validOutdel = '0' then
+--                dbg_vec2(15 downto 0) <= meta01.virtualChannel(15 downto 0);
+--                dbg_vec2(31 downto 16) <= meta01.integration(15 downto 0);
+--                dbg_vec2(33 downto 32) <= meta01.ctframe;
+--                dbg_vec2(34) <= dbg_rd_tracker_bad;
+--                dbg_vec2(35) <= dbg_wr_tracker_bad;
+--                dbg_vec2(36) <= waiting_to_latch_on;
+--                dbg_vec2(37) <= running;
+--                dbg_vec2(38) <= readOverflow_set;
+--                dbg_vec2(39) <= readoverflow;
+--                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+--                dbg_vec2(55 downto 52) <= "0000";
+--                dbg_vec2(103 downto 64) <= uptime;
+--                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
+--                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
+--                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
+--                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
+--                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
+--                dbg_vec2(228) <= '1';
+--                dbg_vec2(231 downto 229) <= "000";
+--                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+--                dbg_vec2_valid <= '1';
+--            elsif validOut = '0' and validOutDel = '1' then
+--                -- Falling edge of validOut
+--                dbg_vec2(34) <= dbg_rd_tracker_bad;
+--                dbg_vec2(35) <= dbg_wr_tracker_bad;
+--                dbg_vec2(36) <= waiting_to_latch_on;
+--                dbg_vec2(37) <= running;
+--                dbg_vec2(38) <= readOverflow_set;
+--                dbg_vec2(39) <= readoverflow;
+--                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+--                dbg_vec2(55 downto 52) <= "0000";
+--                dbg_vec2(103 downto 64) <= uptime;
+--                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
+--                dbg_vec2(159 downto 128) <= time_since_sofFull(31 downto 0);
+--                dbg_vec2(191 downto 160) <= time_since_data_rst(31 downto 0);
+--                dbg_vec2(223 downto 192) <= time_since_hbm_rst(31 downto 0);
+--                dbg_vec2(227 downto 224) <= dbg_hbm_reset_fsm;
+--                dbg_vec2(228) <= '0';
+--                dbg_vec2(231 downto 229) <= "000";
+--                dbg_vec2(255 downto 232) <= time_since_ivalid(31 downto 8);
+--                dbg_vec2_valid <= '1';
+--            else
+--                dbg_vec2_valid <= '0';
+--            end if;
+            
+            if ((validOut = '1' and validOutdel = '0') or i_axi_dbg_valid = '1') then
+                dbg_vec2(15 downto 0) <= meta01.virtualChannel(15 downto 0);
+                dbg_vec2(31 downto 16) <= meta01.integration(15 downto 0);
+                dbg_vec2(33 downto 32) <= meta01.ctframe;
+                dbg_vec2(34) <= dbg_rd_tracker_bad;
+                dbg_vec2(35) <= dbg_wr_tracker_bad;
+                dbg_vec2(36) <= waiting_to_latch_on;
+                dbg_vec2(37) <= running;
+                dbg_vec2(38) <= readOverflow_set;
+                dbg_vec2(39) <= readoverflow;
+                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+                dbg_vec2(52) <= validOut;
+                dbg_vec2(53) <= validOutDel;
+                dbg_vec2(54) <= i_axi_dbg_valid;
+                dbg_vec2(55) <= '0';
+                dbg_vec2(103 downto 64) <= uptime;
+                dbg_vec2(127 downto 104) <= time_since_sof(23 downto 0);
+                dbg_vec2(255 downto 128) <= i_axi_dbg;
+                dbg_vec2_valid <= '1';
+            elsif ((validOut = '0' and validOutDel = '1') or i_axi_dbg_valid = '1') then
+                -- Falling edge of validOut
+                dbg_vec2(31 downto 0) <= time_since_data_rst(31 downto 0);
+                dbg_vec2(34) <= dbg_rd_tracker_bad;
+                dbg_vec2(35) <= dbg_wr_tracker_bad;
+                dbg_vec2(36) <= waiting_to_latch_on;
+                dbg_vec2(37) <= running;
+                dbg_vec2(38) <= readOverflow_set;
+                dbg_vec2(39) <= readoverflow;
+                dbg_vec2(51 downto 40) <= dbg_wr_tracker;
+                dbg_vec2(52) <= validOut;
+                dbg_vec2(53) <= validOutDel;
+                dbg_vec2(54) <= i_axi_dbg_valid;
+                dbg_vec2(55) <= '0';
+                dbg_vec2(103 downto 64) <= uptime;
+                dbg_vec2(127 downto 104) <= time_since_sofFull(23 downto 0);
+                dbg_vec2(255 downto 128) <= i_axi_dbg;
+                dbg_vec2_valid <= '1';
+            else
+                dbg_vec2_valid <= '0';
+            end if;            
+            
+            
+        end if;
+    end process;
+    
+    
     hbm_ilai : entity ct_lib.hbm_ila
     port map (
         dsp_clk    => i_shared_clk, -- : in std_logic;
         -- 16 bytes of debug data, and valid.
-        i_ila_data       => dbg_vec_final, -- in std_logic_vector(255 downto 0);
-        i_ila_data_valid => dbg_vec_valid, -- in std_logic;
+        i_ila_data       => dbg_vec2, -- dbg_vec_final, -- in std_logic_vector(255 downto 0);
+        i_ila_data_valid => dbg_vec2_valid, -- dbg_vec_valid, -- in std_logic;
         o_hbm_addr       => hbm_ila_addr, -- out std_logic_vector(31 downto 0); -- Address we are up to in the HBM.
         -- Write out to the HBM
         -- write address buses : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
@@ -1182,5 +1365,80 @@ begin
 --        probe0(119 downto 101) => m06_axi_aw.addr(18 downto 0)
 --    );
     
+    ---------------------------------------------------------------------------
+    -- debug ILA
+    process(i_shared_clk)
+    begin
+        if rising_edge(i_shared_clk) then
+            
+            dbg_input_fsm_dbg <= input_fsm_dbg;
+            dbg_running <= running;
+            dbg_wr_buffer <= current_wr_buffer;
+            dbg_first_readout <= first_readout;
+            dbg_waiting_to_latch_on <= waiting_to_latch_on;
+            dbg_readOverflow_set <= readOverflow_set;
+            dbg_readoverflow <= readoverflow;
+            dbg_chan0 <= meta01.virtualChannel(9 downto 0);
+            dbg_integration <= wr_integration; -- (31:0); integration in units of 849ms relative to the epoch.
+            --dbg_ctFrame <= FBctFrame; -- 2 bits
+            dbg_o_valid <= validOut;
+            dbg_sof_int <= sof_int;
+            dbg_sofFull_int <= sofFull_int;
+            
+            dbg_hbm_aw_valid <= not AWFIFO_empty;
+            dbg_hbm_aw_ready <= i_m01_axi_awready;
+            
+            dbg_hbm_r_valid <= i_m01_axi_r.valid;
+            dbg_hbm_r_ready <= m01_axi_rready; -- out std_logic;
+            
+            dbg_hbm_ar_addr <= m01_axi_ar.addr(31 downto 0);
+            dbg_hbm_ar_valid <= m01_axi_ar.valid;
+            dbg_hbm_ar_ready <= i_m01_axi_arready;
+            
+            dbg_rd_tracker_bad <= i_hbm_rst_dbg(1)(0);
+            dbg_wr_tracker_bad <= i_hbm_rst_dbg(1)(1);
+            dbg_wr_tracker <= i_hbm_rst_dbg(1)(27 downto 16);
+            
+            dbg_hbm_reset <= i_hbm_rst_dbg(1)(2);
+            dbg_hbm_reset_fsm <= i_hbm_rst_dbg(1)(31 downto 28);
+            
+        end if;
+    end process;
+    
+debug_ila_gen : if g_GENERATE_ILA GENERATE    
+    ct2_ila : ila_120_16k
+    port map (
+       clk => i_shared_clk,
+       probe0(0) => data_rst,
+       probe0(5 downto 1) => dbg_input_fsm_dbg,
+       probe0(6) => dbg_running,
+       probe0(8 downto 7) => dbg_wr_buffer,
+       probe0(9) => dbg_first_readout,
+       probe0(10) => dbg_waiting_to_latch_on,
+       probe0(11) => dbg_readOverflow_set,
+       probe0(12) => dbg_readoverflow,
+       probe0(22 downto 13) => dbg_chan0,
+       probe0(35 downto 23) => dbg_integration(12 downto 0),
+       
+       probe0(39 downto 36) => dbg_hbm_reset_fsm,
+       probe0(40) => dbg_hbm_reset,
+       probe0(41) => dbg_rd_tracker_bad,
+       probe0(42) => dbg_wr_tracker_bad,
+       probe0(54 downto 43) => dbg_wr_tracker,
+       
+       probe0(56 downto 55) => "00",
+       probe0(57) => dbg_o_valid,
+       probe0(58) => dbg_sof_int,
+       probe0(59) => dbg_sofFull_int,
+       probe0(91 downto 60) => time_since_sofFull,
+       probe0(92) => dbg_hbm_aw_valid,
+       probe0(93) => dbg_hbm_aw_ready,
+       probe0(94) => dbg_hbm_r_valid,
+       probe0(95) => dbg_hbm_r_ready,
+       probe0(96) => dbg_hbm_ar_valid,
+       probe0(97) => dbg_hbm_ar_ready,
+       probe0(119 downto 98) => dbg_hbm_ar_addr(31 downto 10)
+    );
+END GENERATE;    
     
 end Behavioral;

@@ -71,6 +71,7 @@ entity correlator_data_reader is
                                                                     -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
         i_sub_array         : in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
         i_freq_index        : in std_logic_vector(16 downto 0);
+        i_bad_poly          : in std_logic;
         i_data_valid        : in std_logic;
         i_time_ref          : in std_logic_vector(63 downto 0);     -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms
                                                                     -- integration time.
@@ -105,7 +106,7 @@ signal clk                      : std_logic;
 signal reset                    : std_logic;
 
 -- metadata from correlator.
-constant meta_cache_width       : INTEGER := 32 + 8 + 17 + 64 + 13 + 9;
+constant meta_cache_width       : INTEGER := 1 + 32 + 8 + 17 + 64 + 13 + 9;
 constant meta_cache_depth       : INTEGER := 64;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
 
 signal meta_cache_fifo_in_reset : std_logic;
@@ -278,6 +279,7 @@ signal spead_data_heap_size         : std_logic_vector(7 downto 0);
 signal bytes_to_send                : unsigned(13 downto 0);
 
 signal hbm_readout_complete         : std_logic;
+signal cor_tri_bad_poly : std_logic;
 
 --------------------------------------------------------------------------------
 begin
@@ -300,9 +302,9 @@ begin
     o_to_spead_pack.time_ref                <= cor_tri_time_ref;
     o_to_spead_pack.hbm_readout_complete    <= hbm_readout_complete;
 
-    o_to_spead_pack.valid_del_poly          <= '1';
+    o_to_spead_pack.valid_del_poly          <= not cor_tri_bad_poly;
     o_to_spead_pack.statically_flagged      <= '0';
-    o_to_spead_pack.dynamically_flagged     <= '1';
+    o_to_spead_pack.dynamically_flagged     <= '0';
 
     ---------------------------------------------------------------------------
     meta_reg_proc : process(clk)
@@ -313,7 +315,8 @@ begin
             if testmode_select = '0' then
                 meta_cache_fifo_wr      <= i_data_valid;
 
-                meta_cache_fifo_data    <=  i_row_count &           -- std_logic_vector(8 downto 0)
+                meta_cache_fifo_data    <=  i_bad_poly & 
+                                            i_row_count &           -- std_logic_vector(8 downto 0)
                                             i_row(12 downto 0) &    -- std_logic_vector(12 downto 0), always a multiple of 256.
                                             i_freq_index &          -- std_logic_vector(16 downto 0)
                                             i_sub_array &           -- std_logic_vector(7 downto 0)
@@ -322,7 +325,8 @@ begin
             else
                 meta_cache_fifo_wr      <= testmode_load_instruct AND (NOT testmode_load_instruct_d);   -- +ve edge trigger.
 
-                meta_cache_fifo_data    <=  testmode_row_count(8 downto 0) &            -- std_logic_vector(8 downto 0)
+                meta_cache_fifo_data    <=  '0' & 
+                                            testmode_row_count(8 downto 0) &            -- std_logic_vector(8 downto 0)
                                             testmode_row(12 downto 0) &                 -- std_logic_vector(12 downto 0), always a multiple of 256.
                                             testmode_freqindex(16 downto 0) &           -- std_logic_vector(16 downto 0)
                                             testmode_subarray(7 downto 0) &             -- std_logic_vector(7 downto 0)
@@ -395,6 +399,7 @@ begin
                             cor_tri_freq_index      <= meta_cache_fifo_q(120 downto 104);
                             cor_tri_row             <= unsigned(meta_cache_fifo_q(133 downto 121));
                             cor_tri_row_count       <= unsigned(meta_cache_fifo_q(142 downto 134));
+                            cor_tri_bad_poly        <= meta_cache_fifo_q(143);
                         end if;
 
                     when check_enable =>

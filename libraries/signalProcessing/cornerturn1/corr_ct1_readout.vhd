@@ -246,7 +246,7 @@ architecture Behavioral of corr_ct1_readout is
     
     signal bufFIFO_din : std_logic_vector(3 downto 0);
     signal bufFIFO_dout : t_slv_4_arr(3 downto 0);
-    signal delayFIFO_dout : t_slv_128_arr(3 downto 0);
+    signal delayFIFO_dout : t_slv_129_arr(3 downto 0);
     signal bufFIFO_empty : std_logic_vector(3 downto 0);
     signal bufFIFO_rdDataCount : t_slv_11_arr(3 downto 0);
     signal bufFIFO_wrDataCount : t_slv_11_arr(3 downto 0);
@@ -331,7 +331,7 @@ architecture Behavioral of corr_ct1_readout is
     signal delay_valid : std_logic;
     signal delay_offset, delay_offset_inv, delay_offset_neg : std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
     
-    signal delayFIFO_din : std_logic_vector(127 downto 0);
+    signal delayFIFO_din : std_logic_vector(128 downto 0);
     signal delayFIFO_wrEn : std_logic_Vector(3 downto 0);
     
     type poly_fsm_t is (start, wait_done0, wait_done1, wait_done2, check_fifos, update_vc, check_vc, done);
@@ -377,6 +377,7 @@ architecture Behavioral of corr_ct1_readout is
     signal dbg_vec_del1, dbg_vec_del2 : std_logic_vector(255 downto 0);
     signal fp32_delay_valid, fp32_delay_valid2 : std_logic;
     signal poly_result_fp32, poly_time_fp32 : std_logic_vector(31 downto 0);
+    signal bad_poly : std_logic; 
 
 begin
     
@@ -978,7 +979,7 @@ begin
             -- As data comes back from the memory, generate the fine delays and write to the buffer fifos.
             -- if this is the first beat in the transaction, then fine delay data comes from ar_fifo, 
             -- otherwise the data is the captured version of the fifo output from the first beat.
-            if i_readStart = '1' then  
+            if rstFIFOs = '1' or i_readStart = '1' then  
                 ar_regUsed <= '0';
             elsif ar_regUsed = '0' and i_axi_r.valid = '1' then
                 --rdata_first <= ARFIFO_dout(2);   -- First read of a particular virtual channel for this frame (a "frame" is configurable but nominally 50ms) 
@@ -1126,13 +1127,13 @@ begin
             PROG_EMPTY_THRESH => 10,     -- DECIMAL
             PROG_FULL_THRESH => 10,      -- DECIMAL
             RD_DATA_COUNT_WIDTH => 11,   -- DECIMAL
-            READ_DATA_WIDTH => 128,       -- DECIMAL
+            READ_DATA_WIDTH => 129,       -- DECIMAL
             READ_MODE => "fwft",         -- String
             RELATED_CLOCKS => 0,         -- DECIMAL
             SIM_ASSERT_CHK => 0,         -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "0404",  -- String "404" includes read and write data counts.
             WAKEUP_TIME => 0,            -- DECIMAL
-            WRITE_DATA_WIDTH => 128,      -- DECIMAL
+            WRITE_DATA_WIDTH => 129,      -- DECIMAL
             WR_DATA_COUNT_WIDTH => 11    -- DECIMAL
         )
         port map (
@@ -1228,6 +1229,7 @@ begin
             delayFIFO_din(63 downto 32) <= delay_Vpol_deltaP;
             delayFIFO_din(95 downto 64) <= delay_Hpol_phase;
             delayFIFO_din(127 downto 96) <= delay_Vpol_phase;
+            delayFIFO_din(128) <= bad_poly;
             --delayFIFO_din(143 downto 128) <= delay_vc;  -- Just a sanity check, fifo read and write order should be ensure that the correct virtual channel goes to the correct output
             --delayFIFO_din(151 downto 144) <= delay_packet(7 downto 0); -- packet within the corner turn frame
             if delay_valid = '1' then
@@ -1416,6 +1418,7 @@ begin
         o_Hpol_phase => delay_Hpol_phase, -- out std_logic_vector(31 downto 0);
         o_Vpol_deltaP => delay_Vpol_deltaP, -- out std_logic_vector(31 downto 0);
         o_Vpol_phase  => delay_Vpol_phase, -- out std_logic_vector(31 downto 0);
+        o_bad_poly    => bad_poly,         -- out std_logic; No valid polynomial was found.
         o_valid       => delay_valid,      -- out std_logic
         
         ----------------------------------------------------------------------
@@ -1558,7 +1561,25 @@ begin
             
             shared_to_FB_valid_del1 <= shared_to_FB_valid;
             
-            if shared_to_FB_valid_del1 = '1' then
+            
+            if rstInternal = '1' then
+                bufReadAddr0 <= (others => '0');
+                bufReadAddr1 <= (others => '0');
+                bufReadAddr2 <= (others => '0');
+                bufReadAddr3 <= (others => '0');
+                channelCount <= (others => '0');
+                rd_fsm <= idle;
+                buf0RdEnable <= '0';
+                buf1RdEnable <= '0';
+                buf2RdEnable <= '0';
+                buf3RdEnable <= '0';
+                bufFIFO_rdEn(0) <= '0';
+                bufFIFO_rdEn(1) <= '0';
+                bufFIFO_rdEn(2) <= '0';
+                bufFIFO_rdEn(3) <= '0';
+                sof <= '0';
+                sofFull <= '0';
+            elsif shared_to_FB_valid_del1 = '1' then
                 -- Start reading out the data from the buffer.
                 -- This occurs once per frame (typically 282 ms).
                 -- Buffers are always emptied at the end of a frame, so we always start from 0.
@@ -1826,7 +1847,7 @@ begin
             bufRdValid(2) <= buf2RdEnableDel2;
             bufRdValid(3) <= buf3RdEnableDel2;
             
-            if rd_fsm = reset_output_fifos or rd_fsm = reset_output_fifos_start then
+            if rstInternal = '1' or rd_fsm = reset_output_fifos or rd_fsm = reset_output_fifos_start then
                 readOutRst <= '1';
             else
                 readOutRst <= '0';
@@ -1854,7 +1875,12 @@ begin
             -- 16 clocks to copy data into the FIFO in corr_ct1_readout_32bit
             -- plus some extra delay for read latency of the buffer in this module 
             -- and read latency of the FIFO.
-            if readoutStartDel(27) = '1' then
+            if (rstInternal = '1') then
+                packetsRemaining <= (others => '0');
+                clockCount <= (others => '0');
+                clockCountZero <= '1';
+                delayFIFO_rden <= "0000";
+            elsif readoutStartDel(27) = '1' then
                 -- Packets are 4096 samples; Number of packets in a burst is 11 preload packets plus half the number of LFAA blocks per frame, since LFAA blocks are 2048 samples.
                 packetsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME /2 + 11,16));
                 clockCount <= (others => '0');
@@ -1865,21 +1891,25 @@ begin
                 o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
                 o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
                 o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
+                o_meta0.bad_poly <= delayFIFO_dout(0)(128);
                     
                 o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
                 o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
                 o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
                 o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
+                o_meta1.bad_poly <= delayFIFO_dout(1)(128);
                     
                 o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
                 o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
                 o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
                 o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
+                o_meta2.bad_poly <= delayFIFO_dout(2)(128);
                   
                 o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
                 o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
                 o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
                 o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);  
+                o_meta3.bad_poly <= delayFIFO_dout(3)(128);
                 
             elsif (unsigned(packetsRemaining) > 0) then
                 -- Changed to improve timing, was : if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusOne))) then
@@ -1895,21 +1925,25 @@ begin
                     o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
                     o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
                     o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
+                    o_meta0.bad_poly <= delayFIFO_dout(0)(128);
                     
                     o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
                     o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
                     o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
                     o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
+                    o_meta1.bad_poly <= delayFIFO_dout(1)(128);
                     
                     o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
                     o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
                     o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
                     o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
+                    o_meta2.bad_poly <= delayFIFO_dout(2)(128);
                     
                     o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
                     o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
                     o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
-                    o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);                    
+                    o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);
+                    o_meta3.bad_poly <= delayFIFO_dout(3)(128);                    
                     
                     packetsRemaining <= packetsRemaining_minus1;
                     if ((unsigned(packetsRemaining_minus1) <= (g_SPS_PACKETS_PER_FRAME/2)) and

@@ -67,12 +67,12 @@ entity corr_ct2_din is
         i_rst : in std_logic;
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is typically 283 ms of data).
-        i_tableSelect  : in std_logic; -- which of the double buffered vc_demap and subarray_beam tables to use.
         -- frame count is the same for all simultaneous output streams.
         -- frameCount is the count of 1st corner turn frames, i.e. 283 ms pieces of data.
         i_frameCount_mod3 : in std_logic_vector(1 downto 0);  -- which of the three first corner turn frames is this, out of the 3 that make up a 849 ms integration. "00", "01", or "10".
         i_frameCount_849ms : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
         i_virtualChannel  : in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the filterbank data streams.
+        i_bad_poly        : in std_logic;
         i_lastChannel     : in std_logic_vector(15 downto 0);
         i_HeaderValid     : in std_logic_vector(3 downto 0);
         i_data            : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
@@ -80,6 +80,13 @@ entity corr_ct2_din is
         o_trigger_readout : out std_logic; -- Just received the last packet in a frame for a particular virtual channel.
         o_trigger_buffer  : out std_logic;
         o_trigger_frameCount : out std_logic_vector(31 downto 0);
+        -- interface to the bad poly memory
+        o_bp_addr0    : out std_logic_vector(7 downto 0); -- one entry per subarray beam, double buffered, 128 subarray beams in buffer 0 so 256 deep.
+        o_bp_wr_en0   : out std_logic;
+        o_bp_wr_data0 : out std_logic;
+        o_bp_addr1    : out std_logic_vector(7 downto 0); -- one entry per subarray beam, double buffered, 128 subarray beams in buffer 1 so 256 deep.
+        o_bp_wr_en1   : out std_logic;
+        o_bp_wr_data1 : out std_logic;
         --------------------------------------------------------------------
         -- interface to the demap table 
         o_vc_demap_rd_addr   : out std_logic_vector(7 downto 0);
@@ -221,7 +228,14 @@ architecture Behavioral of corr_ct2_din is
     PORT (
    	    clk : IN STD_LOGIC;
    	    probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
-    END COMPONENT;    
+    END COMPONENT;
+    
+    signal bad_poly_buffer : std_logic;
+    signal bp_addr0, bp_addr1 : std_logic_vector(6 downto 0);
+    type t_bad_poly_fsm is (clear_memory, check_bad, set_bad, idle, wait_check_bad);
+    signal bad_poly_fsm : t_bad_poly_fsm := idle;
+    signal bp_wr_en0, bp_wr_en1, bp_wr_data0, bp_wr_data1, bad_poly_del1, bad_poly : std_logic;
+    signal bad_poly_wait_count : std_logic_vector(7 downto 0);
     
 begin
     
@@ -239,98 +253,12 @@ begin
     o_SB_req <= SB_req;
     o_SB_addr <= SB_addr;
     
-    generate_debug_ila : IF g_DEBUG_ILA GENERATE
-        ct2_ila : ila_0
-        port map (
-            clk => i_axi_clk,
-            probe0(15 downto 0) => copyToHBM_count,
-            probe0(19 downto 16) => copy_fsm_dbg,
-            probe0(23 downto 20) => copyData_fsm_dbg,
-            probe0(29 downto 24) => dataFIFO_dataCount(0),
-            probe0(30) => first_aw,
-            probe0(31) => copy_fsm_stuck,
-            probe0(47 downto 32) => copydata_count,
-            probe0(59 downto 48) => copy_finechannel(11 downto 0),
-            probe0(60) => get_addr,
-            probe0(61) => HBM_addr_valid,
-            probe0(62) => HBM_addr_bad,
-            probe0(63) => HBM_fine_high,
-            probe0(95 downto 64) => HBM_addr,
-            probe0(96) => dataFIFO_valid(0),
-            probe0(97) => dataFIFO_valid(1),
-            probe0(100 downto 98) => dataFIFO_dout(0)(514 downto 512),
-            probe0(103 downto 101) => dataFIFO_dout(1)(514 downto 512),
-            probe0(104) => HBM_axi_aw(0).valid,
-            probe0(105) => HBM_axi_aw(1).valid,
-            probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
-            probe0(138) => i_HBM_axi_awready(0),
-            probe0(139) => i_HBM_axi_awready(1),
-            probe0(140) => last_virtual_channel,
-            probe0(141) => copyToHBM_trigger,
-            probe0(149 downto 142) => i_virtualChannel(0)(7 downto 0),
-            probe0(157 downto 150) => i_virtualChannel(1)(7 downto 0),
-            probe0(165 downto 158) => i_virtualChannel(2)(7 downto 0),
-            probe0(167 downto 166) => i_frameCount_mod3,
-            probe0(171 downto 168) => i_HeaderValid,
-            probe0(187 downto 172) => i_lastChannel,
-            probe0(191 downto 188) => i_frameCount_849ms(3 downto 0)
-        );
-        
-        ct2_pt2_ila : ila_0
-        port map (
-            clk => i_axi_clk,
-            probe0(15 downto 0) => copyToHBM_count,
-            probe0(19 downto 16) => copy_fsm_dbg,
-            probe0(23 downto 20) => copyData_fsm_dbg,
-            probe0(29 downto 24) => dataFIFO_dataCount(0),
-
-            probe0(45 downto 30) => last_word_in_frame,
-            probe0(57 downto 46) => copyData_fineRemaining,
-            probe0(58) => copyData_trigger,
-
-            probe0(61 downto 59) => bufRdCount,
-
-            probe0(62) => trigger_copyData_fsm,
-            probe0(68 downto 63) => dataFIFO_dataCount(1),
-            probe0(70 downto 69) => dataFIFO_wrEn,
-            
-            probe0(71) => wait_HBMX_aw_rdy_stuck,
-            probe0(72) => copy_trigger,
-            probe0(73) => copyToHBM,
-
-            probe0(74) => i_HBM_axi_b(0).valid,
-            probe0(75) => i_HBM_axi_b(1).valid,
-
-            probe0(77 downto 76) => i_HBM_axi_b(0).resp,
-            probe0(79 downto 78) => i_HBM_axi_b(1).resp,
-
-            probe0(81 downto 80) => i_HBM_axi_wready,
-
-            probe0(87 downto 82) => fifo_size_plus_pending,
-            probe0(88) => copy_SB_HBM_sel,
-
-            probe0(95 downto 89) => ( others => '0' ),
-
-            probe0(96) => dataFIFO_valid(0),
-            probe0(97) => dataFIFO_valid(1),
-            probe0(100 downto 98) => dataFIFO_dout(0)(514 downto 512),
-            probe0(103 downto 101) => dataFIFO_dout(1)(514 downto 512),
-            probe0(104) => HBM_axi_aw(0).valid,
-            probe0(105) => HBM_axi_aw(1).valid,
-            probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
-            probe0(138) => i_HBM_axi_awready(0),
-            probe0(139) => i_HBM_axi_awready(1),
-            probe0(140) => last_virtual_channel,
-            probe0(141) => copyToHBM_trigger,
-
-            probe0(157 downto 142) => dataFIFO0_wrEn,
-            probe0(173 downto 158) => dataFIFO1_wrEn,
-            probe0(183 downto 174) => i_virtualChannel(2)(9 downto 0),
-            probe0(191 downto 184) => i_virtualChannel(3)(7 downto 0)
-        );
-    END GENERATE;
-    
-    
+    o_bp_addr0 <= bad_poly_buffer & bp_addr0;
+    o_bp_addr1 <= bad_poly_buffer & bp_addr1;
+    o_bp_wr_en0 <= bp_wr_en0;
+    o_bp_wr_en1 <= bp_wr_en1;
+    o_bp_wr_data0 <= bp_wr_data0;
+    o_bp_wr_data1 <= bp_wr_data1;
     
     process(i_axi_clk)
         variable demap_station_x128 : std_logic_vector(31 downto 0);
@@ -341,6 +269,95 @@ begin
             
             virtualChannel0Del1 <= i_virtualChannel(0);
             virtualChannel3Del1 <= i_virtualChannel(3);
+            
+            ---------------------------------------------------------------------
+            -- Bad poly tracking
+            -- If there was no valid polynomial, then this module is notified via the i_bad_poly input.
+            -- i_bad_poly is driven along with i_dataValid, for each packet coming in.
+            -- bad_poly is tracked separately for each subarray-beam.
+            -- The flag is stored in the bad_poly memory in the level above this module. 
+            -- For the first packet in an 849ms frame, we clear the entire bad_poly memory.
+            -- Thereafter, if a bad polynomial is found, then the bad_poly bit is set in the memory for 
+            -- the corresponding subarray-beam. 
+            bad_poly_del1 <= i_bad_poly;
+            
+            if sof_hold = '1' and dataValidDel1 = '1' and i_frameCount_mod3 = "00" and unsigned(virtualChannel0Del1) = 0 then
+                -- first data in first 283ms frame (out of an 849ms frame) for the first virtual channel, clear the bad_poly memory
+                bad_poly_fsm <= clear_memory;
+                bad_poly_buffer <= i_frameCount_849ms(0); -- Which buffer we are writing to in the bad_poly memory
+                bp_addr0 <= (others => '0');
+                bp_addr1 <= (others => '0');
+                bp_wr_en0 <= '1';
+                bp_wr_en1 <= '1';
+                bad_poly <= bad_poly_del1;
+                bp_wr_data0 <= '0';
+                bp_wr_data1 <= '0';
+            else
+                case bad_poly_fsm is
+                    when clear_memory =>
+                        bp_addr0 <= std_logic_vector(unsigned(bp_addr0) + 1);
+                        bp_addr1 <= std_logic_vector(unsigned(bp_addr1) + 1);
+                        if unsigned(bp_addr0) = 127 then
+                            bad_poly_fsm <= check_bad;
+                            bp_wr_en0 <= '0';
+                            bp_wr_en1 <= '0';
+                        else
+                            bp_wr_en0 <= '1';
+                            bp_wr_en1 <= '1';
+                        end if;
+                        
+                    when check_bad =>
+                        if demap_valid = '1' and bad_poly = '1' then
+                            bad_poly_fsm <= set_bad;
+                        else
+                            bad_poly_fsm <= idle;
+                        end if;
+                        bp_wr_en0 <= '0';
+                        bp_wr_en1 <= '0';
+                        
+                    when set_bad =>
+                        bp_addr0(6 downto 0) <= SB_addr(6 downto 0);
+                        bp_addr1(6 downto 0) <= SB_addr(6 downto 0);
+                        bp_wr_data0 <= '1';
+                        bp_wr_data1 <= '1';
+                        if SB_addr(7) = '0' then
+                            bp_wr_en0 <= '1';
+                            bp_wr_en1 <= '0';
+                        else
+                            bp_wr_en0 <= '1';
+                            bp_wr_en1 <= '0';
+                        end if;
+                        bad_poly_fsm <= idle;
+                        
+                    when idle =>
+                        if dataValidDel1 = '1' and dataValidDel2 = '0' then
+                            bad_poly <= bad_poly_del1;
+                            bad_poly_fsm <= wait_check_bad;
+                        end if;
+                        bad_poly_wait_count <= (others => '0');
+                        bp_wr_data0 <= '0';
+                        bp_wr_data1 <= '0';
+                        bp_wr_en0 <= '0';
+                        bp_wr_en1 <= '0';
+                    
+                    when wait_check_bad =>
+                        -- wait for a while so that reading of the demap table is complete
+                        if unsigned(bad_poly_wait_count) > 127 then
+                            bad_poly_fsm <= check_bad;
+                        else
+                            bad_poly_wait_count <= std_logic_vector(unsigned(bad_poly_wait_count) + 1);
+                        end if;
+                        bp_wr_data0 <= '0';
+                        bp_wr_data1 <= '0';
+                        bp_wr_en0 <= '0';
+                        bp_wr_en1 <= '0';
+                    
+                    when others =>
+                        bad_poly_fsm <= idle;
+                end case;
+            end if;
+            
+            ------------------------------------------------------------------------------
             
             if i_rst = '1' then
                 timeStep <= (others => '0');
@@ -358,6 +375,7 @@ begin
                 -- Just use the first filterbanks virtual channel.
                 -- This module assumes that i_virtualChannel(0), (1), (2), and (3) are consecutive values.
                 virtualChannel <= virtualChannel0Del1;
+                
                 if (unsigned(virtualChannel3Del1) >= unsigned(i_lastchannel)) then
                     last_virtual_channel <= '1';
                 else
@@ -675,7 +693,7 @@ begin
                             -- Trigger copying out of the data packets to the fifos that go to the HBM
                             -- for the axi w bus.
                             first_aw <= '0';
-                            if first_aw = '1' then 
+                            if first_aw = '1' and HBM_fine_high = '0' then 
                                 copyData_fineChannel_Start <= copy_fineChannel;
                                 copyData_NFine_Start <= HBM_fine_remaining;
                                 trigger_copyData_fsm <= '1';
@@ -969,5 +987,98 @@ begin
     o_trigger_readout <= trigger_readout;
     o_trigger_buffer <= trigger_buffer;
     o_trigger_frameCount <= trigger_frameCount;
+    
+    
+
+    generate_debug_ila : IF g_DEBUG_ILA GENERATE
+        ct2_ila : ila_0
+        port map (
+            clk => i_axi_clk,
+            probe0(15 downto 0) => copyToHBM_count,
+            probe0(19 downto 16) => copy_fsm_dbg,
+            probe0(23 downto 20) => copyData_fsm_dbg,
+            probe0(29 downto 24) => dataFIFO_dataCount(0),
+            probe0(30) => first_aw,
+            probe0(31) => copy_fsm_stuck,
+            probe0(47 downto 32) => copydata_count,
+            probe0(59 downto 48) => copy_finechannel(11 downto 0),
+            probe0(60) => get_addr,
+            probe0(61) => HBM_addr_valid,
+            probe0(62) => HBM_addr_bad,
+            probe0(63) => HBM_fine_high,
+            probe0(95 downto 64) => HBM_addr,
+            probe0(96) => dataFIFO_valid(0),
+            probe0(97) => dataFIFO_valid(1),
+            probe0(100 downto 98) => dataFIFO_dout(0)(514 downto 512),
+            probe0(103 downto 101) => dataFIFO_dout(1)(514 downto 512),
+            probe0(104) => HBM_axi_aw(0).valid,
+            probe0(105) => HBM_axi_aw(1).valid,
+            probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
+            probe0(138) => i_HBM_axi_awready(0),
+            probe0(139) => i_HBM_axi_awready(1),
+            probe0(140) => last_virtual_channel,
+            probe0(141) => copyToHBM_trigger,
+            probe0(149 downto 142) => i_virtualChannel(0)(7 downto 0),
+            probe0(157 downto 150) => i_virtualChannel(1)(7 downto 0),
+            probe0(165 downto 158) => i_virtualChannel(2)(7 downto 0),
+            probe0(167 downto 166) => i_frameCount_mod3,
+            probe0(171 downto 168) => i_HeaderValid,
+            probe0(187 downto 172) => i_lastChannel,
+            probe0(191 downto 188) => i_frameCount_849ms(3 downto 0)
+        );
+        
+        ct2_pt2_ila : ila_0
+        port map (
+            clk => i_axi_clk,
+            probe0(15 downto 0) => copyToHBM_count,
+            probe0(19 downto 16) => copy_fsm_dbg,
+            probe0(23 downto 20) => copyData_fsm_dbg,
+            probe0(29 downto 24) => dataFIFO_dataCount(0),
+
+            probe0(45 downto 30) => last_word_in_frame,
+            probe0(57 downto 46) => copyData_fineRemaining,
+            probe0(58) => copyData_trigger,
+
+            probe0(61 downto 59) => bufRdCount,
+
+            probe0(62) => trigger_copyData_fsm,
+            probe0(68 downto 63) => dataFIFO_dataCount(1),
+            probe0(70 downto 69) => dataFIFO_wrEn,
+            
+            probe0(71) => wait_HBMX_aw_rdy_stuck,
+            probe0(72) => copy_trigger,
+            probe0(73) => copyToHBM,
+
+            probe0(74) => i_HBM_axi_b(0).valid,
+            probe0(75) => i_HBM_axi_b(1).valid,
+
+            probe0(77 downto 76) => i_HBM_axi_b(0).resp,
+            probe0(79 downto 78) => i_HBM_axi_b(1).resp,
+
+            probe0(81 downto 80) => i_HBM_axi_wready,
+
+            probe0(87 downto 82) => fifo_size_plus_pending,
+            probe0(88) => copy_SB_HBM_sel,
+
+            probe0(95 downto 89) => ( others => '0' ),
+
+            probe0(96) => dataFIFO_valid(0),
+            probe0(97) => dataFIFO_valid(1),
+            probe0(100 downto 98) => dataFIFO_dout(0)(514 downto 512),
+            probe0(103 downto 101) => dataFIFO_dout(1)(514 downto 512),
+            probe0(104) => HBM_axi_aw(0).valid,
+            probe0(105) => HBM_axi_aw(1).valid,
+            probe0(137 downto 106) => HBM_axi_aw(0).addr(31 downto 0),
+            probe0(138) => i_HBM_axi_awready(0),
+            probe0(139) => i_HBM_axi_awready(1),
+            probe0(140) => last_virtual_channel,
+            probe0(141) => copyToHBM_trigger,
+
+            probe0(157 downto 142) => dataFIFO0_wrEn,
+            probe0(173 downto 158) => dataFIFO1_wrEn,
+            probe0(183 downto 174) => i_virtualChannel(2)(9 downto 0),
+            probe0(191 downto 184) => i_virtualChannel(3)(7 downto 0)
+        );
+    END GENERATE;    
     
 end Behavioral;

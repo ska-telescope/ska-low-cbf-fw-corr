@@ -378,6 +378,7 @@ ARCHITECTURE structure OF correlator_core IS
     -- HBM reset
     signal hbm_reset                : std_logic_vector(5 downto 0);
     signal hbm_status               : t_slv_8_arr(5 downto 0);
+    signal hbm_rst_dbg              : t_slv_32_arr(5 downto 0);
     signal hbm_reset_combined       : std_logic_vector(5 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
@@ -401,6 +402,9 @@ ARCHITECTURE structure OF correlator_core IS
     signal HBM_axi_arsizei : t_slv_3_arr(g_HBM_INTERFACES - 1 downto 0);
     signal HBM_axi_arbursti : t_slv_2_arr(g_HBM_INTERFACES - 1 downto 0);
     signal HBM_shared : t_slv_64_arr(g_HBM_interfaces-1 downto 0);
+    
+    signal axi_dbg : std_logic_vector(127 downto 0);
+    signal axi_dbg_valid : std_logic;
     
     function get_axi_size(AXI_DATA_WIDTH : integer) return std_logic_vector is
     begin
@@ -483,6 +487,15 @@ ARCHITECTURE structure OF correlator_core IS
         m_axi_rvalid : IN STD_LOGIC;
         m_axi_rready : OUT STD_LOGIC);
     END COMPONENT;
+    
+    signal hbm_reset_final : std_logic;
+    signal i_axis_tdata_gated : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal i_axis_tkeep_gated : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal i_axis_tlast_gated : std_logic;
+    signal i_axis_tuser_gated : std_logic_vector(79 downto 0); -- Timestamp for the packet.
+    signal i_axis_tvalid_gated : std_logic;
+    signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
+    signal hbm_reset_actual : std_logic_vector(5 downto 0);
     
 begin
     
@@ -596,6 +609,30 @@ begin
         MSTR_IN_FULL   => mc_full_miso,
         MSTR_OUT_FULL  => mc_full_mosi
     );
+    
+    process(ap_clk)
+    begin
+        if rising_edge(ap_clk) then
+            axi_dbg(0) <= mc_master_mosi.awvalid;
+            axi_dbg(1) <= mc_master_mosi.wvalid;
+            axi_dbg(2) <= mc_master_mosi.arvalid;
+            axi_dbg(3) <= mc_master_miso.awready;
+            axi_dbg(4) <= mc_master_miso.wready;
+            axi_dbg(5) <= mc_master_miso.arready;
+            axi_dbg(31 downto 6) <= (others => '0');
+            axi_dbg(63 downto 32) <= mc_master_mosi.awaddr(31 downto 0);
+            axi_dbg(95 downto 64) <= mc_master_mosi.wdata(31 downto 0);
+            axi_dbg(127 downto 96) <= mc_master_mosi.araddr(31 downto 0);
+            if ((mc_master_mosi.awvalid = '1' and  mc_master_miso.awready = '1') or
+                (mc_master_mosi.wvalid = '1' and mc_master_miso.wready = '1') or
+                (mc_master_mosi.arvalid = '1' and mc_master_miso.arready = '1')) then
+                axi_dbg_valid <= '1';
+            else
+                axi_dbg_valid <= '0';
+            end if;
+        end if;
+    end process;
+    
     
     o_cmac_mc_lite_mosi <= mc_lite_mosi(c_cmac_lite_index);
     mc_lite_miso(c_cmac_lite_index) <= i_cmac_mc_lite_miso;
@@ -838,11 +875,11 @@ begin
         g_USE_DUMMY_FB          => g_USE_DUMMY_FB
     ) port map (
         -- Received data from 100GE
-        i_axis_tdata   => i_axis_tdata,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        i_axis_tkeep   => i_axis_tkeep,  -- in (63:0);  one bit per byte in i_axi_tdata
-        i_axis_tlast   => i_axis_tlast,  -- in std_logic;                      
-        i_axis_tuser   => i_axis_tuser,  -- in (79:0);  Timestamp for the packet.
-        i_axis_tvalid  => i_axis_tvalid, -- in std_logic;
+        i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
+        i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
+        i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
+        i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
         -- Data to be transmitted on 100GE
         o_axis_tdata   => o_axis_tdata,  -- out (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
         o_axis_tkeep   => o_axis_tkeep,  -- out (63:0);  one bit per byte in o_axis_tdata
@@ -939,11 +976,57 @@ begin
 
         -- HBM reset
         o_hbm_reset    => hbm_reset,
-        i_hbm_status   => hbm_status
+        i_hbm_status   => hbm_status,
+        i_hbm_rst_dbg  => hbm_rst_dbg,
+        i_hbm_reset_final => hbm_reset_final,   -- 1 bit
+        i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
+        i_axi_dbg => axi_dbg, -- 128 bits
+        i_axi_dbg_valid => axi_dbg_valid
     );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
     hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
+    
+    
+    eth_block : entity correlator_lib.eth_disable
+    generic map (
+        -- Number of i_ap_clk clocks to wait after blocking ethernet traffic before driving o_reset
+        -- This allows us to wait a while for e.g. SPS input writes to HBM to complete properly
+        g_HOLDOFF => 1024, -- : integer := 1024;
+        -- Number of i_eth_clk clocks to wait before unblocking ethernet traffic after de-asserting o_reset
+        g_RESTART_HOLDOFF => 2048 -- : integer := 4096
+    ) port map (
+        -- Reset signal is on i_ap_clk
+        i_ap_clk  => ap_clk,  --  in std_logic;
+        i_reset   => hbm_reset_combined(0), --  in std_logic;  
+        o_reset   => hbm_reset_final,       --  out std_logic; -- Goes high following i_reset after the 100G ethernet has been blocked
+        o_fsm_dbg => eth_disable_fsm_dbg, --  out std_logic_vector(4 downto 0); -- fsm state 
+        -----------------------------------------------------
+        -- Everything else is on i_eth_clk
+        i_eth_clk    => i_eth100G_clk, --  in std_logic;
+        -----------------------------------------------------
+        -- Received data from 100GE
+        i_axis_tdata => i_axis_tdata, --  in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep => i_axis_tkeep, -- in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast => i_axis_tlast, -- in std_logic;                      
+        i_axis_tuser => i_axis_tuser, -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid => i_axis_tvalid, -- in std_logic;
+        -- Data output - 1 clock latency from input
+        o_axis_tdata => i_axis_tdata_gated, -- out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        o_axis_tkeep => i_axis_tkeep_gated, -- out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        o_axis_tlast => i_axis_tlast_gated, -- out std_logic;                      
+        o_axis_tuser => i_axis_tuser_gated, -- out std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        o_axis_tvalid => i_axis_tvalid_gated -- out std_logic
+        -----------------------------------------------------
+    );    
+    
+    
+    hbm_reset_actual(0) <= hbm_reset_final;
+    hbm_reset_actual(1) <= hbm_reset_final;
+    hbm_reset_actual(2) <= hbm_reset_final;
+    hbm_reset_actual(3) <= hbm_reset_final;
+    hbm_reset_actual(4) <= hbm_reset_final;
+    hbm_reset_actual(5) <= '0'; -- don't reset the HBM for the ILA, want to be able to see what is happening.
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
@@ -957,9 +1040,10 @@ begin
                 i_clk                   => ap_clk,
                 i_reset                 => ap_rst,
         
-                i_logic_reset           => hbm_reset_combined(i),
+                i_logic_reset           => hbm_reset_actual(i), -- hbm_reset_combined(i),
                 o_in_reset              => open,
                 o_reset_complete        => hbm_status(i),
+                o_dbg                   => hbm_rst_dbg(i),
                 -----------------------------------------------------
                 -- To HBM
                 -- Data out to the HBM

@@ -117,6 +117,7 @@ $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
 $DESIGN_PATH/src/vhdl/version_pkg.vhd \
 $COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
+$COMMON_PATH/hbm_axi_reset_handler/eth_disable.vhd \
 $BUILD_PATH/build_details_pkg.vhd \
 ]
 
@@ -135,6 +136,7 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
 *correlator/src/vhdl/version_pkg.vhd \
 *hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
+*hbm_axi_reset_handler/eth_disable.vhd \
 */build_details_pkg.vhd \
 }]
 
@@ -377,6 +379,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count6.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count16.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
@@ -388,6 +391,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_din.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count6.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count16.vhd \
  *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \

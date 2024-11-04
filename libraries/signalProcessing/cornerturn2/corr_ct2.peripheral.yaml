@@ -126,10 +126,11 @@ peripherals:
                                    The table_select register in this module selects which double buffered version of this table to use.  \
                                     Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table, \
                                              bits(19:8) = (sub)station within this subarray. \
-                                             bits(28:20) = channel frequency index \
-                                    word 1 : bits(11:0) = start fine channel for forwarding on the 100GE port, \
-                                             bits(23:12) = End fine channel for forwarding on the 100GE port. \ 
-                                             bits(31:24) = Forwarding address \
+                                             bits(28:20) = Channel frequency index. x781.25kHz to get the sky frequency \
+                                             bit(31) = 1 to indicate this entry in the table is valid \
+                                    word 1 : bits(11:0) = start fine channel for forwarding on the 100GE port. Forwarding is not currently implemented. \
+                                             bits(23:12) = End fine channel for forwarding on the 100GE port. Forwarding is not currently implemented. \ 
+                                             bits(31:24) = Forwarding address (no effect at present) \
                                    "
           #################################
           - - field_name        : subarray_beam

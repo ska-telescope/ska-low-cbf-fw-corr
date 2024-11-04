@@ -184,6 +184,7 @@ entity poly_eval is
         o_Hpol_phase : out std_logic_vector(31 downto 0);
         o_Vpol_deltaP : out std_logic_vector(31 downto 0);
         o_Vpol_phase : out std_logic_vector(31 downto 0);
+        o_bad_poly : out std_logic;
         o_valid : out std_logic;
         ----------------------------------------------------------------------
         -- Debug Data, valid on o_valid
@@ -315,6 +316,7 @@ architecture Behavioral of poly_eval is
     
     signal poly_rd_addr : std_logic_vector(19 downto 0);
     signal uptime : std_logic_vector(47 downto 0) := x"000000000000";
+    signal bad_poly : std_logic := '0';
     
 begin
     
@@ -896,6 +898,7 @@ begin
                 o_Hpol_phase  <= Hpol_phase(to_integer(unsigned(vc_count)));
                 o_Vpol_deltaP <= Vpol_deltaP(to_integer(unsigned(vc_count)));
                 o_Vpol_phase <= Vpol_phase(to_integer(unsigned(vc_count)));
+                o_bad_poly <= bad_poly;
                 o_valid <= '1';
                 -- debug data
                 o_poly_result <= cur_poly_state(to_integer(unsigned(vc_count)));
@@ -1009,6 +1012,13 @@ begin
             elsif poly_fsm_del(7) = get_validity_buf1 and buf0_ok_del7 = '0' and buf1_ok_del7 = '0' then
                 no_valid_buffer_count <= std_logic_vector(unsigned(no_valid_buffer_count) + 1);
             end if;
+            
+            if poly_fsm_del(7) = start then
+                bad_poly <= '0';
+            elsif poly_fsm_del(7) = get_validity_buf1 and buf0_ok_del7 = '0' and buf1_ok_del7 = '0' then
+                bad_poly <= '1';
+            end if;
+            
             
             -----------------------------------------------------------------------------
             -- Input to the int to float conversion

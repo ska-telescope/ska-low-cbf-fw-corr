@@ -34,9 +34,11 @@ entity HBM_axi_tbModel is
         AXI_ID_WIDTH : integer := 1;
         AXI_DATA_WIDTH : integer := 256;  -- Must be a multiple of 32 bits.
         READ_QUEUE_SIZE : integer := 16;
+        WRITE_QUEUE_SIZE : integer := 16;
         MIN_LAG : integer := 80;
         INCLUDE_PROTOCOL_CHECKER : boolean := TRUE;
         RANDSEED : natural := 12345;
+        WRANDSEED : natural := 54321;
         LATENCY_LOW_PROBABILITY : natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
         LATENCY_ZERO_PROBABILITY : natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
     );
@@ -191,8 +193,10 @@ architecture Behavioral of HBM_axi_tbModel is
 
     signal pseudoRand1, pseudoRand2 : natural;
     signal stallCount : natural;
+    signal wpseudoRand1, wpseudoRand2 : natural;
+    signal wstallCount : natural;
     type readStall_type is (running, stall);
-    signal readStall_fsm : readStall_type := running; 
+    signal readStall_fsm, wreadStall_fsm : readStall_type := running; 
 
     signal nowCount : integer := 0;
     signal now32bit : std_logic_vector(31 downto 0);
@@ -204,12 +208,25 @@ architecture Behavioral of HBM_axi_tbModel is
     signal axi_arFIFO_dout : std_logic_vector((40 + AXI_ADDR_WIDTH-1) downto 0);
     signal axi_arFIFO_empty : std_logic;
     signal axi_arFIFO_rdEn : std_logic;
-
+    
+    signal axi_awFIFO_din : std_logic_vector((40 + AXI_ADDR_WIDTH-1) downto 0);
+    signal axi_awFIFO_wren : std_logic;
+    signal axi_awFIFO_WrDataCount : std_logic_vector(5 downto 0);
+    signal axi_awFIFO_dout : std_logic_vector((40 + AXI_ADDR_WIDTH-1) downto 0);
+    signal axi_awFIFO_empty : std_logic;
+    signal axi_awFIFO_rdEn : std_logic; 
+    
+    signal axi_awvalid_delayed : std_logic;
+    signal axi_awready_delayed : std_logic;
+    signal axi_awaddr_delayed : std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
+    signal axi_awlen_delayed : std_logic_vector(7 downto 0);   
+    
     signal axi_araddr_delayed : std_logic_vector(AXI_ADDR_WIDTH-1 downto 0);
     signal axi_arlen_delayed : std_logic_vector(7 downto 0);
     signal axi_reqTime : std_logic_vector(31 downto 0);
     
     signal axi_arvalid_delayed, axi_arready_delayed : std_logic;
+     
     
     signal rcount : std_logic_vector(31 downto 0) := x"00000000";
 
@@ -504,8 +521,69 @@ begin
 --        end if;
 --    end process;
     
-
     
+    
+    axi_awFIFO_din(31 downto 0) <= now32bit;
+    axi_awFIFO_din(39 downto 32) <= axi_awlen;
+    axi_awFIFO_din((40 + AXI_ADDR_WIDTH-1) downto 40) <= axi_awaddr;
+    axi_awFIFO_wren <= axi_awvalid and axi_awready;
+    axi_awready <= '1' when (unsigned(axi_awFIFO_wrDataCount) < WRITE_QUEUE_SIZE) else '0';
+    
+    
+    fifo_aw_inst : xpm_fifo_sync
+    generic map (
+        DOUT_RESET_VALUE => "0",    -- String
+        ECC_MODE => "no_ecc",       -- String
+        FIFO_MEMORY_TYPE => "distributed", -- String
+        FIFO_READ_LATENCY => 1,     -- DECIMAL
+        FIFO_WRITE_DEPTH => 32,     -- DECIMAL; Allow up to 32 outstanding read requests.
+        FULL_RESET_VALUE => 0,      -- DECIMAL
+        PROG_EMPTY_THRESH => 10,    -- DECIMAL
+        PROG_FULL_THRESH => 10,     -- DECIMAL
+        RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
+        READ_DATA_WIDTH => 40+AXI_ADDR_WIDTH,      -- DECIMAL
+        READ_MODE => "fwft",        -- String
+        SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+        USE_ADV_FEATURES => "0404", -- String  -- bit 2 and bit 10 enables write data count and read data count
+        WAKEUP_TIME => 0,           -- DECIMAL
+        WRITE_DATA_WIDTH => 40+AXI_ADDR_WIDTH, -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
+    )
+    port map (
+        almost_empty => open,      -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
+        almost_full => open,       -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
+        data_valid => open,        -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
+        dbiterr => open,           -- 1-bit output: Double Bit Error: Indicates that the ECC decoder detected a double-bit error and data in the FIFO core is corrupted.
+        dout => axi_awFIFO_dout,   -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
+        empty => axi_awFIFO_empty, -- 1-bit output: Empty Flag: When asserted, this signal indicates that- the FIFO is empty.
+        full => open,              -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full.
+        overflow => open,          -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
+        prog_empty => open,        -- 1-bit output: Programmable Empty: This signal is asserted when the number of words in the FIFO is less than or equal to the programmable empty threshold value.
+        prog_full => open,         -- 1-bit output: Programmable Full: This signal is asserted when the number of words in the FIFO is greater than or equal to the programmable full threshold value.
+        rd_data_count => open,     -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
+        rd_rst_busy => open,       -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
+        sbiterr => open,           -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
+        underflow => open,         -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
+        wr_ack => open,            -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
+        wr_data_count => axi_awFIFO_WrDataCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
+        wr_rst_busy => open,       -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
+        din => axi_awFIFO_din,     -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+        injectdbiterr => '0',      -- 1-bit input: Double Bit Error Injection
+        injectsbiterr => '0',      -- 1-bit input: Single Bit Error Injection: 
+        rd_en => axi_awFIFO_rdEn,  -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
+        rst => '0',                -- 1-bit input: Reset: Must be synchronous to wr_clk.
+        sleep => '0',              -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
+        wr_clk => i_clk,          -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
+        wr_en => axi_awFIFO_wrEn   -- 1-bit input: Write Enable: 
+    );
+    
+    
+    
+    axi_awvalid_delayed <= '1' when axi_awFIFO_empty = '0' else '0';
+    axi_awFIFO_rden <= axi_awvalid_delayed and axi_awready_delayed;
+    
+    axi_awaddr_delayed <= axi_awFIFO_dout((40 + AXI_ADDR_WIDTH-1) downto 40);
+    axi_awlen_delayed <= axi_awFIFO_dout(39 downto 32);
     -----------------------------------------------------------------------------------
     -- Convert the AXI bus into memory transactions
     process(i_clk)
@@ -519,17 +597,17 @@ begin
             else
                 case w_fsm is
                     when idle =>
-                        if axi_awvalid = '1' then
-                            aw_addr <= axi_awaddr;
+                        if axi_awvalid_delayed = '1' then
+                            aw_addr <= axi_awaddr_delayed;
                             aw_size <= axi_awsize;
-                            aw_len <= TO_INTEGER(unsigned(axi_awlen(7 downto 0)));
-                            if axi_wvalid = '1' or w_data_used = '1' then
+                            aw_len <= TO_INTEGER(unsigned(axi_awlen_delayed(7 downto 0)));
+                            if (axi_wvalid = '1' and axi_wready = '1') or w_data_used = '1' then
                                 w_fsm <= wr_data;
                             else
                                 w_fsm <= wr_wait;
                             end if;
                         end if;
-                        if axi_wvalid = '1' and w_data_used = '0' then
+                        if axi_wvalid = '1' and axi_wready = '1' and w_data_used = '0' then
                             w_data <= axi_wdata;
                             w_last <= axi_wlast;
                             w_data_used <= '1';
@@ -540,7 +618,7 @@ begin
                         aw_addr <= std_logic_vector(unsigned(aw_addr) + (AXI_DATA_WIDTH/8));
                         if (aw_len /= 0) then
                             aw_len <= aw_len - 1;
-                            if axi_wvalid = '1' then
+                            if axi_wvalid = '1' and axi_wready = '1' then
                                 w_fsm <= wr_data;
                             else
                                 w_fsm <= wr_wait;
@@ -548,7 +626,7 @@ begin
                         else
                             w_fsm <= idle;
                         end if;
-                        if axi_wvalid = '1' then
+                        if axi_wvalid = '1' and axi_wready = '1' then
                             w_data <= axi_wdata;
                             w_data_used <= '1';
                             w_last <= axi_wlast;
@@ -559,7 +637,7 @@ begin
                         assert (2**to_integer(unsigned(aw_size)) = (AXI_DATA_WIDTH/8)) report "Bad value for axi_awsize" severity failure;
                     
                     when wr_wait =>  -- we have the address, but we are still waiting for valid data to write
-                        if axi_wvalid = '1' then
+                        if axi_wvalid = '1' and axi_wready = '1' then
                             w_data <= axi_wdata;
                             w_last <= axi_wlast;
                             w_data_used <= '1';
@@ -646,6 +724,38 @@ begin
                 end case;
             
             end if;
+
+            -- Generate pseudo-random latencies for the write data (wready).
+            if i_rst_n = '0' then
+                wpseudoRand1 <= WRANDSEED;
+                wpseudoRand2 <= WRANDSEED;
+                wreadStall_fsm <= running;
+            else
+                wpseudoRand1 <= wpseudoRand1 + 131;
+                wpseudoRand2 <= wpseudoRand2 + 173;
+                case wreadStall_fsm is
+                    when running =>
+                        if ((wpseudoRand1 mod 101) < LATENCY_ZERO_PROBABILITY) then
+                            wreadStall_fsm <= running; 
+                        else
+                            wreadStall_fsm <= stall;
+                            if ((wpseudoRand2 mod 101) < LATENCY_LOW_PROBABILITY) then
+                                wstallCount <= (wpseudoRand2 mod 3);
+                            else
+                                wstallCount <= (wpseudoRand2 mod 41);
+                            end if; 
+                        end if;
+                    
+                    when stall =>
+                        if (wstallCount > 0) then
+                            wstallCount <= wstallCount - 1;
+                        else
+                            wreadStall_fsm <= running;
+                        end if;
+                    
+                end case;
+            
+            end if;
             
             -----------------------------------------------------------------------------
             -- dump memory contents to disk
@@ -660,8 +770,9 @@ begin
         end if;
     end process; 
     
-    axi_awready <= '1' when w_fsm = idle else '0';
-    axi_wready <= '1' when (w_data_used = '0' or w_fsm = wr_data) else '0';
+    axi_awready_delayed <= '1' when w_fsm = idle else '0';
+    --axi_wready <= '1' when (w_data_used = '0' or w_fsm = wr_data) else '0';
+    axi_wready <= '1' when wreadstall_fsm = running and (w_fsm = wr_data or w_fsm = wr_wait or (w_fsm = idle and w_data_used = '0')) else '0';
     
     axi_arready_delayed <= '1' when (r_fsm = idle or (r_fsm = rd_data and ar_len = 0 and (axi_rvalid = '0' or axi_rready = '1') and readStall_fsm = running)) else '0';
     
