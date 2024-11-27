@@ -111,49 +111,49 @@ begin
                 end if;
             elsif i_shift(2 downto 0) = "001" then
                 scaled <= shift43(15) & shift43(15) & shift43(15 downto 2);
-                if (shift43(1) = '1' and (lowZero = '0' or (lowZero = '1' and shift43(0) = '0' and shift43(2) = '1'))) then 
+                if (shift43(1) = '1' and (lowZero = '0' or shift43(0) /= '0' or shift43(2) = '1')) then 
                     roundUp <= '1';
                 else
                     roundUp <= '0';
                 end if;                
             elsif i_shift(2 downto 0) = "010" then
                 scaled <= shift43(15) & shift43(15) & shift43(15) & shift43(15 downto 3);
-                if (shift43(2) = '1' and (lowZero = '0' or (lowZero = '1' and shift43(1 downto 0) = "00" and shift43(3) = '1'))) then 
+                if (shift43(2) = '1' and (lowZero = '0' or shift43(1 downto 0) /= "00" or shift43(3) = '1')) then 
                     roundUp <= '1';
                 else
                     roundUp <= '0';
                 end if;
             elsif i_shift(2 downto 0) = "011" then
                 scaled <= shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15 downto 4);
-                if (shift43(3) = '1' and (lowZero = '0' or (lowZero = '1' and shift43(2 downto 0) = "000" and shift43(4) = '1'))) then 
+                if (shift43(3) = '1' and (lowZero = '0' or shift43(2 downto 0) /= "000" or shift43(4) = '1')) then 
                     roundUp <= '1';
                 else
                     roundUp <= '0';
                 end if;
             elsif i_shift(2 downto 0) = "100" then
                 scaled <= shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15 downto 5);
-                if (shift43(4) = '1' and (lowZero = '0' or (lowZero = '1' and shift43(3 downto 0) = "0000" and shift43(5) = '1'))) then 
+                if (shift43(4) = '1' and (lowZero = '0' or shift43(3 downto 0) /= "0000" or shift43(5) = '1')) then 
                     roundUp <= '1';
                 else
                     roundUp <= '0';
                 end if;
             elsif i_shift(2 downto 0) = "101" then
                 scaled <= shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15 downto 6);
-                if (shift43(5) = '1' and (lowZero = '0' or (lowZero = '1' and shift43(4 downto 0) = "00000" and shift43(6) = '1'))) then 
+                if (shift43(5) = '1' and (lowZero = '0' or shift43(4 downto 0) /= "00000" or shift43(6) = '1')) then 
                     roundUp <= '1';
                 else
                     roundUp <= '0';
                 end if;                
             elsif i_shift(2 downto 0) = "110" then
                 scaled <= shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15 downto 7);
-                if (shift43(6) = '1' and (lowZero = '0' or (lowZero = '1' and shift43(5 downto 0) = "000000" and shift43(7) = '1'))) then 
+                if (shift43(6) = '1' and (lowZero = '0' or shift43(5 downto 0) /= "000000" or shift43(7) = '1')) then 
                     roundUp <= '1';
                 else
                     roundUp <= '0';
                 end if;
             else -- i_shift(2 downto 0) = "111"
                 scaled <= shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15) & shift43(15 downto 8);
-                if (shift43(7) = '1' and (lowZero = '0' or (lowZero = '1' and shift43(6 downto 0) = "0000000" and shift43(7) = '1'))) then 
+                if (shift43(7) = '1' and (lowZero = '0' or shift43(6 downto 0) /= "0000000" or shift43(7) = '1')) then 
                     roundUp <= '1';
                 else
                     roundUp <= '0';
