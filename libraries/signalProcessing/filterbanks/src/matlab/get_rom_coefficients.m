@@ -39,6 +39,18 @@ if (write_coe == 1)
         end
         fprintf(fid,';\n');
         fclose(fid);
+        
+        % Write initialisation file for xpm memory (used in versal)
+        fid = fopen(['correlatorFIRTaps' num2str(rom) '.mem'],'w');
+        for rline = 1:4096
+            dval = filtertaps((rom-1)*4096 + (rline-1) + 1);
+            if (dval < 0)
+                dval = dval + 2^20; % 5 hex digits, 20 bit value, low 18 bits actually used in the memory.
+            end
+            dstr = dec2hex(dval,5); % 5 hex digits
+            fprintf(fid,[dstr '\n']);
+        end
+        fclose(fid);
     end
 
 %     % PSS FIR taps
