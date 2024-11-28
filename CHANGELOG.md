@@ -1,6 +1,10 @@
 ### Changelog
 ## Correlator Personality
-* 0.0.8 - 
+
+* 0.1.0
+    * AA1 release
+    * To be used with Processor v0.15.1
+* 0.0.8 (not released) - 
     * SPEAD DATA packet generates Visibility Flag headers and this logic is connected through.
     * SPS input support 100G burst traffic.
     * HBM reset modules added for CT2 to allow for config change.
@@ -8,6 +12,7 @@
     * Fix for delay polynomials zero crossing.
     * Fix for duplicate timestamps.
     * Fix for stalling due to config change.
+    * Fix for scaling in filterbank.
 * 0.0.7 - 
     * Enable above 16x16 baselines, up to 246.
     * Correct single station readout bug.
