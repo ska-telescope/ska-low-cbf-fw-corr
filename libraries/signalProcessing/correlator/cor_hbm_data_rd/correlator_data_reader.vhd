@@ -59,9 +59,7 @@ entity correlator_data_reader is
         -- clock used for all data input and output from this module (300 MHz)
         i_axi_clk           : in std_logic;
         i_axi_rst           : in std_logic;
-
         i_local_reset       : in std_logic;
-
         -- debug
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
         o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
@@ -72,6 +70,7 @@ entity correlator_data_reader is
         i_sub_array         : in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
         i_freq_index        : in std_logic_vector(16 downto 0);
         i_bad_poly          : in std_logic;
+        i_table_select      : in std_logic;
         i_data_valid        : in std_logic;
         i_time_ref          : in std_logic_vector(63 downto 0);     -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms
                                                                     -- integration time.
@@ -106,7 +105,7 @@ signal clk                      : std_logic;
 signal reset                    : std_logic;
 
 -- metadata from correlator.
-constant meta_cache_width       : INTEGER := 1 + 32 + 8 + 17 + 64 + 13 + 9;
+constant meta_cache_width       : INTEGER := 1 + 1 + 32 + 8 + 17 + 64 + 13 + 9;
 constant meta_cache_depth       : INTEGER := 64;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
 
 signal meta_cache_fifo_in_reset : std_logic;
@@ -196,6 +195,8 @@ signal cor_tri_sub_array        : std_logic_vector(7 downto 0);
 signal cor_tri_freq_index       : std_logic_vector(16 downto 0);
 signal cor_tri_row              : unsigned(12 downto 0);
 signal cor_tri_row_count        : unsigned(8 downto 0);
+signal cor_tri_bad_poly         : std_logic;
+signal cor_tri_table_select     : std_logic;
 
 signal cor_read_cells           : unsigned(16 downto 0);
 signal cells_to_add             : unsigned(11 downto 0);
@@ -279,8 +280,14 @@ signal spead_data_heap_size         : std_logic_vector(7 downto 0);
 signal bytes_to_send                : unsigned(13 downto 0);
 
 signal hbm_readout_complete         : std_logic;
-signal cor_tri_bad_poly : std_logic;
 
+signal table_select_prev            : std_logic := '0';
+signal table_select                 : std_logic := '0';
+signal trigger_end_packets          : std_logic := '0';
+signal end_packets_complete         : std_logic;
+
+signal page_flip_count              : unsigned(3 downto 0)  := x"0";
+signal find_page_flip               : std_logic := '0';
 --------------------------------------------------------------------------------
 begin
     
@@ -292,6 +299,7 @@ begin
     o_fsm_debugs(2)         <= hbm_reader_fsm_debug;
 
     spead_data_rd           <= i_from_spead_pack.spead_data_rd;
+    end_packets_complete    <= i_from_spead_pack.end_packets_complete;
 
     o_to_spead_pack.spead_data              <= spead_data;
     o_to_spead_pack.current_array           <= cor_tri_sub_array;
@@ -306,6 +314,8 @@ begin
     o_to_spead_pack.statically_flagged      <= '0';
     o_to_spead_pack.dynamically_flagged     <= '0';
 
+    o_to_spead_pack.table_select            <= table_select;
+    o_to_spead_pack.trigger_end_packets     <= trigger_end_packets;
     ---------------------------------------------------------------------------
     meta_reg_proc : process(clk)
     begin
@@ -315,7 +325,8 @@ begin
             if testmode_select = '0' then
                 meta_cache_fifo_wr      <= i_data_valid;
 
-                meta_cache_fifo_data    <=  i_bad_poly & 
+                meta_cache_fifo_data    <=  i_table_select &
+                                            i_bad_poly & 
                                             i_row_count &           -- std_logic_vector(8 downto 0)
                                             i_row(12 downto 0) &    -- std_logic_vector(12 downto 0), always a multiple of 256.
                                             i_freq_index &          -- std_logic_vector(16 downto 0)
@@ -325,7 +336,7 @@ begin
             else
                 meta_cache_fifo_wr      <= testmode_load_instruct AND (NOT testmode_load_instruct_d);   -- +ve edge trigger.
 
-                meta_cache_fifo_data    <=  '0' & 
+                meta_cache_fifo_data    <=  "00" & 
                                             testmode_row_count(8 downto 0) &            -- std_logic_vector(8 downto 0)
                                             testmode_row(12 downto 0) &                 -- std_logic_vector(12 downto 0), always a multiple of 256.
                                             testmode_freqindex(16 downto 0) &           -- std_logic_vector(16 downto 0)
@@ -336,7 +347,22 @@ begin
             end if;
  
                 testmode_load_instruct_d    <= testmode_load_instruct;
+                
+            hbm_rd_debug_ro.debug_pageflip  <=  x"00" &
+                                                std_logic_vector(page_flip_count) &
+                                                '0' &
+                                                cor_tri_table_select &
+                                                table_select &
+                                                table_select_prev;
+                                                
 
+            if i_data_valid = '1' then
+                find_page_flip  <= i_table_select;
+                
+                if find_page_flip /= i_table_select then
+                    page_flip_count <= page_flip_count + 1; 
+                end if;
+            end if;
         end if;
     end process;
     ---------------------------------------------------------------------------
@@ -380,6 +406,8 @@ begin
                 hbm_readout_complete    <= '0';
                 cor_tri_fsm_cnt     <= x"0";
             else
+                trigger_end_packets <= '0';
+
                 case cor_triangle_fsm is
                     when idle => 
                         cor_tri_fsm_debug       <= x"0";
@@ -400,12 +428,28 @@ begin
                             cor_tri_row             <= unsigned(meta_cache_fifo_q(133 downto 121));
                             cor_tri_row_count       <= unsigned(meta_cache_fifo_q(142 downto 134));
                             cor_tri_bad_poly        <= meta_cache_fifo_q(143);
+                            cor_tri_table_select    <= meta_cache_fifo_q(144);
                         end if;
 
                     when check_enable =>
                         cor_tri_fsm_debug   <= x"1";
 
-                        cor_triangle_fsm                <= calculate_reads;
+                        -- page flip hold off occurs here.
+                        -- instructions sent down to the packetiser that a flip is about to occur.
+                        -- it needs to send END packets for the subarrays that are about to be deleted.
+                        -- if a swap is to occur, this will trap the SM here until the END sequence is
+                        -- complete in the packetiser.
+                        if table_select_prev    /= cor_tri_table_select then
+                            trigger_end_packets <= '1';
+                            -- once the sequence is complete, update to new page.
+                            if end_packets_complete = '1' then
+                                table_select_prev   <= cor_tri_table_select;
+                                table_select        <= cor_tri_table_select;
+                            end if;
+                        else
+                            cor_triangle_fsm            <= calculate_reads;
+                        end if;
+
                         -- how many lots of 16 rows (cells) to retrieve.
                         cor_read_cells(4 downto 0)      <= cor_tri_row_count(8 downto 4);
 
@@ -936,7 +980,7 @@ end process;
                 elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
                     bytes_to_packetise  <= bytes_to_process(13 downto 0);
                     send_spead_data     <= "01";
-                else
+                elsif (spead_data_rd = '1') then
                     send_spead_data     <= "00";
                 end if;
 

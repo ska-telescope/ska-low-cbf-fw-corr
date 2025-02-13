@@ -156,7 +156,7 @@ entity corr_ct1_readout is
         o_HPol3 : out t_slv_8_arr(1 downto 0);
         o_VPol3 : out t_slv_8_arr(1 downto 0);
         o_meta3 : out t_CT1_META_out;
-        
+        o_lastChannel : out std_logic; -- Aligns with o_metaX
         o_valid : out std_logic;
         -- AXI read address and data input buses
         -- ar bus - read address
@@ -201,7 +201,7 @@ architecture Behavioral of corr_ct1_readout is
     signal ARFIFO_full : std_logic;
     signal ARFIFO_RdDataCount : std_logic_vector(5 downto 0);
     signal ARFIFO_WrDataCount : std_logic_vector(5 downto 0);
-    signal ARFIFO_din : std_logic_vector(157 downto 0);
+    signal ARFIFO_din : std_logic_vector(12 downto 0);
     signal ARFIFO_rdEn : std_logic;
     signal ARFIFO_rst : std_logic;
     signal ARFIFO_wrEn : std_logic;
@@ -228,14 +228,8 @@ architecture Behavioral of corr_ct1_readout is
     
     signal bufVirtualChannel : t_slv_10_arr(3 downto 0);
     signal bufCoarseDelay : t_slv_20_arr(3 downto 0);
-    --signal bufHpolDeltaP : t_slv_16_arr(3 downto 0);
-    --signal bufVpolDeltaP : t_slv_16_arr(3 downto 0);
-    --signal bufDeltaDeltaP : t_slv_16_arr(3 downto 0);
-    
     signal bufHasMoreSamples : std_logic_vector(3 downto 0); -- one bit for each buffer.
     signal bufFirstRead, bufLastRead : std_logic_Vector(3 downto 0);
-    
-    --signal bufSampleRelative : t_slv_24_arr(3 downto 0);
     
     signal rdata_beats : std_logic_vector(2 downto 0);
     signal rdata_beatCount : std_logic_vector(2 downto 0);
@@ -251,7 +245,6 @@ architecture Behavioral of corr_ct1_readout is
     signal bufFIFO_rdDataCount : t_slv_11_arr(3 downto 0);
     signal bufFIFO_wrDataCount : t_slv_11_arr(3 downto 0);
     signal bufFIFO_rdEn, bufFIFO_wrEn, bufFIFO_wrEnDel1 : std_logic_vector(3 downto 0);
-   -- signal rdata_sampleOffset : std_logic_vector(31 downto 0);
     
     signal bufWrAddr : std_logic_vector(11 downto 0);
     signal bufWrAddr0, bufWrAddr1, bufWrAddr2, bufWrAddr3 : std_logic_vector(9 downto 0);
@@ -603,19 +596,6 @@ begin
                             -- At least one buffer must have more samples because otherwise we couldn't have gotten into this state.
                             ar_fsm_buffer <= "11";
                         end if;
-                        
---                        if ((unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(1))) and 
---                            (unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(2))) and
---                            (unsigned(bufMaxUsed(0)) <= unsigned(bufMaxUsed(3)))) then
---                            ar_fsm_buffer <= "00"; -- which buffer to get data for
---                        elsif ((unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(2))) and 
---                               (unsigned(bufMaxUsed(1)) <= unsigned(bufMaxUsed(3)))) then
---                            ar_fsm_buffer <= "01";
---                        elsif (unsigned(bufMaxUsed(2)) <= unsigned(bufMaxUsed(3))) then
---                            ar_fsm_buffer <= "10";
---                        else
---                            ar_fsm_buffer <= "11";
---                        end if;
                         axi_arvalid <= '0';
                     
                     when getBufData =>  -- "buf0" in the name "getBuf0Data" refers to the particular virtual channel
@@ -642,8 +622,9 @@ begin
                     
                     when checkAllVirtualChannelsDone =>
                         if (unsigned(ar_NChannels) > unsigned(ar_virtualChannel)) then
+                            -- Note at this point ar_virtualChannel has already been incremented by 4,
+                            -- so it points to the next set of virtual channels we are about to start reading.
                             ar_fsm <= waitDelaysValid; -- Get the next group of 4 virtual channels.
-                            
                             ar_fsm_buffer <= "00";
                         else
                             ar_fsm <= waitAllDone;
@@ -775,8 +756,6 @@ begin
                     ARFIFO_din(7 downto 4) <= bufSamplesToRead(i)(3 downto 0); 
                     ARFIFO_din(10 downto 8) <= bufLen(i); -- Number of Beats in this read - 1. Range will be 0 to 7. (Note 8 beats = 8 x 512 bits = maximum size of a burst to the HBM)
                     ARFIFO_din(12 downto 11) <= std_logic_vector(to_unsigned(i,2));  -- indicates which stream this is (i.e. the virtual channel loaded in the "getBufData" state)
-                    --ARFIFO_din(15 downto 11) <= "00000"; -- unused
-                    --ARFIFO_din(98 downto 97) <= std_logic_vector(to_unsigned(i,2));  -- indicates which stream this is (i.e. the virtual channel loaded in the "getBufData" state)
                 end if;
                 
             end loop;
@@ -802,16 +781,6 @@ begin
             --  ar_packetCount is the packet count for the first packet in the current buffer.
             -- So the number we want is 
             --  bufXSampleRelative + ar_packetCount * 2048 - ar_startPacket* 2048;
-            -- This is the packet count of the first packet in the buffer relative to the packet count that the fine timing is referenced to.
---            fineDelayPacketOffset <= std_logic_vector(unsigned(ar_packetCount) - unsigned(ar_startPacket)); 
-            -- This assumes maximum validity interval for the delays is about 1 hour.
---            fineDelaySampleOffset := fineDelayPacketOffset(20 downto 0) & "00000000000"; -- x2048 samples per packet
-            
---            if ar_fsm = getBufData then
---                sampleRelative := std_logic_vector(resize(signed(bufSampleRelative(to_integer(unsigned(ar_fsm_buffer)))),32));
---            end if;
-            
---            ARFIFO_din(95 downto 64) <= std_logic_vector(signed(fineDelaySampleOffset) + signed(sampleRelative));
 
             -- Keep track of the number of pending read words in the ARFIFO for each buffer
             for i in 0 to 3 loop
@@ -1024,7 +993,7 @@ begin
             rdata_streamDel6 <= rdata_streamDel5;
             axi_rvalid_del6 <= axi_rvalid_del5;
             
-             -- 
+            -- 
             rdata_rdStartOffsetDel7 <= rdata_rdStartOffsetDel6;
             rdata_streamDel7 <= rdata_streamDel6;
             axi_rvalid_del7 <= axi_rvalid_del6;
@@ -2002,7 +1971,11 @@ begin
             else
                 o_meta3.valid <= '0';
             end if;
-            
+            if ((unsigned(meta3VirtualChannel)+1) >= unsigned(FBNChannels)) then
+                o_lastChannel <= '1';
+            else
+                o_lastChannel <= '0';
+            end if;
             o_sofFull <= sof and sofFull;
             
         end if;

@@ -175,6 +175,7 @@ entity correlator_top is
         i_cor0_totalStations     : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
         i_cor0_subarrayBeam      : in std_logic_vector(7 downto 0);  -- Which entry is this in the subarray-beam table ?
         i_cor0_badPoly           : in std_logic;  -- no valid polynomials for some or all of the station data.
+        i_cor0_tableSelect       : in std_logic;
         -- Data out to the HBM
         o_cor0_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_cor0_axi_awready : in  std_logic;
@@ -208,6 +209,7 @@ entity correlator_top is
         i_cor1_totalStations     : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
         i_cor1_subarrayBeam      : in std_logic_vector(7 downto 0);  -- Which entry is this in the subarray-beam table ?
         i_cor1_badPoly           : in std_logic;  -- no valid polynomials for some or all of the station data.
+        i_cor1_tableSelect       : in std_logic;
         -- Data out to the HBM
         o_cor1_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_cor1_axi_awready : in  std_logic;
@@ -292,7 +294,7 @@ begin
             i_axi_rst => i_axi_rst, -- in std_logic;
             -- Processing clock used for the correlation (>412.5 MHz)
             i_cor_clk => i_cor_clk, -- in std_logic;
-            i_cor_rst => i_cor_rst, -- in std_logic;    
+            i_cor_rst => i_cor_rst, -- in std_logic;
             ---------------------------------------------------------------
             -- Data in to the correlator arrays
             --
@@ -337,6 +339,7 @@ begin
             i_cor_totalStations     => i_cor0_totalStations,     -- in (15:0); Total number of stations being processing for this subarray-beam.
             i_cor_subarrayBeam      => i_cor0_subarrayBeam,      -- in (7:0);  Which entry is this in the subarray-beam table ?
             i_cor_badPoly           => i_cor0_badPoly,           -- in std_logic;
+            i_cor_tableSelect       => i_cor0_tableSelect,       -- in std_logic;
             ---------------------------------------------------------------
             -- Data out to the HBM
             o_HBM_axi_aw      => o_cor0_axi_aw,      -- out t_axi4_full_addr; write address bus (.valid, .addr(39:0), .len(7:0))
@@ -409,7 +412,7 @@ begin
             i_axi_rst => i_axi_rst, -- in std_logic;
             -- Processing clock used for the correlation (>412.5 MHz)
             i_cor_clk => i_cor_clk, -- in std_logic;
-            i_cor_rst => i_cor_rst, -- in std_logic;    
+            i_cor_rst => i_cor_rst, -- in std_logic;
             ---------------------------------------------------------------
             -- Data in to the correlator arrays
             --
@@ -439,6 +442,7 @@ begin
             i_cor_totalStations     => i_cor1_totalStations,     -- in (15:0); Total number of stations being processing for this subarray-beam.
             i_cor_subarrayBeam      => i_cor1_subarrayBeam,      -- in (7:0);  Which entry is this in the subarray-beam table ?
             i_cor_badPoly           => i_cor1_badPoly,           -- in std_logic;
+            i_cor_tableSelect       => i_cor1_tableSelect,       -- in std_logic;
             ---------------------------------------------------------------
             -- Data out to the HBM
             o_HBM_axi_aw      => o_cor1_axi_aw, --  out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))

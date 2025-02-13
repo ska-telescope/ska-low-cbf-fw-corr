@@ -95,6 +95,7 @@ package DSP_top_pkg is
         channel_frequency : std_logic_vector(15 downto 0);
         station_id        : std_logic_vector(15 downto 0);
         station_selected  : std_logic_vector(7 downto 0);   -- station within this link; for 40G links, 2 stations are on one link, so this value is 0 or 1. For 100G LFAA data, there are 4 stations per link, so this value will be 0 to 3.
+        table_select      : std_logic;
     end record;
     
     constant t_ctc_input_header_ID : std_logic_vector(7 downto 0) := "00000001";  -- Used in packet headers coming out of the interconnect module to identify the packet type. 
@@ -104,7 +105,8 @@ package DSP_top_pkg is
         virtual_channel   => (others =>'0'),
         channel_frequency => (others =>'0'),
         station_id        => (others =>'0'),
-        station_selected  => (others =>'0')
+        station_selected  => (others =>'0'),
+        table_select      => '0'
     );
     type t_ctc_input_header_a is array (integer range <>) of t_ctc_input_header;
     
@@ -134,6 +136,8 @@ package DSP_top_pkg is
         ctFrame        : std_logic_vector(1 downto 0);  --  which corner turn frame is this; 0, 1, or 2; units of 283ms; relative to integration.
         virtualChannel : std_logic_vector(15 downto 0); --  Virtual channels are processed in order, so this just counts.
         bad_poly       : std_logic;
+        lastChannel    : std_logic;
+        demap_table_select : std_logic;
         valid          : std_logic;
     end record;
     type t_CT1_META_out_arr is array (integer range <>) of t_CT1_META_out;

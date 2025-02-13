@@ -111,6 +111,17 @@ peripherals:
               access_mode       : RW
               reset_value       : 0x0
               field_description : "1 - load, toggle back to zero."
+         #################################
+          - - field_name        : debug_pageflip
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " If bit 2 and bit 0 are different then a page flip is triggered.
+                                    Bit 1 should match Bit 0 of table_sel_status in packetiser.
+                                    Bit 0 - table select prev
+                                    Bit 1 - table select
+                                    Bit 2 - last recorded page
+                                  "
 
 
   - peripheral_name        : hbm_rd_debug_2
@@ -224,3 +235,17 @@ peripherals:
               access_mode       : RW
               reset_value       : 0x0
               field_description : "1 - load, toggle back to zero."
+         #################################
+          - - field_name        : debug_pageflip
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " If bit 2 and bit 0 are different then a page flip is triggered.
+                                    Bit 1 should match Bit 0 of table_sel_status in packetiser.
+                                    Bit 0       - table select prev
+                                    Bit 1       - table select
+                                    Bit 2       - last recorded page
+                                    Bit 3       - 0
+                                    Bit 7 -> 4  - 4 bit rolling counter tracking page flips passed with instruction
+                                    Bit 15 -> 8 - 0
+                                  "

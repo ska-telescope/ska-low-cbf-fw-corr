@@ -67,83 +67,87 @@ peripherals:
         slave_description : "Registers associated with LFAA Decode"
         dual_clock        : false
         fields:
-          - - field_name        : table_select
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Select which virtual channel table to use; 0 for first half (table addresses 0-1023), 1 for second half (table addresses 1024-2047)"
-          #################################
-          - - field_name        : total_stations
+          - - field_name        : total_stations_table0
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
               field_description : "Not used in CORRELATOR, generated due to common VHDL code."
           #################################
-          - - field_name        : total_coarse
+          - - field_name        : total_coarse_table0
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
               field_description : "Not used in CORRELATOR, generated due to common VHDL code."
           #################################
-          - - field_name        : total_channels
+          - - field_name        : total_channels_table0
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
               field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse."
           #################################
+          - - field_name        : total_stations_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Not used in CORRELATOR, generated due to common VHDL code."
+          #################################
+          - - field_name        : total_coarse_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Not used in CORRELATOR, generated due to common VHDL code."
+          #################################
+          - - field_name        : total_channels_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse."
+          #################################
+          - - field_name        : total_packet_count
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Count of the total number of packets seen, regardless of type. 32 bit wrapping, reset with (lfaa_decode_reset) or if 100G unplugged"              
+          #################################
           - - field_name        : SPEAD_packet_count
               width             : 32
-              access_mode       : CW
+              access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of LFAA SPEAD packets received, 32 bit wrapping, reset on write."
+              field_description : "Count of SPS SPEAD packets received, i.e. correct length for either SPEAD v1, v2 or v3, \
+                                   SPEAD header fields match expected values, and packet matches an entry in the virtual channel table. \
+                                   32 bit wrapping, reset with (lfaa_decode_reset) or if 100G unplugged."
           #################################
           - - field_name        : NONSPEAD_packet_count
               width             : 32
-              access_mode       : CW
+              access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of non-LFAA SPEAD packets received, 32 bit saturating, reset on write."
+              field_description : "Count of non-SPS SPEAD packets received, i.e. wrong length or header fields do not match SPEAD \
+                                   expected values for either SPEAD v1, v2 or v3. 32 bit wrapping, reset with (lfaa_decode_reset) or if 100G unplugged."
           #################################
-          - - field_name        : badEthernetFrames
+          - - field_name        : No_Virtual_Channel_Count
               width             : 32
-              access_mode       : CW
+              access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of ethernet packets with errors (e.g. too short, too long, or FCS bad), reset on write."
-          #################################
-          - - field_name        : badIPUDPFrames
-              width             : 32
-              access_mode       : CW
-              reset_value       : 0x0
-              field_description : "Count of ethernet packets with bad IP or UDP checksums, reset on write."
-          #################################
-          - - field_name        : NoVirtualChannelCount
-              width             : 32
-              access_mode       : CW
-              reset_value       : 0x0
-              field_description : "Count of packets that did not match an entry in the virtual channel table, reset on write."
+              field_description : "Count of packets with correct SPEAD headers but no match in the virtual channel table, \
+                                   32 bit wrapping, reset with (lfaa_decode_reset) or if 100G unplugged."
           #################################
           - - field_name        : spead_v1_packet_found
               width             : 32
-              access_mode       : CW
+              access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of packets that match spead v1 headers, 32 bit wrapping, reset on write."
+              field_description : "Count of packets that match spead v1 headers, 32 bit wrapping, reset with (lfaa_decode_reset) or if 100G unplugged."
           #################################
           - - field_name        : spead_v2_packet_found
               width             : 32
-              access_mode       : CW
+              access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of packets that match spead v2 headers, 32 bit wrapping, reset on write."
+              field_description : "Count of packets that match spead v2 headers, 32 bit wrapping, reset with (lfaa_decode_reset) or if 100G unplugged."
           #################################
           - - field_name        : spead_v3_packet_found
               width             : 32
-              access_mode       : CW
+              access_mode       : RO
               reset_value       : 0x0
-              field_description : "Count of packets that match spead v3 headers, 32 bit wrapping, reset on write."
-          #################################
-          - - field_name        : non_spead_packet_found
-              width             : 32
-              access_mode       : CW
-              reset_value       : 0x0
-              field_description : "Count of packets that match spead headers, 32 bit wrapping, reset on write."              
+              field_description : "Count of packets that match spead v3 headers, 32 bit wrapping, reset with (lfaa_decode_reset) or if 100G unplugged."          
           #################################
           - - field_name        : HBM_reset
               width             : 1

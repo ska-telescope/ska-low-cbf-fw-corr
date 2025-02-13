@@ -76,6 +76,7 @@ entity correlator_HBM is
         i_totalStations : in std_logic_vector(15 downto 0); -- total number of stations in this subarray-beam
         i_subarrayBeam : in std_logic_vector(7 downto 0);   -- Index into the subarray-beam table.
         i_badPoly : in std_logic;
+        i_tableSelect : in std_logic;
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between o_stop going high and data stopping.
         o_stop      : out std_logic;
@@ -110,6 +111,7 @@ entity correlator_HBM is
         o_ro_row_count : out std_logic_vector(8 downto 0);
         -- bad poly indicates that some or all of the data used did not have a valid delay polynomial.
         o_ro_bad_poly : out std_logic;
+        o_ro_table_select : out std_logic;
         -- valid indicates that the other signals are valid. 
         -- valid will pulse high for 1 clock cycle when a strip of data from the visibility matrix is available.
         o_ro_valid : out std_logic;
@@ -149,12 +151,12 @@ architecture Behavioral of correlator_HBM is
     signal w_fifo_full : std_logic;
     signal dcountDel1 : std_logic_vector(7 downto 0);
     signal subarrayBeamDel1 : std_logic_vector(7 downto 0);
-    signal badPolyDel1 : std_logic;
+    signal badPolyDel1, tableSelectDel1 : std_logic;
     signal lastStationDel1 : std_logic_vector(15 downto 0);
     signal cellLastDel1 : std_logic;
     
     signal SPEAD_trigger_we : std_logic;
-    signal SPEAD_trigger_din, SPEAD_trigger_dout : std_logic_vector(55 downto 0);
+    signal SPEAD_trigger_din, SPEAD_trigger_dout : std_logic_vector(56 downto 0);
     signal SPEAD_trigger_rd_Del1, SPEAD_trigger_rd, SPEAD_trigger_full, SPEAD_trigger_empty : std_logic;
     signal ro_rows_minus1 : std_logic_vector(8 downto 0);
     
@@ -171,6 +173,7 @@ begin
             channelDel1 <= i_channel;
             subarrayBeamDel1 <= i_subarrayBeam;
             badPolyDel1 <= i_badPoly;
+            tableSelectDel1 <= i_tableSelect;
             lastStationDel1 <= std_logic_vector(unsigned(i_totalStations) - 1);
             
             o_HBM_end <= "0000" & fifo_wr_ptr & "0000000000000";
@@ -214,6 +217,7 @@ begin
                 -- The address in HBM for SPEAD packetiser to start reading from.
                 SPEAD_trigger_din(54 downto 40) <= start_of_row_ptr;
                 SPEAD_trigger_din(55) <= badpolyDel1;
+                SPEAD_trigger_din(56) <= tableSelectDel1;
             else
                 -- Do not trigger reading of the SPEAD_trigger_fifo 
                 w_fifo_din(513) <= '0';
@@ -435,12 +439,12 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
-        READ_DATA_WIDTH => 56,      -- DECIMAL
+        READ_DATA_WIDTH => 57,      -- DECIMAL
         READ_MODE => "std",         -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 56,     -- DECIMAL
+        WRITE_DATA_WIDTH => 57,     -- DECIMAL
         WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
     ) port map (
         almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -500,6 +504,7 @@ begin
                 o_ro_HBM_start_addr <= "0000" & SPEAD_trigger_dout(54 downto 40) & "0000000000000"; -- out (31:0);
 
                 o_ro_bad_Poly <= SPEAD_trigger_dout(55);
+                o_ro_table_select <= SPEAD_trigger_dout(56);
                 -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
                 -- integration time.
                 o_ro_time_ref <= (others => '0'); -- TODO - work out how this should be set.

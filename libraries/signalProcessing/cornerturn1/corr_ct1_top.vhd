@@ -132,7 +132,8 @@ entity corr_ct1_top is
         o_poly_full_axi_miso : out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (comes from LFAA ingest module).
         -- This should be valid before coming out of reset.
-        i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
+        i_totalChannelsTable0 : in std_logic_vector(11 downto 0); -- total virtual channels in table 0
+        i_totalChannelsTable1 : in std_logic_vector(11 downto 0); -- total virtual channels in table 1
         i_rst               : in std_logic;   -- While in reset, process nothing.
         o_rst               : out std_logic;  -- Reset is now driven from the LFAA ingest module.
         --o_validMemRstActive : out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
@@ -142,14 +143,24 @@ entity corr_ct1_top is
         i_virtualChannel : in std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station; this module supports values in the range 0 to 1023.
         i_packetCount    : in std_logic_vector(47 downto 0);
         i_valid          : in std_logic;
-        
+        -- select the table to use in LFAA Ingest. Changes to the configuration tables to be used (in ingest, ct1, and ct2) are sequenced from within corner turn 1
+        o_vct_table_select : out std_logic;
+        -- Notify the packetiser that a table swap is in progress
+        -- This will go high for a while, but will go low prior to the first notification to the packetiser of 
+        -- data to be sent using the new tables. 
+        -- o_packetiser_table_select is the new table that will soon be selected. 
+        -- The packetiser should hold its switch active bit high from when it sees a rising edge on 
+        -- o_table_swap_in_progress through to when it gets notification of a packet to be sent using o_packetiser_table_select 
+        o_table_swap_in_progress : out std_logic;
+        o_packetiser_table_select : out std_logic;  
+        -- 
         ------------------------------------------------------------------------------------
         -- Data output, to go to the filterbanks.
         -- Data bus output to the Filterbanks
         -- 8 Outputs, each complex data, 8 bit real, 8 bit imaginary.
         --FB_clk  : in std_logic;  -- interface runs off i_shared_clk
         o_sof   : out std_logic;   -- Start of frame, occurs for every new set of channels.
-        o_sofFull : out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
+        o_sofFull : out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth for all virtual channels.
         o_data0  : out t_slv_8_arr(1 downto 0);
         o_data1  : out t_slv_8_arr(1 downto 0);
         o_meta01 : out t_CT1_META_out; --   - .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
@@ -162,6 +173,10 @@ entity corr_ct1_top is
         o_data6  : out t_slv_8_arr(1 downto 0);
         o_data7  : out t_slv_8_arr(1 downto 0);
         o_meta67 : out t_CT1_META_out;
+        o_lastChannel : out std_logic; -- aligns with meta data, indicates this is the last group of channels to be processed in this frame.
+        -- o_demap_table_select will change just prior to the start of reading out of a new integration frame.
+        -- So it should be registered on the first output of a new integration frame in corner turn 2.
+        o_demap_table_select : out std_logic;
         o_valid : out std_logic;
         -------------------------------------------------------------
         i_axi_dbg  : in std_logic_vector(127 downto 0); -- 128 bits
@@ -361,6 +376,7 @@ architecture Behavioral of corr_ct1_top is
     signal time_since_sof, time_since_data_rst, time_since_ivalid, time_since_hbm_rst : std_logic_vector(31 downto 0);
     signal dbg_vec2 : std_logic_vector(255 downto 0);
     signal dbg_vec2_valid : std_logic;
+    signal vct_table_in_use, ct2_tables_in_use : std_logic;
     
 begin
     
@@ -396,7 +412,7 @@ begin
         i_clk  => i_shared_clk,
         i_rst  => i_shared_rst,
         -------------------------------------------------------
-         -------------------------------------------------------
+        -------------------------------------------------------
         -- Block ram interface for access by the rest of the module
         -- Memory is 18432 x 8 byte words
         -- read latency 3 clocks
@@ -431,7 +447,15 @@ begin
     -- registers to note if something terrible happened.
     config_ro.error_input_overflow <= aw_overflow; -- std_logic;
     config_ro.error_read_overflow <= readOverflow_set; -- std_logic;
+    
+    -- This is the virtual channel table that is currently in use
+    config_ro.table_in_use(0) <= vct_table_in_use;
+    config_ro.table_in_use(1) <= ct2_tables_in_use;
 
+    o_vct_table_select <= vct_table_in_use;
+    o_demap_table_select <= ct2_tables_in_use;
+    --o_totalChannels <= NChannels;
+    
     o_rst   <= config_rw.full_reset;
     
     process(i_shared_clk)
@@ -537,6 +561,15 @@ begin
             data_rst <= i_rst;
             
             if data_rst = '1' then
+                o_table_swap_in_progress <= '0'; 
+            elsif vct_table_in_use /= config_rw.table_select(1) or ct2_tables_in_use /= config_rw.table_select(1) then
+                o_table_swap_in_progress <= '1';
+            else 
+                o_table_swap_in_progress <= '0';
+            end if;
+            o_packetiser_table_select <= config_rw.table_select(1);
+            
+            if data_rst = '1' then
                 input_fsm <= idle;
                 -- After coming out of reset, always start writing in buffer 2,
                 -- so we have preload data for buffer 0.
@@ -563,9 +596,19 @@ begin
                 drop_packet <= '0';
                 -- 
                 input_fsm_dbg <= "00000";
-                
-                NChannels <= '0' & i_virtualChannels;
+                if config_rw.table_select(1) = '0' then
+                    NChannels <= i_totalChannelsTable0;
+                else
+                    NChannels <= i_totalChannelsTable1;
+                end if;
                 clocksPerPacket <= config_rw.output_cycles;
+                -- Four options for table_select : 
+                --  0 = Use Table 0, switchover for removing subarrays
+                --  1 = Use Table 0, switchover for adding subarrays
+                --  2 = Use Table 1, switchover for removing subarrays
+                --  3 = Use Table 1, switchover for adding subarrays
+                vct_table_in_use <= config_rw.table_select(1);
+                ct2_tables_in_use <= config_rw.table_select(1);
                 
             else
                 case input_fsm is
@@ -733,14 +776,42 @@ begin
                                 (first_readout = '1' and current_wr_buffer = "00")) then
                                 -- The first readout after a reset always starts in buffer 0
                                 current_rd_buffer <= current_wr_buffer;
+                                -- When we switch to a new read buffer, check if we need to switch to a new set of tables.
+                                -- Note vct switchover has the constraint :
+                                --  - For removal of a subarray(s), ct2 switchover has to occur first
+                                --  - For addition of a subarray(s), vct switchover has to occur first
+                                if (current_wr_buffer = "01") then
+                                    -- If "current_wr_buffer" is "01", but we are switching, then we are actually currently writing to buffer "10".
+                                    -- This is where we can switch over the virtual channel table to the new value.
+                                    if config_rw.table_select(0) = '0' then
+                                        -- table_select(0) = '0' => Switch to remove a subarray, so ct2_tables_in_use has to switch first
+                                        if (ct2_tables_in_use = config_rw.table_select(1)) then
+                                            -- ct2_tables_in_use already matches, so go ahead and switch vct_table_in_use
+                                            vct_table_in_use <= config_rw.table_select(1);
+                                        end if;
+                                    else
+                                        -- Switch to add a subarray, so vct_table_in_use has to switch first
+                                        vct_table_in_use <= config_rw.table_select(1);
+                                    end if;
+                                end if;
+                                
+                                if current_wr_buffer = "00" then
+                                    -- We are about to start reading the first buffer (i.e. buffer "00")
+                                    -- This is where we switch over the ct2 tables, so that the new tables are used for 
+                                    -- an entire integration interval (849 ms).
+                                    if config_rw.table_select(0) = '0' then
+                                        -- table_select(0) = '0' => switch to add a subarray, so ct2_tables_in_use has to switch first
+                                        ct2_tables_in_use <= config_rw.table_select(1);
+                                    else
+                                        -- table_select(0) = '1' => switch to remove a subarray, so vct_table_in_use has to switch first
+                                        if vct_table_in_use = config_rw.table_select(1) then
+                                            ct2_tables_in_use <= config_rw.table_select(1);
+                                        end if;
+                                    end if;
+                                end if;
+                                --
                                 rd_integration <= wr_integration;
                                 first_readout <= '0';
-                                if current_wr_buffer = "00" then
-                                    -- These are used in the readout, only update them at the start 
-                                    -- of an integration.
-                                    NChannels <= '0' & i_virtualChannels;
-                                    clocksPerPacket <= config_rw.output_cycles;
-                                end if;
                                 input_fsm <= start_readout_calc0;
                             else
                                 input_fsm <= idle;
@@ -753,6 +824,18 @@ begin
                         input_fsm_dbg <= "01011";
                         AWFIFO_wrEn <= '0';
                         trigger_readout <= '0';
+                        if current_rd_buffer = "00" then
+                            -- clocksPerPacket and NChannels are used in the readout, 
+                            -- only update them at the start of an integration.
+                            -- Use the number of channels for the table that is being used
+                            if (ct2_tables_in_use = '0') then
+                                NChannels <= i_totalChannelsTable0;
+                            else
+                                NChannels <= i_totalChannelsTable1;
+                            end if;
+                            clocksPerPacket <= config_rw.output_cycles;
+                        end if;
+                        
                         -- select which delay buffer to use for the readout
                         input_fsm <= start_readout_calc1;
                         
@@ -936,12 +1019,12 @@ begin
         -- input signals to trigger reading of a buffer
         i_currentBuffer => current_rd_buffer, -- in(1:0);
         i_readStart => trigger_readout,       -- in std_logic; Pulse to start readout from i_currentBuffer
-        i_integration => rd_integration,    -- in(31:0)
+        i_integration => rd_integration,      -- in(31:0)
         i_Nchannels => NChannels,             -- in(11:0); -- Total number of virtual channels to read out,
         i_clocksPerPacket => clocksPerPacket, -- in(15:0)
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
-        o_delayTableAddr => poly_addr, -- out (14:0); -- 2 addresses per virtual channel, up to 1024 virtual channels
+        o_delayTableAddr => poly_addr,   -- out (14:0); -- 2 addresses per virtual channel, up to 1024 virtual channels
         i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
         
         -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
@@ -970,7 +1053,7 @@ begin
         o_HPol3 => data6,  -- 
         o_Vpol3 => data7,  --
         o_meta3 => meta67, --
-        
+        o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
         o_valid => validOut, -- out std_logic;
         
         -- AXI read address and data input buses
