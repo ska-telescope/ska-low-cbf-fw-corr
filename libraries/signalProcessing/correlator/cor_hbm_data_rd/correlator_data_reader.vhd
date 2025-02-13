@@ -288,11 +288,20 @@ signal end_packets_complete         : std_logic;
 
 signal page_flip_count              : unsigned(3 downto 0)  := x"0";
 signal find_page_flip               : std_logic := '0';
+
+signal current_page_ct1             : std_logic;
+
 --------------------------------------------------------------------------------
 begin
     
     clk                     <= i_axi_clk;
-    reset                   <= i_axi_rst OR i_local_reset;
+    
+    reg_proc : process(clk)
+    begin
+        if rising_edge(clk) then
+            reset           <= i_axi_rst OR i_local_reset;
+        end if;
+    end process;
 
     o_fsm_debugs(0)         <= pack_it_fsm_debug;
     o_fsm_debugs(1)         <= cor_tri_fsm_debug;
@@ -300,6 +309,7 @@ begin
 
     spead_data_rd           <= i_from_spead_pack.spead_data_rd;
     end_packets_complete    <= i_from_spead_pack.end_packets_complete;
+    current_page_ct1        <= i_from_spead_pack.current_page_ct1;
 
     o_to_spead_pack.spead_data              <= spead_data;
     o_to_spead_pack.current_array           <= cor_tri_sub_array;
@@ -405,6 +415,8 @@ begin
                 cor_tri_row_count   <= ( others => '0' );
                 hbm_readout_complete    <= '0';
                 cor_tri_fsm_cnt     <= x"0";
+                table_select        <= current_page_ct1;
+                table_select_prev   <= current_page_ct1;
             else
                 trigger_end_packets <= '0';
 
