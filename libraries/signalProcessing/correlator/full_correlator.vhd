@@ -141,6 +141,7 @@ entity full_correlator is
         i_cor_totalStations : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
         i_cor_subarrayBeam : in std_logic_vector(7 downto 0);   -- Which entry is this in the subarray-beam table ?
         i_cor_badPoly      : in std_logic;
+        i_cor_tableSelect  : in std_logic;
         -- Data out to the HBM
         -- o_data is a burst of 16*16*4*8 = 8192 bytes = 256 clocks with 256 bits per clock, for one cell of visibilities, when o_dtype = '0'
         -- When o_dtype = '1', centroid data is being sent as a block of 16*16*2 = 512 bytes = 16 clocks with 256 bits per clock.
@@ -155,6 +156,7 @@ entity full_correlator is
         o_totalStations : out std_logic_vector(15 downto 0); -- total number of stations in this subarray-beam
         o_subarrayBeam : out std_logic_vector(7 downto 0);   -- Index into the subarray-beam table.
         o_badPoly  : out std_logic;
+        o_tableSelect : out std_logic;
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     : in std_logic
@@ -175,7 +177,7 @@ architecture Behavioral of full_correlator is
     --signal correlator_fsm : correlator_fsm_type := done;
     signal buf0_done_axi_clk, buf1_done_axi_clk : std_logic := '0';
     signal buf0Used, buf1Used : std_logic := '0';
-    signal axi_to_cor_cdc_din : std_logic_vector(93 downto 0);
+    signal axi_to_cor_cdc_din : std_logic_vector(94 downto 0);
     signal tileChannel : std_logic_vector(23 downto 0);
     signal tileTotalTimes    : std_logic_vector(7 downto 0);    -- Number of time samples to integrate for this tile.
     signal tiletotalChannels : std_logic_Vector(4 downto 0);
@@ -184,7 +186,7 @@ architecture Behavioral of full_correlator is
     signal rowStations_minus1 : std_logic_vector(8 downto 0);
     signal colStations_minus1 : std_logic_vector(8 downto 0);
     signal axi_to_cor_src_rcv : std_logic;
-    signal axi_to_cor_dest_out : std_logic_vector(93 downto 0);
+    signal axi_to_cor_dest_out : std_logic_vector(94 downto 0);
     signal axi_to_cor_dest_req : std_logic;
     signal axi_to_cor_src_send : std_logic := '0';
     signal cdc_wrBuffer : std_logic;
@@ -260,21 +262,24 @@ architecture Behavioral of full_correlator is
     signal last_row, last_col : t_slv_4_arr(17 downto 0);
     signal tileTotalStations : std_logic_vector(15 downto 0);
     signal tileSubarrayBeam : std_logic_vector(7 downto 0);
-    signal tileBadPoly : std_logic;
+    signal tileBadPoly, tileTableSelect : std_logic;
     
     signal buf0_tileTotalStations, buf1_tileTotalStations : std_logic_vector(15 downto 0);
     signal buf0_tileSubarrayBeam, buf1_tileSubarrayBeam : std_logic_vector(7 downto 0);
     signal buf0_badPoly, buf1_badPoly : std_logic;
+    signal buf0_tableSelect, buf1_tableSelect : std_logic;
     
     signal totalStationsDel : t_slv_16_arr(23 downto 0);
     signal subarrayBeamDel  : t_slv_8_arr(23 downto 0);
     signal cur_totalStations : std_logic_vector(15 downto 0);
     signal cur_subarrayBeam : std_logic_vector(7 downto 0);
-    signal cur_badPoly : std_logic;
+    signal cur_badPoly, cur_tableSelect : std_logic;
     signal totalStationsDel1, totalStationsDel2, totalStationsDel3, totalStationsDel4 : std_logic_vector(15 downto 0);
     signal subarrayBeamDel1, subarrayBeamDel2, subarrayBeamDel3, subarrayBeamDel4 : std_logic_vector(7 downto 0);
     signal badPolyDel1, badPolyDel2, badPolyDel3, badPolyDel4 : std_logic;
     signal badPolyDel : std_logic_vector(23 downto 0);
+    signal tableSelectDel1, tableSelectDel2, tableSelectDel3, tableSelectDel4 : std_logic;
+    signal tableSelectDel : std_logic_vector(23 downto 0);
     
 begin
     
@@ -465,6 +470,7 @@ begin
                 tileTotalStations <= i_cor_totalStations;
                 tileSubarrayBeam <= i_cor_subArrayBeam;
                 tileBadPoly <= i_cor_badPoly;
+                tileTableSelect <= i_cor_tableSelect;
                 tileTotalTimes <= i_cor_tileTotalTimes; -- in 8 bits; Number of time samples to integrate for this tile.
                 tileTotalChannels <= i_cor_tiletotalChannels; -- 5 bits input
                 tileTime <= i_cor_time(7 downto 6); -- which block of 64 time samples is this ?
@@ -496,6 +502,7 @@ begin
     axi_to_cor_cdc_din(84 downto 69) <= tileTotalStations;
     axi_to_cor_cdc_din(92 downto 85) <= tileSubarrayBeam;
     axi_to_cor_cdc_din(93) <= tileBadPoly;
+    axi_to_cor_cdc_din(94) <= tileTableSelect;
 
     xpm_cdc_handshake_inst : xpm_cdc_handshake
     generic map (
@@ -504,7 +511,7 @@ begin
         INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
         SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         SRC_SYNC_FF => 4,    -- DECIMAL; range: 2-10
-        WIDTH => 94           -- DECIMAL; range: 1-1024
+        WIDTH => 95           -- DECIMAL; range: 1-1024
     ) port map (
         dest_out => axi_to_cor_dest_out, -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
         dest_req => axi_to_cor_dest_req, -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic.
@@ -570,6 +577,7 @@ begin
                     buf0_tileTotalStations <= axi_to_cor_dest_out(84 downto 69);
                     buf0_tileSubarrayBeam <= axi_to_cor_dest_out(92 downto 85);
                     buf0_badPoly <= axi_to_cor_dest_out(93);
+                    buf0_tableSelect <= axi_to_cor_dest_out(94);
                 else
                     -- Input buffer 1 has just been written.
                     buf1_tileCount <= axi_to_cor_dest_out(9 downto 0);
@@ -585,6 +593,7 @@ begin
                     buf1_tileTotalStations <= axi_to_cor_dest_out(84 downto 69);
                     buf1_tileSubarrayBeam <= axi_to_cor_dest_out(92 downto 85);
                     buf1_badPoly <= axi_to_cor_dest_out(93);
+                    buf1_tableSelect <= axi_to_cor_dest_out(94);
                 end if;
             end if;
             
@@ -634,6 +643,7 @@ begin
                         cur_tileFirst <= buf0_tilefirst;
                         cur_tileFinal <= buf0_tileFinal;
                         cur_badPoly <= buf0_badPoly;
+                        cur_tableSelect <= buf0_tableSelect;
                         cur_buf <= '0';
                     elsif cor_buf1_used = '1' then
                         cur_tileCount <= buf1_tileCount;
@@ -653,6 +663,7 @@ begin
                         cur_tileFirst <= buf1_tileFirst;
                         cur_tileFinal <= buf1_tileFinal;
                         cur_badPoly <= buf1_badPoly;
+                        cur_tableSelect <= buf1_tableSelect;
                         cur_buf <= '1';
                     end if;
                     -- row and col memory read address : bits (5:0) = time samples, (9:6) = station, (10) = double buffer.
@@ -746,6 +757,7 @@ begin
             totalStationsDel1 <= cur_totalStations;
             subarrayBeamDel1 <= cur_subarrayBeam;
             badPolyDel1 <= cur_badPoly;
+            tableSelectDel1 <= cur_tableSelect;
             
             totalTimesDel1 <= cur_totalTimes;
             totalChannelsDel1 <= cur_totalChannels;
@@ -774,6 +786,7 @@ begin
             totalStationsDel2 <= totalStationsDel1;
             subarrayBeamDel2 <= subarrayBeamDel1;
             badPolyDel2 <= badPolyDel1;
+            tableSelectDel2 <= tableSelectDel1;
             
             totalTimesDel2 <= totalTimesDel1;
             totalChannelsDel2 <= totalChannelsDel1;
@@ -793,6 +806,7 @@ begin
             totalStationsDel3 <= totalStationsDel2;
             subarrayBeamDel3 <= subarrayBeamDel2;
             badPolyDel3 <= badPolyDel2;
+            tableSelectDel3 <= tableSelectDel2;
             
             -- rd_fsm_del4 aligns with the data output from the first row and col memories, 
             -- i.e. colBRAMDout, rowBRAMDout(0), since there is a 3 cycle read latency for the memories.
@@ -811,6 +825,7 @@ begin
             totalStationsDel4 <= totalStationsDel3;
             subarrayBeamDel4 <= subarrayBeamDel3;
             badPolyDel4 <= badPolyDel3;
+            tableSelectDel4 <= tableSelectDel3;
             
         end if;
     end process;            
@@ -853,6 +868,7 @@ begin
                 totalStationsDel(0) <= totalStationsDel4;
                 subarrayBeamDel(0) <= subarrayBeamDel4;
                 badPolyDel(0) <= badPolyDel4;
+                tableSelectDel(0) <= tableSelectDel4;
             else
                 colMetaDel(0)(0).last <= '0';
                 rowMetaDel(0)(0).last <= '0';
@@ -872,6 +888,7 @@ begin
             totalStationsDel(23 downto 1) <= totalStationsDel(22 downto 0);
             subarrayBeamDel(23 downto 1) <= subarrayBeamDel(22 downto 0);
             badPolyDel(23 downto 1) <= badPolyDel(22 downto 0);
+            tableSelectDel(23 downto 1) <= tableSelectDel(22 downto 0);
             
             rowMetaDel(0)(0).sample_cnt(5 downto 0) <= rdTimeDel4;
             rowMetaDel(0)(0).sample_cnt(7 downto 6) <= tileTimeDel4;
@@ -1050,6 +1067,7 @@ begin
         i_totalStations => totalStationsDel(22), -- in (15:0);
         i_subarrayBeam => subarrayBeamDel(22),   -- in (7:0);
         i_badPoly => badPolyDel(22), -- in std_logic;
+        i_tableSelect => tableSelectDel(22),
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
         i_first   => tileFirstDel(22), -- in std_logic; 
@@ -1081,6 +1099,7 @@ begin
         o_totalStations => o_totalStations, -- out (15:0); Total number of stations in the correlation
         o_subarrayBeam => o_subarrayBeam,   -- out (7:0); Index into the subarray-beam table.
         o_badPoly => o_badPoly,             -- out std_logic;
+        o_tableSelect => o_tableSelect,     -- out std_logic;
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     => i_stop      -- in std_logic 

@@ -1,6 +1,7 @@
 ### Changelog
 ## Correlator Personality
-
+* 0.1.1
+    * Subarray addition/removal during a scan support added.
 * 0.1.0
     * AA1 release
     * To be used with Processor v0.15.1

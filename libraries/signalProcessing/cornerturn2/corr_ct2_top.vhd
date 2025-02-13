@@ -104,14 +104,16 @@ entity corr_ct2_top is
         i_hbm_status_c2     : in std_logic_vector(7 downto 0);
         
         -- configuration data from registers in other modules
-        i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
+        --i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
         i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
-        i_ctFrame      : in std_logic_vector(1 downto 0); -- 283 ms frame within each integration interval
+        i_ctFrame      : in std_logic_vector(1 downto 0);  -- 283 ms frame within each integration interval
         i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
         i_bad_poly     : in std_logic;
+        i_lastChannel  : in std_logic;   -- last of the group of 4 channels
+        i_demap_table_select : in std_logic;
         i_HeaderValid : in std_logic_vector(3 downto 0);
         i_data        : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
         i_dataValid   : in std_logic;
@@ -143,6 +145,7 @@ entity corr_ct2_top is
         o_cor_totalStations     : out t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- Total number of stations being processing for this subarray-beam.
         o_cor_subarrayBeam      : out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  -- Which entry is this in the subarray-beam table ? 
         o_cor_badPoly           : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0); -- out std_logic; No valid polynomial for some of the data in the subarray-beam
+        o_cor_tableSelect       : out std_logic_vector(g_MAX_CORRELATORS-1 downto 0); -- out std_logic; Which set of tables to use in the packetiser for this data 
         -----------------------------------------------------------------
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
@@ -214,7 +217,6 @@ architecture Behavioral of corr_ct2_top is
     signal din_SB_req : std_logic;
     signal readout_tableSelect : std_logic := '0';
     signal din_tableSelect : std_logic := '0';
-    signal last_channel : std_logic_vector(10 downto 0);
     signal recent_virtualChannel : std_logic_vector(15 downto 0);
     --signal lastTime : std_logic;
     
@@ -234,7 +236,6 @@ architecture Behavioral of corr_ct2_top is
     
     signal readout_frame_count, readout_clock_count, readout_interval : std_logic_vector(31 downto 0) := (others => '0');
     signal readout_clock_count_counting : std_logic := '0';
-    signal last_channel_16bit : std_logic_vector(15 downto 0);
     signal trigger_readout, trigger_buffer : std_logic := '0';
     signal sof_hold : std_logic := '0';
     signal readInClocks_count, readInClocks : std_logic_vector(31 downto 0) := x"00000000";
@@ -247,7 +248,6 @@ architecture Behavioral of corr_ct2_top is
     signal rst_del1, rst_del2 : std_logic;
     signal module_enable : std_logic := '0';
     signal dataValid : std_logic;
-    signal rst_hold : std_logic := '1';
     signal update_table : std_logic := '0';
     signal readout_frameCount, readout_frameCount_del1, trigger_frameCount : std_logic_vector(31 downto 0);
     
@@ -346,34 +346,17 @@ begin
             
             if i_rst = '1' then
                 frameCount_mod3 <= "00";
-                rst_hold <= '1';
                 update_table <= '1';
                 frameCount_849ms <= (others => '0');
             elsif (sof_hold = '1' and dataValid = '1') then
                 -- This picks up the framecount for the first packet in the frame = 283ms of data.
                 -- If i_virtualChannel(0) = 0 then this is the start of a new block of 283 ms.
                 -- Note : i_virtualChannel is only valid when i_dataValid = '1'.
-                rst_hold <= '0';
                 frameCount_mod3 <= i_ctFrame;
                 frameCount_849ms <= i_integration;
                 
-                if rst_hold = '0' then
-                    if (unsigned(i_virtualChannel(0)) = 0) then
-                        case frameCount_mod3 is
-                            when "00" => 
-                                --frameCount_mod3 <= "01";
-                                update_table <= '0';
-                            when "01" => 
-                                --frameCount_mod3 <= "10";
-                                update_table <= '0';
-                            when others => 
-                                --frameCount_mod3 <= "00";
-                                update_table <= '1';
-                                --frameCount_849ms <= std_logic_vector(unsigned(frameCount_849ms) + 1);
-                        end case;
-                    else
-                        update_table <= '0';
-                    end if;
+                if (unsigned(i_virtualChannel(0)) = 0) and i_ctFrame = "00" then
+                    update_table <= '1';
                 else
                     update_table <= '0';
                 end if;
@@ -386,8 +369,6 @@ begin
             else
                 sof_full <= '0';
             end if;
-            
-            last_channel <= std_logic_vector(unsigned(i_virtualChannels) - 1);
             
             if i_headerValid(0) = '1' then
                 recent_virtualChannel <= i_virtualChannel(3);
@@ -484,8 +465,6 @@ begin
     statctrl_ro.hbm_reset_status_corr_2 <= i_hbm_status_c2; 
     o_hbm_reset_c2                      <= statctrl_rw.hbm_reset_corr_2;
     
-    last_channel_16bit <= "00000" & last_channel;   
-    
     statctrl_ro.readinclocks <= readInClocks;
     statctrl_ro.readInAllClocks <= readout_interval;
     statctrl_ro.readoutBursts <= readoutBursts;
@@ -503,16 +482,16 @@ begin
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
         i_rst              => rst_del1,         -- in std_logic;
-        i_sof              => i_sof,            -- in std_logic; -- pulse high at the start of every frame. (1 frame is typically 60ms of data).
+        i_sof              => i_sof,            -- in std_logic; -- pulse high at the start of every new set of virtual channels
         -- i_frameCount_mod3 and i_frameCount_849ms are captured on the SECOND cycle of i_datavalid after i_sof
         i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
         i_frameCount_849ms => frameCount_849ms, -- in (31:0)
         i_virtualChannel   => i_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the data streams.
         i_bad_poly         => i_bad_poly,       -- in std_logic;
-        i_lastChannel      => last_channel_16bit, -- in (15:0)
+        i_lastChannel      => i_lastchannel,    -- in std_logic;
         i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
-        i_dataValid        => dataValid,      -- in std_logic;
+        i_dataValid        => dataValid,        -- in std_logic;
         o_trigger_readout  => trigger_readout,  -- out std_logic; All data has been written to the HBM, can start reading out to the correlator.
         o_trigger_buffer   => trigger_buffer,   -- out std_logic;
         o_trigger_frameCount => trigger_frameCount, -- out (31:0)
@@ -661,7 +640,7 @@ begin
         o_arFIFO_wr_count => dout_arFIFO_wr_count, -- out std_logic_vector(6 downto 0);
         o_dataFIFO_wrCount => dout_dataFIFO_wrCount -- out std_logic_vector(9 downto 0)
     );
-    
+    o_cor_tableSelect(0) <= readout_tableSelect;
     o_cor_valid <= cor_valid_int;
     
     corrgen : for i in 1 to (g_CORRELATORS-1) generate
@@ -724,7 +703,8 @@ begin
             i_HBM_axi_r       => i_HBM_axi_r(i),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
             o_HBM_axi_rready  => HBM_axi_rready(i)   -- out std_logic
         );
-    
+        o_cor_tableSelect(i) <= readout_tableSelect;
+        
     end generate;
     
     --corrNoGen : for i in g_CORRELATORS to (g_MAX_CORRELATORS-1) generate
@@ -763,7 +743,7 @@ begin
         MM_RST              => i_axi_rst,   -- in  std_logic;
         SLA_IN              => i_axi_mosi,  -- in  t_axi4_lite_mosi;
         SLA_OUT             => o_axi_miso,  -- out t_axi4_lite_miso;
-        STATCTRL_FIELDS_RW	=> statctrl_rw, -- out t_statctrl_rw; single field .table_select, .buf0_subarray_beams_table0, .buf0_subarray_beams_table1, .buf1_subarray_beams_table0, .buf1_subarray_beams_table1
+        STATCTRL_FIELDS_RW	=> statctrl_rw, -- out t_statctrl_rw; single field .buf0_subarray_beams_table0, .buf0_subarray_beams_table1, .buf1_subarray_beams_table0, .buf1_subarray_beams_table1
         STATCTRL_FIELDS_RO	=> statctrl_ro, -- in  t_statctrl_ro
         STATCTRL_VC_DEMAP_IN       => vc_demap_in,      -- in  t_statctrl_vc_demap_ram_in;
         STATCTRL_VC_DEMAP_OUT      => vc_demap_out,     -- out t_statctrl_vc_demap_ram_out;
@@ -821,11 +801,10 @@ begin
             -- Logic for reading the subarray-beam table
             --
             if update_table = '1' then
-                -- First frame after reset, frameCount_mod3 at i_sof='1' is "00", but in subsequent frames, 
-                -- frameCount_mod3 for the frame will be updated after i_sof, so this detects 
+                -- Update table occurs at the start of each new 849 ms readout
                 -- Set the subarray-beam table that is used for writing data into the HBM.
                 -- Set at the start of data input for the frame, so it is fixed through the frame.
-                din_tableSelect <= statctrl_rw.table_select; 
+                din_tableSelect <= i_demap_table_select;
             end if;
             
             if (readout_start = '1') then

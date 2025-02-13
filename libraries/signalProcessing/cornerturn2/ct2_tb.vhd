@@ -24,11 +24,10 @@ use DSP_top_lib.DSP_top_pkg.all;
 
 entity ct2_tb is
     generic(
-        g_VIRTUAL_CHANNELS : integer := 8;
         g_PACKET_GAP : integer := 4100; -- number of clocks from the start of one filterbank packet to the start of the next 
         g_VC_GAP : integer := 20000;   -- number of clocks idle between groups of 4 virtual channels from the filterbank
         g_MAX_CORRELATORS : integer := 2;
-        g_TEST_CASE : integer := 0 -- selects a set of register transactions and other configuration to use in the test.
+        g_TEST_CASE : integer := 2 -- selects a set of register transactions and other configuration to use in the test.
         -- 
     );
 end ct2_tb;
@@ -132,6 +131,9 @@ architecture Behavioral of ct2_tb is
     signal bad_poly_integration : std_logic_vector(31 downto 0);
     signal bad_poly_ctFrame : std_logic_vector(1 downto 0);
     signal bad_poly_vc : std_logic_vector(15 downto 0);
+    signal c_VIRTUAL_CHANNELS : integer := 0;
+    signal fb_lastChannel : std_logic;
+    signal fb_demap_table_select : std_logic;
     
 begin
     
@@ -149,6 +151,7 @@ begin
         variable readResult : std_logic_vector(31 downto 0);
     begin
         
+        -- startup default values
         virtual_channels <= (others => '0');
         mc_lite_mosi.awaddr <= (others => '0');
         mc_lite_mosi.awprot <= "000";
@@ -164,6 +167,7 @@ begin
         send_fb_data <= '0';
         clk300_rst <= '0';
         hbm_reset_final <= '0';
+        fb_demap_table_select <= '0';
         
         for i in 1 to 10 loop
             WAIT UNTIL RISING_EDGE(clk300);
@@ -183,16 +187,18 @@ begin
         --axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, 0,    true, x"00000000");
         
         if g_TEST_CASE = 0 then
-        
+            -- 8 virtual channels, 1 subarray-beam
+            c_VIRTUAL_CHANNELS <= 8;
+            WAIT UNTIL RISING_EDGE(clk300);
+            virtual_channels <= std_logic_vector(to_unsigned(c_VIRTUAL_CHANNELS,11));
             -- Set where bad poly will occur in the data stream.
             bad_poly_packets_sent <= 0;
             bad_poly_integration <= (others => '0');
             bad_poly_ctFrame <= "00";
             bad_poly_vc <= x"0000";
-        
-            virtual_channels <= std_logic_vector(to_unsigned(g_VIRTUAL_CHANNELS,11)); 
+            
             -- select table 0
-            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_table_select_address.base_address + c_statctrl_table_select_address.address, true, x"00000000");
+            fb_demap_table_select <= '0';
             -- 1 subarray-beam in table 0
             axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table0_address.base_address + c_statctrl_buf0_subarray_beams_table0_address.address, true, x"00000001");
             -- 0 subarray-beams in table 1
@@ -233,10 +239,213 @@ begin
             WAIT UNTIL RISING_EDGE(clk300);
             send_fb_data <= '0';
             WAIT UNTIL RISING_EDGE(clk300);
-        else
-            -- 
+        elsif g_TEST_CASE = 1 then
+            -- 8 virtual channels, 2 subarray-beams, one in each correlator
+            c_VIRTUAL_CHANNELS <= 8;
+            WAIT UNTIL RISING_EDGE(clk300);
+            virtual_channels <= std_logic_vector(to_unsigned(c_VIRTUAL_CHANNELS,11));
+            -- Set where bad poly will occur in the data stream.
+            bad_poly_packets_sent <= 0;
+            bad_poly_integration <= (others => '0');
+            bad_poly_ctFrame <= "00";
+            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            bad_poly_vc <= x"0004";  -- bad poly is somewhere in the second subarray-beam
+            
+            -- select table 0
+            fb_demap_table_select <= '0';
+            
+            -- 1 subarray-beam in table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table0_address.base_address + c_statctrl_buf0_subarray_beams_table0_address.address, true, x"00000001");
+            -- 0 subarray-beams in table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table1_address.base_address + c_statctrl_buf0_subarray_beams_table1_address.address, true, x"00000000");
+            -- 1 subarray-beams for second correlator, table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table0_address.base_address + c_statctrl_buf1_subarray_beams_table0_address.address, true, x"00000001");
+            -- 0 subarray-beams for second correlator, table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table1_address.base_address + c_statctrl_buf1_subarray_beams_table1_address.address, true, x"00000000");
+            -- demap table
+            -- 2 words per group of 4 virtual channels :
+            --   Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table. Values of 0 to 127 are for the first correlator, 128 to 255 for the second correlator. 
+            --            bits(19:8) = (sub)station within this subarray.
+            --            bits(28:20) = channel frequency index 
+            --            bit(31) = 1 to indicate valid
+            --   word 1 : !!! This is for exporting the fine channel data on the 100GE port, bypassing the correlator. The functionality is not implemented in the firmware, and may never be.
+            --            bits(11:0) = start fine channel for forwarding on the 100GE port. (0)
+            --            bits(23:12) = End fine channel for forwarding on the 100GE port. (3455 = xD7F)
+            --            bits(31:24) = Forwarding address  (unused)
+            -- 8 virtual channels in this test case, so 2 x 2 words in the demap table
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 0, true, x"99000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, true, x"99100080");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, true, x"00000000");
+            -- subarray beam table
+            -- Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
+            --          bits(31:16) = starting coarse frequency channel, \
+            -- Word 1 : bits (15:0) = starting fine frequency channel \
+            -- Word 2 : bits (23:0) = Number of fine channels stored \
+            --          bits (29:24) = Fine channels per integration \
+            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, true, x"01900004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, true, x"00000000");
+            
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 0, true, x"01910004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 3, true, x"00000000");
+            
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '1';
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '0';
+            WAIT UNTIL RISING_EDGE(clk300);
         
+        elsif g_TEST_CASE = 2 then
+            -- 8 virtual channels, 2 subarray-beams, both in the first correlator
+            c_VIRTUAL_CHANNELS <= 8;
+            WAIT UNTIL RISING_EDGE(clk300);
+            virtual_channels <= std_logic_vector(to_unsigned(c_VIRTUAL_CHANNELS,11));
+            -- Set where bad poly will occur in the data stream.
+            bad_poly_packets_sent <= 0;
+            bad_poly_integration <= (others => '0');
+            bad_poly_ctFrame <= "00";
+            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            bad_poly_vc <= x"0004";  -- bad poly is somewhere in the second subarray-beam
+            
+            -- select table 0
+            fb_demap_table_select <= '0';
+            -- 2 subarray-beam in table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table0_address.base_address + c_statctrl_buf0_subarray_beams_table0_address.address, true, x"00000002");
+            -- 0 subarray-beams in table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table1_address.base_address + c_statctrl_buf0_subarray_beams_table1_address.address, true, x"00000000");
+            -- 1 subarray-beams for second correlator, table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table0_address.base_address + c_statctrl_buf1_subarray_beams_table0_address.address, true, x"00000000");
+            -- 0 subarray-beams for second correlator, table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table1_address.base_address + c_statctrl_buf1_subarray_beams_table1_address.address, true, x"00000000");
+            -- demap table
+            -- 2 words per group of 4 virtual channels :
+            --   Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table. Values of 0 to 127 are for the first correlator, 128 to 255 for the second correlator. 
+            --            bits(19:8) = (sub)station within this subarray.
+            --            bits(28:20) = channel frequency index 
+            --            bit(31) = 1 to indicate valid
+            --   word 1 : !!! This is for exporting the fine channel data on the 100GE port, bypassing the correlator. The functionality is not implemented in the firmware, and may never be.
+            --            bits(11:0) = start fine channel for forwarding on the 100GE port. (0)
+            --            bits(23:12) = End fine channel for forwarding on the 100GE port. (3455 = xD7F)
+            --            bits(31:24) = Forwarding address  (unused)
+            -- 8 virtual channels in this test case, so 2 x 2 words in the demap table
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 0, true, x"99000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, true, x"99100001");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, true, x"00000000");
+            -- subarray beam table
+            -- Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
+            --          bits(31:16) = starting coarse frequency channel, \
+            -- Word 1 : bits (15:0) = starting fine frequency channel \
+            -- Word 2 : bits (23:0) = Number of fine channels stored \
+            --          bits (29:24) = Fine channels per integration \
+            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, true, x"01900004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, true, x"00000000");
+            
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 0, true, x"01910004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 3, true, x"00000000");
+            
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '1';
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '0';
+            WAIT UNTIL RISING_EDGE(clk300);
+
+        elsif g_TEST_CASE = 3 then
+            -- 8 virtual channels, 2 subarray-beams, both in the first correlator
+            c_VIRTUAL_CHANNELS <= 8;
+            WAIT UNTIL RISING_EDGE(clk300);
+            virtual_channels <= std_logic_vector(to_unsigned(c_VIRTUAL_CHANNELS,11));
+            -- Set where bad poly will occur in the data stream.
+            bad_poly_packets_sent <= 0;
+            bad_poly_integration <= (others => '0');
+            bad_poly_ctFrame <= "00";
+            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            bad_poly_vc <= x"0004";  -- bad poly is somewhere in the second subarray-beam
+            
+            -- select table 0
+            fb_demap_table_select <= '0';
+            -- 2 subarray-beam in table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table0_address.base_address + c_statctrl_buf0_subarray_beams_table0_address.address, true, x"00000002");
+            -- 0 subarray-beams in table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table1_address.base_address + c_statctrl_buf0_subarray_beams_table1_address.address, true, x"00000000");
+            -- 1 subarray-beams for second correlator, table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table0_address.base_address + c_statctrl_buf1_subarray_beams_table0_address.address, true, x"00000000");
+            -- 0 subarray-beams for second correlator, table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table1_address.base_address + c_statctrl_buf1_subarray_beams_table1_address.address, true, x"00000000");
+            -- demap table
+            -- 2 words per group of 4 virtual channels :
+            --   Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table. Values of 0 to 127 are for the first correlator, 128 to 255 for the second correlator. 
+            --            bits(19:8) = (sub)station within this subarray.
+            --            bits(28:20) = channel frequency index 
+            --            bit(31) = 1 to indicate valid
+            --   word 1 : !!! This is for exporting the fine channel data on the 100GE port, bypassing the correlator. The functionality is not implemented in the firmware, and may never be.
+            --            bits(11:0) = start fine channel for forwarding on the 100GE port. (0)
+            --            bits(23:12) = End fine channel for forwarding on the 100GE port. (3455 = xD7F)
+            --            bits(31:24) = Forwarding address  (unused)
+            -- 8 virtual channels in this test case, so 2 x 2 words in the demap table
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 0, true, x"99000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, true, x"99100001");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, true, x"00000000");
+            -- subarray beam table
+            -- Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
+            --          bits(31:16) = starting coarse frequency channel, \
+            -- Word 1 : bits (15:0) = starting fine frequency channel \
+            -- Word 2 : bits (23:0) = Number of fine channels stored \
+            --          bits (29:24) = Fine channels per integration \
+            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, true, x"01900004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, true, x"00000000");
+            
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 0, true, x"01910004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 3, true, x"00000000");
+            
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '1';
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '0';
+            WAIT UNTIL RISING_EDGE(clk300);
+            wait for 10 ms;
+            -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            -- Setup a page flip
+            -- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            WAIT UNTIL RISING_EDGE(clk300);
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 512 + 0, true, x"99000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 512 + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 512 + 2, true, x"99100001");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 512 + 3, true, x"00000000");
+            
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 0, true, x"01900004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 3, true, x"00000000");
+            
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 4 + 0, true, x"01910004");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 4 + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 4 + 2, true, x"58000D80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 4 + 3, true, x"00000000");
+            
+            fb_demap_table_select <= '1';
+            WAIT UNTIL RISING_EDGE(clk300);
         end if;
+        
         
         wait;
     end process;    
@@ -296,7 +505,7 @@ begin
                                 packets_sent <= 0;
                                 -- 63, plus the one just sent = 64 packets sent
                                 -- move to the next virtual channel
-                                if (unsigned(fb_vc0) + 4) > (g_VIRTUAL_CHANNELS-1) then
+                                if (unsigned(fb_vc0) + 4) > (c_VIRTUAL_CHANNELS-1) then
                                     -- Sent data for all the virtual channels, move on to the next 283 ms frame
                                     fb_vc0 <= (others => '0');
                                     fb_fsm <= frame_gap;
@@ -398,6 +607,7 @@ begin
     
     fb_dataValid <= '1' when fb_fsm = send_data0 or fb_fsm = send_data else '0'; -- in std_logic;
     
+    fb_lastChannel <= '1' when (unsigned(fb_vc0) + 4) > (c_VIRTUAL_CHANNELS-1) else '0';
     
     ct2i : entity ct_lib.corr_ct2_top
     generic map (
@@ -418,19 +628,20 @@ begin
         i_hbm_status_c1  => (others => '0'), -- in std_logic_vector(7 downto 0);
         o_hbm_reset_c2   => open, --  out std_logic;
         i_hbm_status_c2  => (others => '0'), --  in std_logic_vector(7 downto 0);
-        
-        -- configuration data from registers in other modules
-        i_virtualChannels => virtual_channels(10 downto 0), --  in std_logic_vector(10 downto 0); -- total virtual channels 
+
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
         i_sof          => fb_sof,         -- in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
         i_integration  => fb_integration, -- in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      => fb_ctFrame,     -- in std_logic_vector(1 downto 0); -- 283 ms frame within each integration interval
         i_virtualChannel => fb_virtualChannel, -- in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
-        i_bad_poly    => fb_bad_poly,     -- in std_logic;
+        i_bad_poly       => fb_bad_poly,     -- in std_logic;
+        i_lastChannel    => fb_lastChannel,  -- in std_logic;
+        i_demap_table_select => fb_demap_table_select, -- in std_logic;
         i_HeaderValid => fb_headerValid,  -- in std_logic_vector(3 downto 0);
         i_data        => fb_data,         -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
         i_dataValid   => fb_dataValid,    -- in std_logic;
+        
         ---------------------------------------------------------------
         -- Data out to the correlator arrays
         --

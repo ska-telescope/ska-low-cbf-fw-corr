@@ -50,13 +50,16 @@ entity FB_Top_correlator is
         i_data6  : in t_slv_8_arr(1 downto 0);
         i_data7  : in t_slv_8_arr(1 downto 0);
         i_meta67 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_DataValid : in std_logic;
-                
+        i_lastChannel : in std_logic;
+        i_demap_table_select : in std_logic;
+        i_dataValid : in std_logic;
         -- Correlator filterbank data output
         o_integration    : out std_logic_vector(31 downto 0); -- Which integration frame is this ? Units of 0.849 seconds since epoch.
         o_ctFrame        : out std_logic_vector(1 downto 0);  -- Which 283ms corner turn frame is this ? 
         o_virtualChannel : out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
         o_bad_poly    : out std_logic;
+        o_lastChannel    : out std_logic;  -- Last of the group of 4 channels
+        o_demap_table_select : out std_logic;
         o_HeaderValid : out std_logic_vector(3 downto 0);
         o_Data        : out t_ctc_output_payload_arr(3 downto 0);
         o_DataValid   : out std_logic;
@@ -94,7 +97,7 @@ architecture Behavioral of FB_Top_correlator is
     signal firtap_wr_data : std_logic_vector(17 downto 0);
     
     signal CorDin0, CorDin1, CorDin2, CorDin3 : t_slv_8_arr(1 downto 0);
-    signal CorrelatorMetaIn, corMetaOut : std_logic_vector(617 downto 0);
+    signal CorrelatorMetaIn, corMetaOut : std_logic_vector(619 downto 0);
     signal CorDout0, CorDout1, CorDout2, CorDout3 : t_slv_16_arr(1 downto 0);
     signal CorValidOut, CorValidOutDel : std_logic;
     
@@ -192,6 +195,8 @@ begin
             CorrelatorMetaIn(615) <= i_meta23.bad_poly;
             CorrelatorMetaIn(616) <= i_meta45.bad_poly;
             CorrelatorMetaIn(617) <= i_meta67.bad_poly;
+            CorrelatorMetaIn(618) <= i_lastChannel;
+            CorrelatorMetaIn(619) <= i_demap_table_select;
             
             -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
             for i in 0 to 1 loop
@@ -254,12 +259,10 @@ begin
         end if;
     end process;
     
-
-    
         
     corfbi : entity filterbanks_lib.correlatorFBTop25
     generic map(
-        METABITS => 618, -- 361,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 620, -- 361,    -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
         -- processing clock
@@ -292,7 +295,7 @@ begin
     
     corfb2i : entity filterbanks_lib.correlatorFBTop25
     generic map(
-        METABITS => 618,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 620,    -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
         -- processing clock
@@ -351,6 +354,8 @@ begin
     corFBHeader(0).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(0).ctFrame <= corMetaOut(33+580 downto 32+580);
     corFBHeader(0).bad_poly <= corMetaOut(614);
+    corFBHeader(0).lastChannel <= corMetaOut(618);
+    corFBHeader(0).demap_table_select <= corMetaOut(619);
     
     corFBHeader(1).HDeltaP <= corMetaOut(31+145 downto 145+0);
     corFBHeader(1).VDeltaP <= corMetaOut(63+145 downto 32+145);
@@ -361,6 +366,8 @@ begin
     corFBHeader(1).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(1).ctFrame <= corMetaOut(33+580 downto 32+580);
     corFBHeader(1).bad_poly <= corMetaOut(615);
+    corFBHeader(1).lastChannel <= corMetaOut(618);
+    corFBHeader(1).demap_table_select <= corMetaOut(619);
     
     corFBHeader(2).HDeltaP <= corMetaOut(31+290 downto 0+290);
     corFBHeader(2).VDeltaP <= corMetaOut(63+290 downto 32+290);
@@ -371,6 +378,8 @@ begin
     corFBHeader(2).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(2).ctFrame <= corMetaOut(33+580 downto 32+580);
     corFBHeader(2).bad_poly <= corMetaOut(616);
+    corFBHeader(2).lastChannel <= corMetaOut(618);
+    corFBHeader(2).demap_table_select <= corMetaOut(619);
     
     corFBHeader(3).HDeltaP <= corMetaOut(31+435 downto 0+435);
     corFBHeader(3).VDeltaP <= corMetaOut(63+435 downto 32+435);
@@ -381,6 +390,8 @@ begin
     corFBHeader(3).integration <= corMetaOut(31+580 downto 0+580);
     corFBHeader(3).ctFrame <= corMetaOut(33+580 downto 32+580);
     corFBHeader(3).bad_poly <= corMetaOut(617);
+    corFBHeader(3).lastChannel <= corMetaOut(618);
+    corFBHeader(3).demap_table_select <= corMetaOut(619);
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
@@ -443,6 +454,9 @@ begin
     o_virtualChannel(2) <= FDHeader(2).virtualChannel;
     o_virtualChannel(3) <= FDHeader(3).virtualChannel;
     o_bad_poly <= FDHeader(0).bad_poly or FDHeader(1).bad_poly or FDHeader(2).bad_poly or FDHeader(3).bad_poly;
+    o_lastChannel <= FDHeader(0).lastChannel;
+    o_demap_table_select <= FDHeader(0).demap_table_select;
+    
     o_integration <= FDHeader(0).integration;
     o_ctFrame <= FDHeader(0).ctFrame;
     o_headerValid <= headerValid;

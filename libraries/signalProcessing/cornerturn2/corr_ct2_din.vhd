@@ -66,14 +66,14 @@ entity corr_ct2_din is
     port(
         i_rst : in std_logic;
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
-        i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is typically 283 ms of data).
+        i_sof          : in std_logic; -- pulse high at the start of every new set of virtual channels
         -- frame count is the same for all simultaneous output streams.
         -- frameCount is the count of 1st corner turn frames, i.e. 283 ms pieces of data.
         i_frameCount_mod3 : in std_logic_vector(1 downto 0);  -- which of the three first corner turn frames is this, out of the 3 that make up a 849 ms integration. "00", "01", or "10".
         i_frameCount_849ms : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
         i_virtualChannel  : in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the filterbank data streams.
         i_bad_poly        : in std_logic;
-        i_lastChannel     : in std_logic_vector(15 downto 0);
+        i_lastChannel     : in std_logic;
         i_HeaderValid     : in std_logic_vector(3 downto 0);
         i_data            : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
         i_dataValid       : in std_logic;
@@ -375,12 +375,7 @@ begin
                 -- Just use the first filterbanks virtual channel.
                 -- This module assumes that i_virtualChannel(0), (1), (2), and (3) are consecutive values.
                 virtualChannel <= virtualChannel0Del1;
-                
-                if (unsigned(virtualChannel3Del1) >= unsigned(i_lastchannel)) then
-                    last_virtual_channel <= '1';
-                else
-                    last_virtual_channel <= '0';
-                end if;
+                last_virtual_channel <= i_lastchannel;
                 frameCount_mod3 <= i_frameCount_mod3;
                 frameCount_849ms <= i_frameCount_849ms;
                 trigger_demap_rd <= '1';
@@ -473,7 +468,7 @@ begin
             --  So we have 3456 blocks of 512 bytes to send to the HBM.
             
             if i_dataValid = '0' and dataValidDel1 = '1' and timeStep(4 downto 0) = "11111" then
-                copyToHBM <= '1';
+                copyToHBM <= demap_valid;
                 copyToHBM_buffer <= frameCount_849ms(0); -- every 849 ms, alternate halfs within each 3 Gbyte HBM buffer.
                 recent_frameCount <= frameCount_849ms;
                 -- Parameters for this block of data :
@@ -1023,8 +1018,9 @@ begin
             probe0(165 downto 158) => i_virtualChannel(2)(7 downto 0),
             probe0(167 downto 166) => i_frameCount_mod3,
             probe0(171 downto 168) => i_HeaderValid,
-            probe0(187 downto 172) => i_lastChannel,
-            probe0(191 downto 188) => i_frameCount_849ms(3 downto 0)
+            probe0(172) => i_lastChannel,
+            probe0(176 downto 173) => i_frameCount_849ms(3 downto 0),
+            probe0(191 downto 177) => (others => '0') 
         );
         
         ct2_pt2_ila : ila_0

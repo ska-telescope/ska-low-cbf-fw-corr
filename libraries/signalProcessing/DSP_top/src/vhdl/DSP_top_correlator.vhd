@@ -254,13 +254,21 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     signal cor_packet_data : t_slv_256_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_packet_valid : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
-    signal totalChannels : std_logic_vector(11 downto 0);
+    signal LFAAingest_totalChannels : std_logic_vector(11 downto 0);
     signal data_tx_siso : t_lbus_siso;
     signal FB_out_sof : std_logic;
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
     signal reset_to_ct_1 : std_logic;
     signal freq_index0_repeat : std_logic;
     signal FD_bad_poly : std_logic;
+    signal LFAAingest_table_select : std_logic;
+    signal totalChannelsTable0, totalChannelsTable1 : std_logic_vector(11 downto 0);
+    signal FB_demap_table_select : std_logic;
+    signal FB_lastChannel : std_logic;
+    signal FD_lastChannel, FD_demap_table_select : std_logic;
+    signal cor_tableSelect : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+    signal table_swap_in_progress : std_logic;
+    signal packetiser_table_select : std_logic; 
     
 begin
     
@@ -292,7 +300,13 @@ begin
         --i_data_rst       => '0',            -- in std_logic;
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
         o_virtualChannel => LFAAingest_virtualChannel,  -- out(15:0), single number to uniquely identify the channel+station for this packet.
-        o_packetCount    => LFAAingest_packetCount(39 downto 0),     -- out(31:0). Packet count from the SPEAD header.
+        o_packetCount    => LFAAingest_packetCount(39 downto 0), -- out(31:0). Packet count from the SPEAD header.
+        o_totalChannels  => LFAAingest_totalChannels,   -- out (11:0);
+        o_totalChannelsTable0 => totalChannelsTable0, -- out (11:0)
+        o_totalChannelsTable1 => totalChannelsTable1, -- out (11:0)
+        o_totalStations  => open, -- LFAAingest_totalStations,   -- out (11:0);
+        o_totalCoarse    => open, -- LFAAingest_totalCoarse,     -- out (11:0);
+        o_tableSelect    => open, -- LFAAingest_tableSelect,     -- out std_logic;
         o_valid          => LFAAingest_valid,           -- out std_logic; o_virtualChannel and o_packetCount are valid.
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
         o_axi_w      => o_HBM_axi_w(0),      -- w data bus (.wvalid, .wdata, .wlast)
@@ -305,9 +319,8 @@ begin
         -- registers AXI Full interface
         i_vcstats_MM_IN    => i_LFAAFull_axi_mosi, -- in  t_axi4_full_mosi; At the top level use mc_full_mosi(c_LFAAdecode_full_index),
         o_vcstats_MM_OUT   => o_LFAAFull_axi_miso, -- out t_axi4_full_miso;
-        -- Output from the registers that are used elsewhere (on i_s_axi_clk)
-        o_totalChannels    => totalChannels,       -- out (11:0); Total number of virtual channels defined.
-        
+        -- control signal in to select which virtual channel table to use
+        i_vct_table_select => LFAAingest_table_select, -- in std_logic;
         -- hbm reset   
         o_hbm_reset        => o_hbm_reset(0),
         i_hbm_status       => i_hbm_status(0),
@@ -332,7 +345,8 @@ begin
         i_poly_full_axi_mosi => i_poly_full_axi_mosi, --  in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
         o_poly_full_axi_miso => o_poly_full_axi_miso, --  out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (from LFAA ingest config, must be the same for the corner turn)
-        i_virtualChannels   => totalChannels(10 downto 0), -- in std_logic_vector(10 downto 0); -- total virtual channels (= i_stations * i_coarse)
+        i_totalChannelsTable0 => totalChannelsTable0, -- out (11:0); Total virtual channels in vct table 0
+        i_totalChannelsTable1 => totalChannelsTable1, -- out (11:0); Total virtual channels in vct table 1
         i_rst               => reset_to_ct_1,
         o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
         --o_validMemRstActive => o_validMemRstActive, -- out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
@@ -342,7 +356,12 @@ begin
         -- These signals use i_shared_clk
         i_virtualChannel => LFAAingest_virtualChannel, -- in std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station; this module supports values in the range 0 to 1023.
         i_packetCount    => LFAAingest_packetCount,    -- in std_logic_vector(31 downto 0);
-        i_valid          => LFAAingest_valid, --  in std_logic;    
+        i_valid          => LFAAingest_valid, --  in std_logic;
+        -- select the table to use in LFAA Ingest. Changes to the configuration tables to be used (in ingest, ct1, and ct2) are sequenced from within corner turn 1
+        o_vct_table_select => LFAAingest_table_select,  -- out std_logic;
+        --
+        o_table_swap_in_progress => table_swap_in_progress, --  out std_logic;
+        o_packetiser_table_select => packetiser_table_select, --  out std_logic; 
         -- Data bus output to the Filterbanks
         -- 8 Outputs, each complex data, 8 bit real, 8 bit imaginary.
         o_sof   => FB_sof,     -- out std_logic; start of data for a set of 4 virtual channels.
@@ -359,10 +378,14 @@ begin
         o_data6 => FB_data6,   -- out t_slv_8_arr(1 downto 0);
         o_data7 => FB_data7,   -- out t_slv_8_arr(1 downto 0);
         o_meta67 => FB_meta67, -- out 
-        o_valid => FB_valid,   -- out std_logic;
+        o_lastChannel => FB_lastChannel, -- out std_logic;
+        -- o_demap_table_select and o_totalChannels will change just prior to the start of reading out of a new integration frame.
+        -- So it should be registered on the first output of a new integration frame in corner turn 2.
+        o_demap_table_select => FB_demap_table_select, -- out std_logic;
+        o_valid              => FB_valid,   -- out std_logic;
         -------------------------------------------------------------
-        i_axi_dbg  => i_axi_dbg, -- : in std_logic_vector(127 downto 0); -- 128 bits
-        i_axi_dbg_valid => i_axi_dbg_valid, -- : in std_logic
+        i_axi_dbg  => i_axi_dbg,            -- in (127:0)
+        i_axi_dbg_valid => i_axi_dbg_valid, -- in std_logic
         -------------------------------------------------------------
         -- AXI bus to the shared memory. 
         -- This has the aw, b, ar and r buses (the w bus is on the output of the LFAA decode module)
@@ -422,6 +445,8 @@ begin
             i_data6  => FB_data6, -- in t_slv_8_arr(1 downto 0);
             i_data7  => FB_data7, -- in t_slv_8_arr(1 downto 0);
             i_meta67 => FB_meta67,
+            i_lastChannel => FB_lastChannel, -- in std_logic;
+            i_demap_table_select => FB_demap_table_select, -- in std_logic;
             i_dataValid => FB_valid, -- in std_logic;
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
@@ -429,6 +454,8 @@ begin
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
             o_bad_poly       => FD_bad_poly,       -- out std_logic;
+            o_lastChannel    => FD_lastChannel,    -- out std_logic; Last of the group of 4 channels
+            o_demap_table_select => FD_demap_table_select, -- out std_logic;
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
             o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
             o_DataValid      => FD_dataValid,      -- out std_logic
@@ -463,7 +490,6 @@ begin
             o_axi_miso => o_FB_axi_miso, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
-            i_RFIScale         => "10000", -- in(4:0);
             -- Data input, common valid signal, expects packets of 4096 samples
             i_SOF    => FB_sof,
             i_data0  => FB_data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
@@ -478,6 +504,8 @@ begin
             i_data6  => FB_data6, -- in t_slv_8_arr(1 downto 0);
             i_data7  => FB_data7, -- in t_slv_8_arr(1 downto 0);
             i_meta67 => FB_meta67,
+            i_lastChannel => FB_lastChannel, -- in std_logic;
+            i_demap_table_select => FB_demap_table_select, -- in std_logic;
             i_dataValid => FB_valid, -- in std_logic;
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
@@ -485,6 +513,8 @@ begin
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
             o_bad_poly       => FD_bad_poly,       -- out std_logic;
+            o_lastChannel    => FD_lastChannel,    -- out std_logic; Last of the group of 4 channels
+            o_demap_table_select => FD_demap_table_select, -- out std_logic;
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
             o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
             o_DataValid      => FD_dataValid,      -- out std_logic
@@ -535,8 +565,6 @@ begin
         
         o_hbm_reset_c2      => o_hbm_reset(2),
         i_hbm_status_c2     => i_hbm_status(2),
-        --        
-        i_virtualChannels => totalChannels(10 downto 0),  
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- 
         i_sof             => FB_out_sof,        -- in std_logic; Pulse high at the start of every new group of virtual channels. (1 frame is typically 283 ms of data).
@@ -544,6 +572,8 @@ begin
         i_ctFrame         => FD_ctFrame,        -- in (1:0);
         i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); 4 virtual channels, one for each of the PST data streams.
         i_bad_poly        => FD_bad_poly,       -- in std_logic;
+        i_lastChannel     => FD_lastChannel,    -- in std_logic; Last of the group of 4 channels
+        i_demap_table_select => FD_demap_table_select, -- in std_logic;
         i_HeaderValid     => FD_headerValid,    -- in (3:0);
         i_data            => FD_data,           -- in t_ctc_output_payload_arr(3 downto 0); 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
         i_dataValid       => FD_dataValid,      -- in std_logic;
@@ -568,6 +598,7 @@ begin
         o_cor_totalStations     => cor_totalStations,     -- out t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); Total number of stations being processing for this subarray-beam.
         o_cor_subarrayBeam      => cor_subarrayBeam,      -- out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);  Which entry is this in the subarray-beam table ? 
         o_cor_badPoly           => cor_badPoly,           -- out std_logic_vector(g_MAX_CORRELATORS-1 downto 0); No valid polynomial for some of the data in the subarray-beam
+        o_cor_tableSelect       => cor_tableSelect,       -- out std_logic_vector(g_MAX_CORRELATORS-1 downto 0); Which config tables to use in the packetiser for this data.
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         i_axi_clk         => i_MACE_clk,        -- in std_logic;
@@ -594,7 +625,6 @@ begin
     );
     
     -- Correlator
-    
     correlator_inst : entity correlator_lib.correlator_top
     generic map (
         g_CORRELATORS  => g_CORRELATORS, -- integer := 2;
@@ -607,8 +637,7 @@ begin
         i_axi_rst => i_MACE_rst, -- in std_logic;
         -- Processing clock used for the correlation (>412.5 MHz)
         i_cor_clk => i_clk425,   -- in std_logic;
-        i_cor_rst => '0',        -- in std_logic;    
-        
+        i_cor_rst => '0',        -- in std_logic;
         ------------------------------------------------------------------------------------
         -- data input for the first correlator instance
         o_cor0_ready => cor_ready(0), --  out std_logic;  
@@ -646,6 +675,7 @@ begin
         i_cor0_totalStations     => cor_totalStations(0),     -- in (15:0); Total number of stations being processing for this subarray-beam.
         i_cor0_subarrayBeam      => cor_subarrayBeam(0),      -- in (7:0);  Which entry is this in the subarray-beam table ?
         i_cor0_badPoly           => cor_badPoly(0),           -- in std_logic;
+        i_cor0_tableSelect       => cor_tableSelect(0),       -- in std_logic;
         ------------------------------------------------------------------------------------
         -- Data input for the second correlator instance
         o_cor1_ready    => cor_ready(1), --  out std_logic; 
@@ -667,6 +697,7 @@ begin
         i_cor1_totalStations     => cor_totalStations(1),     -- in (15:0); Total number of stations being processing for this subarray-beam.
         i_cor1_subarrayBeam      => cor_subarrayBeam(1),      -- in (7:0);  Which entry is this in the subarray-beam table ?
         i_cor1_badPoly           => cor_badPoly(1),           -- in std_logic;
+        i_cor1_tableSelect       => cor_tableSelect(1),       -- in std_logic;
         
         -- AXI interface to the HBM for storage of visibilities
         o_cor0_axi_aw      => o_HBM_axi_aw(3),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -744,9 +775,10 @@ begin
         -- clock used for all data input and output from this module (300 MHz)
         i_axi_clk           => i_MACE_clk,
         i_axi_rst           => i_MACE_rst,
-
         i_local_reset       => '0',
-
+        --
+        i_table_swap_in_progress => table_swap_in_progress,   --  in std_logic;
+        i_packetiser_table_select => packetiser_table_select, --  in std_logic;
         -- streaming AXI to CMAC
         i_cmac_clk          => i_clk_100GE,
         i_cmac_clk_rst      => eth100G_rst,

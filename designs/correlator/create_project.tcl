@@ -296,8 +296,10 @@ source $COMMON_PATH/spead/spead.tcl
 
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/dest_ip_preload.mem \
- $COMMON_PATH/spead/src/dest_udp_preload.mem \
- $COMMON_PATH/spead/src/no_of_freq_chan_preload.mem \
+ $COMMON_PATH/spead/src/dest_udp_preload_one.mem \
+ $COMMON_PATH/spead/src/dest_udp_preload_two.mem \
+ $COMMON_PATH/spead/src/no_of_freq_chan_preload_one.mem \
+ $COMMON_PATH/spead/src/no_of_freq_chan_preload_two.mem \
  $COMMON_PATH/spead/src/init_mem_preload.mem \
  $COMMON_PATH/spead/src/heap_size_preload.mem \
  $COMMON_PATH/spead/src/heap_counter_preload.mem \
@@ -597,13 +599,16 @@ add_files -fileset sim_cor_read_spead [glob \
  $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
  $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
- $COMMON_PATH/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+ $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  */common/src/vhdl/xpm_fifo_wrapper.vhd \
  */common/src/vhdl/memory_tdp_wrapper.vhd \
- *libraries/Packetiser100G/src/vhdl/ethernet_pkg.vhd \
+}]
+
+set_property library ethernet_lib [get_files {\
+*ethernet/src/vhdl/ethernet_pkg.vhd \
 }]
 
 set_property library spead_lib [get_files {\

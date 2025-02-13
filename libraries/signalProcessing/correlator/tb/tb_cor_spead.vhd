@@ -38,6 +38,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
 constant USE_TEST_CASE      : BOOLEAN := TRUE;
+constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -89,6 +90,7 @@ signal o_spead_full_axi_miso    : t_axi4_full_miso_arr(1 downto 0);
 signal hbm_start_addr           : std_logic_vector(31 downto 0);
 signal stim_sub_array           : std_logic_vector(7 downto 0); 
 signal stim_freq_index          : std_logic_vector(16 downto 0);
+signal stim_table_select        : std_logic;
 
 signal stim_time_ref            : std_logic_vector(63 downto 0);
 signal ints_since_epoch         : std_logic_vector(31 downto 0);
@@ -289,6 +291,8 @@ begin
             time_of_int     <= '0';
             stim_time_ref   <= (others => '0');
         else
+            stim_table_select   <= '0';
+            tb_debug(4)        <= '0';  -- END target sub array dummy value
             
             if testCount_300 = 1 then
                 init_mem    <= '1';
@@ -323,7 +327,7 @@ begin
             end if;
 
             if testCount_300 = 30000 then
-                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(2)        <= '1';  -- trigger INIT
             end if;
             
             if HBM_axi_r.valid = '1' then
@@ -340,14 +344,14 @@ begin
             end if;
 
 
-            if USE_TEST_CASE = TRUE then
+            if USE_TEST_CASE = TRUE AND (GEN_DATA_END = TRUE) then
                 tb_300_rst      <= '0';
                 if testCount_300 = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"253";
                     data_valid      <= '1';
-    
+                    stim_table_select   <= '1';
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"68";
                     hbm_start_addr  <= x"00000000";
@@ -360,6 +364,7 @@ begin
                     row_count       <= 9D"254";
                     data_valid      <= '1';
     
+                    stim_table_select   <= '0';
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"69";
                     hbm_start_addr  <= x"00000000";
@@ -375,6 +380,7 @@ begin
                     row_count       <= 9D"255";
                     data_valid      <= '1';
     
+                    stim_table_select   <= '1';
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"70";
                     hbm_start_addr  <= x"00000000";
@@ -396,7 +402,7 @@ begin
                 end if;
             end if;
 
-            if USE_TEST_CASE = FALSE then
+            if USE_TEST_CASE = FALSE AND (GEN_DATA_END = TRUE) then
 -- HEAP data size rams
 -- ADDR    Config      Value(inc Epoch offset)
 -- 0       6x6         722         0x2d2
@@ -547,7 +553,8 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
                             
         i_row               => row,
         i_row_count         => row_count,
-
+        i_table_select      => stim_table_select,
+        i_bad_poly          => '0',
         o_HBM_curr_addr     => HBM_curr_addr,
 
         -- HBM read interface
@@ -644,6 +651,9 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_axi_rst           => clock_300_rst,
 
         i_local_reset       => '0',
+        
+        i_table_swap_in_progress  => '0',
+        i_packetiser_table_select => '0',
 
         -- streaming AXI to CMAC
         i_cmac_clk          => clock_322,

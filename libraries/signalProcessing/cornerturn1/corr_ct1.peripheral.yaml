@@ -64,6 +64,32 @@ peripherals:
               reset_value       : 0x0
               field_description : "status. "
         ###########################################################################      
+          - - field_name        : table_select
+              width             : 2
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Which set of configuration tables to use. This controls four different tables \
+                                      virtual channel table (in ingest module) \
+                                      demap and subarray-beam tables (in corner turn 2) \
+                                      packetiser control table (in packetiser) \
+                                   This register should only be changed if the current value matches the value in table_in_use \
+                                   table_in_use will change within 2 seconds of this value changing \
+                                   Swapping over of tables is sequenced so that data is not corrupted. \
+                                   Four options : \
+                                      0 = Use Table 0, switchover for removing subarrays \
+                                      1 = Use Table 0, switchover for adding subarrays \
+                                      2 = Use Table 1, switchover for removing subarrays \
+                                      3 = Use Table 1, switchover for adding subarrays \
+                                  "
+          - - field_name        : table_in_use
+              width             : 2
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Which set of control tables is currently in use. \
+                                   bit 0 = virtual channel table in use, \
+                                   bit 1 = ct2 tables in use \
+                                   both of these bits will change within a few seconds of table_select changing."                 
+          
           - - field_name        : output_cycles
               width             : 16
               access_mode       : RW
