@@ -2,6 +2,8 @@
 ## Correlator Personality
 * 0.1.1
     * Subarray addition/removal during a scan support added.
+        * END packet generation added to hardware in the common module.
+    * To be used with Processor v0.15.3
 * 0.1.0
     * AA1 release
     * To be used with Processor v0.15.1
