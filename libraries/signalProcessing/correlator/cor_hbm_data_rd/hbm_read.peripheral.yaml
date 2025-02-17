@@ -118,9 +118,12 @@ peripherals:
               reset_value       : 0x0
               field_description : " If bit 2 and bit 0 are different then a page flip is triggered.
                                     Bit 1 should match Bit 0 of table_sel_status in packetiser.
-                                    Bit 0 - table select prev
-                                    Bit 1 - table select
-                                    Bit 2 - last recorded page
+                                    Bit 0       - table select prev
+                                    Bit 1       - table select
+                                    Bit 2       - last recorded page
+                                    Bit 3       - 0
+                                    Bit 7 -> 4  - 4 bit rolling counter tracking page flips passed with instruction
+                                    Bit 15 -> 8 - 0
                                   "
 
 
