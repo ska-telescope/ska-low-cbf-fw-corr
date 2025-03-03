@@ -5,7 +5,7 @@
 -- Create Date: 04.12.2018 10:34:03
 -- Module Name: URAMWrapper - Behavioral
 -- Description: 
---   Wrapper to instantiate a single simple dual port URAM (64 bits wide by 4096 deep).
+--   Wrapper to instantiate  2 ultraRAMs (simple dual port URAM, 128 bits wide by 4096 deep).
 --   2 cycle read latency.
 ----------------------------------------------------------------------------------
 library IEEE;
@@ -19,11 +19,11 @@ entity URAMWrapper is
         clk : in std_logic;
         -- write side
         wrAddr : in std_logic_vector(11 downto 0);
-        din : in std_logic_vector(63 downto 0);
+        din : in std_logic_vector(127 downto 0);
         we  : in std_logic;
         -- read side
         rdAddr : in std_logic_vector(11 downto 0);
-        dout : out std_logic_vector(63 downto 0)
+        dout : out std_logic_vector(127 downto 0)
     );
 end URAMWrapper;
 
@@ -41,22 +41,22 @@ begin
         ADDR_WIDTH_A => 12,              -- DECIMAL - 12 bits = 4096 deep
         ADDR_WIDTH_B => 12,              -- DECIMAL
         AUTO_SLEEP_TIME => 0,            -- DECIMAL
-        BYTE_WRITE_WIDTH_A => 64,        -- DECIMAL
+        BYTE_WRITE_WIDTH_A => 128,       -- DECIMAL
         CLOCKING_MODE => "common_clock", -- String
         ECC_MODE => "no_ecc",            -- String
         MEMORY_INIT_FILE => "none",      -- String
         MEMORY_INIT_PARAM => "0",        -- String
         MEMORY_OPTIMIZATION => "true",   -- String
         MEMORY_PRIMITIVE => "ultra",     -- String. "ultra" to use ultraRAM
-        MEMORY_SIZE => 262144,           -- DECIMAL, size in bits = 4096 * 64
+        MEMORY_SIZE => 524288,           -- DECIMAL, size in bits = 4096 * 128
         MESSAGE_CONTROL => 0,            -- DECIMAL, 0 to disable simulation messages such as address collisions, 1 to enable.
-        READ_DATA_WIDTH_B => 64,         -- DECIMAL
+        READ_DATA_WIDTH_B => 128,        -- DECIMAL
         READ_LATENCY_B => 2,             -- DECIMAL
         READ_RESET_VALUE_B => "0",       -- String
         USE_EMBEDDED_CONSTRAINT => 0,    -- DECIMAL
         USE_MEM_INIT => 0,               -- DECIMAL
         WAKEUP_TIME => "disable_sleep",  -- String
-        WRITE_DATA_WIDTH_A => 64,        -- DECIMAL
+        WRITE_DATA_WIDTH_A => 128,       -- DECIMAL
         WRITE_MODE_B => "read_first")    -- String
     port map (
         dbiterrb => open,      -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port B.

@@ -38,17 +38,17 @@ entity FB_Top_correlator_dummy is
         -- data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
         i_SOF    : in std_logic; 
-        i_data0  : in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        i_data1  : in t_slv_8_arr(1 downto 0);
+        i_data0  : in t_slv_16_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+        i_data1  : in t_slv_16_arr(1 downto 0);
         i_meta01 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data2  : in t_slv_8_arr(1 downto 0);
-        i_data3  : in t_slv_8_arr(1 downto 0);
+        i_data2  : in t_slv_16_arr(1 downto 0);
+        i_data3  : in t_slv_16_arr(1 downto 0);
         i_meta23 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data4  : in t_slv_8_arr(1 downto 0);
-        i_data5  : in t_slv_8_arr(1 downto 0);
+        i_data4  : in t_slv_16_arr(1 downto 0);
+        i_data5  : in t_slv_16_arr(1 downto 0);
         i_meta45 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data6  : in t_slv_8_arr(1 downto 0);
-        i_data7  : in t_slv_8_arr(1 downto 0);
+        i_data6  : in t_slv_16_arr(1 downto 0);
+        i_data7  : in t_slv_16_arr(1 downto 0);
         i_meta67 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
         --
         i_lastChannel : in std_logic;

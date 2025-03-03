@@ -8,6 +8,43 @@
 --
 --  This is just a wrapper for the core which drops signals that are used for simulation only.
 --  IP packager doesn't like some of these signals and they could potentially confuse vitis.
+--
+-- Resource Utilisation
+--  Build for the U55c, february 2025, with 2 correlator instances (g_CORRELATORS = 2 in correlator_core.vhd)
+--  (Note this build does not have ripple correction included, ripple will use 256 DSPs, 0 BRAM)
+--
+--                      LUTs    |  Registers   |  BRAM   |  UltraRAM    |  DSP
+--       
+--  (total available)   1303680 |  2607360     |  2016   |  960         |  9024
+--  (total used)        470000  |  808000      |  713    |  471         |  4573
+--                     --------------------------------------------------------
+--  Shell :             106000  |  130000      |  196    |  0           |  4   
+--                     --------------------------------------------------------
+--  supporting logic :  60000   |  100000      |  73     |  0           |  0   
+--  inserted by Vitis
+--                     --------------------------------------------------------
+--  Perentie core :     302000  |  570000      |  444    |  471         |  4569   
+--  (total)
+--                     --------------------------------------------------------
+--  Perentie is made up of:
+--   - PTP :             14000  |  40000       |  17     |  2           |  6   
+--                     --------------------------------------------------------
+--   - various AXI stuff: 14000 |  30000       |  0      |  0           |  0   
+--                     --------------------------------------------------------
+--   - correlator :      100000 |  200000      |  84     |  152         |  2066      <-- 2 of these, so double these numbers for total resource use in this build
+--    (per instance)
+--                     --------------------------------------------------------
+--   - Filterbanks:       35000 |  62000       |  121    |  30          |  408      <-- Numbers include multiple instances, to support 4 virtual channels in parallel
+--                     --------------------------------------------------------
+--   - LFAA_Ingest:        3000 |  8000        |  20     |  8           |  0   
+--                     --------------------------------------------------------
+--   - corner turn 1:     10000 |  15000       |  27     |  15          |  10       <-- Includes double precision polynomial evaluation
+--                     --------------------------------------------------------
+--   - corner turn 2:      4000 |  10000       |  18     |  112         |  9        <-- few DSP used for various HBM address calculations, 
+--                                                                                      large ultraRAM buffer for data reordering to enable efficient HBM use
+--                     --------------------------------------------------------
+--   - Packetiser:        13000 |  16000       |  74     |  0           |  4    
+--
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib, Timeslave_CMAC_lib;

@@ -349,6 +349,7 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
   $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_eval.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/flattening_wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
@@ -361,6 +362,7 @@ set_property library ct_lib [get_files {\
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
  *libraries/signalProcessing/cornerturn1/poly_eval.vhd \
+ *libraries/signalProcessing/cornerturn1/flattening_wrapper.vhd \
  *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \

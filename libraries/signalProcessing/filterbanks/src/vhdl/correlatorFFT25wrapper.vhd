@@ -143,11 +143,23 @@ begin
     );    
     
     -- Divide the output by 2^10 with convergent rounding
-    realInt <= fftDout(24) & fftDout(24 downto 10);
-    imagInt <= fftDout(56) & fftDout(56 downto 42);
+    --realInt <= fftDout(24) & fftDout(24 downto 10);
+    --imagInt <= fftDout(56) & fftDout(56 downto 42);
+    --
+    --real_o <= realInt when fftDout(9) = '0' or fftDout(10 downto 0) = "01000000000" else std_logic_vector(unsigned(realInt) + 1);
+    --imag_o <= imagInt when fftDout(41) = '0' or fftDout(42 downto 32) = "01000000000" else std_logic_vector(unsigned(imagInt) + 1);
     
-    real_o <= realInt when fftDout(9) = '0' or fftDout(10 downto 0) = "01000000000" else std_logic_vector(unsigned(realInt) + 1);
-    imag_o <= imagInt when fftDout(41) = '0' or fftDout(42 downto 32) = "01000000000" else std_logic_vector(unsigned(imagInt) + 1);
+    -- Changed after adding ripple correction filter.
+    -- * Input data is scaled down by a factor of 2 compared with pre-ripple correction firmware
+    -- * So only scale down by a factor of 2^9 here, so that the output of this module has the same amplitude
+    --   as for the previous case with no ripple correcton filter
+    -- Divide the output by 2^9 with convergent rounding
+    realInt <= fftDout(24 downto 9);
+    imagInt <= fftDout(56 downto 41);
+    
+    real_o <= realInt when fftDout(8) = '0' or fftDout(9 downto 0) = "0100000000" else std_logic_vector(unsigned(realInt) + 1);
+    imag_o <= imagInt when fftDout(40) = '0' or fftDout(41 downto 32) = "0100000000" else std_logic_vector(unsigned(imagInt) + 1);
+        
     
     --real_o <= fftDout(15 downto 0);
     --imag_o <= fftDout(31 downto 16);

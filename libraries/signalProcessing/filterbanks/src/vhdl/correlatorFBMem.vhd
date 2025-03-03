@@ -28,10 +28,10 @@ entity correlatorFBMem is
     port(
         clk    : in std_logic;
         -- Write data for the start of the chain
-        wrData_i : in std_logic_vector(63 downto 0);
+        wrData_i : in std_logic_vector(127 downto 0);
         wrEn_i   : in std_logic; -- should be a burst of 4096 clocks.
         -- Read data, comes out 2 clocks after the first write.
-        rd_data_o  : out t_slv_64_arr(TAPS-1 downto 0);   -- 64 bits wide, 12 taps simultaneously; First sample is wr_data_i delayed by 1 clock. 
+        rd_data_o  : out t_slv_128_arr(TAPS-1 downto 0);  -- 128 bits wide, 12 taps simultaneously; First sample is wr_data_i delayed by 1 clock. 
         coef_o     : out t_slv_18_arr(TAPS-1 downto 0);   -- 18 bits per filter tap.
         -- Writing FIR Taps
         FIRTapData_i : in std_logic_vector(17 downto 0);  -- For register writes of the filtertaps.
@@ -274,14 +274,14 @@ architecture Behavioral of correlatorFBMem is
     
     signal rdAddr : std_logic_vector(11 downto 0);
     signal rdAddrDel : t_slv_12_arr((TAPS) downto 0) := (others => (others => '0'));
-    signal wrDataDel1 : std_logic_vector(63 downto 0);
+    signal wrDataDel1 : std_logic_vector(127 downto 0);
     signal wrEnDel1 : std_logic := '0';
     
     signal wr_en_slv : std_logic_vector(0 downto 0);
     
     signal romAddrDel : t_slv_12_arr((TAPS-1) downto 0):= (others => (others => '0'));
     signal wrEnDel : std_logic_vector((TAPS) downto 0) := (others => '0');
-    signal rdDataDel : t_slv_64_arr((TAPS-1) downto 0);
+    signal rdDataDel : t_slv_128_arr((TAPS-1) downto 0);
     
 begin
     
@@ -316,11 +316,11 @@ begin
             clk => clk, -- in std_logic;
             -- write side
             wrAddr => rdAddrDel(i+1), -- in(11:0)
-            din    => rdDataDel(i-1), -- in(63:0)
+            din    => rdDataDel(i-1), -- in(127:0)
             we     => wrEnDel(i),     -- in std_logic
             -- read side
             rdAddr => rdAddrDel(i),   -- in(11:0)
-            dout   => rdDataDel(i)    -- out(63:0)
+            dout   => rdDataDel(i)    -- out(127:0)
         );
         
         rd_data_o(i) <= rdDataDel(i);

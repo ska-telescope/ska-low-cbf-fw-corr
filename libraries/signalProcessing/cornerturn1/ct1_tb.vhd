@@ -195,27 +195,27 @@ architecture Behavioral of ct1_tb is
     
     signal fb_sof, fb_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
     signal fb_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
-    signal fb_data0, fb_data1, fb_data2, fb_data3, fb_data4, fb_data5, fb_data6, fb_data7 : t_slv_8_arr(1 downto 0);
+    signal fb_data0, fb_data1, fb_data2, fb_data3, fb_data4, fb_data5, fb_data6, fb_data7 : t_slv_16_arr(1 downto 0);
     signal fb_meta01, fb_meta23, fb_meta45, fb_meta67  : t_CT1_META_out;
     
     signal fb2_sof, fb2_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
     signal fb2_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
-    signal fb2_data0, fb2_data1, fb2_data2, fb2_data3, fb2_data4, fb2_data5, fb2_data6, fb2_data7 : t_slv_8_arr(1 downto 0);
+    signal fb2_data0, fb2_data1, fb2_data2, fb2_data3, fb2_data4, fb2_data5, fb2_data6, fb2_data7 : t_slv_16_arr(1 downto 0);
     signal fb2_meta01, fb2_meta23, fb2_meta45, fb2_meta67  : t_CT1_META_out;
     
     signal fb3_sof, fb3_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
     signal fb3_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
-    signal fb3_data0, fb3_data1, fb3_data2, fb3_data3, fb3_data4, fb3_data5, fb3_data6, fb3_data7 : t_slv_8_arr(1 downto 0);
+    signal fb3_data0, fb3_data1, fb3_data2, fb3_data3, fb3_data4, fb3_data5, fb3_data6, fb3_data7 : t_slv_16_arr(1 downto 0);
     signal fb3_meta01, fb3_meta23, fb3_meta45, fb3_meta67  : t_CT1_META_out;
     
     signal fb4_sof, fb4_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
     signal fb4_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
-    signal fb4_data0, fb4_data1, fb4_data2, fb4_data3, fb4_data4, fb4_data5, fb4_data6, fb4_data7 : t_slv_8_arr(1 downto 0);
+    signal fb4_data0, fb4_data1, fb4_data2, fb4_data3, fb4_data4, fb4_data5, fb4_data6, fb4_data7 : t_slv_16_arr(1 downto 0);
     signal fb4_meta01, fb4_meta23, fb4_meta45, fb4_meta67  : t_CT1_META_out;
     
     signal fb5_sof, fb5_valid : std_logic;   -- Start of frame, occurs for every new set of channels.
     signal fb5_sofFull : std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
-    signal fb5_data0, fb5_data1, fb5_data2, fb5_data3, fb5_data4, fb5_data5, fb5_data6, fb5_data7 : t_slv_8_arr(1 downto 0);
+    signal fb5_data0, fb5_data1, fb5_data2, fb5_data3, fb5_data4, fb5_data5, fb5_data6, fb5_data7 : t_slv_16_arr(1 downto 0);
     signal fb5_meta01, fb5_meta23, fb5_meta45, fb5_meta67  : t_CT1_META_out;    
     
     signal write_HBM_to_disk : std_logic;
@@ -399,6 +399,16 @@ begin
         wait until rising_edge(clk300);
         data_rst <= '0';
         wait until rising_edge(clk300);
+        
+        wait for 10 ms;
+        wait until rising_edge(clk300);
+        -- swap the page
+        -- 0x3 = use table 1, switchover for adding a subarray
+        axi_lite_transaction(clk300, axi_lite_miso, axi_lite_mosi, 
+            c_config_table_select_address.base_address + c_config_table_select_address.address, true, x"00000003");
+
+        
+        
         wait until rising_edge(clk300);
         wait;
     end process;
@@ -634,17 +644,17 @@ begin
         --FB_clk  : in std_logic;  -- interface runs off i_shared_clk
         o_sof     => fb_sof,     -- out std_logic;   -- Start of frame, occurs for every new set of channels.
         o_sofFull => fb_sofFull, -- out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth.
-        o_data0  => fb_data0,  -- out t_slv_8_arr(1 downto 0);
-        o_data1  => fb_data1,  -- out t_slv_8_arr(1 downto 0);
+        o_data0  => fb_data0,  -- out t_slv_16_arr(1 downto 0);
+        o_data1  => fb_data1,  -- out t_slv_16_arr(1 downto 0);
         o_meta01 => fb_meta01, -- out t_CT1_META_out; --   - .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        o_data2  => fb_data2,  -- out t_slv_8_arr(1 downto 0);
-        o_data3  => fb_data3,  -- out t_slv_8_arr(1 downto 0);
+        o_data2  => fb_data2,  -- out t_slv_16_arr(1 downto 0);
+        o_data3  => fb_data3,  -- out t_slv_16_arr(1 downto 0);
         o_meta23 => fb_meta23, -- out t_CT1_META_out;
-        o_data4  => fb_data4,  -- out t_slv_8_arr(1 downto 0);
-        o_data5  => fb_data5,  -- out t_slv_8_arr(1 downto 0);
+        o_data4  => fb_data4,  -- out t_slv_16_arr(1 downto 0);
+        o_data5  => fb_data5,  -- out t_slv_16_arr(1 downto 0);
         o_meta45 => fb_meta45, -- out t_CT1_META_out;
-        o_data6  => fb_data6,  -- out t_slv_8_arr(1 downto 0);
-        o_data7  => fb_data7,  -- out t_slv_8_arr(1 downto 0);
+        o_data6  => fb_data6,  -- out t_slv_16_arr(1 downto 0);
+        o_data7  => fb_data7,  -- out t_slv_16_arr(1 downto 0);
         o_meta67 => fb_meta67, -- out t_CT1_META_out;
         o_lastChannel => fb_lastChannel, --  out std_logic; Aligns with meta data, indicates this is the last group of channels to be processed in this frame.
         -- o_demap_table_select will change just prior to the start of reading out of a new integration frame.

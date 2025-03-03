@@ -27,7 +27,7 @@ entity ct2_tb is
         g_PACKET_GAP : integer := 4100; -- number of clocks from the start of one filterbank packet to the start of the next 
         g_VC_GAP : integer := 20000;   -- number of clocks idle between groups of 4 virtual channels from the filterbank
         g_MAX_CORRELATORS : integer := 2;
-        g_TEST_CASE : integer := 2 -- selects a set of register transactions and other configuration to use in the test.
+        g_TEST_CASE : integer := 3 -- selects a set of register transactions and other configuration to use in the test.
         -- 
     );
 end ct2_tb;
@@ -381,7 +381,7 @@ begin
             -- 0 subarray-beams in table 1
             axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table1_address.base_address + c_statctrl_buf0_subarray_beams_table1_address.address, true, x"00000000");
             -- 1 subarray-beams for second correlator, table 0
-            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table0_address.base_address + c_statctrl_buf1_subarray_beams_table0_address.address, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table0_address.base_address + c_statctrl_buf1_subarray_beams_table0_address.address, true, x"00000001");
             -- 0 subarray-beams for second correlator, table 1
             axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table1_address.base_address + c_statctrl_buf1_subarray_beams_table1_address.address, true, x"00000000");
             -- demap table
@@ -442,16 +442,18 @@ begin
             axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 4 + 2, true, x"58000D80");
             axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1024 + 4 + 3, true, x"00000000");
             
+            -- 2 subarray-beams in table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table1_address.base_address + c_statctrl_buf0_subarray_beams_table1_address.address, true, x"00000002");
+            -- 1 subarray-beams for second correlator, table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table1_address.base_address + c_statctrl_buf1_subarray_beams_table1_address.address, true, x"00000001");
+            
             fb_demap_table_select <= '1';
             WAIT UNTIL RISING_EDGE(clk300);
         end if;
         
-        
         wait;
     end process;    
     
-
-
     --------------------------------------------------------------------------------
     -- Emulate the filterbanks
     -- 
