@@ -339,7 +339,7 @@ begin
     end process;
 
     -- Two URAMs for first half of the double buffer
-    reorderURAM0 : entity filterbanks_lib.URAMWrapper
+    reorderURAM0 : entity filterbanks_lib.URAM64Wrapper
     port map (
         clk => clk,
         -- write side
@@ -351,7 +351,7 @@ begin
         dout   => reorderDout0   -- out(63:0)
     );
 
-    reorderURAM1 : entity filterbanks_lib.URAMWrapper
+    reorderURAM1 : entity filterbanks_lib.URAM64Wrapper
     port map (
         clk => clk,
         -- write side
@@ -364,7 +364,7 @@ begin
     );    
     
     -- Two URAMs for the second half of the double buffer
-    reorderURAM2 : entity filterbanks_lib.URAMWrapper
+    reorderURAM2 : entity filterbanks_lib.URAM64Wrapper
     port map (
         clk => clk,
         -- write side
@@ -376,7 +376,7 @@ begin
         dout   => reorderDout2   -- out(63:0)
     );
 
-    reorderURAM3 : entity filterbanks_lib.URAMWrapper
+    reorderURAM3 : entity filterbanks_lib.URAM64Wrapper
     port map (
         clk => clk,
         -- write side
