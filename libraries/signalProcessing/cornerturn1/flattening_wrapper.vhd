@@ -96,7 +96,7 @@ architecture Behavioral of flattening_wrapper is
     signal readoutData : t_slv_64_arr(3 downto 0);
     signal output_count : std_logic_vector(5 downto 0);
     signal drop_samples : std_logic := '0';
-    signal valid_out    : std_logic;
+    signal valid_out    : std_logic_vector(15 downto 0);
     signal data_zeroed  : t_slv_32_arr(3 downto 0);
     signal config_tdata : std_logic_vector(7 downto 0);
     signal sof_del, sofFull_del : std_logic_vector(27 downto 0) := (others => '0');
@@ -120,7 +120,7 @@ begin
                 -- Count the samples after the start of frame so we can drop the 
                 -- first 30 of them.
                 output_count <= (others => '0');
-            elsif valid_out = '1' and unsigned(output_count) < 63 then
+            elsif valid_out(0) = '1' and unsigned(output_count) < 63 then
                 -- This only counts to 63, as we only need to know for the first 30 samples.
                 output_count <= std_logic_vector(unsigned(output_count) + 1);
             end if;
@@ -155,13 +155,13 @@ begin
                 s_axis_config_tready => open, -- out std_logic;
                 s_axis_config_tdata  => config_tdata, -- in (7:0); 0x0 for ripple compensation filter, 0x1 for identity filter (pass-through) with the same gain.
                 --
-                m_axis_data_tvalid => valid_out,
+                m_axis_data_tvalid => valid_out(i*4 + j),
                 m_axis_data_tdata => readoutData(i)((j*16+15) downto j*16)
             );
         end generate;
     end generate;
     
-    o_valid <= '1' when valid_out = '1' and drop_samples = '0' else '0';
+    o_valid <= '1' when valid_out(0) = '1' and drop_samples = '0' else '0';
     o_HPol0(0) <= readoutData(0)(15 downto 0);  -- 8 bit real part
     o_HPol0(1) <= readoutData(0)(31 downto 16); -- 8 bit imaginary part
     o_VPol0(0) <= readoutData(0)(47 downto 32); -- 8 bit real part
