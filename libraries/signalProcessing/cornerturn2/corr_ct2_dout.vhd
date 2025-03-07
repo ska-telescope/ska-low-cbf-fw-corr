@@ -247,6 +247,7 @@ architecture Behavioral of corr_ct2_dout is
     signal readout_fsm_dbg : std_logic_vector(3 downto 0);
     signal readoutBadPoly : std_logic;
     signal SB_badPoly : std_logic;
+    signal i_fineStart_ext, SB_N_fine_plus_SB_fineStart : std_logic_vector(23 downto 0);
     
 begin
     
@@ -292,6 +293,7 @@ begin
     
     o_SB_buffer <= readBuffer;
     
+    i_fineStart_ext <= x"00" & i_fineStart;
     SB_stations_div256 <= SB_stations(15 downto 8);
     cur_tileColumn_plus1 <= std_logic_vector(unsigned(cur_tileColumn) + 1);
     cur_station_offset_ext <= "000000000000000000000" & cur_station_offset;
@@ -361,6 +363,8 @@ begin
                             SB_base_addr <= i_HBM_base_addr; -- 32 bits, base address in HBM for this subarray-beam.
                             SB_SB <= SB_del;
                             SB_badPoly <= i_bad_poly;
+                            -- The last fine channel relative to the start of the fine channels in coarse channel i_coarseStart
+                            SB_N_fine_plus_SB_fineStart <= std_logic_vector(unsigned(i_n_fine) + unsigned(i_fineStart_ext)); 
                             
                             cur_skyFrequency <= i_coarseStart(8 downto 0);
                             cur_fineChannelBase <= "000000000000" & i_fineStart(11 downto 0);
@@ -434,7 +438,7 @@ begin
                     when update_addr =>
                         ar_fsm_dbg <= "0111";
                         --  For subarray = 1:total_subarrays    -- This is handled in the level above; Each new subarray is a read from the subarray-beam table. Once all are done, i_SB_done goes high.
-                        --      For cur_fineChannelBase = 0:SB_fineIntegrations:SB_N_fine
+                        --      For cur_fineChannelBase = SB_fineStart:SB_fineIntegrations:(SB_fineStart + SB_N_fine)
                         --          - i.e. Step each block of fine channels that get integrated together.
                         --          For cur_timeBase = 0:integrations_per_849ms
                         --              - integrations_per_849ms : from SB_timeIntegrations, "00" = 64 time samples = 3 integrations per 849ms; "01" = 192 time samples = 1 integration per 849 ms
@@ -587,7 +591,7 @@ begin
                      
                     when check_fineBase =>
                         ar_fsm_dbg <= "1100";
-                        if (unsigned(cur_fineChannelBase) >= unsigned(SB_N_fine)) then
+                        if (unsigned(cur_fineChannelBase) >= unsigned(SB_N_fine_plus_SB_fineStart)) then
                             if (i_SB_done = '1') then
                                 ar_fsm <= done;
                             else
