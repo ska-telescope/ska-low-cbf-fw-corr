@@ -25,13 +25,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="6,400.000001 us"></ZoomEndTime>
-      <Cursor1Time time="650.000000 us"></Cursor1Time>
+      <ZoomStartTime time="7,310.650 ns"></ZoomStartTime>
+      <ZoomEndTime time="13,730.651 ns"></ZoomEndTime>
+      <Cursor1Time time="11,065.650 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="263"></NameColumnWidth>
-      <ValueColumnWidth column_width="96"></ValueColumnWidth>
+      <ValueColumnWidth column_width="92"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="516" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
@@ -243,16 +243,6 @@
       <obj_property name="ElementShortName">no_of_freq_chan_return_p[1:0][31:0]</obj_property>
       <obj_property name="ObjectShortName">no_of_freq_chan_return_p[1:0][31:0]</obj_property>
       <obj_property name="isExpanded"></obj_property>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/no_of_freq_chan_return_p[1]">
-         <obj_property name="ElementShortName">[1][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[1][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/no_of_freq_chan_return_p[0]">
-         <obj_property name="ElementShortName">[0][31:0]</obj_property>
-         <obj_property name="ObjectShortName">[0][31:0]</obj_property>
-         <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/subarraybeam_addr_lkup">
       <obj_property name="ElementShortName">subarraybeam_addr_lkup[6:0]</obj_property>
@@ -462,8 +452,8 @@
       <obj_property name="ObjectShortName">scratchpad_updated</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_sm_fsm_debug">
-      <obj_property name="ElementShortName">spead_sm_fsm_debug[3:0]</obj_property>
-      <obj_property name="ObjectShortName">spead_sm_fsm_debug[3:0]</obj_property>
+      <obj_property name="ElementShortName">spead_sm_fsm_debug[7:0]</obj_property>
+      <obj_property name="ObjectShortName">spead_sm_fsm_debug[7:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/init_packet_data">
       <obj_property name="ElementShortName">init_packet_data[511:0]</obj_property>
@@ -905,16 +895,6 @@
       <obj_property name="ObjectShortName">small_matrix_tracker[3:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_packetise">
-      <obj_property name="ElementShortName">bytes_to_packetise[13:0]</obj_property>
-      <obj_property name="ObjectShortName">bytes_to_packetise[13:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_process">
-      <obj_property name="ElementShortName">bytes_to_process[31:0]</obj_property>
-      <obj_property name="ObjectShortName">bytes_to_process[31:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_rd">
       <obj_property name="ElementShortName">hbm_data_fifo_rd</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_rd</obj_property>
@@ -1043,9 +1023,20 @@
       <obj_property name="ElementShortName">packed_fifo_rd</obj_property>
       <obj_property name="ObjectShortName">packed_fifo_rd</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_process">
+      <obj_property name="ElementShortName">bytes_to_process[31:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_to_process[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_packetise">
+      <obj_property name="ElementShortName">bytes_to_packetise[13:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_to_packetise[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_packet_bytes_remain">
       <obj_property name="ElementShortName">data_packet_bytes_remain[13:0]</obj_property>
       <obj_property name="ObjectShortName">data_packet_bytes_remain[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_q">
       <obj_property name="ElementShortName">packed_fifo_q[511:0]</obj_property>
@@ -1121,6 +1112,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/send_spead_data">
       <obj_property name="ElementShortName">send_spead_data[1:0]</obj_property>
       <obj_property name="ObjectShortName">send_spead_data[1:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="vbus" fp_name="vbus6445">
       <obj_property name="label">spead_data_heap_size</obj_property>
@@ -1180,6 +1172,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_in_heap">
       <obj_property name="ElementShortName">bytes_in_heap[31:0]</obj_property>
       <obj_property name="ObjectShortName">bytes_in_heap[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="group" fp_name="group381">
       <obj_property name="label">MD_cache_15-&gt;0</obj_property>
@@ -2217,8 +2210,8 @@
       <obj_property name="ObjectShortName">spead_sm</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_sm_fsm_debug">
-      <obj_property name="ElementShortName">spead_sm_fsm_debug[3:0]</obj_property>
-      <obj_property name="ObjectShortName">spead_sm_fsm_debug[3:0]</obj_property>
+      <obj_property name="ElementShortName">spead_sm_fsm_debug[7:0]</obj_property>
+      <obj_property name="ObjectShortName">spead_sm_fsm_debug[7:0]</obj_property>
    </wvobject>
    <wvobject fp_name="divider511" type="divider">
       <obj_property name="label">INIT- instance 0</obj_property>

@@ -101,6 +101,12 @@ PORT (
     probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
 END COMPONENT; 
 
+COMPONENT ila_8k
+PORT (
+    clk : IN STD_LOGIC;
+    probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
+END COMPONENT;
+
 signal clk                      : std_logic;
 signal reset                    : std_logic;
 
@@ -992,7 +998,7 @@ end process;
                 elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
                     bytes_to_packetise  <= bytes_to_process(13 downto 0);
                     send_spead_data     <= "01";
-                elsif (spead_data_rd = '1') then
+                elsif (spead_data_rd = '1') OR (packed_fifo_empty = '1') then
                     send_spead_data     <= "00";
                 end if;
 
@@ -1099,6 +1105,29 @@ ila_gen : if DEBUG_ILA generate
         probe0(94)              => testmode_select,
 
         probe0(191 downto 95)  => (others => '0')
+        );
+        
+    byte_ila_debug : ila_8k PORT MAP (
+        clk                     => clk,
+            
+        probe0(3 downto 0)      => pack_it_fsm_debug,
+        probe0(7 downto 4)      => cor_tri_fsm_debug,
+        probe0(11 downto 8)     => hbm_reader_fsm_debug,
+        probe0(28 downto 12)    => cor_tri_freq_index(16 downto 0),
+
+        probe0(60 downto 29)    => std_logic_vector(bytes_to_process),
+        probe0(74 downto 61)    => std_logic_vector(bytes_to_packetise),
+        
+        probe0(75)              => send_spead_data(0),
+--        probe0(50 downto 34)    => testmode_freqindex(16 downto 0),
+--        probe0(58 downto 51)    => testmode_subarray(7 downto 0),
+--        probe0(90 downto 59)    => testmode_hbm_start_addr(31 downto 0),
+--        probe0(91)              => testmode_load_instruct,
+--        probe0(92)              => testmode_load_instruct_d,
+--        probe0(93)              => meta_cache_fifo_wr,
+--        probe0(94)              => testmode_select,
+
+        probe0(191 downto 76)  => (others => '0')
         );
 end generate;
 
