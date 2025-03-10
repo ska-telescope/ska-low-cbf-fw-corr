@@ -109,14 +109,14 @@ begin
             -- For the first packet after start of frame, we get an extra 30 samples 
             -- to initialise the state of the filter, and we have to drop the first 
             -- 30 samples from the output of the filter.
-            if i_sof = '1' then
+            if sof_del(27) = '1' then
                 drop_samples <= '1';
             elsif unsigned(output_count) > 28 then
                 -- comparison with 28 because its a few clocks behind 
                 drop_samples <= '0'; 
             end if;
             
-            if i_sof = '1' then
+            if sof_del(27) = '1' then
                 -- Count the samples after the start of frame so we can drop the 
                 -- first 30 of them.
                 output_count <= (others => '0');

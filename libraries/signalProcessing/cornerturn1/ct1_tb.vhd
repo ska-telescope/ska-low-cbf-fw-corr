@@ -33,8 +33,8 @@ entity ct1_tb is
 
         -- 
         g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
-        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
+        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
         g_USE_FILTERBANK : std_logic := '0'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
@@ -589,26 +589,26 @@ begin
                 -- write out the samples to the file
                 line_out := "";
                 hwrite(line_out,hex_five,RIGHT,1);
-                hwrite(line_out,fb_data0(0),RIGHT,3);
-                hwrite(line_out,fb_data0(1),RIGHT,3);
-                hwrite(line_out,fb_data1(0),RIGHT,3);
-                hwrite(line_out,fb_data1(1),RIGHT,3);
-                hwrite(line_out,fb_data2(0),RIGHT,3);
-                hwrite(line_out,fb_data2(1),RIGHT,3);
-                hwrite(line_out,fb_data3(0),RIGHT,3);
-                hwrite(line_out,fb_data3(1),RIGHT,3);
+                hwrite(line_out,fb_data0(0),RIGHT,5);
+                hwrite(line_out,fb_data0(1),RIGHT,5);
+                hwrite(line_out,fb_data1(0),RIGHT,5);
+                hwrite(line_out,fb_data1(1),RIGHT,5);
+                hwrite(line_out,fb_data2(0),RIGHT,5);
+                hwrite(line_out,fb_data2(1),RIGHT,5);
+                hwrite(line_out,fb_data3(0),RIGHT,5);
+                hwrite(line_out,fb_data3(1),RIGHT,5);
                 
-                hwrite(line_out,fb_data4(0),RIGHT,3);
-                hwrite(line_out,fb_data4(1),RIGHT,3);
-                hwrite(line_out,fb_data5(0),RIGHT,3);
-                hwrite(line_out,fb_data5(1),RIGHT,3);
-                hwrite(line_out,fb_data6(0),RIGHT,3);
-                hwrite(line_out,fb_data6(1),RIGHT,3);
-                hwrite(line_out,fb_data7(0),RIGHT,3);
-                hwrite(line_out,fb_data7(1),RIGHT,3);
+                hwrite(line_out,fb_data4(0),RIGHT,5);
+                hwrite(line_out,fb_data4(1),RIGHT,5);
+                hwrite(line_out,fb_data5(0),RIGHT,5);
+                hwrite(line_out,fb_data5(1),RIGHT,5);
+                hwrite(line_out,fb_data6(0),RIGHT,5);
+                hwrite(line_out,fb_data6(1),RIGHT,5);
+                hwrite(line_out,fb_data7(0),RIGHT,5);
+                hwrite(line_out,fb_data7(1),RIGHT,5);
                 writeline(logfile,line_out);
             end if;
-         
+        
         end loop;
         file_close(logfile);	
         wait;
