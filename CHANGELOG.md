@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.2
+    * Fix small base lines creating large packets.
 * 0.1.1
     * Subarray addition/removal during a scan support added.
         * END packet generation added to hardware in the common module.
