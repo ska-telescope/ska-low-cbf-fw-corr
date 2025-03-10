@@ -247,7 +247,7 @@ architecture Behavioral of corr_ct2_dout is
     signal readout_fsm_dbg : std_logic_vector(3 downto 0);
     signal readoutBadPoly : std_logic;
     signal SB_badPoly : std_logic;
-    signal i_fineStart_ext, SB_N_fine_plus_SB_fineStart : std_logic_vector(23 downto 0);
+    signal SB_fineStart_ext, SB_N_fine_plus_SB_fineStart : std_logic_vector(23 downto 0);
     
 begin
     
@@ -293,7 +293,7 @@ begin
     
     o_SB_buffer <= readBuffer;
     
-    i_fineStart_ext <= x"00" & i_fineStart;
+    SB_fineStart_ext <= x"000" & SB_fineStart;
     SB_stations_div256 <= SB_stations(15 downto 8);
     cur_tileColumn_plus1 <= std_logic_vector(unsigned(cur_tileColumn) + 1);
     cur_station_offset_ext <= "000000000000000000000" & cur_station_offset;
@@ -308,7 +308,11 @@ begin
             --up_to_station <= std_logic_vector(unsigned(cur_station_ext) + unsigned(cur_station_offset_x4) + 4);
             up_to_station <= cur_station_ext + cur_station_offset_x4 + 4;
             SB_del <= '0' & i_SB;
-            
+            -- The last fine channel relative to the start of the fine channels in coarse channel i_coarseStart
+            -- Used to be assigned in the ar_fsm = wait_SB_data state along with the other SB_* signals,
+            -- but moved here to improve timing
+            SB_N_fine_plus_SB_fineStart <= std_logic_vector(unsigned(SB_n_fine) + unsigned(SB_fineStart_ext)); 
+                            
             if i_rst = '1' then
                 HBM_addr_hold_valid <= '0';
             elsif HBM_addr_valid = '1' then
@@ -363,8 +367,6 @@ begin
                             SB_base_addr <= i_HBM_base_addr; -- 32 bits, base address in HBM for this subarray-beam.
                             SB_SB <= SB_del;
                             SB_badPoly <= i_bad_poly;
-                            -- The last fine channel relative to the start of the fine channels in coarse channel i_coarseStart
-                            SB_N_fine_plus_SB_fineStart <= std_logic_vector(unsigned(i_n_fine) + unsigned(i_fineStart_ext)); 
                             
                             cur_skyFrequency <= i_coarseStart(8 downto 0);
                             cur_fineChannelBase <= "000000000000" & i_fineStart(11 downto 0);
