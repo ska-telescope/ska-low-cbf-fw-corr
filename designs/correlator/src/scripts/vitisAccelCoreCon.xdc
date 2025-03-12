@@ -13,8 +13,14 @@ add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hierarchical *LFAAin]
 add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hierarchical *LFAA_FB_CT]
 add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hierarchical *corFB_i]
 
-add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hierarchical */cor1geni.icor1/cor1i]
-add_cells_to_pblock pblock_dynamic_SLR2 [get_cells -hierarchical */cor2geni.icor2/cor1i]
+
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */cor1geni.icor1/cor1i}]
+## Add HBM read and packetiser for Correlator Instance 1 to SLR0, closest to HBM.
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */cor1geni.icor1/HBM_reader}]
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */spead_packetiser_top/cor_speader}]
+
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */cor2geni.icor2/cor1i}]
+
 
 ########################################################################################################################
 ## Time constraints if there is only 1 x 100G with TS on the top QSFP port.
