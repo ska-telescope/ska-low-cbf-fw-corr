@@ -60,7 +60,7 @@ use xpm.vcomponents.all;
 
 entity corr_ct2_din is
     generic (
-        g_DEBUG_ILA     : BOOLEAN := FALSE;    
+        g_DEBUG_ILA     : BOOLEAN := TRUE;    
         g_USE_META      : boolean := FALSE   -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
     );
     port(

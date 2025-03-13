@@ -35,7 +35,8 @@ entity ct1_tb is
         g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
-        g_USE_FILTERBANK : std_logic := '0'
+        g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_fb_out.txt";
+        g_USE_FILTERBANK : std_logic := '1'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
@@ -240,7 +241,7 @@ architecture Behavioral of ct1_tb is
     signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
     signal FD_headerValid : std_logic_vector(3 downto 0);
     signal FD_data : t_ctc_output_payload_arr(3 downto 0);
-    signal FD_dataValid : std_logic;
+    signal FD_dataValid, FD_dataValid_del : std_logic;
     -- i_SOF delayed by 16384 clocks;
     -- i_sof occurs at the start of each new block of 4 virtual channels.
     -- Delay of 16384 is enough to ensure that o_sof falls in the gap
@@ -257,6 +258,8 @@ architecture Behavioral of ct1_tb is
     signal fb3_lastChannel, fb3_demap_table_select : std_logic;
     signal fb4_lastChannel, fb4_demap_table_select : std_logic;
     signal fb5_lastChannel, fb5_demap_table_select : std_logic;
+    
+    signal FD_bad_poly, FD_lastChannel, FD_demap_table_select : std_logic_vector(3 downto 0) := "0000";
     
 begin
     
@@ -507,8 +510,8 @@ begin
     
     -- wdata holds the absolute sample index, relative to the epoch
     -- as a 24 bit value, plus an 8 bit virtual channel.
-    -- 2048 samples per packet, 128 samples per burst (of 512 bytes), 16 samples per word (of 64 bytes)
-    absolute_sample <= std_logic_vector(unsigned(wdata_packet_count) * 2048 + unsigned(wdata_burst_count) * 128 + unsigned(wdata_word_count) * 16); --to_unsigned(16,48));
+    -- 2048 samples per packet, 1024 samples per burst (of 4096 bytes), 16 samples per word (of 64 bytes)
+    absolute_sample <= std_logic_vector(unsigned(wdata_packet_count) * 2048 + unsigned(wdata_burst_count) * 1024 + unsigned(wdata_word_count) * 16); --to_unsigned(16,48));
     
     -- need pn sequence option
     
@@ -984,6 +987,8 @@ begin
             FB5_lastChannel <= FB4_lastChannel;
             FB5_demap_table_select <= FB4_demap_table_select;
             FB5_Valid <= FB4_valid;
+            
+            FD_dataValid_del <= FD_dataValid;
         end if;
     end process;
     
@@ -1021,6 +1026,9 @@ begin
             o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+            o_bad_poly       => FD_bad_poly(0),    -- out std_logic;
+            o_lastChannel    => FD_lastChannel(0), -- out std_logic;  -- Last of the group of 4 channels
+            o_demap_table_select => FD_demap_table_select(0), --  out std_logic;
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
             o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
             o_DataValid      => FD_dataValid,      -- out std_logic
@@ -1040,6 +1048,61 @@ begin
             o_packetValid => FB_to_100G_valid, -- out std_logic;
             i_packetReady => FB_to_100G_ready  -- in std_logic
         );
+
+        -- write the filterbank output to a file
+        process
+            file fb_logfile: TEXT;
+            --variable data_in : std_logic_vector((BIT_WIDTH-1) downto 0);
+            variable line_out : Line;
+        begin
+            FILE_OPEN(fb_logfile, g_FB_OUT_FILENAME, WRITE_MODE);
+            loop
+                wait until rising_edge(clk300);
+                if FD_dataValid = '1' then
+                    
+                    if FD_dataValid_del = '0' and FD_dataValid = '1' then
+                        -- Rising edge of FD_dataValid, write out the meta data
+                        line_out := "";
+                        hwrite(line_out,hex_one,RIGHT,1);
+                        hwrite(line_out,FD_integration,RIGHT,9);
+                        hwrite(line_out,FD_ctFrame,RIGHT,9);
+                        hwrite(line_out,FD_virtualChannel(0),RIGHT,5);
+                        hwrite(line_out,FD_virtualChannel(1),RIGHT,5);
+                        hwrite(line_out,FD_virtualChannel(2),RIGHT,5);
+                        hwrite(line_out,FD_virtualChannel(3),RIGHT,5);
+                        hwrite(line_out,FD_bad_poly,RIGHT,3);
+                        hwrite(line_out,FD_lastChannel,RIGHT,3);
+                        hwrite(line_out,FD_demap_table_select,RIGHT,3);
+                        writeline(fb_logfile,line_out);
+                    end if;
+                    
+                    -- write out the samples to the file
+                    -- .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
+                    line_out := "";
+                    hwrite(line_out,hex_five,RIGHT,1);
+                    hwrite(line_out,fd_data(0).Hpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(0).Hpol.im,RIGHT,3);
+                    hwrite(line_out,fd_data(0).Vpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(0).Vpol.im,RIGHT,3);
+                    hwrite(line_out,fd_data(1).Hpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(1).Hpol.im,RIGHT,3);
+                    hwrite(line_out,fd_data(1).Vpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(1).Vpol.im,RIGHT,3);
+                    hwrite(line_out,fd_data(2).Hpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(2).Hpol.im,RIGHT,3);
+                    hwrite(line_out,fd_data(2).Vpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(2).Vpol.im,RIGHT,3);
+                    hwrite(line_out,fd_data(3).Hpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(3).Hpol.im,RIGHT,3);
+                    hwrite(line_out,fd_data(3).Vpol.re,RIGHT,3);
+                    hwrite(line_out,fd_data(3).Vpol.im,RIGHT,3);
+                    writeline(fb_logfile,line_out);
+                end if;
+            
+            end loop;
+            file_close(fb_logfile);
+            wait;
+        end process;
         
     end generate;
 

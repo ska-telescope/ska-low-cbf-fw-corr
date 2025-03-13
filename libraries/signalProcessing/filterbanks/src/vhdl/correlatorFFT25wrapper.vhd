@@ -58,16 +58,16 @@ architecture Behavioral of correlatorFFT25wrapper is
         event_data_in_channel_halt  : out std_logic);
     end component;
     
-    signal scalingConfig : std_logic_vector(15 downto 0);
-    signal dataValid : std_logic;
+    signal scalingConfig : std_logic_vector(15 downto 0) := "0001010101010101";
+    signal dataValid : std_logic := '0';
     signal firstFFTSample : std_logic := '0';
-    signal tlastIn : std_logic;
+    signal tlastIn : std_logic := '0';
     signal validCount : std_logic_vector(12 downto 0) := "1000000000000";
-    signal fft_tlast : std_logic;
-    signal validOut : std_logic;
+    signal fft_tlast : std_logic := '0';
+    signal validOut : std_logic := '0';
     signal configtrdy : std_logic;
     signal trdy : std_logic;
-    signal fftDin, fftDout : std_logic_vector(63 downto 0);
+    signal fftDin, fftDout : std_logic_vector(63 downto 0) := (others => '0');
     signal realDel1, realDel2 : std_logic_vector(24 downto 0);
     signal imagDel1, imagDel2 : std_logic_vector(24 downto 0);
     signal fftIndex : std_logic_vector(15 downto 0);
