@@ -992,7 +992,7 @@ end process;
                 elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
                     bytes_to_packetise  <= bytes_to_process(13 downto 0);
                     send_spead_data     <= "01";
-                elsif (spead_data_rd = '1') then
+                elsif (spead_data_rd = '1') OR (packed_fifo_empty = '1') then
                     send_spead_data     <= "00";
                 end if;
 
