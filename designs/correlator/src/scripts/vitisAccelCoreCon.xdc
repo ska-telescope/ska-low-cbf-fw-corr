@@ -24,6 +24,15 @@ add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */spea
 
 add_cells_to_pblock pblock_dynamic_SLR2 [get_cells -hier -filter {NAME =~ */cor2geni.icor2/cor1i/row_mult_gen[*].col_mult_gen[*].cmultsi}]
 
+# HBM interface components
+# LFAA In / CT1 / FB
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[0].hbm_resetter}]
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[0].HBM_reg_slice}]
+
+# HBM ILA
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[5].hbm_resetter}]
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[5].HBM_reg_slice}]
+
 
 ########################################################################################################################
 ## Time constraints if there is only 1 x 100G with TS on the top QSFP port.
