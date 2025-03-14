@@ -161,17 +161,17 @@ entity corr_ct1_top is
         --FB_clk  : in std_logic;  -- interface runs off i_shared_clk
         o_sof   : out std_logic;   -- Start of frame, occurs for every new set of channels.
         o_sofFull : out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth for all virtual channels.
-        o_data0  : out t_slv_8_arr(1 downto 0);
-        o_data1  : out t_slv_8_arr(1 downto 0);
+        o_data0  : out t_slv_16_arr(1 downto 0);
+        o_data1  : out t_slv_16_arr(1 downto 0);
         o_meta01 : out t_CT1_META_out; --   - .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        o_data2  : out t_slv_8_arr(1 downto 0);
-        o_data3  : out t_slv_8_arr(1 downto 0);
+        o_data2  : out t_slv_16_arr(1 downto 0);
+        o_data3  : out t_slv_16_arr(1 downto 0);
         o_meta23 : out t_CT1_META_out;
-        o_data4  : out t_slv_8_arr(1 downto 0);
-        o_data5  : out t_slv_8_arr(1 downto 0);
+        o_data4  : out t_slv_16_arr(1 downto 0);
+        o_data5  : out t_slv_16_arr(1 downto 0);
         o_meta45 : out t_CT1_META_out;
-        o_data6  : out t_slv_8_arr(1 downto 0);
-        o_data7  : out t_slv_8_arr(1 downto 0);
+        o_data6  : out t_slv_16_arr(1 downto 0);
+        o_data7  : out t_slv_16_arr(1 downto 0);
         o_meta67 : out t_CT1_META_out;
         o_lastChannel : out std_logic; -- aligns with meta data, indicates this is the last group of channels to be processed in this frame.
         -- o_demap_table_select will change just prior to the start of reading out of a new integration frame.
@@ -221,20 +221,9 @@ end corr_ct1_top;
 
 architecture Behavioral of corr_ct1_top is
     
-    -- Bus to communicate HBM addresses to the input buffer (ct_vfc_input_buffer) from the memory allocation module (ct_vfc_malloc)
-    signal writePacketCount : std_logic_vector(31 downto 0);  -- Packet count from the packet header
-    signal writeChannel : std_logic_vector(15 downto 0);  -- virtual channel from the packet header
-    signal writePacketCountValid : std_logic;                      -- Goes high to indicate o_packet_count is valid, and stays high until a response comes back
-    signal writeAddress : std_logic_vector(23 downto 0); -- Address to write this packet to, in units of 8192 bytes.
-    signal writeOK : std_logic;                     -- Write address is valid; if low, then the packet should be dropped as it is either too early or too late.
-    signal writeAddressValid : std_logic;
-    
     -- register interface
     signal config_rw : t_config_rw;
     signal config_ro : t_config_ro;
-    
-    signal hbm_ready : std_logic;
-    signal useNewConfig, useNewConfigDel1, useNewConfigDel2, loadNewConfig : std_logic := '0';
     
     signal validMemWriteAddr : std_logic_vector(18 downto 0);
     signal validMemWrEn : std_logic;
@@ -244,7 +233,6 @@ architecture Behavioral of corr_ct1_top is
     signal output_count_in  : t_config_correlator_output_count_ram_in;
     signal output_count_out : t_config_correlator_output_count_ram_out;
     
-    signal virtualChannel : std_logic_vector(15 downto 0);
     type input_fsm_type is (idle, start_divider, wait_divider, check_range_calc,
         check_range, dump_pre_latch_on, packet_early_or_late, check_awfifo_space, 
         generate_aw, check_advance_buffer, start_readout_calc0, start_readout_calc1, 
@@ -285,10 +273,8 @@ architecture Behavioral of corr_ct1_top is
         readChan3, readChan3Wait0, readChan3Wait1, readChan3Wait2, writeChan3);
     signal validBlocks_fsm : validBlocks_fsm_type := idle;
     signal meta01, meta23, meta45, meta67 : t_CT1_META_out;
-    signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_8_arr(1 downto 0);
+    signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_16_arr(1 downto 0);
     signal FBClk_rst : std_logic;
-    signal haltPacketCountEqZero : std_logic;
-    --signal table0Rd_dat, table1Rd_dat : std_logic_vector(31 downto 0);
     signal validMemRstActive : std_logic;
     signal AWFIFO_rst_del2, AWFIFO_rst_del1 : std_logic;
     
@@ -377,6 +363,8 @@ architecture Behavioral of corr_ct1_top is
     signal dbg_vec2 : std_logic_vector(255 downto 0);
     signal dbg_vec2_valid : std_logic;
     signal vct_table_in_use, ct2_tables_in_use : std_logic;
+    signal readoutData : t_slv_32_arr(3 downto 0);
+    signal validOut_final : std_logic;
     
 begin
     
@@ -1036,22 +1024,11 @@ begin
         -- Data output to the filterbanks
         -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
         o_sof   => sof_int,   -- out std_logic; start of frame.
-        o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 60ms of data.
-        
-        o_HPol0 => data0,  -- out t_slv_8_arr(1 downto 0);
-        o_VPol0 => data1,  -- out t_slv_8_arr(1 downto 0);
+        o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 283 ms of data.
+        o_readoutData => readoutData, -- t_slv_32_arr(3 downto 0);
         o_meta0 => meta01, -- out t_CT1_META_out;
-        
-        o_HPol1 => data2,  -- out t_slv_8_arr(1 downto 0);
-        o_VPol1 => data3,  -- out t_slv_8_arr(1 downto 0);
         o_meta1 => meta23, -- out t_CT1_META_out;
-        
-        o_HPol2 => data4,  -- out t_slv_8_arr(1 downto 0);
-        o_VPol2 => data5,  -- out t_slv_8_arr(1 downto 0);
         o_meta2 => meta45, -- out t_CT1_META_out;
-        
-        o_HPol3 => data6,  -- 
-        o_Vpol3 => data7,  --
         o_meta3 => meta67, --
         o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
         o_valid => validOut, -- out std_logic;
@@ -1071,6 +1048,39 @@ begin
         o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
         o_dbg_valid => dbg_vec_valid  -- out std_logic
     );
+    
+    
+    ----------------------------------------------------------------------------
+    
+    flati : entity ct_lib.flattening_wrapper
+    port map (
+        clk => i_shared_clk,
+        -----------------------------------------------------------
+        -- Data in
+        i_sof     => sof_int,     -- in std_logic;
+        i_sofFull => sofFull_int, -- in std_logic;
+        i_data    => readoutData, -- in t_slv_32_arr(3 downto 0);
+        i_valid   => validOut,    -- in std_logic;
+        i_flatten_disable => config_rw.ripple_disable, -- in std_logic; -- '1' to disable the flattening filter.
+        -----------------------------------------------------------
+        -- Data out
+        o_HPol0   => data0, -- out t_slv_16_arr(1 downto 0);
+        o_VPol0   => data1, -- out t_slv_16_arr(1 downto 0);
+        o_HPol1   => data2, -- out t_slv_16_arr(1 downto 0);
+        o_VPol1   => data3, -- out t_slv_16_arr(1 downto 0);
+        o_HPol2   => data4, -- out t_slv_16_arr(1 downto 0);
+        o_VPol2   => data5, -- out t_slv_16_arr(1 downto 0);
+        o_HPol3   => data6, -- out t_slv_16_arr(1 downto 0);
+        o_Vpol3   => data7, -- out t_slv_16_arr(1 downto 0);
+        o_valid   => validOut_final, --  out std_logic
+        -- sof and sofFull need to be delayed by the latency of the flattening filter (27 clocks), so they don't overlap with 
+        -- the end of the data from the previous frame
+        -- The 27 clock latency is dependent on the xilinx FIR IP block, and is just the latency from valid in going high to
+        -- valid out going high from that block. Latency for the first frame is higher because it includes loading the preload data.
+        o_sof     => o_sof,
+        o_sofFUll => o_sofFull
+    );
+    
     o_data0 <= data0;
     o_data1 <= data1;
     o_data2 <= data2;
@@ -1079,13 +1089,18 @@ begin
     o_data5 <= data5;
     o_data6 <= data6;
     o_data7 <= data7;
-    o_valid <= validOut;
+    o_valid <= validOut_final;
+    
+    -- No need to delay the meta data to align with o_data0, o_valid
+    -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
+    -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
+    -- So it is ok for it to change ~30 clocks earlier.
     o_meta01 <= meta01;
     o_meta23 <= meta23;
     o_meta45 <= meta45;
     o_meta67 <= meta67;
-    o_sof <= sof_int;
-    o_sofFUll <= sofFull_int;
+    
+    
     o_m01_axi_rready <= m01_axi_rready;
     o_m01_axi_ar <= m01_axi_ar;
     
@@ -1118,24 +1133,24 @@ begin
                             chan1 <= meta23.virtualChannel(9 downto 0);
                             chan2 <= meta45.virtualChannel(9 downto 0);
                             chan3 <= meta67.virtualChannel(9 downto 0);
-                            if data0(0) = "10000000" then
+                            if readoutData(0)(7 downto 0) = "10000000" then
                                 -- first sample in the packet is flagged,
                                 -- either data was missing or it is RFI
                                 ok0 <= '0';
                             else
                                 ok0 <= '1';
                             end if;
-                            if data2(0) = "10000000" then
+                            if readoutData(1)(7 downto 0) = "10000000" then
                                 ok1 <= '0';
                             else
                                 ok1 <= '1';
                             end if;
-                            if data4(0) = "10000000" then
+                            if readoutData(2)(7 downto 0) = "10000000" then
                                 ok2 <= '0';
                             else
                                 ok2 <= '1';
                             end if;
-                            if data6(0) = "10000000" then
+                            if readoutData(3)(7 downto 0) = "10000000" then
                                 ok3 <= '0';
                             else
                                 ok3 <= '1';

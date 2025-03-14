@@ -28,7 +28,7 @@ entity fb_DSP25 is
     );
     port(
         clk : in std_logic;
-        data_i : in t_slv_8_arr((TAPS-1) downto 0);
+        data_i : in t_slv_16_arr((TAPS-1) downto 0);
         coef_i : in t_slv_18_arr((TAPS-1) downto 0);
         data_o : out std_logic_vector(24 downto 0)
     );
@@ -85,12 +85,12 @@ begin
         p     => open        -- out(44:0)
     );
     
-    dataFull(0) <= data_i(0) & "0000000000000000000";
+    dataFull(0) <= data_i(0) & "00000000000";
     
     -- Middle filter taps
     DSPGen : for i in 1 to (TAPS - 2) generate
         
-        dataFull(i) <= data_i(i) & "0000000000000000000";
+        dataFull(i) <= data_i(i) & "00000000000";
         
         dspinst : DSP_AxB_plus_PCIN
         port map (
@@ -105,7 +105,7 @@ begin
     end generate;
     
     -- Last filter tap
-    dataFull(TAPS - 1) <= data_i(TAPS - 1) & "0000000000000000000";
+    dataFull(TAPS - 1) <= data_i(TAPS - 1) & "00000000000";
     dsp_last : DSP_AxB_plus_PCIN
     port map (
         clk  => clk,
@@ -116,18 +116,19 @@ begin
         p     => finalSum           -- out(47:0)
     );
     
-    --  FIR Scaling:
-    --   The largest possible output of a single multiplication is 76139 * 2048 = a bit more than 2^27
-    --   The sum of the abs() of the filter taps is assumed < 2^17 (Note 2^17 = 131072).
-    --   So the biggest possible unscaled output of the filter is < 2^17 * 2^7 = 2^24.
-    --   So unscaled, we would need to retain 25 bits.
-    --   To get back to 16 bit input to the FFT, scale by a factor of 2^9.
-    -- Also scale by a faction of 2^19 since the input (dataFull) is scaled up by that amount.
-    -- So total scaling is to drop the low 28 bits
-    
-    --intPart <= finalSum(43 downto 28);
-    --fracPart <= finalSum(27 downto 19); -- The rest must be zeros. 
-    --data_o <= intPart when (fracPart(8) = '0' or (fracPart = "100000000" and intPart(0) = '0')) else std_logic_vector(unsigned(intPart) + 1);
+    -- FIR scaling :
+    --  The deripple filter scales up by a factor of x128 (maximum output from the deripple filter is about x160)
+    --  So largest input data is ~ 160 * 128 = 20480
+    --  Largest filter tap is about 76000
+    --  Largest possible output of a single multiplication is 76000 * 20480 = 1.56 * 10^9
+    --  data_i is additionally scaled up by a factor of 2048 (zero padding above to get "dataFull" from "data_i")
+    --  From SPS data to the output of this module, rms scaling :
+    --   = (sps data) * (128 (deripple)) * (65536 (this FIR filter)) * (2048 (scale up to left-align)) / (2^19 final scaling below) 
+    --   = (sps data) * 2^15
+    --
+    --  Note : The maximum value for the SPS data is 127, peak values for the filters can scale up by a factor of about 1.5,
+    --         so the peak output value is about 1.5 * 127 * 2^15, which fit in the 25 bit output, so it cannot saturate.
+    --  
     
     data_o <= finalSum(43 downto 19);
     

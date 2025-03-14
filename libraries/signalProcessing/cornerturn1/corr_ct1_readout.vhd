@@ -112,7 +112,10 @@ entity corr_ct1_readout is
         -- 32 is also supported by this module, for use in simulation only.
         g_SPS_PACKETS_PER_FRAME : integer := 128;
         -- center tap of the filterbank FIR filter.
-        g_FILTER_CENTER : integer := 23598
+        g_FILTER_CENTER : integer := 23598;
+        --
+        g_RIPPLE_PRELOAD : integer := 15;
+        g_RIPPLE_POSTLOAD : integer := 15
     );
     Port(
         shared_clk : in std_logic; -- Shared memory clock
@@ -141,20 +144,10 @@ entity corr_ct1_readout is
         --FB_clk  : in std_logic;  -- interface runs off shared_clk
         o_sof   : out std_logic; -- start of frame for a particular set of 4 virtual channels.
         o_sofFull : out std_logic; -- start of a full frame, i.e. 283 ms of data.
-        o_HPol0 : out t_slv_8_arr(1 downto 0);
-        o_VPol0 : out t_slv_8_arr(1 downto 0);
-        o_meta0 : out t_CT1_META_out;  -- defined in DSP_top_pkg.vhd; 
-        
-        o_HPol1 : out t_slv_8_arr(1 downto 0);
-        o_VPol1 : out t_slv_8_arr(1 downto 0);
+        o_readoutData : out t_slv_32_arr(3 downto 0);
+        o_meta0 : out t_CT1_META_out;  -- defined in DSP_top_pkg.vhd;
         o_meta1 : out t_CT1_META_out;
-        
-        o_HPol2 : out t_slv_8_arr(1 downto 0);
-        o_VPol2 : out t_slv_8_arr(1 downto 0);
         o_meta2 : out t_CT1_META_out;
-        
-        o_HPol3 : out t_slv_8_arr(1 downto 0);
-        o_VPol3 : out t_slv_8_arr(1 downto 0);
         o_meta3 : out t_CT1_META_out;
         o_lastChannel : out std_logic; -- Aligns with o_metaX
         o_valid : out std_logic;
@@ -191,7 +184,7 @@ architecture Behavioral of corr_ct1_readout is
     signal shared_to_FB_valid, shared_to_FB_valid_del1 : std_logic;
     signal shared_to_FB_send, shared_to_FB_rcv : std_logic := '0';
     --signal FBbufferStartAddr : std_logic_vector(7 downto 0);
-    signal FBClocksPerPacket, FBClocksPerPacketMinusTwo : std_logic_vector(15 downto 0);
+    signal FBClocksPerPacket, FBClocksPerPacketMinusTwo, FBClocksPerFirstPacketMinusTwo : std_logic_vector(15 downto 0);
     signal FBNChannels : std_logic_vector(15 downto 0);
     signal bufReadAddr0, bufReadAddr1, bufReadAddr2, bufReadAddr3 : std_logic_vector(9 downto 0);
     
@@ -280,7 +273,7 @@ architecture Behavioral of corr_ct1_readout is
     signal channelCount : std_logic_vector(15 downto 0);
     
     signal rdOffset : t_slv_4_arr(3 downto 0);
-    signal readoutData : t_slv_32_arr(3 downto 0);
+    
     signal readoutHDeltaP : t_slv_16_arr(3 downto 0);
     signal readoutVDeltaP : t_slv_16_arr(3 downto 0);
     signal readoutHOffsetP : t_slv_16_arr(3 downto 0);
@@ -300,7 +293,7 @@ architecture Behavioral of corr_ct1_readout is
     signal sofFull, sof : std_logic := '0';
     signal axi_rdataDel1 : std_logic_vector(511 downto 0);
     signal selRFI : std_logic;
-    signal clockCountIncrement : std_logic := '0';
+    signal clockCountIncrement, firstPacketclockCountIncrement : std_logic := '0';
     signal clockCountZero : std_logic := '0';
     
     signal rstDel1, rstDel2, rstInternal, rstFIFOs, rstFIFOsDel1 : std_logic := '0';
@@ -371,6 +364,10 @@ architecture Behavioral of corr_ct1_readout is
     signal fp32_delay_valid, fp32_delay_valid2 : std_logic;
     signal poly_result_fp32, poly_time_fp32 : std_logic_vector(31 downto 0);
     signal bad_poly : std_logic; 
+
+    signal sample_offset : t_slv_20_arr(3 downto 0);
+    signal rdBufSamplesRemaining : t_slv_20_arr(3 downto 0);
+    signal firstPacket : std_logic := '0';
 
 begin
     
@@ -680,13 +677,20 @@ begin
                     --         |<--------(6x4096-n) samples------->|<----------(6x4096+n) samples---------->|
                     --         |
                     --    First Sample sent
-                    --    = (end of buffer - (6*4096-n))
-                    --    = (64*4096 - (6*4096 - n))
-                    --    = 237568 + n
+                    --    = (end of buffer - (6*4096-n) - g_RIPPLE_PRELOAD)
+                    --    = (64*4096 - (6*4096 - n) - g_RIPPLE_PRELOAD)
+                    --    = 237568 + n - g_RIPPLE_PRELOAD
                     --  where n = bufCoarseDelay
                     --
                     bufBuffer(i) <= ar_previousBuffer; -- initial reads are the pre-load data from the previous buffer
-                    bufSampleTemp(i) := std_logic_vector((g_SPS_PACKETS_PER_FRAME * 2048) - 24576 + unsigned(bufCoarseDelay(i)));
+                    
+                    -- Without ripple filter :
+                    --  bufSampleTemp(i) := std_logic_vector((g_SPS_PACKETS_PER_FRAME * 2048) - 24576 + unsigned(bufCoarseDelay(i)));
+                    -- With Ripple filter
+                    --  - Extra 30 samples in total need to be read out.
+                    --  - +15 samples in advance of the data, +15 samples at the end.
+                    bufSampleTemp(i) := std_logic_vector((g_SPS_PACKETS_PER_FRAME * 2048) - 24576 - g_RIPPLE_PRELOAD + unsigned(bufCoarseDelay(i)));
+                    
                     bufSampleTemp8bit(i) := '0' & bufSampleTemp(i)(6 downto 0);
                     -- Round it down so we have 64 byte aligned accesses to the HBM. Note buf0Sample is the sample within the buffer for this particular virtual channel
                     bufSample(i) <= bufSampleTemp(i)(19 downto 4) & "0000"; -- This gets multiplied by 4 to get the byte address, so the byte address will be 64 byte aligned.
@@ -704,7 +708,7 @@ begin
                     -- so the number of samples read is the number to the next 512 byte boundary, i.e. 128 - buf0SampleTemp(6:0)
                     bufSamplesToRead(i) <= std_logic_vector(128 - unsigned(bufSampleTemp8bit(i)));
                     -- total number of samples per frame is g_LFAA_BLOCKS_PER_FRAME * 2048, plus the preload of 11*4096 = 45056 samples
-                    bufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME * 2048 + 45056,20)); 
+                    bufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME * 2048 + 45056 + g_RIPPLE_PRELOAD + g_RIPPLE_POSTLOAD,20)); 
                 elsif ((ar_fsm = getBufData) and (unsigned(ar_fsm_buffer) = i)) then
                     -- the "getBufData" state occurs multiple times, once for each buffer.
                     bufSample(i) <= std_logic_vector(unsigned(bufSample(i)) + unsigned(bufLen_ext(i)) + 16);
@@ -1480,7 +1484,7 @@ begin
     --
     
     cdc_dataIn(15 downto 0) <= "0000" & ar_NChannels; -- 12 bit
-    cdc_dataIn(31 downto 16) <= x"0056" when (unsigned(ar_clocksPerPacket) < 86) else ar_clocksPerPacket;   -- 16 bit; minimum possible value is 86.
+    cdc_dataIn(31 downto 16) <= x"1004" when (unsigned(ar_clocksPerPacket) < 4100) else ar_clocksPerPacket;   -- 16 bit; minimum possible value is 4100.
     cdc_dataIn(63 downto 32) <= ar_integration;       -- 32 bit
     cdc_dataIn(65 downto 64) <= ar_currentBuffer;     -- 2 bit
 
@@ -1516,6 +1520,11 @@ begin
     
     --------------------------------------------------------------------------
     
+    sample_remain_geni : for i in 0 to 3 generate
+        sample_offset(i) <= x"0000" & bufFIFO_dout(i)(3 downto 0);
+        rdBufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*2048 + 11*4096 + g_RIPPLE_PRELOAD + g_RIPPLE_POSTLOAD,20) + unsigned(sample_offset(i)));
+    end generate;
+    
     -- Memory readout 
     process(shared_clk)
     begin
@@ -1529,7 +1538,6 @@ begin
             end if;
             
             shared_to_FB_valid_del1 <= shared_to_FB_valid;
-            
             
             if rstInternal = '1' then
                 bufReadAddr0 <= (others => '0');
@@ -1588,31 +1596,62 @@ begin
                             rdOffset(1) <= bufFIFO_dout(1)(3 downto 0);
                             rdOffset(2) <= bufFIFO_dout(2)(3 downto 0);
                             rdOffset(3) <= bufFIFO_dout(3)(3 downto 0);
-                            -- The number of 64-byte (=512 bit) words that we have to read from the buffer for each channel is 
-                            --      g_LFAA_BLOCKS_PER_FRAME*128 + 11*256       (for the case where the first sample is aligned to a 64 byte boundary)
-                            --   or g_LFAA_BLOCKS_PER_FRAME*128 + 11*256 + 1   (for the case where the first sample is not aligned to a 64 byte boundary)                            
+                                                      
                             --
-                            if bufFIFO_dout(0)(3 downto 0) = "0000" then
-                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
-                            else
-                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
+                            -- +30 samples = +120 bytes = +1.875 * (64 bytes) = 64 + 56 bytes.
+                            -- samples = 4 byte words = g_SPS_PACKETS_PER_FRAME*2048 + 11*4096 + g_RIPPLE_PRELOAD + g_RIPPLE_POSTLOAD
+                            -- but we start with an offset of bufFIFO_dout(0)(3 downto 0) samples, so 
+                            --  total samples in the buffer 
+                            --     = g_SPS_PACKETS_PER_FRAME*2048 + 11*4096 + g_RIPPLE_PRELOAD + g_RIPPLE_POSTLOAD + bufFIFO_dout(0)(3 downto 0)
+                            --  total 64-byte (=16 sample) words in the buffer
+                            --     = ceiling(total samples in the buffer / 16)
+                            
+                            if rdBufSamplesRemaining(0)(3 downto 0) = "0000" then -- Whole number of 64-byte words
+                                buf0WordsRemaining <= rdBufSamplesRemaining(0)(19 downto 4); -- 16 samples per 64-byte word
+                            else -- Not a whole number of 64-byte words, need to round up for the ceiling operation.
+                                buf0WordsRemaining <= std_logic_vector(unsigned(rdBufSamplesRemaining(0)(19 downto 4)) + 1);
                             end if;
-                            if bufFIFO_dout(1)(3 downto 0) = "0000" then
-                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
-                            else
-                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
+                            if rdBufSamplesRemaining(1)(3 downto 0) = "0000" then -- Whole number of 64-byte words
+                                buf1WordsRemaining <= rdBufSamplesRemaining(1)(19 downto 4); -- 16 samples per 64-byte word
+                            else -- Not a whole number of 64-byte words, need to round up for the ceiling operation.
+                                buf1WordsRemaining <= std_logic_vector(unsigned(rdBufSamplesRemaining(1)(19 downto 4)) + 1);
                             end if;
-                            if bufFIFO_dout(2)(3 downto 0) = "0000" then
-                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
-                            else
-                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
+                            if rdBufSamplesRemaining(2)(3 downto 0) = "0000" then -- Whole number of 64-byte words
+                                buf2WordsRemaining <= rdBufSamplesRemaining(2)(19 downto 4); -- 16 samples per 64-byte word
+                            else -- Not a whole number of 64-byte words, need to round up for the ceiling operation.
+                                buf2WordsRemaining <= std_logic_vector(unsigned(rdBufSamplesRemaining(2)(19 downto 4)) + 1);
+                            end if;
+                            if rdBufSamplesRemaining(3)(3 downto 0) = "0000" then -- Whole number of 64-byte words
+                                buf3WordsRemaining <= rdBufSamplesRemaining(3)(19 downto 4); -- 16 samples per 64-byte word
+                            else -- Not a whole number of 64-byte words, need to round up for the ceiling operation.
+                                buf3WordsRemaining <= std_logic_vector(unsigned(rdBufSamplesRemaining(3)(19 downto 4)) + 1);
                             end if;
                             
-                            if bufFIFO_dout(3)(3 downto 0) = "0000" then
-                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
-                            else
-                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
-                            end if;
+                            -- Pre ripple correction :
+                             -- The number of 64-byte (=512 bit) words that we have to read from the buffer for each channel is 
+                             --      g_LFAA_BLOCKS_PER_FRAME*128 + 11*256       (for the case where the first sample is aligned to a 64 byte boundary)
+                             --   or g_LFAA_BLOCKS_PER_FRAME*128 + 11*256 + 1   (for the case where the first sample is not aligned to a 64 byte boundary)  
+--                            if bufFIFO_dout(0)(3 downto 0) = "0000" then
+--                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
+--                            else
+--                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
+--                            end if;
+--                            if bufFIFO_dout(1)(3 downto 0) = "0000" then
+--                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
+--                            else
+--                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
+--                            end if;
+--                            if bufFIFO_dout(2)(3 downto 0) = "0000" then
+--                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
+--                            else
+--                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
+--                            end if;
+                            
+--                            if bufFIFO_dout(3)(3 downto 0) = "0000" then
+--                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
+--                            else
+--                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
+--                            end if;
                             
                             rd_fsm <= rd_buf0;
                         else
@@ -1769,8 +1808,10 @@ begin
             end if;
             
             for i in 0 to 3 loop
-                if (unsigned(bufFIFO_rdDataCount(i)) > 256) then
-                    -- 256 words in the buffer, 64 bytes per word = 16 kbytes = 4096 samples = 1 packet to the correlator filterbank.
+                if (unsigned(bufFIFO_rdDataCount(i)) > 257) then
+                    -- 258 words in the buffer, 64 bytes per word = 16512 bytes = 4128 samples = 1 packet to the correlator filterbank.
+                    -- First packet out to the filterbank is 4096 + 30 (preload) = 4126 samples
+                    -- Remaining packets are 4096 samples.
                     bufFIFOHalfFull(i) <= '1';
                 else
                     bufFIFOHalfFull(i) <= '0';
@@ -1835,11 +1876,18 @@ begin
             readoutStartDel(27 downto 1) <= readoutStartDel(26 downto 0);
             
             FBClocksPerPacketMinusTwo <= std_logic_vector(unsigned(FBClocksPerPacket) - 2);
+            FBClocksPerFirstPacketMinusTwo <= std_logic_vector(unsigned(FBClocksPerPacket) - 2 + g_RIPPLE_PRELOAD + g_RIPPLE_POSTLOAD);
             if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusTwo))) then
                 clockCountIncrement <= '1';
             else
                 clockCountIncrement <= '0';
             end if;
+            if (unsigned(clockCount) < (unsigned(FBClocksPerFirstPacketMinusTwo))) then
+                firstPacketclockCountIncrement <= '1';
+            else
+                firstPacketclockCountIncrement <= '0';
+            end if;
+            
             
             -- 16 clocks to copy data into the FIFO in corr_ct1_readout_32bit
             -- plus some extra delay for read latency of the buffer in this module 
@@ -1849,9 +1897,11 @@ begin
                 clockCount <= (others => '0');
                 clockCountZero <= '1';
                 delayFIFO_rden <= "0000";
+                firstPacket <= '0';
             elsif readoutStartDel(27) = '1' then
                 -- Packets are 4096 samples; Number of packets in a burst is 11 preload packets plus half the number of LFAA blocks per frame, since LFAA blocks are 2048 samples.
                 packetsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME /2 + 11,16));
+                firstPacket <= '1';
                 clockCount <= (others => '0');
                 clockCountZero <= '1';
                 delayFIFO_rden <= "0000";
@@ -1882,7 +1932,7 @@ begin
                 
             elsif (unsigned(packetsRemaining) > 0) then
                 -- Changed to improve timing, was : if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusOne))) then
-                if clockCountIncrement = '1' or clockCountZero = '1' then
+                if (firstPacket = '0' and clockCountIncrement = '1') or (firstPacket = '1' and firstPacketClockCountIncrement = '1') or clockCountZero = '1' then
                     clockCount <= std_logic_vector(unsigned(clockCount) + 1);
                     clockCountZero <= '0';  -- This signal is needed because of the extra cycle latency before clockCountIncrement becomes valid when clockCount is set to zero. 
                     delayFIFO_rden <= "0000";
@@ -1915,6 +1965,7 @@ begin
                     o_meta3.bad_poly <= delayFIFO_dout(3)(128);                    
                     
                     packetsRemaining <= packetsRemaining_minus1;
+                    firstPacket <= '0';
                     if ((unsigned(packetsRemaining_minus1) <= (g_SPS_PACKETS_PER_FRAME/2)) and
                         (some_packets_remaining = '1')) then
                         -- At the point where this happens, actual packetsRemaining is one less than "packetsRemaining"
@@ -1934,7 +1985,9 @@ begin
                 some_packets_remaining <= '0';
             end if;
             
-            if ((unsigned(packetsRemaining) > 0) and (unsigned(clockCount) < 4096)) then
+            if ((unsigned(packetsRemaining) > 0) and 
+                 ((firstPacket = '1' and (unsigned(clockCount) < (4096 + g_RIPPLE_PRELOAD + g_RIPPLE_POSTLOAD))) or
+                  (firstPacket = '0' and (unsigned(clockCount) < 4096)))) then
                 readPacket <= '1';
             else
                 readPacket <= '0';
@@ -1996,7 +2049,7 @@ begin
             i_valid    => bufRdValid(i), -- in std_logic; -- should go high no more than once every 4 clocks
             o_stop     => rdStop(i), -- out std_logic;
             -- data out
-            o_data    => readoutData(i),    -- out std_logic_vector(31 downto 0); 
+            o_data    => o_readoutData(i),    -- out std_logic_vector(31 downto 0); 
             i_run     => readPacket,        -- in std_logic -- should go high for a burst of 64 clocks to output a packet.
             o_valid   => validOut(i)        -- out std_logic;
         );
@@ -2004,35 +2057,18 @@ begin
     
     o_valid <= validOut(0);
     
-    o_HPol0(0) <= readoutData(0)(7 downto 0);  -- 8 bit real part
-    o_HPol0(1) <= readoutData(0)(15 downto 8); -- 8 bit imaginary part
-    o_VPol0(0) <= readoutData(0)(23 downto 16); -- 8 bit real part
-    o_VPol0(1) <= readoutData(0)(31 downto 24); -- 8 bit imaginary part
-    
     o_meta0.integration <= FBintegration; -- (31:0); integration in units of 849ms relative to the epoch.
     o_meta0.ctFrame <= FBctFrame;
     o_meta0.virtualChannel <= meta0VirtualChannel;     -- virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
     
-    o_HPol1(0) <= readoutData(1)(7 downto 0);  -- 8 bit real part
-    o_HPol1(1) <= readoutData(1)(15 downto 8); -- 8 bit imaginary part
-    o_VPol1(0) <= readoutData(1)(23 downto 16); -- 8 bit real part
-    o_VPol1(1) <= readoutData(1)(31 downto 24); -- 8 bit imaginary part
     o_meta1.integration <= FBintegration;
     o_meta1.ctFrame <= FBctFrame;
     o_meta1.virtualChannel <= meta1VirtualChannel;
-    
-    o_HPol2(0) <= readoutData(2)(7 downto 0);  -- 8 bit real part
-    o_HPol2(1) <= readoutData(2)(15 downto 8); -- 8 bit imaginary part
-    o_VPol2(0) <= readoutData(2)(23 downto 16); -- 8 bit real part
-    o_VPol2(1) <= readoutData(2)(31 downto 24); -- 8 bit imaginary part
+   
     o_meta2.integration <= FBintegration;
     o_meta2.ctFrame <= FBctFrame;
     o_meta2.virtualChannel <= meta2VirtualChannel;
     
-    o_HPol3(0) <= readoutData(3)(7 downto 0);  -- 8 bit real part
-    o_HPol3(1) <= readoutData(3)(15 downto 8); -- 8 bit imaginary part
-    o_VPol3(0) <= readoutData(3)(23 downto 16); -- 8 bit real part
-    o_VPol3(1) <= readoutData(3)(31 downto 24); -- 8 bit imaginary part
     o_meta3.integration <= FBintegration;
     o_meta3.ctFrame <= FBctFrame;
     o_meta3.virtualChannel <= meta3VirtualChannel;

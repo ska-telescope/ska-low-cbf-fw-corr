@@ -194,17 +194,17 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     signal FB_sof : std_logic;
     
-    signal FB_data0 : t_slv_8_arr(1 downto 0);
-    signal FB_data1 : t_slv_8_arr(1 downto 0);
+    signal FB_data0 : t_slv_16_arr(1 downto 0);
+    signal FB_data1 : t_slv_16_arr(1 downto 0);
     signal FB_meta01 : t_CT1_META_out; 
-    signal FB_data2 : t_slv_8_arr(1 downto 0);
-    signal FB_data3 : t_slv_8_arr(1 downto 0);
+    signal FB_data2 : t_slv_16_arr(1 downto 0);
+    signal FB_data3 : t_slv_16_arr(1 downto 0);
     signal FB_meta23 : t_CT1_META_out;
-    signal FB_data4 : t_slv_8_arr(1 downto 0);
-    signal FB_data5 : t_slv_8_arr(1 downto 0);
+    signal FB_data4 : t_slv_16_arr(1 downto 0);
+    signal FB_data5 : t_slv_16_arr(1 downto 0);
     signal FB_meta45 : t_CT1_META_out;
-    signal FB_data6 : t_slv_8_arr(1 downto 0);
-    signal FB_data7 : t_slv_8_arr(1 downto 0);
+    signal FB_data6 : t_slv_16_arr(1 downto 0);
+    signal FB_data7 : t_slv_16_arr(1 downto 0);
     signal FB_meta67 : t_CT1_META_out;    
     
     signal FB_valid : std_logic;

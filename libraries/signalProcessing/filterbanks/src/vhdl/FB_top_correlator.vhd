@@ -38,17 +38,17 @@ entity FB_Top_correlator is
         -- data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
         i_SOF    : in std_logic; 
-        i_data0  : in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        i_data1  : in t_slv_8_arr(1 downto 0);
+        i_data0  : in t_slv_16_arr(1 downto 0);  -- 6 Inputs, each complex data, 16 bit real, 16 bit imaginary.
+        i_data1  : in t_slv_16_arr(1 downto 0);
         i_meta01 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data2  : in t_slv_8_arr(1 downto 0);
-        i_data3  : in t_slv_8_arr(1 downto 0);
+        i_data2  : in t_slv_16_arr(1 downto 0);
+        i_data3  : in t_slv_16_arr(1 downto 0);
         i_meta23 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data4  : in t_slv_8_arr(1 downto 0);
-        i_data5  : in t_slv_8_arr(1 downto 0);
+        i_data4  : in t_slv_16_arr(1 downto 0);
+        i_data5  : in t_slv_16_arr(1 downto 0);
         i_meta45 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data6  : in t_slv_8_arr(1 downto 0);
-        i_data7  : in t_slv_8_arr(1 downto 0);
+        i_data6  : in t_slv_16_arr(1 downto 0);
+        i_data7  : in t_slv_16_arr(1 downto 0);
         i_meta67 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
         i_lastChannel : in std_logic;
         i_demap_table_select : in std_logic;
@@ -101,7 +101,7 @@ architecture Behavioral of FB_Top_correlator is
     signal CorDout0, CorDout1, CorDout2, CorDout3 : t_slv_16_arr(1 downto 0);
     signal CorValidOut, CorValidOutDel : std_logic;
     
-    signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.  
+    signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_16_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.  
     
     signal FDcorDataValid : std_logic_vector(3 downto 0);
     
@@ -200,43 +200,43 @@ begin
             
             -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
             for i in 0 to 1 loop
-                if i_data0(i) = x"80" then
-                    data0(i) <= x"00";
+                if i_data0(i) = x"8000" then
+                    data0(i) <= x"0000";
                 else
                     data0(i) <= i_data0(i);
                 end if;
-                if i_data1(i) = x"80" then
-                    data1(i) <= x"00";
+                if i_data1(i) = x"8000" then
+                    data1(i) <= x"0000";
                 else
                     data1(i) <= i_data1(i);
                 end if;
-                if i_data2(i) = x"80" then
-                    data2(i) <= x"00";
+                if i_data2(i) = x"8000" then
+                    data2(i) <= x"0000";
                 else
                     data2(i) <= i_data2(i);
                 end if;
-                if i_data3(i) = x"80" then
-                    data3(i) <= x"00";
+                if i_data3(i) = x"8000" then
+                    data3(i) <= x"0000";
                 else
                     data3(i) <= i_data3(i);
                 end if;
-                if i_data4(i) = x"80" then
-                    data4(i) <= x"00";
+                if i_data4(i) = x"8000" then
+                    data4(i) <= x"0000";
                 else
                     data4(i) <= i_data4(i);
                 end if;
-                if i_data5(i) = x"80" then
-                    data5(i) <= x"00";
+                if i_data5(i) = x"8000" then
+                    data5(i) <= x"0000";
                 else
                     data5(i) <= i_data5(i);
                 end if;
-                if i_data6(i) = x"80" then
-                    data6(i) <= x"00";
+                if i_data6(i) = x"8000" then
+                    data6(i) <= x"0000";
                 else
                     data6(i) <= i_data6(i);
                 end if;
-                if i_data7(i) = x"80" then
-                    data7(i) <= x"00";
+                if i_data7(i) = x"8000" then
+                    data7(i) <= x"0000";
                 else
                     data7(i) <= i_data7(i);
                 end if;

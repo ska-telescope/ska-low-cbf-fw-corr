@@ -92,10 +92,10 @@ entity correlatorFBTop25 is
         clk : in std_logic;
         rst : in std_logic;
         -- Data input, common valid signal, expects packets of 4096 samples. Requires at least 2 clocks idle time between packets.
-        data0_i : in t_slv_8_arr(1 downto 0);  -- 4 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        data1_i : in t_slv_8_arr(1 downto 0);
-        data2_i : in t_slv_8_arr(1 downto 0);
-        data3_i : in t_slv_8_arr(1 downto 0);
+        data0_i : in t_slv_16_arr(1 downto 0);  -- 4 Inputs, each complex data, 16 bit real, 16 bit imaginary.
+        data1_i : in t_slv_16_arr(1 downto 0);
+        data2_i : in t_slv_16_arr(1 downto 0);
+        data3_i : in t_slv_16_arr(1 downto 0);
         meta_i  : in std_logic_vector((METABITS-1) downto 0);
         valid_i : in std_logic;
         -- Data out; bursts of 3456 clocks for each channel.
@@ -116,11 +116,11 @@ end correlatorFBTop25;
 
 architecture Behavioral of correlatorFBTop25 is
     
-    signal wrData64 : std_logic_vector(63 downto 0);
-    signal FBmemRdData : t_slv_64_arr(11 downto 0);
+    signal wrData128 : std_logic_vector(127 downto 0);
+    signal FBmemRdData : t_slv_128_arr(11 downto 0);
     signal FBmemFIRTaps, FBmemFIRTapsDel : t_slv_18_arr(11 downto 0);
     
-    type fbtype is array(7 downto 0) of t_slv_8_arr(11 downto 0);
+    type fbtype is array(7 downto 0) of t_slv_16_arr(11 downto 0);
     signal FBRdData, FBRdDataDel : fbtype; 
     signal FIRDout : t_slv_25_arr(7 downto 0);
     signal fftIndex : t_slv_12_arr(3 downto 0);
@@ -156,7 +156,7 @@ begin
     -- 1. Input Memory
     -- ---------------
     
-    wrData64 <= data3_i(1) & data3_i(0) & data2_i(1) & data2_i(0) & data1_i(1) & data1_i(0) & data0_i(1) & data0_i(0);
+    wrData128 <= data3_i(1) & data3_i(0) & data2_i(1) & data2_i(0) & data1_i(1) & data1_i(0) & data0_i(1) & data0_i(0);
 
     cmem : entity filterbanks_lib.correlatorFBMem
     generic map (
@@ -164,11 +164,11 @@ begin
     port map (
         clk      => clk,
         -- Write data for the start of the chain
-        wrData_i => wrData64,         -- in(63:0);
+        wrData_i => wrData128,        -- in(127:0);
         wrEn_i   => valid_i,          -- in std_logic; should be a burst of 4096 clocks.
         -- Read data, comes out 2 clocks after the first write.
-        rd_data_o  => FBmemRdData,    -- out array64bit_type(TAPS-1 downto 0); -- 64 bits wide, 12 taps simultaneously; First sample is wr_data_i delayed by 1 clock. 
-        coef_o     => FBmemFIRTaps,   -- out array18bit_type(TAPS-1 downto 0); -- 18 bits per filter tap.
+        rd_data_o  => FBmemRdData,    -- out t_slv_128_arr(TAPS-1 downto 0); 64 bits wide, 12 taps simultaneously; First sample is wr_data_i delayed by 1 clock. 
+        coef_o     => FBmemFIRTaps,   -- out t_slv_18_arr(TAPS-1 downto 0);  18 bits per filter tap.
         -- Writing FIR Taps
         FIRTapData_i => FIRTapData_i, -- in(17:0);  -- For register writes of the filtertaps.
         FIRTapData_o => FIRTapData_o, -- out(17:0); -- For register reads of the filtertaps. 3 cycle latency from FIRTapAddr_i
@@ -187,7 +187,7 @@ begin
     
     CsampleGen : for j in 0 to 7 generate
         coefGen : for k in 0 to 11 generate
-            FBRdData(j)(k) <= FBmemRdData(k)((j*8 + 7) downto (j*8));
+            FBRdData(j)(k) <= FBmemRdData(k)((j*16 + 15) downto (j*16));
         end generate;
     end generate;
     
@@ -339,7 +339,7 @@ begin
     end process;
 
     -- Two URAMs for first half of the double buffer
-    reorderURAM0 : entity filterbanks_lib.URAMWrapper
+    reorderURAM0 : entity filterbanks_lib.URAM64wrapper
     port map (
         clk => clk,
         -- write side
@@ -351,7 +351,7 @@ begin
         dout   => reorderDout0   -- out(63:0)
     );
 
-    reorderURAM1 : entity filterbanks_lib.URAMWrapper
+    reorderURAM1 : entity filterbanks_lib.URAM64wrapper
     port map (
         clk => clk,
         -- write side
@@ -364,7 +364,7 @@ begin
     );    
     
     -- Two URAMs for the second half of the double buffer
-    reorderURAM2 : entity filterbanks_lib.URAMWrapper
+    reorderURAM2 : entity filterbanks_lib.URAM64wrapper
     port map (
         clk => clk,
         -- write side
@@ -376,7 +376,7 @@ begin
         dout   => reorderDout2   -- out(63:0)
     );
 
-    reorderURAM3 : entity filterbanks_lib.URAMWrapper
+    reorderURAM3 : entity filterbanks_lib.URAM64wrapper
     port map (
         clk => clk,
         -- write side

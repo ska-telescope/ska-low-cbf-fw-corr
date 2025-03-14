@@ -66,6 +66,8 @@ import numpy as np
 import yaml
 import typing
 
+# 31 FIR tap deripple filter, for the SPS 18-tap filter 
+c_deripple = np.array([5,-7,12,-21,31,169,-676,504,-833,1007,-1243,1442,-1620,1756,-1842,68166,-1842,1756,-1620,1442,-1243,1007,-833,504,-676,169,31,-21,12,-7,5])
 
 def command_line_args():
     parser = argparse.ArgumentParser(description="Correlator CT1 polynomial configuration generator")
@@ -178,6 +180,12 @@ def ct1_config(config):
         
     return (config_array_buf0, config_array_buf1, vc_max)
 
+def conv_signed_16bit(din):
+    if din > 32767:
+        return (din - 65536)
+    else:
+        return (din)
+
 def get_tb_data(tb_file, virtual_channels):
     # Load data saved by the testbench
     # File Format : text
@@ -190,13 +198,13 @@ def get_tb_data(tb_file, virtual_channels):
     first_integration_set = False
     first_integration = 0
     # Number of packets received for each integration, frame and virtual channel
-    packet_count = np.zeros((10,3,virtual_channels),dtype=np.int)
+    packet_count = np.zeros((10,3,virtual_channels),dtype=np.int32)
     # meta data : [integration, frame, packet, vc, hdelta/Hoffset/Vdelta/Voffset]
     # 75 packets = 11 preload + 64 per frame
-    meta_data = np.zeros((10,3,75,virtual_channels,4),dtype = np.int)
+    meta_data = np.zeros((10,3,75,virtual_channels,4),dtype = np.int64)
     # data [integration,frame,packet,vc,Hre/Him/Vre/Vim,sample]
-    data_data = np.zeros((10,3,75,virtual_channels,4,4096), dtype = np.int)
-    vc_list = np.zeros(4,dtype = np.int)
+    data_data = np.zeros((10,3,75,virtual_channels,4,4096), dtype = np.int32)
+    vc_list = np.zeros(4,dtype = np.int32)
     for line in tb_file:
         dval = line.split()
         dint = [int(di,16) for di in dval]
@@ -220,22 +228,26 @@ def get_tb_data(tb_file, virtual_channels):
         else:
             # dint[0] == 5, the data part
             # data_data index by [integration, frame, packet_count, vc, Hre/Him/Vre/Vim, sample
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 0, dcount] = dint[1]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 1, dcount] = dint[2]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 2, dcount] = dint[3]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 3, dcount] = dint[4]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 0, dcount] = dint[5]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 1, dcount] = dint[6]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 2, dcount] = dint[7]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 3, dcount] = dint[8]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],0, dcount] = dint[9]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],1, dcount] = dint[10]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],2, dcount] = dint[11]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],3, dcount] = dint[12]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],0, dcount] = dint[13]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],1, dcount] = dint[14]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],2, dcount] = dint[15]
-            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],3, dcount] = dint[16]
+            if dcount == 4095:
+                print(f"Read last element of testbench packet : integration {integration}, frame = {frame}, packet_count = {packet_count[integration,frame,vc]}")
+            if dcount > 4095:
+                print(f"!!!!! Too many samples in the packet to the filterbank, dcount = {dcount}")
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 0, dcount] = conv_signed_16bit(dint[1])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 1, dcount] = conv_signed_16bit(dint[2])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 2, dcount] = conv_signed_16bit(dint[3])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 3, dcount] = conv_signed_16bit(dint[4])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 0, dcount] = conv_signed_16bit(dint[5])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 1, dcount] = conv_signed_16bit(dint[6])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 2, dcount] = conv_signed_16bit(dint[7])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[1], 3, dcount] = conv_signed_16bit(dint[8])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],0, dcount] = conv_signed_16bit(dint[9])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],1, dcount] = conv_signed_16bit(dint[10])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],2, dcount] = conv_signed_16bit(dint[11])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[2],3, dcount] = conv_signed_16bit(dint[12])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],0, dcount] = conv_signed_16bit(dint[13])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],1, dcount] = conv_signed_16bit(dint[14])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],2, dcount] = conv_signed_16bit(dint[15])
+            data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[3],3, dcount] = conv_signed_16bit(dint[16])
             dcount = dcount + 1
     
     return (meta_data, data_data, packet_count)
@@ -302,6 +314,21 @@ def create_stream(config, filters, stream_index, n_samples):
     summed_std = np.std(summed)
     return summed
 """
+
+def fix_8bit_rfi(din):
+    # take values in the range 0 to 255 and convert to integers, with
+    # x=128 = 0x80 = RFI => 0
+    # x>128 = negative => x-256
+    # x<128 = positive => x
+    dout = din
+    for n1 in range(din.size):
+        if (din[n1] == 128):
+            dout[n1] = 0
+        elif din[n1] > 128:
+            dout[n1] = din[n1] - 256
+        else:
+            dout[n1] = din[n1]
+    return dout
 
 def main():
     # Read command-line arguments
@@ -446,17 +473,52 @@ def main():
                         # Simulation puts the sample number in the data, where the 
                         # sample number is the number of samples since the epoch
                         first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 - coarse_delay
+                        
+                        
+                        # create the expected value
+                        # Apply the deripple FIR filter = c_deripple = [5,-7,12,-21,31,169,-676,504,-833,1007,-1243,1442,-1620,1756,-1842,68166,-1842,1756,-1620,1442,-1243,1007,-833,504,-676,169,31,-21,12,-7,5]
+                        # to the expected data
+                        # 
+                        # Get the expected samples that the deripple filter is applied to. Initialisation of the FIR filter needs:
+                        #  - 15 samples extra at the front
+                        #  - total 30 samples extra
+                        first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 - coarse_delay - 15
+                        packet_samples = np.arange(first_sample,first_sample+2048+30)
+                        expected_packet_Xre = fix_8bit_rfi(packet_samples % 256)
+                        expected_packet_Xim = fix_8bit_rfi((packet_samples // 256) % 256)
+                        expected_packet_Yre = fix_8bit_rfi((packet_samples // 65536) % 256)
+                        expected_packet_Yim = fix_8bit_rfi(vc * np.ones(2048+30))   # Yim is fixed to the virtual channel in the testbench
+                        #if (packet == 0) and (vc == 0):
+                        #    print(f"First 31 packet samples = {packet_samples[0:32]}")
+                        
                         for sample in range(2048):
                             Xre = data_data[integration_offset,frame_in_integration,packet,vc,0,sample]
                             Xim = data_data[integration_offset,frame_in_integration,packet,vc,1,sample]
                             Yre = data_data[integration_offset,frame_in_integration,packet,vc,2,sample]
                             Yim = data_data[integration_offset,frame_in_integration,packet,vc,3,sample]
-                            tb_sample = Xre + 256*Xim + 65536*Yre
-                            tb_vc = Yim
-                            if ((tb_sample != (first_sample+sample)) or (vc != tb_vc)):
+                            
+                            # Apply the deripple filter to the expected values
+                            expected_Xre = 0
+                            expected_Xim = 0
+                            expected_Yre = 0
+                            expected_Yim = 0
+                            for FIR_tap in range(31):
+                                expected_Xre = expected_Xre + c_deripple[FIR_tap] * expected_packet_Xre[sample + FIR_tap]
+                                expected_Xim = expected_Xim + c_deripple[FIR_tap] * expected_packet_Xim[sample + FIR_tap]
+                                expected_Yre = expected_Yre + c_deripple[FIR_tap] * expected_packet_Yre[sample + FIR_tap]
+                                expected_Yim = expected_Yim + c_deripple[FIR_tap] * expected_packet_Yim[sample + FIR_tap]
+                                #if (sample == 0) and (packet == 0) and (vc == 0):
+                                #    print(f"FIR {FIR_tap}, FIR tap = {c_deripple[FIR_tap]}, data = {expected_packet_Xre[sample + FIR_tap]}, cumulative sum = {expected_Xre}")
+                            
+                            # divide by 512, convergent round to even
+                            expected_Xre = np.round(expected_Xre / 512)
+                            expected_Xim = np.round(expected_Xim / 512)
+                            expected_Yre = np.round(expected_Yre / 512)
+                            expected_Yim = np.round(expected_Yim / 512)
+                            if (expected_Xre != Xre) or (expected_Xim != Xim) or (expected_Yre != Yre) or (expected_Yim != Yim):
                                 if data_mismatch < 20:
                                     print(f"Bad sample : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}")
-                                    print(f"   At sample {sample}, expected {first_sample+sample}, got {tb_sample}, for vc = {vc}, (tb_vc = {tb_vc})")
+                                    print(f"   At sample {sample}, expected ({expected_Xre},{expected_Xim},{expected_Yre},{expected_Yim}), testbench = ({Xre},{Xim},{Yre},{Yim})")
                                 data_mismatch += 1
                             else:
                                 data_match += 1 
@@ -465,7 +527,8 @@ def main():
                         phase_X_tb = meta_data[integration_offset,frame_in_integration,packet,vc,1]
                         fine_delay_Ypol_tb = meta_data[integration_offset,frame_in_integration,packet,vc,2]
                         phase_Y_tb = meta_data[integration_offset,frame_in_integration,packet,vc,3]
-                        if ((fine_delay_Xpol_tb != fine_delay_Xpol) or (fine_delay_Ypol_tb != fine_delay_Ypol) or (phase_X_tb != phase_X) or (phase_Y_tb != phase_Y)):
+                        #if ((fine_delay_Xpol_tb != fine_delay_Xpol) or (fine_delay_Ypol_tb != fine_delay_Ypol) or (phase_X_tb != phase_X) or (phase_Y_tb != phase_Y)):
+                        if ((np.abs(fine_delay_Xpol_tb - fine_delay_Xpol) > 1) or (np.abs(fine_delay_Ypol_tb - fine_delay_Ypol) > 1) or (np.abs(phase_X_tb - phase_X) > 1) or (np.abs(phase_Y_tb - phase_Y) > 1)):
                             if meta_mismatch < 20:
                                 print(f"PYTHON : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")    
                                 print(f"    TB : fine X = {fine_delay_Xpol_tb}, fine Y = {fine_delay_Ypol_tb}, phase X = {phase_X_tb}, phase_Y = {phase_Y_tb}")

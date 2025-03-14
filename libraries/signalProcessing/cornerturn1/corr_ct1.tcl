@@ -128,3 +128,27 @@ set_property -dict [list \
   CONFIG.Result_Precision_Type {Single} \
 ] [get_ips fp64_to_fp32]
 create_ip_run [get_ips fp64_to_fp32]
+
+
+create_ip -name fir_compiler -vendor xilinx.com -library ip -version 7.2 -module_name sps_flatten
+set_property -dict [list \
+  CONFIG.CoefficientVector {5,-7,12,-21,31,169,-676,504,-833,1007,-1243,1442,-1620,1756,-1842,68166,-1842,1756,-1620,1442,-1243,1007,-833,504,-676,169,31,-21,12,-7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,65536,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} \
+  CONFIG.Coefficient_Fractional_Bits {0} \
+  CONFIG.Coefficient_Sets {2} \
+  CONFIG.Coefficient_Sign {Signed} \
+  CONFIG.Coefficient_Structure {Inferred} \
+  CONFIG.Coefficient_Width {18} \
+  CONFIG.Component_Name {sps_flatten} \
+  CONFIG.Data_Fractional_Bits {0} \
+  CONFIG.Data_Width {8} \
+  CONFIG.Output_Rounding_Mode {Full_Precision} \
+  CONFIG.Output_Width {25} \
+  CONFIG.Quantization {Integer_Coefficients} \
+  CONFIG.Clock_Frequency {300.0} \
+  CONFIG.Sample_Frequency {300} \
+  CONFIG.Filter_Architecture {Systolic_Multiply_Accumulate} \
+  CONFIG.Output_Rounding_Mode {Convergent_Rounding_to_Even} \
+  CONFIG.Output_Width {16} \
+] [get_ips sps_flatten]
+create_ip_run [get_ips sps_flatten]
+

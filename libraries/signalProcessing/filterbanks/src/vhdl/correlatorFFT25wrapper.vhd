@@ -58,16 +58,16 @@ architecture Behavioral of correlatorFFT25wrapper is
         event_data_in_channel_halt  : out std_logic);
     end component;
     
-    signal scalingConfig : std_logic_vector(15 downto 0);
-    signal dataValid : std_logic;
+    signal scalingConfig : std_logic_vector(15 downto 0) := "0001010101010101";
+    signal dataValid : std_logic := '0';
     signal firstFFTSample : std_logic := '0';
-    signal tlastIn : std_logic;
+    signal tlastIn : std_logic := '0';
     signal validCount : std_logic_vector(12 downto 0) := "1000000000000";
-    signal fft_tlast : std_logic;
-    signal validOut : std_logic;
+    signal fft_tlast : std_logic := '0';
+    signal validOut : std_logic := '0';
     signal configtrdy : std_logic;
     signal trdy : std_logic;
-    signal fftDin, fftDout : std_logic_vector(63 downto 0);
+    signal fftDin, fftDout : std_logic_vector(63 downto 0) := (others => '0');
     signal realDel1, realDel2 : std_logic_vector(24 downto 0);
     signal imagDel1, imagDel2 : std_logic_vector(24 downto 0);
     signal fftIndex : std_logic_vector(15 downto 0);
@@ -143,11 +143,23 @@ begin
     );    
     
     -- Divide the output by 2^10 with convergent rounding
-    realInt <= fftDout(24) & fftDout(24 downto 10);
-    imagInt <= fftDout(56) & fftDout(56 downto 42);
+    --realInt <= fftDout(24) & fftDout(24 downto 10);
+    --imagInt <= fftDout(56) & fftDout(56 downto 42);
+    --
+    --real_o <= realInt when fftDout(9) = '0' or fftDout(10 downto 0) = "01000000000" else std_logic_vector(unsigned(realInt) + 1);
+    --imag_o <= imagInt when fftDout(41) = '0' or fftDout(42 downto 32) = "01000000000" else std_logic_vector(unsigned(imagInt) + 1);
     
-    real_o <= realInt when fftDout(9) = '0' or fftDout(10 downto 0) = "01000000000" else std_logic_vector(unsigned(realInt) + 1);
-    imag_o <= imagInt when fftDout(41) = '0' or fftDout(42 downto 32) = "01000000000" else std_logic_vector(unsigned(imagInt) + 1);
+    -- Changed after adding ripple correction filter.
+    -- * Input data is scaled down by a factor of 2 compared with pre-ripple correction firmware
+    -- * So only scale down by a factor of 2^9 here, so that the output of this module has the same amplitude
+    --   as for the previous case with no ripple correcton filter
+    -- Divide the output by 2^9 with convergent rounding
+    realInt <= fftDout(24 downto 9);
+    imagInt <= fftDout(56 downto 41);
+    
+    real_o <= realInt when fftDout(8) = '0' or fftDout(9 downto 0) = "0100000000" else std_logic_vector(unsigned(realInt) + 1);
+    imag_o <= imagInt when fftDout(40) = '0' or fftDout(41 downto 32) = "0100000000" else std_logic_vector(unsigned(imagInt) + 1);
+        
     
     --real_o <= fftDout(15 downto 0);
     --imag_o <= fftDout(31 downto 16);
