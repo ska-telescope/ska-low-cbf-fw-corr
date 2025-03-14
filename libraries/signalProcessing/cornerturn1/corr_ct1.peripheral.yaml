@@ -93,7 +93,7 @@ peripherals:
           - - field_name        : ripple_disable
               width             : 1
               access_mode       : RW
-              reset_value       : 0x0
+              reset_value       : 0x1
               field_description : "Set to 1 to disable ripple correction. Default (0) is ripple correction enabled." 
           
           - - field_name        : output_cycles
