@@ -999,7 +999,10 @@ begin
     
     readout : entity ct_lib.corr_ct1_readout
     generic map (
-        g_SPS_PACKETS_PER_FRAME => 128
+        g_SPS_PACKETS_PER_FRAME => 128,
+        -- 24 preload + 24 postload for the 49 tap ripple filter
+        g_RIPPLE_PRELOAD  => 24, -- integer := 15;
+        g_RIPPLE_POSTLOAD => 24  -- integer := 15
     )
     port map (
         shared_clk => i_shared_clk, -- in std_logic; Shared memory clock
@@ -1061,7 +1064,7 @@ begin
         i_sofFull => sofFull_int, -- in std_logic;
         i_data    => readoutData, -- in t_slv_32_arr(3 downto 0);
         i_valid   => validOut,    -- in std_logic;
-        i_flatten_disable => config_rw.ripple_disable, -- in std_logic; -- '1' to disable the flattening filter.
+        i_flatten_select => config_rw.ripple_select, -- in (1:0); -- 0 = identity, "01" = TPM 16d, "10" = TPM 18a
         -----------------------------------------------------------
         -- Data out
         o_HPol0   => data0, -- out t_slv_16_arr(1 downto 0);

@@ -132,9 +132,12 @@ create_ip_run [get_ips fp64_to_fp32]
 
 create_ip -name fir_compiler -vendor xilinx.com -library ip -version 7.2 -module_name sps_flatten
 set_property -dict [list \
-  CONFIG.CoefficientVector {5,-7,12,-21,31,169,-676,504,-833,1007,-1243,1442,-1620,1756,-1842,68166,-1842,1756,-1620,1442,-1243,1007,-833,504,-676,169,31,-21,12,-7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,65536,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} \
+  CONFIG.CoefficientVector \
+{0,  0, 0,   0,  0,   0,  0,   0,  0,    0,   0,    0,   0,    0,   0,     0,    0,     0,    0,     0,    0,     0,    0,     0, 65536,     0,    0,     0,    0,     0,    0,     0,    0,    0,    0,    0,   0,    0,   0,    0,  0,   0,  0,   0,  0,   0, 0,  0, 0, \
+ 3, -5, 9, -14, 22, -31, 42, -58, 96, -129, 176, -234, 303, -384, 474,  -625, 1883, -1705, 2110, -2496, 2857, -3168, 3406, -3557, 69167, -3557, 3406, -3168, 2857, -2496, 2110, -1705, 1883, -625,  474, -384, 303, -234, 176, -129, 96, -58, 42, -31, 22, -14, 9, -5, 3, \
+ 2, -4, 8, -13, 19, -31, 47, -65, 91, -123, 162, -208, 261, -320, 596, -1182, 1099, -1514, 1775, -2089, 2360, -2597, 2778, -2892, 68476, -2892, 2778, -2597, 2360, -2089, 1775, -1514, 1099, -1182, 596, -320, 261, -208, 162, -123, 91, -65, 47, -31, 19, -13, 8, -4, 2} \
   CONFIG.Coefficient_Fractional_Bits {0} \
-  CONFIG.Coefficient_Sets {2} \
+  CONFIG.Coefficient_Sets {3} \
   CONFIG.Coefficient_Sign {Signed} \
   CONFIG.Coefficient_Structure {Inferred} \
   CONFIG.Coefficient_Width {18} \
@@ -142,7 +145,6 @@ set_property -dict [list \
   CONFIG.Data_Fractional_Bits {0} \
   CONFIG.Data_Width {8} \
   CONFIG.Output_Rounding_Mode {Full_Precision} \
-  CONFIG.Output_Width {25} \
   CONFIG.Quantization {Integer_Coefficients} \
   CONFIG.Clock_Frequency {300.0} \
   CONFIG.Sample_Frequency {300} \

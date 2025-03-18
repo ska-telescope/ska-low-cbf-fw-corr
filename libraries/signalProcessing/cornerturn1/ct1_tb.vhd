@@ -36,7 +36,8 @@ entity ct1_tb is
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
         g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_fb_out.txt";
-        g_USE_FILTERBANK : std_logic := '1'
+        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
+        g_USE_FILTERBANK : std_logic := '0'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
@@ -395,7 +396,9 @@ begin
         wait until rising_edge(clk300);
         wait until rising_edge(clk300);
         --do_readback <= '0';
-
+        -- Set the ripple correction
+        axi_lite_transaction(clk300, axi_lite_miso, axi_lite_mosi, 
+            c_config_ripple_select_address.base_address + c_config_ripple_select_address.address, true, g_RIPPLE_SELECT);
         ---------------------------------------------------------------
         wait until rising_edge(clk300);
         wait for 100 ns;
