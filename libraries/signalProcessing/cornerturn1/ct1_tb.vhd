@@ -36,7 +36,7 @@ entity ct1_tb is
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
         g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_fb_out.txt";
-        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
+        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000001"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
         g_USE_FILTERBANK : std_logic := '0'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
