@@ -51,12 +51,13 @@ architecture Behavioral of flattening_wrapper is
     
     -- Symmetric FIR filter IP is created in corr_ct1.tcl
     -- Properties:
+
     --create_ip -name fir_compiler -vendor xilinx.com -library ip -version 7.2 -module_name sps_flatten
     --set_property -dict [list \
     --  CONFIG.CoefficientVector \
-    --{0,  0, 0,   0,  0,   0,  0,   0,  0,    0,   0,    0,   0,    0,   0,     0,    0,     0,    0,     0,    0,     0,    0,     0, 65536,     0,    0,     0,    0,     0,    0,     0,    0,    0,    0,    0,   0,    0,   0,    0,  0,   0,  0,   0,  0,   0, 0,  0, 0, \
-    -- 3, -5, 9, -14, 22, -31, 42, -58, 96, -129, 176, -234, 303, -384, 474,  -625, 1883, -1705, 2110, -2496, 2857, -3168, 3406, -3557, 69167, -3557, 3406, -3168, 2857, -2496, 2110, -1705, 1883, -625,  474, -384, 303, -234, 176, -129, 96, -58, 42, -31, 22, -14, 9, -5, 3, \
-    -- 2, -4, 8, -13, 19, -31, 47, -65, 91, -123, 162, -208, 261, -320, 596, -1182, 1099, -1514, 1775, -2089, 2360, -2597, 2778, -2892, 68476, -2892, 2778, -2597, 2360, -2089, 1775, -1514, 1099, -1182, 596, -320, 261, -208, 162, -123, 91, -65, 47, -31, 19, -13, 8, -4, 2} \
+    --{0,  0, 0,    0,  0,   0,   0,   0,  0,    0,   0,    0,   0,    0,   0,     0,    0,     0,    0,     0,    0,     0,    0,     0, 65536,     0,    0,     0,    0,     0,    0,     0,    0,     0,    0,    0,   0,    0,   0,    0,  0,   0,  0,   0,  0,   0,  0,  0, 0, \
+    -- 3, -6, 10, -16, 24, -34,  46, -61, 98, -128, 173, -229, 300, -387, 488,  -621, 1881, -1705, 2110, -2498, 2861, -3172, 3411, -3562, 69172, -3562, 3411, -3172, 2861, -2498, 2110, -1705, 1881,  -621,  488, -387, 300, -229, 173, -128, 98, -61, 46, -34, 24, -16, 10, -6, 3, \
+    -- 1, -2, 4,   -7, 12, -21,  36, -51, 78, -111, 155, -213, 284, -362, 652, -1263, 1209, -1653, 1944, -2288, 2583, -2843, 3040, -3165, 68751, -3165, 3040, -2843, 2583, -2288, 1944, -1653, 1209, -1263,  652, -362, 284, -213, 155, -111, 78, -51, 36, -21, 12,  -7,  4, -2, 1} \
     --  CONFIG.Coefficient_Fractional_Bits {0} \
     --  CONFIG.Coefficient_Sets {3} \
     --  CONFIG.Coefficient_Sign {Signed} \
@@ -74,12 +75,13 @@ architecture Behavioral of flattening_wrapper is
     --  CONFIG.Output_Width {16} \
     --] [get_ips sps_flatten]
     --create_ip_run [get_ips sps_flatten]    
+     
     --
     -- The filter taps scale the total power across the band by 65536
-    -- For the 16d filter, sum(abs(FIR taps)) = 116741
-    -- For the 18a filter, sum(abs(FIR taps)) = 108948
+    -- For the 16d filter, sum(abs(FIR taps)) = 116820
+    -- For the 18a filter, sum(abs(FIR taps)) = 112705
     -- i.e. the filter can potentially scale up pathological input data by a factor of
-    --  116741/65534 = 1.78
+    --  116820/65536 = 1.78
     --
     -- With 16 bit output, an input pulse value of 64 leads to an output value of 
     -- ... -230 8521 -230 ...
