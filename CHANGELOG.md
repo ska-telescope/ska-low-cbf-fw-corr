@@ -1,8 +1,14 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.3
+    * 59 tap ripple correction filter for 16d and 18a TPM filters
+    * Selectable using the ripple_select regiser in CT1
+        * 0 = identity filter (no correction)
+        * 1 = 16d
+        * 2 = 18a
 * 0.1.2
     * Fix small base lines creating large packets.
-    * Stage 2 ripple correction implemented.
+    * Stage 2 (18a) ripple correction implemented.
 * 0.1.1 - DO NOT USE
     * Subarray addition/removal during a scan support added.
         * END packet generation added to hardware in the common module.
