@@ -90,11 +90,11 @@ peripherals:
                                    bit 1 = ct2 tables in use \
                                    both of these bits will change within a few seconds of table_select changing."                 
           
-          - - field_name        : ripple_disable
-              width             : 1
+          - - field_name        : ripple_select
+              width             : 2
               access_mode       : RW
-              reset_value       : 0x1
-              field_description : "Set to 1 to disable ripple correction. Default (0) is ripple correction enabled." 
+              reset_value       : 0x0
+              field_description : "Ripple correction to use. 0 = identity filter, i.e. no ripple correction, 1 = TPM 16d filter, 2 = TPM 18a filter." 
           
           - - field_name        : output_cycles
               width             : 16

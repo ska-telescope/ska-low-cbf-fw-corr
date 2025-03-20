@@ -18,7 +18,7 @@ use common_lib.common_pkg.ALL;
 use DSP_top_lib.DSP_top_pkg.all;
 
 entity flattening_wrapper is
-    Port (
+    port (
         clk : in std_logic;
         -----------------------------------------------------------
         -- Data in
@@ -26,7 +26,11 @@ entity flattening_wrapper is
         i_sofFull : in std_logic;
         i_data    : in t_slv_32_arr(3 downto 0);
         i_valid   : in std_logic;
-        i_flatten_disable : in std_logic; -- '1' to disable the flattening filter.
+        -- flatten select :
+        --  "00" = identity filter
+        --  "01" = Compensate for TPM 16d filter
+        --  "10" = Compensate for TPM 18a filter
+        i_flatten_select : in std_logic_vector(1 downto 0); 
         -----------------------------------------------------------
         -- Data out
         o_HPol0   : out t_slv_16_arr(1 downto 0);
@@ -45,11 +49,17 @@ end flattening_wrapper;
 
 architecture Behavioral of flattening_wrapper is
     
-    -- Created in 
+    -- Symmetric FIR filter IP is created in corr_ct1.tcl
+    -- Properties:
+
+    --create_ip -name fir_compiler -vendor xilinx.com -library ip -version 7.2 -module_name sps_flatten
     --set_property -dict [list \
-    --  CONFIG.CoefficientVector {5,-7,12,-21,31,169,-676,504,-833,1007,-1243,1442,-1620,1756,-1842,68166,-1842,1756,-1620,1442,-1243,1007,-833,504,-676,169,31,-21,12,-7,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,65536,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} \
+    --  CONFIG.CoefficientVector \
+    --{0,  0, 0,    0,  0,   0,   0,   0,  0,    0,   0,    0,   0,    0,   0,     0,    0,     0,    0,     0,    0,     0,    0,     0, 65536,     0,    0,     0,    0,     0,    0,     0,    0,     0,    0,    0,   0,    0,   0,    0,  0,   0,  0,   0,  0,   0,  0,  0, 0, \
+    -- 3, -6, 10, -16, 24, -34,  46, -61, 98, -128, 173, -229, 300, -387, 488,  -621, 1881, -1705, 2110, -2498, 2861, -3172, 3411, -3562, 69172, -3562, 3411, -3172, 2861, -2498, 2110, -1705, 1881,  -621,  488, -387, 300, -229, 173, -128, 98, -61, 46, -34, 24, -16, 10, -6, 3, \
+    -- 1, -2, 4,   -7, 12, -21,  36, -51, 78, -111, 155, -213, 284, -362, 652, -1263, 1209, -1653, 1944, -2288, 2583, -2843, 3040, -3165, 68751, -3165, 3040, -2843, 2583, -2288, 1944, -1653, 1209, -1263,  652, -362, 284, -213, 155, -111, 78, -51, 36, -21, 12,  -7,  4, -2, 1} \
     --  CONFIG.Coefficient_Fractional_Bits {0} \
-    --  CONFIG.Coefficient_Sets {2} \
+    --  CONFIG.Coefficient_Sets {3} \
     --  CONFIG.Coefficient_Sign {Signed} \
     --  CONFIG.Coefficient_Structure {Inferred} \
     --  CONFIG.Coefficient_Width {18} \
@@ -57,18 +67,21 @@ architecture Behavioral of flattening_wrapper is
     --  CONFIG.Data_Fractional_Bits {0} \
     --  CONFIG.Data_Width {8} \
     --  CONFIG.Output_Rounding_Mode {Full_Precision} \
-    --  CONFIG.Output_Width {16} \
     --  CONFIG.Quantization {Integer_Coefficients} \
     --  CONFIG.Clock_Frequency {300.0} \
     --  CONFIG.Sample_Frequency {300} \
-    --  CONFIG.Filter_Architecture {Systolic_Multiply_Accumulate} \    
+    --  CONFIG.Filter_Architecture {Systolic_Multiply_Accumulate} \
+    --  CONFIG.Output_Rounding_Mode {Convergent_Rounding_to_Even} \
+    --  CONFIG.Output_Width {16} \
     --] [get_ips sps_flatten]
-    -- Utilisation (stand-alone build) : 287 LUTs, 476 registers, 16 DSP
+    --create_ip_run [get_ips sps_flatten]    
+     
     --
-    -- The sum of the filter taps = 65534 (not quite 65536 due to rounding)
-    -- The sum(abs) of the filter taps = 90502, 
+    -- The filter taps scale the total power across the band by 65536
+    -- For the 16d filter, sum(abs(FIR taps)) = 116820
+    -- For the 18a filter, sum(abs(FIR taps)) = 112705
     -- i.e. the filter can potentially scale up pathological input data by a factor of
-    --  90502/65534 = 1.381
+    --  116820/65536 = 1.78
     --
     -- With 16 bit output, an input pulse value of 64 leads to an output value of 
     -- ... -230 8521 -230 ...
@@ -76,8 +89,10 @@ architecture Behavioral of flattening_wrapper is
     -- (64 * 128 = 8192, peak of the impulse response is a bit higher)
     -- For 8 bit data at the input, we want
     --  128 -> 16384, so that there is some headroom since the filter can produce larger values at the output than the input.
-    -- Max range for a 16 bit value is +/- 32767, so with 128 at the input mapping to 16384, we will use a range of +/- 1.381 * 16384 = +/- 22626
+    -- Max range for a 16 bit value is +/- 32767, so with 128 at the input mapping to 16384, we will use a range of +/- 1.78 * 16384 = +/- 29164
     --
+    constant c_FIR_TAPS : integer := 49; -- Number of FIR taps used in the filter
+    
     component sps_flatten
     port (
         aclk               : in std_logic;
@@ -87,7 +102,7 @@ architecture Behavioral of flattening_wrapper is
         -- single bit of configuration data, '0' to select compensation, '1' for pass through
         s_axis_config_tvalid : in  std_logic;
         s_axis_config_tready : out std_logic;
-        s_axis_config_tdata  : in  std_logic_vector(7 downto 0); -- 0x0 for ripple compensation filter, 0x1 for identity filter (pass-through) with the same gain.
+        s_axis_config_tdata  : in  std_logic_vector(7 downto 0); -- 0x0 for identity, 0x1 TPM 16d filter, 0x2 for TPM 18a filter.
         -- Output
         m_axis_data_tvalid : out std_logic;
         m_axis_data_tdata  : out std_logic_vector(15 downto 0));
@@ -99,24 +114,24 @@ architecture Behavioral of flattening_wrapper is
     signal valid_out    : std_logic_vector(15 downto 0);
     signal data_zeroed  : t_slv_32_arr(3 downto 0);
     signal config_tdata : std_logic_vector(7 downto 0);
-    signal sof_del, sofFull_del : std_logic_vector(27 downto 0) := (others => '0');
+    signal sof_del, sofFull_del : std_logic_vector(c_FIR_TAPS-4 downto 0) := (others => '0');
     
 begin
     
     process(clk)
     begin
         if rising_edge(clk) then
-            -- For the first packet after start of frame, we get an extra 30 samples 
+            -- For the first packet after start of frame, we get an extra g_SAMPLES_TO_DROP samples 
             -- to initialise the state of the filter, and we have to drop the first 
             -- 30 samples from the output of the filter.
-            if sof_del(27) = '1' then
+            if sof_del(c_FIR_TAPS-4) = '1' then
                 drop_samples <= '1';
-            elsif unsigned(output_count) > 28 then
-                -- comparison with 28 because its a few clocks behind 
+            elsif unsigned(output_count) > (c_FIR_TAPS-3) then
+                -- comparison with c_FIR_TAPS-3 because its a few clocks behind 
                 drop_samples <= '0'; 
             end if;
             
-            if sof_del(27) = '1' then
+            if sof_del(c_FIR_TAPS-4) = '1' then
                 -- Count the samples after the start of frame so we can drop the 
                 -- first 30 of them.
                 output_count <= (others => '0');
@@ -125,10 +140,10 @@ begin
                 output_count <= std_logic_vector(unsigned(output_count) + 1);
             end if;
             
-            config_tdata <= "0000000" & i_flatten_disable;
+            config_tdata <= "000000" & i_flatten_select;
             
-            sof_del(27 downto 1) <= sof_del(26 downto 0);
-            sofFull_del(27 downto 1) <= sofFull_del(26 downto 0);
+            sof_del((c_FIR_TAPS-4) downto 1) <= sof_del((c_FIR_TAPS-5) downto 0);
+            sofFull_del((c_FIR_TAPS-4) downto 1) <= sofFull_del((c_FIR_TAPS-5) downto 0);
             
         end if;
     end process;
@@ -136,8 +151,8 @@ begin
     sof_del(0) <= i_sof;
     sofFull_del(0) <= i_sofFull;
 
-    o_sof <= sof_del(27);
-    o_sofFull <= sofFull_del(27);
+    o_sof <= sof_del(c_FIR_TAPS-4);
+    o_sofFull <= sofFull_del(c_FIR_TAPS-4);
     
     fgen1 : for i in 0 to 3 generate
         fgen2 : for j in 0 to 3 generate

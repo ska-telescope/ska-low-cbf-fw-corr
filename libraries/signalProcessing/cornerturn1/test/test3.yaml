@@ -1,5 +1,8 @@
 integration_start: 11
 sim_frames : 1
+# Select the ripple filter to use, corresponds to the register setting
+ripple : 1
+
 polynomials:
   # each entry is for a particular virtual channel
   0:

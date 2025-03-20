@@ -65,9 +65,16 @@ import argparse
 import numpy as np
 import yaml
 import typing
+import sys
 
 # 31 FIR tap deripple filter, for the SPS 18-tap filter 
 c_deripple = np.array([5,-7,12,-21,31,169,-676,504,-833,1007,-1243,1442,-1620,1756,-1842,68166,-1842,1756,-1620,1442,-1243,1007,-833,504,-676,169,31,-21,12,-7,5])
+
+# 49 tap FIR deripple filters
+c_fir_taps = 49
+c_deripple0 = np.array([0,  0, 0,   0,  0,   0,  0,   0,  0,    0,   0,    0,   0,    0,   0,     0,    0,     0,    0,     0,    0,     0,    0,     0,  65536,     0,    0,     0,    0,     0,    0,     0,    0,     0,    0,    0,   0,    0,   0,    0,  0,   0,  0,   0,  0,   0, 0,  0,  0])
+c_deripple1 = np.array([3, -6, 10, -16, 24, -34, 46, -61, 98, -128, 173, -229, 300, -387, 488,  -621, 1881, -1705, 2110, -2498, 2861, -3172, 3411, -3562, 69172, -3562, 3411, -3172, 2861, -2498, 2110, -1705, 1881,  -621,  488, -387, 300, -229, 173, -128, 98, -61, 46, -34, 24, -16, 10, -6, 3])
+c_deripple2 = np.array([1, -2, 4,   -7, 12, -21, 36, -51, 78, -111, 155, -213, 284, -362, 652, -1263, 1209, -1653, 1944, -2288, 2583, -2843, 3040, -3165, 68751, -3165, 3040, -2843, 2583, -2288, 1944, -1653, 1209, -1263,  652, -362, 284, -213, 155, -111, 78, -51, 36, -21, 12,  -7,  4, -2, 1])
 
 def command_line_args():
     parser = argparse.ArgumentParser(description="Correlator CT1 polynomial configuration generator")
@@ -385,6 +392,16 @@ def main():
     # Calculate the expected delays for each virtual channel
     integration_start = config["integration_start"]
     sim_frames = config["sim_frames"]
+    if config["ripple"] == 0:
+        deripple = c_deripple0
+    elif config["ripple"] == 1:
+        deripple = c_deripple1
+    elif config["ripple"] == 2:
+        deripple = c_deripple2
+    else:
+        print("!!! ripple selection error")
+        sys.exit()
+    
     data_mismatch = 0
     data_match = 0
     meta_match = 0
@@ -479,15 +496,16 @@ def main():
                         # Apply the deripple FIR filter = c_deripple = [5,-7,12,-21,31,169,-676,504,-833,1007,-1243,1442,-1620,1756,-1842,68166,-1842,1756,-1620,1442,-1243,1007,-833,504,-676,169,31,-21,12,-7,5]
                         # to the expected data
                         # 
-                        # Get the expected samples that the deripple filter is applied to. Initialisation of the FIR filter needs:
+                        # Get the expected samples that the deripple filter is applied to. Initialisation of the FIR 31 tap filter needs:
                         #  - 15 samples extra at the front
                         #  - total 30 samples extra
-                        first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 - coarse_delay - 15
-                        packet_samples = np.arange(first_sample,first_sample+2048+30)
+                        # Likewise 49 tap FIR filter needs 24 extra sample at the front, 48 extra altogether.
+                        first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 - coarse_delay - c_fir_taps//2
+                        packet_samples = np.arange(first_sample,first_sample+2048+(c_fir_taps - 1))
                         expected_packet_Xre = fix_8bit_rfi(packet_samples % 256)
                         expected_packet_Xim = fix_8bit_rfi((packet_samples // 256) % 256)
                         expected_packet_Yre = fix_8bit_rfi((packet_samples // 65536) % 256)
-                        expected_packet_Yim = fix_8bit_rfi(vc * np.ones(2048+30))   # Yim is fixed to the virtual channel in the testbench
+                        expected_packet_Yim = fix_8bit_rfi(vc * np.ones(2048+c_fir_taps - 1))   # Yim is fixed to the virtual channel in the testbench
                         #if (packet == 0) and (vc == 0):
                         #    print(f"First 31 packet samples = {packet_samples[0:32]}")
                         
@@ -502,11 +520,11 @@ def main():
                             expected_Xim = 0
                             expected_Yre = 0
                             expected_Yim = 0
-                            for FIR_tap in range(31):
-                                expected_Xre = expected_Xre + c_deripple[FIR_tap] * expected_packet_Xre[sample + FIR_tap]
-                                expected_Xim = expected_Xim + c_deripple[FIR_tap] * expected_packet_Xim[sample + FIR_tap]
-                                expected_Yre = expected_Yre + c_deripple[FIR_tap] * expected_packet_Yre[sample + FIR_tap]
-                                expected_Yim = expected_Yim + c_deripple[FIR_tap] * expected_packet_Yim[sample + FIR_tap]
+                            for FIR_tap in range(c_fir_taps):
+                                expected_Xre = expected_Xre + deripple[FIR_tap] * expected_packet_Xre[sample + FIR_tap]
+                                expected_Xim = expected_Xim + deripple[FIR_tap] * expected_packet_Xim[sample + FIR_tap]
+                                expected_Yre = expected_Yre + deripple[FIR_tap] * expected_packet_Yre[sample + FIR_tap]
+                                expected_Yim = expected_Yim + deripple[FIR_tap] * expected_packet_Yim[sample + FIR_tap]
                                 #if (sample == 0) and (packet == 0) and (vc == 0):
                                 #    print(f"FIR {FIR_tap}, FIR tap = {c_deripple[FIR_tap]}, data = {expected_packet_Xre[sample + FIR_tap]}, cumulative sum = {expected_Xre}")
                             
