@@ -501,15 +501,15 @@ def main():
                         #  - total 30 samples extra
                         # Likewise 49 tap FIR filter needs 24 extra sample at the front, 48 extra altogether.
                         first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 - coarse_delay - c_fir_taps//2
-                        packet_samples = np.arange(first_sample,first_sample+2048+(c_fir_taps - 1))
+                        packet_samples = np.arange(first_sample,first_sample+4096+(c_fir_taps - 1))
                         expected_packet_Xre = fix_8bit_rfi(packet_samples % 256)
                         expected_packet_Xim = fix_8bit_rfi((packet_samples // 256) % 256)
                         expected_packet_Yre = fix_8bit_rfi((packet_samples // 65536) % 256)
-                        expected_packet_Yim = fix_8bit_rfi(vc * np.ones(2048+c_fir_taps - 1))   # Yim is fixed to the virtual channel in the testbench
+                        expected_packet_Yim = fix_8bit_rfi(vc * np.ones(4096+c_fir_taps - 1))   # Yim is fixed to the virtual channel in the testbench
                         #if (packet == 0) and (vc == 0):
                         #    print(f"First 31 packet samples = {packet_samples[0:32]}")
                         
-                        for sample in range(2048):
+                        for sample in range(4096):
                             Xre = data_data[integration_offset,frame_in_integration,packet,vc,0,sample]
                             Xim = data_data[integration_offset,frame_in_integration,packet,vc,1,sample]
                             Yre = data_data[integration_offset,frame_in_integration,packet,vc,2,sample]
