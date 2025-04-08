@@ -157,7 +157,7 @@ architecture Behavioral of LTA_top is
     signal fifo_wr_en : std_logic;
     signal integratedReadEnDel : std_logic_vector(20 downto 0);
     signal rst_del1 : std_logic;
-    type t_data_deliver_fsm is (idle, send_vis_start, send_vis, send_vis_wait, send_tci, send_tci_wait, end_cell);
+    type t_data_deliver_fsm is (idle, send_vis_start, send_vis, send_vis_wait, send_tci, send_tci_wait, end_cell, end_last_cell);
     signal data_deliver_fsm : t_data_deliver_fsm := idle;
     
     signal deliver_totalTimes : std_logic_Vector(7 downto 0);
@@ -179,7 +179,7 @@ architecture Behavioral of LTA_top is
     signal deliverChannelDel : t_slv_24_arr(15 downto 0); 
     signal deliver_channel : std_logic_vector(23 downto 0);
     signal data_output_count : std_logic_vector(7 downto 0);
-    signal outputCountReset : std_logic_Vector(15 downto 0);
+    signal outputCountReset : std_logic_vector(15 downto 0);
     signal readoutActive : std_logic := '0';
     signal accumulator_totalStations, buf0_totalStations, buf1_totalStations : std_logic_vector(15 downto 0);
     signal accumulator_subarrayBeam, buf0_subarrayBeam, buf1_subarrayBeam : std_logic_vector(7 downto 0);
@@ -665,7 +665,7 @@ begin
                     if (unsigned(TCIReadoutCount) = 15) then
                         cellReadoutCount <= std_logic_vector(unsigned(cellReadoutCount) + 1);
                         if (cellReadoutCount = deliver_cellMax) then
-                            data_deliver_fsm <= idle;
+                            data_deliver_fsm <= end_last_cell;
                         else
                             data_deliver_fsm <= end_cell;
                         end if;
@@ -682,6 +682,12 @@ begin
                     else
                         end_cell_cnt     <= end_cell_cnt + 1;
                     end if;
+                
+                when end_last_cell =>
+                    -- This state provides one extra clock of idle time prior to processing the 
+                    -- next "axi_meta_valid". This is needed to finish sending tci data for the 
+                    -- case where axi_meta_valid is already high.
+                    data_deliver_fsm <= idle;
                 
                 when send_tci_wait =>
                     if i_stop = '0' then
