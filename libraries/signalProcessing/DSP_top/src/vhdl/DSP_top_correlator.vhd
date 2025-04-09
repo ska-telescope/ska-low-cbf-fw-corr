@@ -25,9 +25,8 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 USE axi4_lib.axi4_stream_pkg.ALL;
 USE axi4_lib.axi4_full_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
+use correlator_lib.target_fpga_pkg.ALL;
 
-library technology_lib;
-USE technology_lib.tech_mac_100g_pkg.ALL;
 
 library xpm;
 use xpm.vcomponents.all;
@@ -255,7 +254,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_packet_data : t_slv_256_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_packet_valid : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
     signal LFAAingest_totalChannels : std_logic_vector(11 downto 0);
-    signal data_tx_siso : t_lbus_siso;
+
     signal FB_out_sof : std_logic;
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
     signal reset_to_ct_1 : std_logic;
@@ -286,7 +285,8 @@ begin
     --  - Notifies the corner turn, which generates the write address part of the AXI memory interface.
     --  - Outputs the data part of the packet on the wdata part of the AXI memory interface.
     LFAAingest_packetCount(47 downto 40)    <= x"00";
-    
+
+
     LFAAin : entity LFAADecode100G_lib.LFAADecodeTop100G
     port map(
         -- Data in from the 100GE MAC
@@ -329,6 +329,8 @@ begin
         -- debug
         o_dbg              => LFAADecode_dbg
     );
+
+gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE
     
     LFAA_FB_CT : entity CT_lib.corr_ct1_top
     -- generic map (
@@ -804,6 +806,8 @@ begin
         i_spead_full_axi_mosi   => i_spead_full_axi_mosi,
         o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
+
+END GENERATE;
 
     CMAC_100G_reset_proc : process(i_clk_100GE)
     begin
