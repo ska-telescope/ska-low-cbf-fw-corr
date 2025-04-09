@@ -161,6 +161,11 @@ entity full_correlator is
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     : in std_logic
     );
+    
+    -- prevent optimisation across module boundaries.
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of full_correlator : entity is "yes";
+    
 end full_correlator;
 
 architecture Behavioral of full_correlator is

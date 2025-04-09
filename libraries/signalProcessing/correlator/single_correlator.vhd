@@ -120,10 +120,6 @@ entity single_correlator is
         o_freq_index0_repeat : out std_logic
     );
     
-    -- prevent optimisation across module boundaries.
-    attribute keep_hierarchy : string;
-    attribute keep_hierarchy of single_correlator : entity is "yes";
-    
 end single_correlator;
 
 architecture Behavioral of single_correlator is
