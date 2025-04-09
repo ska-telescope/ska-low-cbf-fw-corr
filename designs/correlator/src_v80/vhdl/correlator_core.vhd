@@ -123,14 +123,22 @@ END correlator_core;
 -------------------------------------------------------------------------------
 ARCHITECTURE structure OF correlator_core IS
 
-    signal ap_rst : std_logic;
-    signal ap_idle, idle_int : std_logic;
-
+    component clk_mmcm_400 is
+    Port ( 
+        clk_in1 : in STD_LOGIC;
+        clk_out1 : out STD_LOGIC
+    );
+    end component;
     
-    signal ap_start, ap_done : std_logic;
-    signal DMA_src_addr, DMA_dest_addr : std_logic_vector(31 downto 0);
-    signal DMA_size : std_logic_vector(31 downto 0);
-    signal DMASharedMemAddr : std_logic_vector(63 downto 0);
+    component clk_mmcm_425 is
+    Port ( 
+        clk_in1 : in STD_LOGIC;
+        clk_out1 : out STD_LOGIC
+    );
+    end component;
+      
+    signal ap_rst : std_logic;
+
     
 --    signal system_fields_rw : t_system_rw;
 --    signal system_fields_ro : t_system_ro;
@@ -150,7 +158,7 @@ ARCHITECTURE structure OF correlator_core IS
     signal freerunSecCount : std_logic_vector(31 downto 0) := x"00000000";
 
     signal GTY_startup_rst : std_logic := '0';
-    signal clk100 : std_logic;
+
     signal clk400 : std_logic;
     signal clk425 : std_logic;
     signal clk_gt_freerun_use : std_logic;
@@ -255,25 +263,19 @@ begin
     ---------------------------------------------------------------------------
     -- CLOCKING & RESETS  --
     ---------------------------------------------------------------------------
-
---    u_get100 : clk_gen100MHz
---    port map ( 
---        clk100_out => clk100,  -- 100 MHz 
---        clk425_out => clk425,  -- 425 MHz clock, used for the correlator.
---        clk_in1 => clk_freerun  -- 100 MHz in
---    );
-    
---    clk_gt_freerun_use <= clk_freerun; -- or use clk_gt_freerun, if we can convince vitis to connect clk_gt_freerun to anything... 
-    
---    u_get400 : clk_gen400MHz
---    port map (
---        clk400_out => clk400, -- 
---        clk_in1    => clk_freerun  -- 100MHz clock in
---    );
-    
-
    
-    
+    i_mmcm_400 : clk_mmcm_400 
+    Port map ( 
+        clk_in1     => clk_100,
+        clk_out1    => clk400
+    );
+
+    i_mmcm_425 : clk_mmcm_425
+    Port map ( 
+        clk_in1     => clk_100,
+        clk_out1    => clk425
+    );
+   
     ---------------------------------------------------------------------------
     -- TOP Level Registers  --
     ---------------------------------------------------------------------------
@@ -385,18 +387,18 @@ begin
         o_axis_tvalid  => o_axis_tvalid, -- out std_logic;
         i_axis_tready  => i_axis_tready, -- in std_logic;
         
-        i_clk_100GE      => i_eth100G_clk,      -- in std_logic;
-        i_eth100G_locked => i_eth100G_locked,
+        i_clk_100GE         => i_eth100G_clk,      -- in std_logic;
+        i_eth100G_locked    => i_eth100G_locked,
         -- Filterbank processing clock, 450 MHz
-        i_clk425 => clk425,  -- in std_logic;
-        i_clk400 => clk400,  -- in std_logic;
+        i_clk425            => clk425,  -- in std_logic;
+        i_clk400            => clk400,  -- in std_logic;
         -----------------------------------------------------------------------
         -- reset of the valid memory is in progress.
         o_validMemRstActive => o_validMemRstActive,
         -----------------------------------------------------------------------
         -- AXI slave interfaces for modules
-        i_MACE_clk  => clk_100, -- in std_logic;
-        i_MACE_rst  => clk_100_rst, -- in std_logic;
+        i_MACE_clk  => clk_300, -- in std_logic;
+        i_MACE_rst  => clk_300_rst, -- in std_logic;
         -- LFAADecode, lite + full slave
         i_LFAALite_axi_mosi             => c_axi4_lite_mosi_rst, 
         o_LFAALite_axi_miso => open,

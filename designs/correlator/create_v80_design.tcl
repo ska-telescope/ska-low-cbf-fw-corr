@@ -236,6 +236,10 @@ proc do_aved_create_design { } {
   }]
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/vhdl/correlator_core.vhd]
+
+source $DESIGN_PATH/src_v80/ip/correlator.tcl
+
+
 # signal processing Top level
 
   add_files -fileset sources_1 [glob \
