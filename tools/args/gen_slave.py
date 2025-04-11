@@ -422,8 +422,8 @@ class Slave(object):
         return(lines)
 
     def gen_file(self, settings, slave_type, file_type):
-        settings = "_" + settings.name() if slave_type != "reg" else ""
-        out_file = f"{self.prefix}{settings}_{slave_type}.{file_type}"
+        set_name = "_" + settings.name() if slave_type != "reg" else ""
+        out_file = f"{self.prefix}{set_name}_{slave_type}.{file_type}"
 
         if file_type == 'tcl':
             out_file = "ip_" + out_file
