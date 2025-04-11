@@ -186,11 +186,9 @@ class Slave(object):
 
     def gen_vho(self, template_path: str):
         lines = []
-        tmplFile =
         # fields_dict = slaveSettings.fields
         with open(template_path, 'r') as infile:
             for line in infile:
-                addlines = []
                 if '<lib_name>' in line:
                     line = line.replace('<lib_name>', self.periph_lib if self.periph_lib == self.periph_name else self.periph_lib + '_' + self.periph_name)
                 if '<lib>' in line:
