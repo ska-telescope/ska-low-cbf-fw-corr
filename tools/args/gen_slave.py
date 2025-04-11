@@ -430,13 +430,15 @@ class Slave(object):
             self.write_file(self.gen_tcl(settings, slave_type), out_file)
         elif file_type == 'vho':
             self.write_file(self.gen_vho(), out_file)
-        else:
+        elif file_type == 'vhd':
             # AXI4 interface
             self.write_file(self.gen_vhdl(settings, slave_type), out_file)
             # NOC interface
             filename, extension = os.path.splitext(out_file)
             out_file = f"{filename}_versal{extension}"
             self.write_file(self.gen_vhdl(settings, slave_type, "noc"), out_file)
+        else:
+            raise NotImplementedError(f"gen_file doesn't know {file_type=}")
 
     def set_init_string(self, regGroup):
         field_list = regGroup.fields
