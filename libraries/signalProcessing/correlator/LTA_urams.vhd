@@ -97,6 +97,12 @@ architecture Behavioral of LTA_urams is
     signal readout_cell : std_logic_vector(7 downto 0);
     signal readout_column, readout_row : std_logic_vector(3 downto 0);
     signal readoutSelBuf0 : std_logic_vector(19 downto 0);
+
+    signal select_row_dout0 : std_logic_vector(15 downto 0);
+    signal select_row_dout1 : std_logic_vector(15 downto 0);
+    attribute dont_touch : string;
+    attribute dont_touch of select_row_dout0 : signal is "true";
+    attribute dont_touch of select_row_dout1 : signal is "true";
     
 begin
     
@@ -237,6 +243,8 @@ begin
         end if;
     end process;
     
+    select_row_dout0(0) <= '0'; -- unused
+    select_row_dout1(0) <= '0'; -- unused
     
     row_mux_gen : for row in 1 to 15 generate
 
@@ -256,17 +264,41 @@ begin
         begin
             if rising_edge(i_clk) then
             
-                if (unsigned(readoutRowDel(row+3)) = row) then  -- +3 since there is a 3 cycle read latency for the memories.
+                if unsigned(readoutRowDel(row+2)) = row then
+                    select_row_dout0(row) <= '1';
+                else
+                    select_row_dout0(row) <= '0';
+                end if;
+                if unsigned(readoutRowDel(row+2)) = row then
+                    select_row_dout1(row) <= '1';
+                else
+                    select_row_dout1(row) <= '0';
+                end if;
+                
+                if (select_row_dout0(row) = '1') then  -- +3 since there is a 3 cycle read latency for the memories.
                     dout0(row) <= buf0_dout(row)(3) & buf0_dout(row)(2) & buf0_dout(row)(1) & buf0_dout(row)(0);
                 else
                     dout0(row) <= dout0(row-1);
                 end if;
                 
-                if (unsigned(readoutRowDel(row+3)) = row) then
+                if (select_row_dout1(row) = '1') then
                     dout1(row) <= buf1_dout(row)(3) & buf1_dout(row)(2) & buf1_dout(row)(1) & buf1_dout(row)(0);
                 else
                     dout1(row) <= dout1(row-1);
                 end if;
+                
+                -- Previous code, replaced with pipelined code above
+--                if (unsigned(readoutRowDel(row+3)) = row) then  -- +3 since there is a 3 cycle read latency for the memories.
+--                    dout0(row) <= buf0_dout(row)(3) & buf0_dout(row)(2) & buf0_dout(row)(1) & buf0_dout(row)(0);
+--                else
+--                    dout0(row) <= dout0(row-1);
+--                end if;
+                
+--                if (unsigned(readoutRowDel(row+3)) = row) then
+--                    dout1(row) <= buf1_dout(row)(3) & buf1_dout(row)(2) & buf1_dout(row)(1) & buf1_dout(row)(0);
+--                else
+--                    dout1(row) <= dout1(row-1);
+--                end if;
           
             end if;
         end process;

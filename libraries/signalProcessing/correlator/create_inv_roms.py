@@ -35,7 +35,9 @@ if __name__ == "__main__":
             f.write('    type rom_type is array(511 downto 0) of std_logic_vector(31 downto 0); \n')
             f.write('    signal rom : rom_type := (\n')
             for rom_row in range(512):
-                d = np.float32(rom * 512 + rom_row)
+                # array is (511 downto 0), so first entry is for 511, so flip the order 
+                rom_row_reversed = 511 - rom_row
+                d = np.float32(rom * 512 + rom_row_reversed)
                 if (d == 0):
                     dinv = '00000000'
                 else:
