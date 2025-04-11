@@ -61,8 +61,6 @@ class FPGA(object):
         self.nof_full = 0
         self.address_map = collections.OrderedDict()
         self.alignment = alignment
-        # IT'S A HACK
-        self.alignment = 65536
         logger.debug("***FPGA object instantiation: creating for {}".format(file_path_name))
 
         if file_path_name is None:
@@ -362,7 +360,8 @@ class FPGALibrary(object):
         for fpn in file_path_names:
             logger.info("Creating ARGS FPGA object from {}".format(fpn))
             tic = time.time()
-            fpga = FPGA(fpn, periph_lib=periph_lib)
+            # FIXME - IT'S A HACK!!!
+            fpga = FPGA(fpn, periph_lib=periph_lib, alignment=65536)
             toc = time.time()
             logger.debug("fpga creation for %s took %.4f seconds" %(fpn, toc-tic))
             fpga.show_overview()
