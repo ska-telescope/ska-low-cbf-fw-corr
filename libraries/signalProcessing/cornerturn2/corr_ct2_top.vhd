@@ -201,6 +201,7 @@ architecture Behavioral of corr_ct2_top is
     signal dout_SB_valid    : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal dout_SB_stations : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);    -- The number of (sub)stations in this subarray-beam
     signal dout_SB_coarseStart : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- The first coarse channel in this subarray-beam
+    signal dout_SB_outputDisable : std_logic_vector(g_MAX_CORRELATORS-1 downto 0); -- Don't generate any output to the correlator for this entry in the subarray beam table
     signal dout_SB_fineStart : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);   -- The first fine channel in this subarray-beam
     signal dout_SB_n_fine : t_slv_24_arr(g_MAX_CORRELATORS-1 downto 0);      -- The number of fine channels in this subarray-beam
     signal dout_SB_fineIntegrations : t_slv_6_arr(g_MAX_CORRELATORS-1 downto 0);  -- Number of fine channels to integrate
@@ -592,6 +593,7 @@ begin
         i_SB_done  => dout_SB_done(0),   -- Indicates that all the subarray beams for this correlator core has been processed.
         i_stations => dout_SB_stations(0),                 -- in (15:0); The number of (sub)stations in this subarray-beam
         i_coarseStart => dout_SB_coarseStart(0),           -- in (15:0); The first coarse channel in this subarray-beam
+        i_outputDisable => dout_SB_outputDisable(0),      -- in std_logic;
         i_fineStart => dout_SB_fineStart(0),               -- in (15:0); The first fine channel in this subarray-beam
         i_n_fine => dout_SB_n_fine(0),                     -- in (23:0); The number of fine channels in this subarray-beam
         i_fineIntegrations => dout_SB_fineIntegrations(0), -- in (5:0);  Number of fine channels to integrate
@@ -662,6 +664,7 @@ begin
             i_SB_done  => dout_SB_done(i),   -- Indicates that all the subarray beams for this correlator core has been processed.
             i_stations => dout_SB_stations(i),                 -- in (15:0); The number of (sub)stations in this subarray-beam
             i_coarseStart => dout_SB_coarseStart(i),           -- in (15:0); The first coarse channel in this subarray-beam
+            i_outputDisable => dout_SB_outputDisable(i),      -- in std_logic;
             i_fineStart => dout_SB_fineStart(i),               -- in (15:0); The first fine channel in this subarray-beam
             i_n_fine => dout_SB_n_fine(i),                     -- in (23:0); The number of fine channels in this subarray-beam
             i_fineIntegrations => dout_SB_fineIntegrations(i), -- in (5:0);  Number of fine channels to integrate
@@ -970,7 +973,9 @@ begin
             -- Assign din and dout data read from the subarray-beam table
             if (SB_rd_fsm_del3 = get_din_rd1) then
                 din_SB_stations <= SB_rd_data(15 downto 0);
-                din_SB_coarseStart <= SB_rd_data(31 downto 16);
+                -- bit 31 of the first word is "output_disable".
+                -- It is not used by the data input side, so it is masked off here.
+                din_SB_coarseStart <= '0' & SB_rd_data(30 downto 16);
             end if;
             if (SB_rd_fsm_del3 = get_din_rd2) then
                 din_SB_fineStart <= SB_rd_data(15 downto 0);
@@ -987,7 +992,8 @@ begin
             
             if (SB_rd_fsm_del3 = get_dout_rd1) then
                 dout_SB_stations(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(15 downto 0);
-                dout_SB_coarseStart(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(31 downto 16);
+                dout_SB_coarseStart(to_integer(unsigned(dout_SB_sel_del3))) <= '0' & SB_rd_data(30 downto 16);
+                dout_SB_outputDisable(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(31);
                 dout_SB_bad_poly(to_integer(unsigned(dout_SB_sel_del3))) <= cor_bp_rd_data(to_integer(unsigned(dout_SB_sel_del3)));
             end if;
             if (SB_rd_fsm_del3 = get_dout_rd2) then

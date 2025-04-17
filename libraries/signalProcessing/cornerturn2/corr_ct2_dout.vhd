@@ -93,6 +93,7 @@ entity corr_ct2_dout is
         i_SB_done   : in std_logic;     -- Indicates that all the subarray beams for this correlator core has been processed.
         i_stations  : in std_logic_vector(15 downto 0);    -- The number of (sub)stations in this subarray-beam
         i_coarseStart : in std_logic_vector(15 downto 0);  -- The first coarse channel in this subarray-beam
+        i_outputDisable : in std_logic;
         i_fineStart   : in std_logic_vector(15 downto 0);  -- The first fine channel in this subarray-beam
         i_n_fine      : in std_logic_vector(23 downto 0);  -- The number of fine channels in this subarray-beam
         i_fineIntegrations : in std_logic_vector(5 downto 0);  -- Number of fine channels to integrate
@@ -176,7 +177,7 @@ architecture Behavioral of corr_ct2_dout is
         probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
     END COMPONENT;
 
-    type ar_fsm_type is (check_arFIFO, get_SB_data, wait_SB_data, set_ar, set_ar2, wait_ar, update_addr, next_fine, next_tile, check_fineBase, next_fineBase, next_timeBase, done);
+    type ar_fsm_type is (check_arFIFO, get_SB_data, wait_SB_data, set_ar, set_ar2, wait_ar, update_addr, next_fine, next_tile, check_fineBase, next_fineBase, next_timeBase, done, SB_wait1, SB_wait2, SB_wait3);
     signal ar_fsm, ar_fsm_del1 : ar_fsm_type := done;
     signal readBuffer : std_logic := '0';
     
@@ -248,6 +249,7 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutBadPoly : std_logic;
     signal SB_badPoly : std_logic;
     signal SB_fineStart_ext, SB_N_fine_plus_SB_fineStart : std_logic_vector(23 downto 0);
+    signal SB_outputDisable : std_logic := '0';
     
 begin
     
@@ -350,6 +352,7 @@ begin
                         ar_fsm <= wait_SB_data;
                         clear_hold <= '0';  -- Hold of the output of the address calculation.
                         o_HBM_axi_ar.valid <= '0';
+                        get_addr <= '0';
                     
                     when wait_SB_data =>
                         ar_fsm_dbg <= "0010";
@@ -367,6 +370,7 @@ begin
                             SB_base_addr <= i_HBM_base_addr; -- 32 bits, base address in HBM for this subarray-beam.
                             SB_SB <= SB_del;
                             SB_badPoly <= i_bad_poly;
+                            SB_outputDisable <= i_outputDisable;
                             
                             cur_skyFrequency <= i_coarseStart(8 downto 0);
                             cur_fineChannelBase <= "000000000000" & i_fineStart(11 downto 0);
@@ -380,23 +384,53 @@ begin
                             cur_TimeGroup <= "0000"; -- steps through "000", "001", "010", "011", "100", "101" for the 6 groups of 32 times, since data in HBM is written in 512 byte blocks with 32 times.
                             
                             ar_fsm <= check_arFIFO;
-                            get_addr <= '1';         -- Get the first address to use
+                            if i_outputDisable = '0' then
+                                get_addr <= '1';         -- Get the first address to use
+                            else
+                                get_addr <= '0';
+                            end if;
                         end if;
                         clear_hold <= '0';
                         o_HBM_axi_ar.valid <= '0';
                 
                     when check_arFIFO =>
                         ar_fsm_dbg <= "0011";
-                        -- check there is space in the ar FIFO.
-                        -- Up to 4 requests get made at a time, so make sure there is 
-                        -- at least 4 slots free in the ar fifo.
-                        if (unsigned(arFIFO_wr_count) < 56) then
-                            ar_fsm <= set_ar;
+                        if SB_outputDisable = '1' then
+                            -- Do not generate any output from this subarray-beam table entry, 
+                            -- move on to the next entry.
+                            ar_fsm <= SB_wait1;
+                        else
+                            -- check there is space in the ar FIFO.
+                            -- Up to 4 requests get made at a time, so make sure there is 
+                            -- at least 4 slots free in the ar fifo.
+                            if (unsigned(arFIFO_wr_count) < 56) then
+                                ar_fsm <= set_ar;
+                            end if;
                         end if;
                         get_addr <= '0';
                         clear_hold <= '0';
                         o_SB_req <= '0';
                         o_HBM_axi_ar.valid <= '0';
+                    
+                    when SB_wait1 =>
+                        ar_fsm_dbg <= "1110";
+                        -- Wait a few clocks for i_SB_done to reflect the new value
+                        ar_fsm <= SB_wait2;
+                        clear_hold <= '1';
+                    
+                    when SB_wait2 =>
+                        ar_fsm_dbg <= "1110";
+                        ar_fsm <= SB_wait3;
+                        clear_hold <= '1';
+                    
+                    when SB_wait3 =>
+                        ar_fsm_dbg <= "1110";
+                        if (i_SB_done = '1') then
+                            ar_fsm <= done;
+                        else
+                            ar_fsm <= get_SB_data;
+                        end if;
+                        clear_hold <= '1';
                     
                     when set_ar =>
                         ar_fsm_dbg <= "0100";
@@ -611,6 +645,7 @@ begin
                         o_SB_req <= '0';
                         ar_fsm <= done; -- Wait until we get i_start again.
                         o_HBM_axi_ar.valid <= '0';
+                        get_addr <= '0';
                         
                 end case;
             end if;
