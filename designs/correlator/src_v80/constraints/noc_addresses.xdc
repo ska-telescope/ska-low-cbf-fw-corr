@@ -2,14 +2,18 @@
 # Mappings are master to slave
 # Args infers a NoC Slave interface
 
-#set nmu_0 [get_noc_interfaces "i_v80_board/top_i/axi_noc_cips/S00_AXI_nmu"]
-#set test_nsu [get_noc_interfaces "test_comp/i_system_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
+set nmu_0 [get_noc_interfaces "i_v80_board/top_i/axi_noc_cips/S00_AXI_nmu"]
+set lfaa_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/LFAAin/gen_v80_args.i_lfaa_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 
-#set_property APERTURES [list {0x201_0000_0000:0x201_0000_FFFF}] $test_nsu
+# two 64K addresses, assign 128K
+set_property APERTURES [list {0x201_0000_0000:0x201_0001_FFFF}] $lfaa_1_nsu
 
-#set args_system [create_noc_connection -source $nmu_0 -target $test_nsu]
-#set_property -dict [list READ_BANDWIDTH 400 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 4] $args_system
+set lfaa_1_conn [create_noc_connection -source $nmu_0 -target $lfaa_1_nsu]
+set_property -dict [list READ_BANDWIDTH 400 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 4] $lfaa_1_conn
 
+# ADDRESS SPACE TO BE AWARE OF IN TOP BD
+# 0x201_0FFF_FFFF for 128M assigned to DDR, this can probably be deleted 
+# 0x201_0100_0000 -> 0x201_0104_FFFF Used by design components, possible to remap to higher?
 
 # HBM connections
 #HBM Ports
