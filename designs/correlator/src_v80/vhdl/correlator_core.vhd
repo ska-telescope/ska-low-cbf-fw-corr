@@ -9,6 +9,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib;
+LIBRARY noc_lib;
 
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -21,8 +22,8 @@ USE axi4_lib.axi4_full_pkg.ALL;
 USE technology_lib.technology_pkg.ALL;
 USE technology_lib.technology_select_pkg.all;
 use correlator_lib.build_details_pkg.all;
---USE work.correlator_bus_pkg.ALL;
---USE work.correlator_system_reg_pkg.ALL;
+USE correlator_lib.correlator_system_reg_pkg.ALL;
+
 USE UNISIM.vcomponents.all;
 Library xpm;
 use xpm.vcomponents.all;
@@ -136,16 +137,37 @@ ARCHITECTURE structure OF correlator_core IS
         clk_out1 : out STD_LOGIC
     );
     end component;
+    
+    component correlator_system_versal_reg is 
+    GENERIC (g_technology : t_technology := c_tech_select_default);
+    PORT (
+        MM_CLK              : IN    STD_LOGIC;
+        MM_RST              : IN    STD_LOGIC;
+        noc_wren            : IN STD_LOGIC;
+        noc_rden            : IN STD_LOGIC;
+        noc_wr_adr          : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
+        noc_wr_dat          : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        noc_rd_adr          : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
+        noc_rd_dat          : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+        SYSTEM_FIELDS_RW: OUT t_system_rw;
+        SYSTEM_FIELDS_RO: IN  t_system_ro
+        );
+    end component;
       
     signal ap_rst : std_logic;
 
+    signal system_fields_rw : t_system_rw;
+    signal system_fields_ro : t_system_ro;
+        
+    signal noc_wren         : STD_LOGIC;
+    signal noc_rden         : STD_LOGIC;
+    signal noc_wr_adr       : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat       : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr       : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat       : STD_LOGIC_VECTOR(31 DOWNTO 0);
     
---    signal system_fields_rw : t_system_rw;
---    signal system_fields_ro : t_system_ro;
     signal uptime : std_logic_vector(31 downto 0) := x"00000000";
 
-    --signal eth100_tx_sosi : t_lbus_sosi;
-    --signal eth100_tx_siso : t_lbus_siso;
     signal eth100_reset : std_logic := '0';
     signal dest_req : std_logic;
     signal eth100G_status_ap_clk : std_logic_vector(128 downto 0);
@@ -277,50 +299,74 @@ begin
     );
    
     ---------------------------------------------------------------------------
-    -- TOP Level Registers  --
+    -- System Peripheral Registers  --
     ---------------------------------------------------------------------------
+    i_system_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => TRUE
+    )
+    port map ( 
+        i_clk       => clk_300,
+        i_rst       => clk_300_rst,
+    
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat
+    );
 
---    fpga_regs: ENTITY correlator_lib.correlator_system_reg
---    GENERIC MAP (
---        g_technology      => c_tech_alveo)
---    PORT MAP (
---        mm_clk            => ap_clk,
---        mm_rst            => ap_rst,
---        sla_in            => mc_lite_mosi(c_system_lite_index),
---        sla_out           => mc_lite_miso(c_system_lite_index),
---        system_fields_rw  => system_fields_rw,
---        system_fields_ro  => system_fields_ro);
-    
---    -- Build version.
---    -- On the gemini cards, this was the build date accessed via the USR_ACCESSE2 primitive.
---    -- However this is not supported in a vitis kernel since it cannot be placed in the dynamic region.
-    
---    system_fields_ro.firmware_major_version <= g_FIRMWARE_MAJOR_VERSION;
---    system_fields_ro.firmware_minor_version <= g_FIRMWARE_MINOR_VERSION;
---    system_fields_ro.firmware_patch_version <= g_FIRMWARE_PATCH_VERSION;
---    system_fields_ro.firmware_label         <= g_FIRMWARE_LABEL;
---    system_fields_ro.firmware_personality   <= g_FIRMWARE_PERSONALITY;
---    system_fields_ro.build_date             <= x"66666666";             -- Now under CI/CD, rely on the ARGs generation
---    system_fields_ro.commit_short_hash      <= C_SHA_SHORT;
---    system_fields_ro.build_type             <= C_BUILD_TYPE;
 
---    system_fields_ro.no_of_correlator_instances <= std_logic_vector(to_unsigned(g_CORRELATORS , 4));
+    i_system_regs: correlator_system_versal_reg
+    GENERIC MAP (
+        g_technology      => c_tech_alveo
+    )
+    PORT MAP (
+        mm_clk            => clk_300,
+        mm_rst            => clk_300_rst,
+        
+        noc_wren          => noc_wren,
+        noc_rden          => noc_rden,
+        noc_wr_adr        => noc_wr_adr,
+        noc_wr_dat        => noc_wr_dat,
+        noc_rd_adr        => noc_rd_adr,
+        noc_rd_dat        => noc_rd_dat,
+        
+        system_fields_rw  => system_fields_rw,
+        system_fields_ro  => system_fields_ro
+    );
     
---    -- Uptime counter
---    process(ap_clk)
---    begin
---        if rising_edge(ap_clk) then
---            -- Assume 300 MHz for ap_clk, 
---            if (unsigned(ap_clk_count) < 299999999) then
---                ap_clk_count <= std_logic_vector(unsigned(ap_clk_count) + 1);
---            else
---                ap_clk_count <= (others => '0');
---                uptime <= std_logic_vector(unsigned(uptime) + 1);
---            end if;
---        end if;
---    end process;
---    system_fields_ro.time_uptime <= uptime;
---    system_fields_ro.status_clocks_locked <= '1';
+    -- Build version.
+    -- On the gemini cards, this was the build date accessed via the USR_ACCESSE2 primitive.
+    -- However this is not supported in a vitis kernel since it cannot be placed in the dynamic region.
+    
+    system_fields_ro.firmware_major_version <= g_FIRMWARE_MAJOR_VERSION;
+    system_fields_ro.firmware_minor_version <= g_FIRMWARE_MINOR_VERSION;
+    system_fields_ro.firmware_patch_version <= g_FIRMWARE_PATCH_VERSION;
+    system_fields_ro.firmware_label         <= g_FIRMWARE_LABEL;
+    system_fields_ro.firmware_personality   <= g_FIRMWARE_PERSONALITY;
+    system_fields_ro.build_date             <= x"66666666";             -- Now under CI/CD, rely on the ARGs generation
+    system_fields_ro.commit_short_hash      <= C_SHA_SHORT;
+    system_fields_ro.build_type             <= C_BUILD_TYPE;
+
+    system_fields_ro.no_of_correlator_instances <= std_logic_vector(to_unsigned(g_CORRELATORS , 4));
+    
+    -- Uptime counter
+    process(clk_300)
+    begin
+        if rising_edge(clk_300) then
+            -- Assume 300 MHz for ap_clk, 
+            if (unsigned(ap_clk_count) < 299999999) then
+                ap_clk_count <= std_logic_vector(unsigned(ap_clk_count) + 1);
+            else
+                ap_clk_count <= (others => '0');
+                uptime <= std_logic_vector(unsigned(uptime) + 1);
+            end if;
+        end if;
+    end process;
+    system_fields_ro.time_uptime <= uptime;
+    system_fields_ro.status_clocks_locked <= '1';
     
 
 --    --------------------------------------------------------------------------------------------------

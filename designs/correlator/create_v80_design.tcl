@@ -68,6 +68,8 @@ proc do_aved_create_design { } {
   $DESIGN_PATH/src_v80/vhdl/v80_top.vhd \
   ]
 
+  set_property file_type {VHDL 2008} [get_files  *src_v80/vhdl/v80_top.vhd]
+
   source $COMMON/v80_infra/src/v80_ip.tcl
 
   # ----------------------------------------
@@ -222,6 +224,8 @@ proc do_aved_create_design { } {
   #############################################################
   # Design Specific files
   add_files -fileset sources_1 [glob \
+    $BUILD_PATH/ARGS/correlator/correlator/system/correlator_system_reg_pkg.vhd \
+    $BUILD_PATH/ARGS/correlator/correlator/system/correlator_system_reg_versal.vhd \
     $DESIGN_PATH/src_v80/vhdl/correlator_core.vhd \
     $DESIGN_PATH/src_v80/vhdl/version_pkg.vhd \
     $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
@@ -229,6 +233,8 @@ proc do_aved_create_design { } {
   ]
 
   set_property library correlator_lib [get_files {\
+    */correlator_system_reg_pkg.vhd \
+    */correlator_system_reg_versal.vhd \
     */correlator_core.vhd \
     */version_pkg.vhd \
     */target_fpga_pkg.vhd \
@@ -260,15 +266,15 @@ source $DESIGN_PATH/src_v80/ip/correlator.tcl
 source $COMMON_PATH/LFAA_decode_100G/LFAADecode.tcl
 
 add_files -fileset sources_1 [glob \
- $BUILD_PATH/v80_statics/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
- $BUILD_PATH/v80_statics/LFAADecode100G_lfaadecode100g_versal_reg.vhd \
+ $BUILD_PATH/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
+ $BUILD_PATH/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_versal.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAADecodeTop100G.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAAProcess100G.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \
 ]
 set_property library LFAADecode100G_lib [get_files {\
  *LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
- *LFAADecode100G_lfaadecode100g_versal_reg.vhd \
+ *LFAADecode100G_lfaadecode100g_reg_versal.vhd \
  *LFAA_decode_100G/src/vhdl/LFAADecodeTop100G.vhd \
  *LFAA_decode_100G/src/vhdl/LFAAProcess100G.vhd \
  *LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \
@@ -302,6 +308,8 @@ set_property library spead_lib [get_files {\
   # ----------------------------------------
   # update compile and set top of design
 
+  puts "Updating project settings ..."
+
   update_compile_order -fileset sources_1
   update_compile_order -fileset sim_1
   set_property top v80_top [current_fileset]
@@ -322,6 +330,12 @@ set_property library spead_lib [get_files {\
   set_property STEPS.WRITE_DEVICE_IMAGE.TCL.PRE  [get_files *write_device_image.pre.tcl]  [get_runs impl_1]
 
   set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]
+
+
+
+  puts "--------------------------------------------------------"
+  puts "Project Creation script completed, XPR ready to open"
+  puts "--------------------------------------------------------"
 }
 
 do_aved_create_design

@@ -18,7 +18,8 @@ USE axi4_lib.axi4_full_pkg.ALL;
 --USE technology_lib.tech_mac_100g_pkg.ALL;
 --USE technology_lib.technology_pkg.ALL;
 --USE technology_lib.technology_select_pkg.all;
---use work.version_pkg.all;
+use correlator_lib.version_pkg.all;
+USE versal_dcmac_lib.versal_dcmac_pkg.ALL;
 
 USE UNISIM.vcomponents.all;
 Library xpm;
@@ -155,6 +156,16 @@ signal clock_300_rst        : std_logic := '1';
 signal clock_300_rst_cnt    : unsigned(31 downto 0) := x"00000100";
 signal clock_300            : std_logic;
 
+signal dcmac_clk            : std_logic;
+signal dcmac_locked         : std_logic_vector(1 downto 0);
+signal dcmac_locked_300m    : std_logic;
+
+signal dcmac_rx_data_0      : seg_streaming_axi;
+signal dcmac_rx_data_1      : seg_streaming_axi;
+
+signal dcmac_tx_data_0      : seg_streaming_axi;
+signal dcmac_tx_data_1      : seg_streaming_axi;
+
 begin
 
 ----------------------------------------------------------------
@@ -231,7 +242,19 @@ begin
         qsfp1_4x_grx_n          => qsfp1_4x_grx_n,
         
         qsfp1_4x_gtx_p          => qsfp1_4x_gtx_p,
-        qsfp1_4x_gtx_n          => qsfp1_4x_gtx_n
+        qsfp1_4x_gtx_n          => qsfp1_4x_gtx_n,
+        
+        ------------------------
+        o_dcmac_clk             => dcmac_clk,
+        
+        o_port_0_rx_bus         => dcmac_rx_data_0,
+        o_port_1_rx_bus         => dcmac_rx_data_1,
+
+        o_port_0_tx_bus         => dcmac_tx_data_0,
+        o_port_1_tx_bus         => dcmac_tx_data_1,
+
+        o_port_0_locked         => dcmac_locked(0),
+        o_port_1_locked         => dcmac_locked(1)
     );
 ----------------------------------------------------------------
     i_v80_board : entity work.top_wrapper
@@ -292,6 +315,33 @@ begin
       );
 ----------------------------------------------------------------    
 
+i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi 
+    Port Map ( 
+        -- Data in from the 100GE MAC
+        i_MAC_clk               => dcmac_clk,
+        i_MAC_rst               => NOT dcmac_locked(0),
+        
+        i_clk_300               => clock_300,
+        i_clk_300_rst           => clock_300_rst,
+
+        -- Streaming AXI interface - compatible with CMAC S_AXI
+        -- RX
+        o_rx_axis_tdata         => rx_axis_tdata,
+        o_rx_axis_tkeep         => rx_axis_tkeep,
+        o_rx_axis_tlast         => rx_axis_tlast,
+        i_rx_axis_tready        => rx_axis_tready,
+        o_rx_axis_tuser         => rx_axis_tuser,
+        o_rx_axis_tvalid        => rx_axis_tvalid,
+        
+        o_dcmac_locked          => dcmac_locked_300m,
+
+        -- Segmented Streaming AXI, 512
+        i_data_to_receive       => dcmac_rx_data_0
+
+    );
+
+
+
 i_correlator_core : entity correlator_lib.correlator_core 
     port map (
         clk_100         => Clock_100_GTY_buf,
@@ -301,11 +351,11 @@ i_correlator_core : entity correlator_lib.correlator_core
         clk_300_rst     => clock_300_rst,
         
         -- Received data from 100GE
-        i_axis_tdata        => (others => '0'),
-        i_axis_tkeep        => (others => '0'),
-        i_axis_tlast        => '0',
-        i_axis_tuser        => (others => '0'),
-        i_axis_tvalid       => '0',
+        i_axis_tdata        => rx_axis_tdata,
+        i_axis_tkeep        => rx_axis_tkeep,
+        i_axis_tlast        => rx_axis_tlast,
+        i_axis_tuser        => rx_axis_tuser,
+        i_axis_tvalid       => rx_axis_tvalid,
         
         -- Data to be transmitted on 100GE
         o_axis_tdata        => open,
@@ -315,8 +365,8 @@ i_correlator_core : entity correlator_lib.correlator_core
         o_axis_tvalid       => open,
         i_axis_tready       => '0',
         
-        i_eth100g_clk       => '0',
-        i_eth100g_locked    => '0',
+        i_eth100g_clk       => clock_300,
+        i_eth100g_locked    => dcmac_locked_300m,
         -- reset of the valid memory is in progress.
         o_validMemRstActive => open,
         

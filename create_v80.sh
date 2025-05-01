@@ -73,11 +73,11 @@ if [ ! -d "$GITREPO/common/v80_infra/iprepo" ]; then
 fi
 
 ##Check for IP repo not included in common
-if [ ! -d "$GITREPO/build/v80_statics" ]; then
-    echo -e "Dir missing .... $GITREPO/build/v80_statics"
-    echo -e "Wherever you go .... there you are."
-    exit 1
-fi
+# if [ ! -d "$GITREPO/build/v80_statics" ]; then
+#     echo -e "Dir missing .... $GITREPO/build/v80_statics"
+#     echo -e "Wherever you go .... there you are."
+#     exit 1
+# fi
 
 echo "Generate build info file"
 cd $GITREPO/build
