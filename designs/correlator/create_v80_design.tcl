@@ -111,6 +111,9 @@ proc do_aved_create_design { } {
 
   set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/versal_dcmac_pkg.vhd]
   set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/dcmac_wrapper.vhd]
+  set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/packet_player.vhd]
+  set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/segment_to_saxi.vhd]
+
   source $COMMON_PATH/DCMAC/dcmac_ip.tcl
 
   # ----------------------------------------
