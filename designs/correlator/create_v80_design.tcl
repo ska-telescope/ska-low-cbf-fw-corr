@@ -283,6 +283,10 @@ set_property library LFAADecode100G_lib [get_files {\
  *LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \
 }]
 
+add_files -fileset sources_1 [glob \
+ $COMMON_PATH/LFAA_decode_100G/src/vhdl/vc_table_tb.mem \
+]
+
 ##############################################################
 # Add SPS SPEAD
 add_files -fileset sources_1 [glob \

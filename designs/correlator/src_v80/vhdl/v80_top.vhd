@@ -119,6 +119,13 @@ COMPONENT clk_system_base
     );
 END COMPONENT;
 
+component ila_0 is
+Port ( 
+    clk : in STD_LOGIC;
+    probe0 : in STD_LOGIC_VECTOR ( 191 downto 0 )
+);
+end component;
+
 ---------------------------------------------------------------------------------------
 
 signal rx_axis_tdata : std_logic_vector(511 downto 0);
@@ -153,7 +160,7 @@ signal Clock_100_GTY        : std_logic;
 signal Clock_100_GTY_buf    : std_logic;
 
 signal clock_300_rst        : std_logic := '1';
-signal clock_300_rst_cnt    : unsigned(31 downto 0) := x"00000100";
+signal clock_300_rst_cnt    : unsigned(31 downto 0) := x"00001000";
 signal clock_300            : std_logic;
 
 signal dcmac_clk            : std_logic;
@@ -340,9 +347,26 @@ i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi
 
     );
 
+    debug_v80_top : ila_0 
+    Port map ( 
+        clk                     => clock_300,
+        probe0(31 downto 0)     => std_logic_vector(clock_300_rst_cnt),
+        probe0(32)              => clock_300_rst,
+        probe0(191 downto 33)   => (others => '0')
+    );
 
+i_correlator_core : entity correlator_lib.correlator_core
+    generic map (
+        -- GENERICS for use in the testbench 
+        g_SIMULATION                => FALSE,  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
+        g_USE_META                  => FALSE,    -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
+        -- GLOBAL GENERICS for PERENTIE LOGIC
+        g_DEBUG_ILA                 => FALSE,
 
-i_correlator_core : entity correlator_lib.correlator_core 
+        g_FIRMWARE_MAJOR_VERSION    => C_FIRMWARE_MAJOR_VERSION,
+        g_FIRMWARE_MINOR_VERSION    => C_FIRMWARE_MINOR_VERSION,
+        g_FIRMWARE_PATCH_VERSION    => C_FIRMWARE_PATCH_VERSION
+    )
     port map (
         clk_100         => Clock_100_GTY_buf,
         clk_100_rst     => '0',

@@ -124,6 +124,13 @@ END correlator_core;
 -------------------------------------------------------------------------------
 ARCHITECTURE structure OF correlator_core IS
 
+    component ila_0 is
+    Port ( 
+        clk : in STD_LOGIC;
+        probe0 : in STD_LOGIC_VECTOR ( 191 downto 0 )
+    );
+    end component;
+
     component clk_mmcm_400 is
     Port ( 
         clk_in1 : in STD_LOGIC;
@@ -367,6 +374,17 @@ begin
     end process;
     system_fields_ro.time_uptime <= uptime;
     system_fields_ro.status_clocks_locked <= '1';
+    
+    --------------------------------------------------------------------------------------------------
+    -- debug
+    
+    debug_correlator_core : ila_0 
+    Port map ( 
+        clk                     => clk_300,
+        probe0(31 downto 0)     => ap_clk_count,
+        probe0(63 downto 32)    => uptime,
+        probe0(191 downto 64)   => (others => '0')
+    );
     
 
 --    --------------------------------------------------------------------------------------------------
