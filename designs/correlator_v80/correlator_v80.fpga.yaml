@@ -19,5 +19,4 @@ peripherals:
   - peripheral_name        : spead/spead_sdp_2
   - peripheral_name        : hbm_read/hbm_rd_debug
   - peripheral_name        : hbm_read/hbm_rd_debug_2  
-  - peripheral_name        : CMAC/CMAC
-  - peripheral_name        : Timeslave/Timeslave  
+

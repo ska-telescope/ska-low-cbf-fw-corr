@@ -32,7 +32,7 @@ proc do_aved_create_design { } {
   puts "Common Library path is $COMMON_PATH"
   
   # create a design folder mapping
-  cd "../../designs/correlator"
+  cd "../../designs/correlator_v80"
   set DESIGN_PATH [pwd]
   puts "Design path is $DESIGN_PATH"
   
@@ -47,8 +47,9 @@ proc do_aved_create_design { } {
   set RLIBRARIES_PATH [pwd]
   puts "Repo Libraries path is $RLIBRARIES_PATH"
 
-
-
+  # create a Repo ARGS mapping
+  set ARGS_PATH "$BUILD_PATH/ARGS/correlator_v80"
+  puts "ARGs path is $ARGS_PATH"
 
   # set to project working dir
   cd $proj_dir
@@ -227,8 +228,8 @@ proc do_aved_create_design { } {
   #############################################################
   # Design Specific files
   add_files -fileset sources_1 [glob \
-    $BUILD_PATH/ARGS/correlator/correlator/system/correlator_system_reg_pkg.vhd \
-    $BUILD_PATH/ARGS/correlator/correlator/system/correlator_system_reg_versal.vhd \
+    $ARGS_PATH/correlator/system/correlator_system_reg_pkg.vhd \
+    $ARGS_PATH/correlator/system/correlator_system_reg_versal.vhd \
     $DESIGN_PATH/src_v80/vhdl/correlator_core.vhd \
     $DESIGN_PATH/src_v80/vhdl/version_pkg.vhd \
     $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
@@ -269,8 +270,8 @@ source $DESIGN_PATH/src_v80/ip/correlator.tcl
 source $COMMON_PATH/LFAA_decode_100G/LFAADecode.tcl
 
 add_files -fileset sources_1 [glob \
- $BUILD_PATH/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
- $BUILD_PATH/ARGS/correlator/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_versal.vhd \
+ $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
+ $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_versal.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAADecodeTop100G.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAAProcess100G.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \

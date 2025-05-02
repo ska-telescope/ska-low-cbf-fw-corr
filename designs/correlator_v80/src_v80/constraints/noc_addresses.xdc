@@ -12,25 +12,22 @@ set system_nsu [get_noc_interfaces "i_correlator_core/i_system_noc/xpm_nsu_mm_in
 
 # Base address for the PL region and this is also mapped to BAR 0 - 0x201_0000_0000
 # correlator ARGs
-#    Including slave ports for correlator:
-#    system_system at 0x0                           0 - 0xFFFF
-#    vitis_shared_vitis_shared_ram at 0x8000        1 - 0x1_FFFF
-#    lfaadecode100g_vcstats_ram at 0x10000          2 - 0x2_FFFF
-#    lfaadecode100g_statctrl at 0x14000             3 -
-#    corr_ct1_polynomial_ram_ram at 0x20000
-#    corr_ct1_config at 0x30000
-#    filterbanks_config at 0x32000
-#    corr_ct2_statctrl at 0x34000
-#    config_setup at 0x36000
-#    spead_sdp_spead_params_ram at 0x38000
-#    spead_sdp_spead_ctrl at 0x3C000
-#    spead_sdp_2_spead_params_ram at 0x40000
-#    spead_sdp_2_spead_ctrl at 0x44000
-#    hbm_rd_debug_hbm_rd_debug at 0x46000
-#    hbm_rd_debug_2_hbm_rd_debug at 0x48000
-#    cmac_cmac_stats_interface at 0x4A000
-#    timeslave_timeslave_space_ram at 0x50000
-#    timeslave_timeslave_scheduler at 0x60000
+#    Including slave ports for correlator_v80: 
+#    system_system at 0x0                       0 - 0x0_FFFF
+#    lfaadecode100g_vcstats_ram at 0x4000       1 - 0x1_FFFF
+#    lfaadecode100g_statctrl at 0x8000          2 - 0x2_FFFF
+#    corr_ct1_polynomial_ram_ram at 0x10000 
+#    corr_ct1_config at 0x20000 
+#    filterbanks_config at 0x22000 
+#    corr_ct2_statctrl at 0x24000 
+#    config_setup at 0x26000 
+#    spead_sdp_spead_params_ram at 0x28000 
+#    spead_sdp_spead_ctrl at 0x2C000 
+#    spead_sdp_2_spead_params_ram at 0x30000 
+#    spead_sdp_2_spead_ctrl at 0x34000 
+#    hbm_rd_debug_hbm_rd_debug at 0x36000 
+#    hbm_rd_debug_2_hbm_rd_debug at 0x38000 
+
 # use the above list just for ordering of the NSUs
 
 ########################
@@ -42,7 +39,7 @@ set_property -dict [list READ_BANDWIDTH 400 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH
 
 
 ########################
-# LFAA is entry 3 and 4 on the list, so starts at 128K and covers up to 256K from the base address.
+# LFAA is entry 2 and 3 on the list, 128K between NoCs so starts at 128K and covers up to 256K from the base address.
 # two 64K addresses, assign 128K
 set_property APERTURES [list {0x201_0002_0000:0x201_0003_FFFF}] $lfaa_1_nsu
 

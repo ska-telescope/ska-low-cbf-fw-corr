@@ -102,7 +102,7 @@ if [ "$1" = "build" ]; then
     echo "Vivado Version for project is " $VIVADO_VERSION_IN_USE | $COLOUR
     echo
 
-    vivado -mode batch -source $GITREPO/designs/correlator/create_v80_design.tcl -source $GITREPO/common/v80_infra/scripts/build_v80_design.tcl -tclargs $kernel | $COLOUR
+    vivado -mode batch -source $GITREPO/designs/correlator_v80/create_v80_design.tcl -source $GITREPO/common/v80_infra/scripts/build_v80_design.tcl -tclargs $kernel | $COLOUR
 else
     echo -e "Creating project."
     echo 
@@ -112,7 +112,7 @@ else
     echo "Vivado Version for project is " $VIVADO_VERSION_IN_USE | $COLOUR
     echo
 
-    vivado -mode batch -source $GITREPO/designs/correlator/create_v80_design.tcl -tclargs $kernel | $COLOUR
+    vivado -mode batch -source $GITREPO/designs/correlator_v80/create_v80_design.tcl -tclargs $kernel | $COLOUR
 fi
 
 echo "Script complete"
