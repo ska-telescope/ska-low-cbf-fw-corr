@@ -6,6 +6,8 @@ hdl_library_name  : correlator_v80
 fpga_name         : correlator_v80
 fpga_description  : "V80 edition of Correlator"
 
+peripheral_alignment: 65536
+
 peripherals:
   - peripheral_name        : correlator/system
   - peripheral_name        : LFAADecode100G/LFAADecode100G
