@@ -21,6 +21,7 @@
 #   HJ    jan 2017  Original
 #   EK    feb 2017
 #   PD    feb 2017
+#   AB    may 2025  Add 'peripheral_alignment' option to fpga.yaml
 #
 ###############################################################################
 
@@ -41,7 +42,7 @@ logger = logging.getLogger('main.fpga')
 class FPGA(object):
     """ A System consist of a set of one or more Peripherals.
     """
-    def __init__(self, file_path_name=None, periph_lib=None, alignment: int=4096):
+    def __init__(self, file_path_name=None, periph_lib=None):
         """
         alignment: minimal allowed address-decode spacing with Xilinx interconnect
         """
@@ -60,7 +61,9 @@ class FPGA(object):
         self.nof_lite = 0
         self.nof_full = 0
         self.address_map = collections.OrderedDict()
-        self.alignment = alignment
+        self.alignment = 4096  # default to the pre-V80 alignment value
+        """Align peripherals to this boundary (Bytes)."""
+
         logger.debug("***FPGA object instantiation: creating for {}".format(file_path_name))
 
         if file_path_name is None:
@@ -71,6 +74,8 @@ class FPGA(object):
             # list of peripheral configurations that are read from the available peripheral files
             self.system_config = self.read_system_file(file_path_name)
             self.create_system()
+            self.alignment = self.system_config.get('peripheral_alignment', self.alignment)
+        logger.info("Using %d byte alignment for peripherals", self.alignment)
 
     def is_valid(self):
         """ return False or True if the given file is a valid system file """
@@ -360,8 +365,7 @@ class FPGALibrary(object):
         for fpn in file_path_names:
             logger.info("Creating ARGS FPGA object from {}".format(fpn))
             tic = time.time()
-            # FIXME - IT'S A HACK!!!
-            fpga = FPGA(fpn, periph_lib=periph_lib, alignment=65536)
+            fpga = FPGA(fpn, periph_lib=periph_lib)
             toc = time.time()
             logger.debug("fpga creation for %s took %.4f seconds" %(fpn, toc-tic))
             fpga.show_overview()
