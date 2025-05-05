@@ -6,7 +6,9 @@ hdl_library_name  : correlator
 fpga_name         : correlator
 fpga_description  : "Acceleration core for use with Vitis and Alveo"
 
-peripheral_alignment: 4096
+alignment:
+  peripheral: 4096
+  sub_peripheral: 4096
 
 peripherals:
   - peripheral_name        : correlator/system
