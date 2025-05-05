@@ -74,7 +74,8 @@ architecture rtl of <lib_name>_versal_reg is
     SIGNAL rd_busy_sum          : STD_LOGIC;
     SIGNAL wr_busy_sum          : STD_LOGIC;
 
-
+    SIGNAL rd_data_del1         : STD_LOGIC_VECTOR(c_dat_w-1 DOWNTO 0);
+    SIGNAL rd_data_del2         : STD_LOGIC_VECTOR(c_dat_w-1 DOWNTO 0);
     ---------------------------------------------------------------------------
     --                        COMPONENT DECLARATIONS                         --
     ---------------------------------------------------------------------------
@@ -94,7 +95,15 @@ begin
     wr_adr          <= noc_wr_adr(c_addr_w-1 DOWNTO 0);
     wr_dat          <= noc_wr_dat;
     rd_adr          <= noc_rd_adr(c_addr_w-1 DOWNTO 0);
-    noc_rd_dat      <= rd_dat;
+    noc_rd_dat      <= rd_data_del2;
+
+    p_delay_rd_data : process( MM_CLK )
+    begin
+        if rising_edge(MM_CLK) then
+            rd_data_del1    <= rd_dat;
+            rd_data_del2    <= rd_data_del1;
+        end if;
+    end process;
 
 
     <{common_reg_inst}>
