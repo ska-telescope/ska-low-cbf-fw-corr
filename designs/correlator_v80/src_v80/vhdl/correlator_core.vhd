@@ -123,7 +123,7 @@ END correlator_core;
 
 -------------------------------------------------------------------------------
 ARCHITECTURE structure OF correlator_core IS
-
+constant C_SIM      : boolean := FALSE;
     component ila_0 is
     Port ( 
         clk : in STD_LOGIC;
@@ -308,22 +308,23 @@ begin
     ---------------------------------------------------------------------------
     -- System Peripheral Registers  --
     ---------------------------------------------------------------------------
-    i_system_noc : entity noc_lib.args_noc
-    generic map (
-        G_DEBUG => TRUE
-    )
-    port map ( 
-        i_clk       => clk_300,
-        i_rst       => clk_300_rst,
-    
-        noc_wren    => noc_wren,
-        noc_rden    => noc_rden,
-        noc_wr_adr  => noc_wr_adr,
-        noc_wr_dat  => noc_wr_dat,
-        noc_rd_adr  => noc_rd_adr,
-        noc_rd_dat  => noc_rd_dat
-    );
-
+--    gen_system_noc_sim : IF (C_SIM = FALSE) GENERATE
+        i_system_noc : entity noc_lib.args_noc
+        generic map (
+            G_DEBUG => FALSE
+        )
+        port map ( 
+            i_clk       => clk_300,
+            i_rst       => clk_300_rst,
+        
+            noc_wren    => noc_wren,
+            noc_rden    => noc_rden,
+            noc_wr_adr  => noc_wr_adr,
+            noc_wr_dat  => noc_wr_dat,
+            noc_rd_adr  => noc_rd_adr,
+            noc_rd_dat  => noc_rd_dat
+        );
+ --   end generate; 
 
     i_system_regs: correlator_system_versal_reg
     GENERIC MAP (
@@ -547,6 +548,14 @@ begin
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
     hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
     
+    
+i_axis_tdata_gated  <= i_axis_tdata;
+i_axis_tkeep_gated  <= i_axis_tkeep;
+i_axis_tlast_gated  <= i_axis_tlast;
+i_axis_tuser_gated  <= i_axis_tuser;
+i_axis_tvalid_gated <= i_axis_tvalid;
+
+
     
 --    eth_block : entity correlator_lib.eth_disable
 --    generic map (

@@ -347,6 +347,7 @@ i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi
 
     );
 
+debug_gen : if g_DEBUG_ILA GENERATE
     debug_v80_top : ila_0 
     Port map ( 
         clk                     => clock_300,
@@ -354,6 +355,7 @@ i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi
         probe0(32)              => clock_300_rst,
         probe0(191 downto 33)   => (others => '0')
     );
+end generate;
 
 i_correlator_core : entity correlator_lib.correlator_core
     generic map (

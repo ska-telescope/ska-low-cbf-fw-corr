@@ -272,6 +272,7 @@ source $COMMON_PATH/LFAA_decode_100G/LFAADecode.tcl
 add_files -fileset sources_1 [glob \
  $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
  $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg_versal.vhd \
+ $ARGS_PATH/LFAADecode100G/lfaadecode100g/LFAADecode100G_lfaadecode100g_reg.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAADecodeTop100G.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAAProcess100G.vhd \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \
@@ -279,6 +280,7 @@ add_files -fileset sources_1 [glob \
 set_property library LFAADecode100G_lib [get_files {\
  *LFAADecode100G_lfaadecode100g_reg_pkg.vhd \
  *LFAADecode100G_lfaadecode100g_reg_versal.vhd \
+ *LFAADecode100G_lfaadecode100g_reg.vhd \
  *LFAA_decode_100G/src/vhdl/LFAADecodeTop100G.vhd \
  *LFAA_decode_100G/src/vhdl/LFAAProcess100G.vhd \
  *LFAA_decode_100G/src/vhdl/LFAA_decode_axi_bram_wrapper.vhd \
@@ -309,8 +311,34 @@ set_property library spead_lib [get_files {\
 }]
 
 
+##############################################################
+# setup sim set for SPEAD
+create_fileset -simset sim_dcmac
 
+set_property SOURCE_SET sources_1 [get_filesets sim_dcmac]
 
+add_files -fileset sim_dcmac [glob \
+$DESIGN_PATH/src_v80/tb/tb_correlatorCore.vhd \
+$DESIGN_PATH/src_v80/tb/HBM_axi_tbModel.vhd \
+$DESIGN_PATH/src_v80/tb/tb_correlatorCore_behav.wcfg \
+]
+
+set_property library correlator_lib [get_files {\
+ */src_v80/tb/HBM_axi_tbModel.vhd \
+}]
+
+set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/HBM_axi_tbModel.vhd]
+set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/tb_correlatorCore.vhd]
+
+set_property top tb_correlatorCore [get_filesets sim_dcmac]
+set_property top_lib xil_defaultlib [get_filesets sim_dcmac]
+update_compile_order -fileset sim_dcmac
+
+######################
+## NoC is not supported in VHDL simulation in 2024.2, need to deactivate these files from sim
+set_property used_in_simulation false [get_files  /home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/designs/correlator_v80/src_v80/vhdl/v80_top.vhd]
+set_property used_in_simulation false [get_files  /home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/build/v80/v80_top.gen/sources_1/bd/top/hdl/top_wrapper.vhd]
+set_property used_in_simulation false [get_files  /home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/build/v80/v80_top.srcs/sources_1/bd/top/top.bd]
 
   #############################################################
   # ----------------------------------------
