@@ -194,11 +194,21 @@ architecture Behavioral of tb_correlatorCore is
     signal wr_addr_x410E0, rd_addr_x410E0 : std_logic := '0'; 
     signal wrdata_x410E0, rddata_x410E0 : std_logic := '0';
     
-    signal rx_axi_tdata : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-    signal rx_axi_tkeep : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-    signal rx_axi_tlast : std_logic;
-    signal rx_axi_tuser : std_logic_vector(79 downto 0);  -- Timestamp for the packet.
-    signal rx_axi_tvalid : std_logic;
+    signal rx_axi_tdata     : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal rx_axi_tkeep     : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal rx_axi_tlast     : std_logic;
+    signal rx_axi_tuser     : std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+    signal rx_axi_tvalid    : std_logic;
+    
+    signal player_rx_axi_tdata  : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal player_rx_axi_tkeep  : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal player_rx_axi_tlast  : std_logic;
+    signal player_rx_axi_tuser  : std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+    signal player_rx_axi_tvalid : std_logic;
+    
+    signal bytes_to_transmit_spead_v3   : std_logic_vector(13 downto 0) := 14D"8290";
+    signal bytes_to_transmit_spead_v2   : std_logic_vector(13 downto 0) := 14D"8306";
+    
     -- Data to be transmitted on 100GE
     signal eth100_tx_axi_tdata : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
     signal eth100_tx_axi_tkeep : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
@@ -615,7 +625,7 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
 ---------------------------------------------------------------------------------------------------------------
 -- DUTs
 
-    dut_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi 
+    dut_1_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi 
     Port Map ( 
         -- Data in from the 100GE MAC
         i_MAC_clk               => dcmac_clk,
@@ -640,7 +650,7 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
 
     );    
     
-    dut : entity correlator_lib.correlator_core
+    dut_2 : entity correlator_lib.correlator_core
     generic map (
         g_SIMULATION => TRUE, -- BOOLEAN;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
         g_USE_META => FALSE,   -- BOOLEAN;  -- puts meta data in place of the filterbank data in the corner turn, to help debug the corner turn.
@@ -723,6 +733,56 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
         o_FB_out_sof   => FB_out_sof        -- out std_logic
     );
     
+    
+    dut_dcmac_to_cmac_same_freq : entity versal_dcmac_lib.segment_to_saxi 
+    Port Map ( 
+        -- Data in from the 100GE MAC
+        i_MAC_clk               => dcmac_clk,
+        i_MAC_rst               => NOT dcmac_locked,
+        
+        i_clk_300               => dcmac_clk,
+        i_clk_300_rst           => NOT dcmac_locked,
+
+        -- Streaming AXI interface - compatible with CMAC S_AXI
+        -- RX
+        o_rx_axis_tdata         => player_rx_axi_tdata,
+        o_rx_axis_tkeep         => player_rx_axi_tkeep,
+        o_rx_axis_tlast         => player_rx_axi_tlast,
+        i_rx_axis_tready        => '1',
+        o_rx_axis_tuser         => player_rx_axi_tuser,
+        o_rx_axis_tvalid        => player_rx_axi_tvalid,
+        
+        o_dcmac_locked          => dcmac_locked_300m,
+
+        -- Segmented Streaming AXI, 512
+        i_data_to_receive       => dcmac_rx_data_0
+
+    );
+    
+    dut_3_packet_player : entity versal_dcmac_lib.dcmac_packet_player
+--    Generic (
+--        g_DEBUG_ILA             : BOOLEAN := FALSE;
+--        PLAYER_CDC_FIFO_DEPTH   : INTEGER := 1024        -- FIFO is 512 Wide, 9KB packets = 73728 bits, 512 * 256 = 131072, 256 depth allows ~1.88 9K packets, we are target packets sizes smaller than this.
+--    );
+    Port Map ( 
+        i_clk                   => dcmac_clk,
+        i_clk_reset             => NOT dcmac_locked,
+        
+        i_bytes_to_transmit     => bytes_to_transmit_spead_v2,
+        i_data_to_player        => player_rx_axi_tdata,
+        i_data_to_player_wr     => player_rx_axi_tvalid,
+        o_data_to_player_rdy    => open,
+        
+        o_dcmac_ready           => open,
+        
+        -- to DCMAC
+        i_dcmac_clk             => dcmac_clk,
+        i_dcmac_clk_rst         => NOT dcmac_locked,
+
+        -- segmented streaming AXI 
+        o_data_to_transmit      => dcmac_tx_data_0,
+        i_dcmac_ready           => dcmac_locked
+    );
 --    ----------------------------------------------------------------------------------
 --    -- Emulate HBM
 --    -- 3 Gbyte of memory for the first corner turn.
