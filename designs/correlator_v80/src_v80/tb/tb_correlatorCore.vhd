@@ -250,11 +250,12 @@ architecture Behavioral of tb_correlatorCore is
     -- SPEAD packet is 8306 bytes
     -- 8306 / 64 = 129.78125    (78125 -> 1 byte in the last segment is valid, EOP is indicated as x"E", meaning 15 bytes invalid.
     --           
-    signal word_0_data_0    : std_logic_vector(127 downto 0)  := ChangeEndian(x"248a07463b5e62000a050a0208004500");
+    signal word_0_data_0        : std_logic_vector(127 downto 0)  := ChangeEndian(x"248a07463b5e62000a050a0208004500");
     
-    signal test_sps_packet  : t_slv_512_arr(129 downto 0);
-    signal packet_pos       : integer := 0;
-    signal packet_vec_cnt   : integer := 0;
+    signal test_sps_packet      : t_slv_512_arr(129 downto 0);
+    signal test_sps_packetv3    : t_slv_512_arr(129 downto 0);
+    signal packet_pos           : integer := 0;
+    signal packet_vec_cnt       : integer := 0;
     
     -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
     -- +bid buser
@@ -421,13 +422,18 @@ clk_300_rst <= NOT ap_rst_n;
     -------------------------------------------------------------------------------------------
     -- DCMAC test packet 
     -------------------------------------------------------------------------------------------------------------------------------
---     
---      :=  ChangeEndian(x"248a07463b5e62000a050a0208004500"),
-    
-    test_sps_packet(0)  <= ChangeEndian(x"248a07463b5e62000a050a020800450020647687000080117b970a050a020a000a64f0d0123420504c1253040206000000088001001500050a08800400000000");
-    test_sps_packet(1)  <= ChangeEndian(x"2000902700005e72eab7960000154251c0009011001501122e6eb000000000000417b00100000000001033000000000000008080808080808080808080808080");
-    test_sps_packet(2)  <= ChangeEndian(x"80808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080");    
-    
+    -- Data taken from PCAP, copy hex stream from wireshark
+    -- Need to change Endianness to match Streaming AXI format.
+-- v1/v2
+    test_sps_packet(0)      <= ChangeEndian(x"248a07463b5e62000a050a020800450020647687000080117b970a050a020a000a64f0d0123420504c1253040206000000088001001500050a08800400000000");
+    test_sps_packet(1)      <= ChangeEndian(x"2000902700005e72eab7960000154251c0009011001501122e6eb000000000000417b00100000000001033000000000000008080808080808080808080808080");
+    test_sps_packet(2)      <= ChangeEndian(x"80808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080");    
+
+-- v3
+    test_sps_packetv3(0)    <= ChangeEndian(x"001122334455001122334455080045002054acdc4000401159ba0a0000010a000002123412342040000053040206000000068001000100000006800400000000");
+    test_sps_packetv3(1)    <= ChangeEndian(x"2000b010ffff000004d2b000000000010064b0010101015e00003300000000000000000000000000000000000000000000000000000000000000000000000000");
+    test_sps_packetv3(2)    <= ChangeEndian(x"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+
     dcmac_running_proc : process
 
     begin
@@ -508,10 +514,10 @@ clk_300_rst <= NOT ap_rst_n;
         end if;
     end process;
     
-dcmac_rx_data_0.tdata0  <= test_sps_packet(packet_vec_cnt)(127 downto 0);
-dcmac_rx_data_0.tdata1  <= test_sps_packet(packet_vec_cnt)(255 downto 128);
-dcmac_rx_data_0.tdata2  <= test_sps_packet(packet_vec_cnt)(383 downto 256);
-dcmac_rx_data_0.tdata3  <= test_sps_packet(packet_vec_cnt)(511 downto 384);   
+dcmac_rx_data_0.tdata0  <= test_sps_packetv3(packet_vec_cnt)(127 downto 0);
+dcmac_rx_data_0.tdata1  <= test_sps_packetv3(packet_vec_cnt)(255 downto 128);
+dcmac_rx_data_0.tdata2  <= test_sps_packetv3(packet_vec_cnt)(383 downto 256);
+dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);   
 
     
     process
