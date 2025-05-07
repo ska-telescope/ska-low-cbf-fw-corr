@@ -21,6 +21,13 @@ proc do_aved_create_design { } {
   set proj_dir [pwd]
   puts "Project directory is $proj_dir"
 
+  # create Repo base mapping
+  cd "../../"
+  set REPO_BASE [pwd]
+  puts "Repo path is $REPO_BASE"  
+
+  cd $proj_dir
+
   # create common mapping
   cd "../../common"
   set COMMON [pwd]
@@ -314,7 +321,7 @@ set_property library spead_sps_lib [get_files {\
 
 #############################################################
 # SPEAD
-
+  puts "Add SPEAD files ..."
 add_files -fileset sources_1 [glob \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
@@ -370,6 +377,9 @@ add_files -fileset sources_1 [glob \
 
 ##############################################################
 # setup sim set for SPEAD
+
+  puts "Create DCMAC SIM ..."
+
 create_fileset -simset sim_dcmac
 
 set_property SOURCE_SET sources_1 [get_filesets sim_dcmac]
@@ -393,9 +403,9 @@ update_compile_order -fileset sim_dcmac
 
 ######################
 ## NoC is not supported in VHDL simulation in 2024.2, need to deactivate these files from sim
-set_property used_in_simulation false [get_files  /home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/designs/correlator_v80/src_v80/vhdl/v80_top.vhd]
-set_property used_in_simulation false [get_files  /home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/build/v80/v80_top.gen/sources_1/bd/top/hdl/top_wrapper.vhd]
-set_property used_in_simulation false [get_files  /home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/build/v80/v80_top.srcs/sources_1/bd/top/top.bd]
+set_property used_in_simulation false [get_files  $REPO_BASE/designs/correlator_v80/src_v80/vhdl/v80_top.vhd]
+set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.gen/sources_1/bd/top/hdl/top_wrapper.vhd]
+set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.srcs/sources_1/bd/top/top.bd]
 
   #############################################################
   # ----------------------------------------
