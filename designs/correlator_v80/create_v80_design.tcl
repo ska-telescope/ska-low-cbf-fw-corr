@@ -374,6 +374,39 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/heap_counter_preload.mem \
 ]
 
+#############################################################
+# 1st corner turn, between LFAA ingest and filterbanks
+
+add_files -fileset sources_1 [glob \
+  $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
+  $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+  $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_versal.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_eval.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/flattening_wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/hbm_ila.vhd \
+]
+set_property library ct_lib [get_files {\
+ *corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
+ *corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+ *corr_ct1/corr_ct1/corr_ct1_reg_versal.vhd \
+ *libraries/signalProcessing/cornerturn1/poly_eval.vhd \
+ *libraries/signalProcessing/cornerturn1/flattening_wrapper.vhd \
+ *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_div3.vhd \
+ *libraries/signalProcessing/cornerturn1/hbm_ila.vhd \
+}]
+
+source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_v80.tcl
 
 ##############################################################
 # setup sim set for SPEAD

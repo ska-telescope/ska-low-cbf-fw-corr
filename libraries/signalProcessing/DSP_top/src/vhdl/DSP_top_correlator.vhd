@@ -328,7 +328,7 @@ begin
         o_dbg              => LFAADecode_dbg
     );
 
-gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE
+
     
     LFAA_FB_CT : entity CT_lib.corr_ct1_top
     -- generic map (
@@ -417,7 +417,7 @@ gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE
         --
         i_hbm_rst_dbg  => i_hbm_rst_dbg
     );
-    
+gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE    
     -- Correlator filterbank and fine delay.
     FBreali : if (not g_USE_DUMMY_FB) generate
 
