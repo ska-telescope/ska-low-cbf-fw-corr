@@ -208,7 +208,20 @@ proc do_aved_create_design { } {
   # This file will need to be tailored to each personality
   add_files -fileset constrs_1 -norecurse "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"
   set_property USED_IN {synthesis_pre} [get_files "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"]
-
+  
+  #############################################################
+  # tech memory
+  # (Used by ARGs)
+  add_files -fileset sources_1 [glob \
+  $RLIBRARIES_PATH/technology/memory/tech_memory_component_pkg.vhd \
+  $RLIBRARIES_PATH/technology/memory/tech_memory_ram_cr_cw.vhd \
+  $RLIBRARIES_PATH/technology/memory/tech_memory_ram_crw_crw.vhd \
+  ]
+  set_property library tech_memory_lib [get_files {\
+  *libraries/technology/memory/tech_memory_component_pkg.vhd \
+  *libraries/technology/memory/tech_memory_ram_cr_cw.vhd \
+  *libraries/technology/memory/tech_memory_ram_crw_crw.vhd \
+  }]
   #############################################################
   # AXI4
 
@@ -303,12 +316,56 @@ set_property library spead_sps_lib [get_files {\
 # SPEAD
 
 add_files -fileset sources_1 [glob \
-  $COMMON_PATH/spead/src/spead_packet_pkg.vhd \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_versal.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg_versal.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg.vhd \
+ $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
+ $COMMON_PATH/spead/src/spead_packet_pkg.vhd \
+ $COMMON_PATH/spead/src/spead_packet.vhd \
+ $COMMON_PATH/spead/src/spead_registers.vhd \
+ $COMMON_PATH/spead/src/spead_top.vhd \
+ $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
+ $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \
+ $COMMON_PATH/spead/src/spead_init_memspace.vhd \
 ]
 
 set_property library spead_lib [get_files {\
-  *libraries/spead/src/spead_packet_pkg.vhd \
+ *spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
+ *spead/spead_sdp/spead_spead_sdp_reg_versal.vhd \
+ *spead/spead_sdp/spead_spead_sdp_reg.vhd \
+ *hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
+ *hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
+ *hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_versal.vhd \
+ *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
+ *libraries/spead/src/spead_packet_pkg.vhd \
+ *libraries/spead/src/spead_packet.vhd \
+ *libraries/spead/src/spead_registers.vhd \
+ *libraries/spead/src/spead_top.vhd \
+ *libraries/spead/src/memory_tdp_spead.vhd \
+ *libraries/spead/src/spead_axi_bram_wrapper.vhd \
+ *libraries/spead/src/spead_init_memspace.vhd \
 }]
+
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/spead/src/spead_registers.vhd]
+
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd]
+
+## tcl scripts for ip generation
+source $COMMON_PATH/spead/spead.tcl
+
+add_files -fileset sources_1 [glob \
+ $COMMON_PATH/spead/src/dest_ip_preload.mem \
+ $COMMON_PATH/spead/src/dest_udp_preload_one.mem \
+ $COMMON_PATH/spead/src/dest_udp_preload_two.mem \
+ $COMMON_PATH/spead/src/no_of_freq_chan_preload_one.mem \
+ $COMMON_PATH/spead/src/no_of_freq_chan_preload_two.mem \
+ $COMMON_PATH/spead/src/init_mem_preload.mem \
+ $COMMON_PATH/spead/src/heap_size_preload.mem \
+ $COMMON_PATH/spead/src/heap_counter_preload.mem \
+]
 
 
 ##############################################################

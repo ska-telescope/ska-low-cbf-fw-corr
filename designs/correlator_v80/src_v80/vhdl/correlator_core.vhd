@@ -9,7 +9,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib;
-LIBRARY noc_lib;
+LIBRARY noc_lib, versal_dcmac_lib;
 
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -23,6 +23,8 @@ USE technology_lib.technology_pkg.ALL;
 USE technology_lib.technology_select_pkg.all;
 use correlator_lib.build_details_pkg.all;
 USE correlator_lib.correlator_system_reg_pkg.ALL;
+
+USE versal_dcmac_lib.versal_dcmac_pkg.ALL;
 
 USE UNISIM.vcomponents.all;
 Library xpm;
@@ -68,19 +70,15 @@ ENTITY correlator_core IS
         clk_300_rst     : in std_logic;
         
         -- Received data from 100GE
-        i_axis_tdata : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        i_axis_tkeep : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-        i_axis_tlast : in std_logic;
-        i_axis_tuser : in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
-        i_axis_tvalid : in std_logic;
+        i_axis_tdata    : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep    : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast    : in std_logic;
+        i_axis_tuser    : in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid   : in std_logic;
         
         -- Data to be transmitted on 100GE
-        o_axis_tdata : out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        o_axis_tkeep : out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-        o_axis_tlast : out std_logic;                      
-        o_axis_tuser : out std_logic;  
-        o_axis_tvalid : out std_logic;
-        i_axis_tready : in std_logic;
+        o_dcmac_tx_data_0   : out seg_streaming_axi;
+        i_dcmac_tx_ready_0  : in std_logic;
         
         i_eth100g_clk    : in std_logic;
         i_eth100g_locked : in std_logic;
@@ -145,22 +143,6 @@ constant C_SIM      : boolean := FALSE;
     );
     end component;
     
-    component correlator_system_versal_reg is 
-    GENERIC (g_technology : t_technology := c_tech_select_default);
-    PORT (
-        MM_CLK              : IN    STD_LOGIC;
-        MM_RST              : IN    STD_LOGIC;
-        noc_wren            : IN STD_LOGIC;
-        noc_rden            : IN STD_LOGIC;
-        noc_wr_adr          : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
-        noc_wr_dat          : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-        noc_rd_adr          : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
-        noc_rd_dat          : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
-        SYSTEM_FIELDS_RW: OUT t_system_rw;
-        SYSTEM_FIELDS_RO: IN  t_system_ro
-        );
-    end component;
-      
     signal ap_rst : std_logic;
 
     signal system_fields_rw : t_system_rw;
@@ -278,14 +260,21 @@ constant C_SIM      : boolean := FALSE;
     
 
     
-    signal hbm_reset_final : std_logic;
-    signal i_axis_tdata_gated : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-    signal i_axis_tkeep_gated : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-    signal i_axis_tlast_gated : std_logic;
-    signal i_axis_tuser_gated : std_logic_vector(79 downto 0); -- Timestamp for the packet.
-    signal i_axis_tvalid_gated : std_logic;
-    signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
-    signal hbm_reset_actual : std_logic_vector(5 downto 0);
+    signal hbm_reset_final      : std_logic;
+    signal i_axis_tdata_gated   : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal i_axis_tkeep_gated   : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal i_axis_tlast_gated   : std_logic;
+    signal i_axis_tuser_gated   : std_logic_vector(79 downto 0); -- Timestamp for the packet.
+    signal i_axis_tvalid_gated  : std_logic;
+    signal eth_disable_fsm_dbg  : std_logic_vector(4 downto 0);
+    signal hbm_reset_actual     : std_logic_vector(5 downto 0);
+    
+    signal bytes_to_transmit    : STD_LOGIC_VECTOR(13 downto 0);
+    signal data_to_player       : STD_LOGIC_VECTOR(511 downto 0);
+    signal data_to_player_wr    : STD_LOGIC;
+    signal data_to_player_rdy   : STD_LOGIC;
+    
+    signal eth100G_rst          : std_logic;
     
 begin
     
@@ -308,25 +297,23 @@ begin
     ---------------------------------------------------------------------------
     -- System Peripheral Registers  --
     ---------------------------------------------------------------------------
---    gen_system_noc_sim : IF (C_SIM = FALSE) GENERATE
-        i_system_noc : entity noc_lib.args_noc
-        generic map (
-            G_DEBUG => FALSE
-        )
-        port map ( 
-            i_clk       => clk_300,
-            i_rst       => clk_300_rst,
-        
-            noc_wren    => noc_wren,
-            noc_rden    => noc_rden,
-            noc_wr_adr  => noc_wr_adr,
-            noc_wr_dat  => noc_wr_dat,
-            noc_rd_adr  => noc_rd_adr,
-            noc_rd_dat  => noc_rd_dat
-        );
- --   end generate; 
-
-    i_system_regs: correlator_system_versal_reg
+    i_system_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => FALSE
+    )
+    port map ( 
+        i_clk       => clk_300,
+        i_rst       => clk_300_rst,
+    
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat
+    );
+ 
+    i_system_regs: entity correlator_lib.correlator_system_versal
     GENERIC MAP (
         g_technology      => c_tech_alveo
     )
@@ -445,12 +432,10 @@ begin
         i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
         i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
         -- Data to be transmitted on 100GE
-        o_axis_tdata   => o_axis_tdata,  -- out (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        o_axis_tkeep   => o_axis_tkeep,  -- out (63:0);  one bit per byte in o_axis_tdata
-        o_axis_tlast   => o_axis_tlast,  -- out std_logic;                      
-        o_axis_tuser   => o_axis_tuser,  -- out std_logic;
-        o_axis_tvalid  => o_axis_tvalid, -- out std_logic;
-        i_axis_tready  => i_axis_tready, -- in std_logic;
+        o_bytes_to_transmit     => bytes_to_transmit,
+        o_data_to_player        => data_to_player,
+        o_data_to_player_wr     => data_to_player_wr,
+        i_data_to_player_rdy    => data_to_player_rdy,
         
         i_clk_100GE         => i_eth100G_clk,      -- in std_logic;
         i_eth100G_locked    => i_eth100G_locked,
@@ -555,7 +540,40 @@ i_axis_tlast_gated  <= i_axis_tlast;
 i_axis_tuser_gated  <= i_axis_tuser;
 i_axis_tvalid_gated <= i_axis_tvalid;
 
+    -----------------------------------------------------------------------------------------------------------
+    CMAC_100G_reset_proc : process(i_eth100G_clk)
+    begin
+        if rising_edge(i_eth100G_clk) then
+            eth100G_rst     <= NOT i_eth100G_locked;
+        end if;
+    end process;
+    
+    i_packet_player : entity versal_dcmac_lib.dcmac_packet_player
+--    Generic (
+--        g_DEBUG_ILA             : BOOLEAN := FALSE;
+--        PLAYER_CDC_FIFO_DEPTH   : INTEGER := 1024        -- FIFO is 512 Wide, 9KB packets = 73728 bits, 512 * 256 = 131072, 256 depth allows ~1.88 9K packets, we are target packets sizes smaller than this.
+--    );
+    Port Map ( 
+        i_clk                   => clk_300,
+        i_clk_reset             => clk_300_rst,
+        
+        i_bytes_to_transmit     => bytes_to_transmit,
+        i_data_to_player        => data_to_player,
+        i_data_to_player_wr     => data_to_player_wr,
+        o_data_to_player_rdy    => data_to_player_rdy,
+        
+        o_dcmac_ready           => open,
+        
+        -- to DCMAC
+        i_dcmac_clk             => i_eth100G_clk,
+        i_dcmac_clk_rst         => eth100G_rst,
 
+        -- segmented streaming AXI 
+        o_data_to_transmit      => o_dcmac_tx_data_0,
+        i_dcmac_ready           => i_dcmac_tx_ready_0
+    );
+
+    -----------------------------------------------------------------------------------------------------------
     
 --    eth_block : entity correlator_lib.eth_disable
 --    generic map (

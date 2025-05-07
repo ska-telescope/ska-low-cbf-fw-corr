@@ -173,6 +173,8 @@ signal dcmac_rx_data_1      : seg_streaming_axi;
 signal dcmac_tx_data_0      : seg_streaming_axi;
 signal dcmac_tx_data_1      : seg_streaming_axi;
 
+signal dcmac_tx_ready_0     : std_logic;
+
 begin
 
 ----------------------------------------------------------------
@@ -258,6 +260,7 @@ begin
         o_port_1_rx_bus         => dcmac_rx_data_1,
 
         o_port_0_tx_bus         => dcmac_tx_data_0,
+        o_port_0_tx_ready       => dcmac_tx_ready_0,
         o_port_1_tx_bus         => dcmac_tx_data_1,
 
         o_port_0_locked         => dcmac_locked(0),
@@ -384,12 +387,8 @@ i_correlator_core : entity correlator_lib.correlator_core
         i_axis_tvalid       => rx_axis_tvalid,
         
         -- Data to be transmitted on 100GE
-        o_axis_tdata        => open,
-        o_axis_tkeep        => open,
-        o_axis_tlast        => open,                      
-        o_axis_tuser        => open,  
-        o_axis_tvalid       => open,
-        i_axis_tready       => '0',
+        o_dcmac_tx_data_0   => dcmac_tx_data_0,
+        i_dcmac_tx_ready_0  => dcmac_tx_ready_0,
         
         i_eth100g_clk       => clock_300,
         i_eth100g_locked    => dcmac_locked_300m,

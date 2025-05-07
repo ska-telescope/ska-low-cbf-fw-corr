@@ -25,7 +25,7 @@ USE work.<lib_name>_reg_pkg.ALL;
 --                              ENTITY STATEMENT                             --
 -------------------------------------------------------------------------------
 
-entity <lib_name>_versal_reg is
+entity <lib_name>_versal is
     GENERIC (g_technology : t_technology := c_tech_select_default);
     PORT (
         MM_CLK              : IN    STD_LOGIC;
@@ -39,13 +39,13 @@ entity <lib_name>_versal_reg is
         noc_rd_dat          : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
         <{slave_ports}>
         );
-end <lib_name>_versal_reg;
+end <lib_name>_versal;
 
 -------------------------------------------------------------------------------
 --                           ARCHITECTURE STATEMENT                          --
 -------------------------------------------------------------------------------
 
-architecture rtl of <lib_name>_versal_reg is
+architecture rtl of <lib_name>_versal is
 
     ---------------------------------------------------------------------------
     --                CONSTANT, TYPE AND GENERIC DEFINITIONS                 --

@@ -10,7 +10,7 @@
 LIBRARY <lib>_lib;
 USE <lib>_lib.<lib_name>_reg_pkg.ALL;
 
-ENTITY <lib>_lib.<lib_name>_reg 
+ENTITY <lib>_lib.<lib_name>_versal 
     PORT MAP (
         CLK            <tabs>=> ,
         RST            <tabs>=> ,
