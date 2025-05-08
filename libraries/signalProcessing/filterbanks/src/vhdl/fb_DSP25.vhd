@@ -17,10 +17,11 @@
 --
 -- Latency is 3 clocks from the last data sample (or TAPS + 3 clocks from the first data sample).
 ----------------------------------------------------------------------------------
-library IEEE, common_lib, filterbanks_lib;
+library IEEE, common_lib, filterbanks_lib, correlator_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use common_lib.common_pkg.all;
+use correlator_lib.target_fpga_pkg.ALL;
 
 entity fb_DSP25 is
     generic (
@@ -66,15 +67,38 @@ architecture Behavioral of fb_DSP25 is
         p     : out std_logic_vector(44 downto 0));
     end component;
     
+    -- Versal versions have a 58 bit wide accumulator.
+    component DSP_AxB_versal
+    port (
+        clk   : in std_logic;
+        a     : in std_logic_vector(26 downto 0);
+        b     : in std_logic_vector(17 downto 0);
+        pcout : out std_logic_vector(57 downto 0);
+        p     : out std_logic_vector(44 downto 0));
+    end component;
+
+    component DSP_AxB_plus_PCIN_versal
+    port (
+        clk   : in std_logic;
+        pcin  : in std_logic_vector(57 downto 0);
+        a     : in std_logic_vector(26 downto 0);
+        b     : in std_logic_vector(17 downto 0);
+        pcout : out std_logic_vector(57 downto 0);
+        p     : out std_logic_vector(57 downto 0));
+    end component;
+    
     signal pc : t_slv_48_arr((TAPS-1) downto 0);
+    TYPE t_slv_58_arr      IS ARRAY (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(57 DOWNTO 0);
+    signal pc58 : t_slv_58_arr((TAPS-1) downto 0);
     signal dataFull : t_slv_27_arr((TAPS-1) downto 0);
-    signal finalSum : std_logic_vector(47 downto 0);
+    signal finalSum : std_logic_vector(57 downto 0);
     
     signal intPart : std_logic_vector(15 downto 0);
     signal fracPart : std_logic_vector(8 downto 0);
     
 begin
 
+usplus_gen : IF (C_TARGET_DEVICE = "U55") GENERATE
     -- First filter tap (no pcin)
     dsp_first : DSP_AxB
     port map (
@@ -113,8 +137,52 @@ begin
         a    => dataFull(TAPS - 1), -- in(26:0)
         b    => coef_i(TAPS - 1),   -- in(17:0)
         pcout => open,              -- out(47:0)
+        p     => finalSum(47 downto 0)           -- out(47:0)
+    );
+END GENERATE;
+
+versal_gen : IF (C_TARGET_DEVICE = "V80") GENERATE
+    -- First filter tap (no pcin)
+    dsp_first : DSP_AxB_versal
+    port map (
+        clk  => clk,
+        a    => dataFull(0), -- in(26:0)
+        b    => coef_i(0),   -- in(17:0)
+        pcout => pc58(0),      -- out(47:0)
+        p     => open        -- out(44:0)
+    );
+    
+    dataFull(0) <= data_i(0) & "00000000000";
+    
+    -- Middle filter taps
+    DSPGen : for i in 1 to (TAPS - 2) generate
+        
+        dataFull(i) <= data_i(i) & "00000000000";
+        
+        dspinst : DSP_AxB_plus_PCIN_versal
+        port map (
+            clk  => clk,
+            pcin => pc58(i-1),     -- in(47:0)
+            a    => dataFull(i), -- in(26:0)
+            b    => coef_i(i),   -- in(17:0)
+            pcout => pc58(i),      -- out(47:0)
+            p     => open        -- out(47:0)
+        );
+        
+    end generate;
+    
+    -- Last filter tap
+    dataFull(TAPS - 1) <= data_i(TAPS - 1) & "00000000000";
+    dsp_last : DSP_AxB_plus_PCIN_versal
+    port map (
+        clk  => clk,
+        pcin => pc58(TAPS-2),         -- in(47:0)
+        a    => dataFull(TAPS - 1), -- in(26:0)
+        b    => coef_i(TAPS - 1),   -- in(17:0)
+        pcout => open,              -- out(47:0)
         p     => finalSum           -- out(47:0)
     );
+END GENERATE;
     
     -- FIR scaling :
     --  The deripple filter scales up by a factor of x128 (maximum output from the deripple filter is about x160)

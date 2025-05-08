@@ -417,7 +417,7 @@ begin
         --
         i_hbm_rst_dbg  => i_hbm_rst_dbg
     );
-gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE    
+
     -- Correlator filterbank and fine delay.
     FBreali : if (not g_USE_DUMMY_FB) generate
 
@@ -545,7 +545,7 @@ gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE
             ct_rst_del2 <= ct_rst_del1;
         end if;
     end process;
-    
+gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE        
     -- Corner turn between filterbanks and correlator
     ct_cor_out_inst : entity CT_lib.corr_ct2_top
     generic map (

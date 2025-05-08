@@ -408,6 +408,61 @@ set_property library ct_lib [get_files {\
 
 source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_v80.tcl
 
+#############################################################
+## Correlator filterbank and fine delay
+
+add_files -fileset sources_1 [glob \
+  $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
+  $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
+  $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_versal.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBTop_dummy.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBMem.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/URAMWrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps1.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps2.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps3.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps4.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps5.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps6.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps7.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps8.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps9.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps10.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps11.mem \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/xpm_init/correlatorFIRTaps12.mem \
+]
+
+set_property library filterbanks_lib [get_files {\
+  *cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
+  *cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
+  *cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_versal.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop_dummy.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBMem.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/URAMWrapper.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
+}]
+
+source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/dspAxB_versal.tcl
+source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/CorFB_FFT.tcl
+source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/fineDelay.tcl
+
 ##############################################################
 # setup sim set for SPEAD
 

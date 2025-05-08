@@ -13,6 +13,7 @@
 --
 ----------------------------------------------------------------------------------------------------------
 library IEEE, axi4_lib, common_lib, filterbanks_lib, dsp_top_lib;
+library xpm, correlator_lib, noc_lib;
 
 use dsp_top_lib.dsp_top_pkg.all;
 use common_lib.common_pkg.all;
@@ -20,9 +21,9 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.ALL;
-Library xpm;
 use xpm.vcomponents.all;
-USE filterbanks_lib.cor_filterbanks_filterbanks_reg_pkg.ALL;
+use filterbanks_lib.cor_filterbanks_filterbanks_reg_pkg.ALL;
+use correlator_lib.target_fpga_pkg.ALL;
 
 entity FB_Top_correlator is
     port(
@@ -151,6 +152,14 @@ architecture Behavioral of FB_Top_correlator is
     signal sof_out, sof_del1 : std_logic := '0';
     signal sof_out_count : std_logic_vector(13 downto 0) := (others => '0');
     signal RFIScale : std_logic_vector(4 downto 0);
+    
+    signal noc_wren         : STD_LOGIC;
+    signal noc_rden         : STD_LOGIC;
+    signal noc_wr_adr       : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat       : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr       : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat       : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_dat_mux   : STD_LOGIC_VECTOR(31 DOWNTO 0);
     
 begin
     
@@ -463,7 +472,9 @@ begin
     ---------------------------------------------------------------
     -- Registers
     -- 
-    
+
+-- ARGS U55
+gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE 
     filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_reg
     port map(
         MM_CLK              => i_axi_clk,   -- in  std_logic;
@@ -475,7 +486,48 @@ begin
         CONFIG_OUTPUT_DISABLE_IN  => output_disable_i, -- IN  t_config_output_disable_ram_in;
         CONFIG_OUTPUT_DISABLE_OUT => output_disable_o  -- OUT t_config_output_disable_ram_out
     );
+END GENERATE;
+
+-- ARGS Gaskets for V80
+gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+
+    i_lfaa_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => FALSE
+    )
+    port map ( 
+        i_clk       => i_axi_clk,
+        i_rst       => i_axi_rst,
     
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat_mux
+    );
+
+    filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_versal
+    port map(
+        MM_CLK                  => i_axi_clk,   -- in  std_logic;
+        MM_RST                  => i_axi_rst,   -- in  std_logic;
+
+        noc_wren                => noc_wren,
+        noc_rden                => noc_rden,
+        noc_wr_adr              => noc_wr_adr,
+        noc_wr_dat              => noc_wr_dat,
+        noc_rd_adr              => noc_rd_adr,
+        noc_rd_dat              => noc_rd_dat_mux,
+        
+        CONFIG_FIELDS_RO        => config_ro,   -- IN  t_config_ro;
+        CONFIG_FIELDS_RW        => config_rw,   -- out t_config_rw;
+        CONFIG_OUTPUT_DISABLE_IN    => output_disable_i, -- IN  t_config_output_disable_ram_in;
+        CONFIG_OUTPUT_DISABLE_OUT   => output_disable_o  -- OUT t_config_output_disable_ram_out
+    );
+
+END GENERATE;
+
+
     config_ro.status <= x"00000000";
     config_ro.txCount_eth <= tx_packet_count;
     config_ro.txcount_corner_turn <= tx_packet_count_ct;

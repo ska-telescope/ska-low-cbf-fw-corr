@@ -50,6 +50,10 @@ done
 
 export GITREPO=$(pwd) #$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 echo -e "\nBase Git directory: $GITREPO"
+export SVN=$GITREPO
+echo -e "\n"
+source $GITREPO/tools/bin/setup_radiohdl.sh 
+echo -e "\nRADIOHDL is : $RADIOHDL"
 
 # ##Clean the build directory if we pass in a command line parameter called clean
 # if [ "$1" = "clean" ]; then
