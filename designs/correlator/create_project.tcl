@@ -333,6 +333,16 @@ set_property library spead_sps_lib [get_files {\
 }]
 
 #############################################################
+## NOC
+
+add_files -fileset sources_1 [glob \
+  $COMMON_PATH/NOC/args_noc.vhd \
+]
+set_property library noc_lib [get_files {\
+  */NOC/args_noc.vhd \
+}]
+
+#############################################################
 # Signal_processing_common
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/common/src/vhdl/sync.vhd \

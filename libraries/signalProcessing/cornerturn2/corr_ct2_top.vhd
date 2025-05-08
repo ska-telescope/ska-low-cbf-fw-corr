@@ -296,6 +296,8 @@ architecture Behavioral of corr_ct2_top is
     signal dbg_freq_index0_repeat : std_logic;
     signal dbg_axi_aw_valid, dbg_axi_aw_ready, dbg_axi_w_valid, dbg_axi_w_last, dbg_axi_w_ready, dbg_axi_ar_valid, dbg_axi_ar_ready, dbg_axi_r_valid, dbg_axi_r_ready : std_logic;
     
+    signal o_cor_tileChannel_int    : t_slv_24_arr(g_MAX_CORRELATORS-1 downto 0);
+    
     component ila_120_16k
     port (
         clk : in std_logic;
@@ -630,7 +632,7 @@ begin
         o_cor_tileType => o_cor_tileType(0), -- out std_logic;
         o_cor_first    => o_cor_first(0),    -- out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
         o_cor_tile_location => o_cor_tileLocation(0), -- out (9:0);
-        o_cor_tileChannel => o_cor_tileChannel(0),    -- out (23:0);
+        o_cor_tileChannel => o_cor_tileChannel_int(0),    -- out (23:0);
         o_cor_tileTotalTimes => o_cor_tileTotalTimes(0), -- out (7:0);  Number of time samples to integrate for this tile.
         o_cor_tiletotalChannels => o_cor_tileTotalChannels(0), -- out (4:0); Number of frequency channels to integrate for this tile.
         o_cor_rowstations       => o_cor_rowStations(0), -- out (8:0); Number of stations in the row memories to process; up to 256.
@@ -700,7 +702,7 @@ begin
             o_cor_tileType => o_cor_tileType(i), -- out std_logic;
             o_cor_first    => o_cor_first(i),    -- out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
             o_cor_tile_location => o_cor_tileLocation(i), -- out (9:0);
-            o_cor_tileChannel => o_cor_tileChannel(i),    -- out (23:0);
+            o_cor_tileChannel => o_cor_tileChannel_int(i),    -- out (23:0);
             o_cor_tileTotalTimes => o_cor_tileTotalTimes(i), -- out (7:0);  Number of time samples to integrate for this tile.
             o_cor_tiletotalChannels => o_cor_tileTotalChannels(i), -- out (4:0); Number of frequency channels to integrate for this tile.
             o_cor_rowstations       => o_cor_rowStations(i), -- out (8:0); Number of stations in the row memories to process; up to 256.
@@ -730,7 +732,7 @@ begin
         o_cor_tileType(1) <= '0';
         o_cor_first(1) <= '0';
         o_cor_tileLocation(1) <= (others => '0');
-        o_cor_tileChannel(1) <= (others => '0');
+        o_cor_tileChannel_int(1) <= (others => '0');
         o_cor_tileTotalTimes(1) <= (others => '0');
         o_cor_tileTotalChannels(1) <= (others => '0');
         o_cor_rowStations(1) <= (others => '0');
@@ -1091,7 +1093,8 @@ END GENERATE;
     
     ----------------------------------------------------------------------------------------
     --
-
+    o_cor_tileChannel   <= o_cor_tileChannel_int;
+    
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
@@ -1139,7 +1142,7 @@ END GENERATE;
             
             -- 9 bits
             dbg_cor_valid <= cor_valid_int(0);
-            dbg_cor_tileChannel <= o_cor_tileChannel(0)(7 downto 0);
+            dbg_cor_tileChannel <= o_cor_tileChannel_int(0)(7 downto 0);
             
             -- 1 bit
             dbg_freq_index0_repeat <= i_freq_index0_repeat; -- (export from single_correlator.vhd)

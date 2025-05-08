@@ -97,12 +97,16 @@ architecture Behavioral of tb_correlatorCore is
     
     signal dcmac_tx_data_0      : seg_streaming_axi;
     signal dcmac_tx_data_1      : seg_streaming_axi;
+    
+    signal dcmac_tx_ready_0     : std_logic;
+    
+    signal dcmac_reset          : std_logic := '0';
 
     signal LFAADone : std_logic := '0';
     -- The shared memory in the shell is 128Kbytes;
     -- i.e. 32k x 4 byte words. 
-    type memType is array(32767 downto 0) of integer;
-    shared variable sharedMem : memType;
+--    type memType is array(32767 downto 0) of integer;
+--    shared variable sharedMem : memType;
     
     function strcmp(a, b : string) return boolean is
         alias a_val : string(1 to a'length) is a;
@@ -206,8 +210,8 @@ architecture Behavioral of tb_correlatorCore is
     signal player_rx_axi_tuser  : std_logic_vector(79 downto 0);  -- Timestamp for the packet.
     signal player_rx_axi_tvalid : std_logic;
     
-    signal bytes_to_transmit_spead_v3   : std_logic_vector(13 downto 0) := 14D"8290";
-    signal bytes_to_transmit_spead_v2   : std_logic_vector(13 downto 0) := 14D"8306";
+    signal bytes_to_transmit_spead_v3   : std_logic_vector(13 downto 0) := "10000001100010"; --14D"8290";
+    signal bytes_to_transmit_spead_v2   : std_logic_vector(13 downto 0) := "10000001110010"; --14D"8306";
     
     -- Data to be transmitted on 100GE
     signal eth100_tx_axi_tdata : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
@@ -621,7 +625,7 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
     
 
     
-
+dcmac_reset <= NOT dcmac_locked;
 ---------------------------------------------------------------------------------------------------------------
 -- DUTs
 
@@ -629,7 +633,7 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
     Port Map ( 
         -- Data in from the 100GE MAC
         i_MAC_clk               => dcmac_clk,
-        i_MAC_rst               => NOT dcmac_locked,
+        i_MAC_rst               => dcmac_reset,
         
         i_clk_300               => clk_300,
         i_clk_300_rst           => clk_300_rst,
@@ -688,13 +692,10 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
         i_axis_tlast    => rx_axi_tlast,   -- in std_logic;
         i_axis_tuser    => rx_axi_tuser,   -- in (79:0);  -- Timestamp for the packet.
         i_axis_tvalid   => rx_axi_tvalid, -- in std_logic;
+        
         -- Data to be transmitted on 100GE
-        o_axis_tdata    => eth100_tx_axi_tdata, -- out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        o_axis_tkeep    => eth100_tx_axi_tkeep, -- out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-        o_axis_tlast    => eth100_tx_axi_tlast, -- out std_logic;                      
-        o_axis_tuser    => eth100_tx_axi_tuser, -- out std_logic;  
-        o_axis_tvalid   => eth100_tx_axi_tvalid, -- out std_logic;
-        i_axis_tready   => '1',
+        o_dcmac_tx_data_0   => dcmac_tx_data_0,
+        i_dcmac_tx_ready_0  => dcmac_tx_ready_0,
         
         i_eth100g_clk           => clk_300, --  in std_logic;
         i_eth100g_locked        => dcmac_locked_300m,       -- in std_logic;
@@ -738,10 +739,10 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
     Port Map ( 
         -- Data in from the 100GE MAC
         i_MAC_clk               => dcmac_clk,
-        i_MAC_rst               => NOT dcmac_locked,
+        i_MAC_rst               => dcmac_reset,
         
         i_clk_300               => dcmac_clk,
-        i_clk_300_rst           => NOT dcmac_locked,
+        i_clk_300_rst           => dcmac_reset,
 
         -- Streaming AXI interface - compatible with CMAC S_AXI
         -- RX
@@ -766,7 +767,7 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
 --    );
     Port Map ( 
         i_clk                   => dcmac_clk,
-        i_clk_reset             => NOT dcmac_locked,
+        i_clk_reset             => dcmac_reset,
         
         i_bytes_to_transmit     => bytes_to_transmit_spead_v2,
         i_data_to_player        => player_rx_axi_tdata,
@@ -777,7 +778,7 @@ dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);
         
         -- to DCMAC
         i_dcmac_clk             => dcmac_clk,
-        i_dcmac_clk_rst         => NOT dcmac_locked,
+        i_dcmac_clk_rst         => dcmac_reset,
 
         -- segmented streaming AXI 
         o_data_to_transmit      => dcmac_tx_data_0,

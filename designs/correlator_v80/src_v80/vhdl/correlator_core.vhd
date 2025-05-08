@@ -9,7 +9,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib;
-LIBRARY noc_lib, versal_dcmac_lib;
+LIBRARY noc_lib, versal_dcmac_lib, system_lib;
 
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -276,6 +276,8 @@ constant C_SIM      : boolean := FALSE;
     
     signal eth100G_rst          : std_logic;
     
+    signal o_null               : t_axi4_lite_miso;
+    
 begin
     
     ---------------------------------------------------------------------------
@@ -472,7 +474,8 @@ begin
         i_spead_hbm_rd_lite_axi_mosi(0) => c_axi4_lite_mosi_rst,
         i_spead_hbm_rd_lite_axi_mosi(1) => c_axi4_lite_mosi_rst,
         
-        o_spead_hbm_rd_lite_axi_miso    => open,
+        o_spead_hbm_rd_lite_axi_miso(0) => o_null,
+        o_spead_hbm_rd_lite_axi_miso(1) => o_null,
 
         -- SDP SPEAD
         i_spead_lite_axi_mosi(0)        => c_axi4_lite_mosi_rst,
@@ -501,6 +504,7 @@ begin
         -- r data bus : in t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
         i_HBM_axi_r       => logic_HBM_axi_r,
         o_HBM_axi_rready  => logic_HBM_axi_rreadyi,  -- out std_logic_vector(5:0);
+        
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
         i_ct2_readout_start => i_ct2_readout_start,

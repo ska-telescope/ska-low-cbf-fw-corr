@@ -39,14 +39,17 @@
 ----------------------------------------------------------------------------------
 
 library IEEE, correlator_lib, common_lib, spead_lib, signal_processing_common;
+library axi4_lib, noc_lib;
+
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-Library axi4_lib;
-USE axi4_lib.axi4_lite_pkg.ALL;
+use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
-USE common_lib.common_pkg.ALL;
+use common_lib.common_pkg.ALL;
 use spead_lib.hbm_read_hbm_rd_debug_reg_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
+use correlator_lib.target_fpga_pkg.ALL;
+
 
 entity correlator_data_reader is
     Generic ( 
@@ -296,6 +299,16 @@ signal page_flip_count              : unsigned(3 downto 0)  := x"0";
 signal find_page_flip               : std_logic := '0';
 
 signal current_page_ct1             : std_logic;
+
+signal noc_wren                 : STD_LOGIC;
+signal noc_rden                 : STD_LOGIC;
+signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+signal noc_wr_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+signal noc_rd_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+signal noc_rd_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+signal noc_rd_dat_mux           : STD_LOGIC_VECTOR(31 DOWNTO 0);
+signal bram_addr_d1             : STD_LOGIC_VECTOR(17 DOWNTO 0);
+signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
 
 --------------------------------------------------------------------------------
 begin
@@ -1052,7 +1065,10 @@ end process;
         end if;
     end process;
 
+    ---------------------------------------------------------------------------
     -- ARGs
+    -- ARGS U55
+gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE
     ARGS_register_Packetiser : entity spead_lib.hbm_read_hbm_rd_debug_reg 
     PORT MAP (
         -- AXI Lite signals, 300 MHz Clock domain
@@ -1066,6 +1082,49 @@ end process;
         HBM_RD_DEBUG_FIELDS_RW          => hbm_rd_debug_rw
     
     );
+
+END GENERATE;
+
+
+-- ARGS Gaskets for V80
+gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+    i_ct2_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => FALSE
+    )
+    port map ( 
+        i_clk       => i_axi_clk,
+        i_rst       => i_axi_rst,
+    
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat_mux
+    );
+    
+    ARGS_register_Packetiser : entity spead_lib.hbm_read_hbm_rd_debug_versal
+    PORT MAP (
+        -- AXI Lite signals, 300 MHz Clock domain
+        MM_CLK                  => i_axi_clk,
+        MM_RST                  => i_axi_rst,
+        
+        noc_wren                => noc_wren,
+        noc_rden                => noc_rden,
+        noc_wr_adr              => noc_wr_adr,
+        noc_wr_dat              => noc_wr_dat,
+        noc_rd_adr              => noc_rd_adr,
+        noc_rd_dat              => noc_rd_dat_mux,
+
+        HBM_RD_DEBUG_FIELDS_RO  => hbm_rd_debug_ro,
+        HBM_RD_DEBUG_FIELDS_RW  => hbm_rd_debug_rw
+    
+    );    
+    
+    
+END GENERATE;
+
 
     hbm_rd_debug_ro.debug_pack_it_fsm           <= pack_it_fsm_debug;
     hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;

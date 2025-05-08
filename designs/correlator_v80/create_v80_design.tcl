@@ -502,6 +502,89 @@ set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd]
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd]
 
+#############################################################
+## Correlator
+
+  puts "Add Correlator files ..."
+
+add_files -fileset sources_1 [glob \
+  $ARGS_PATH/cor/config/cor_config_reg_pkg.vhd \
+  $ARGS_PATH/cor/config/cor_config_reg.vhd \
+  $ARGS_PATH/cor/config/cor_config_reg_versal.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/single_correlator.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/full_correlator.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_HBM.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/LTA_urams.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/row_col_dataIn.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/LTA_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/centroid_divider.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/vis2fp.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/dv_tci_mem.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/sqrt_rom.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/fp32_x_Uint.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom0.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom1.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom2.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom3.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom4.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom5.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom6.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom7.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom8.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_quad_wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add_dsp.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
+]
+
+set_property library correlator_lib [get_files {\
+  *cor/config/cor_config_reg_pkg.vhd \
+  *cor/config/cor_config_reg.vhd \
+  *cor/config/cor_config_reg_versal.vhd \
+  *libraries/signalProcessing/correlator/correlator_top.vhd \
+  *libraries/signalProcessing/correlator/single_correlator.vhd \
+  *libraries/signalProcessing/correlator/full_correlator.vhd \
+  *libraries/signalProcessing/correlator/correlator_HBM.vhd \
+  *libraries/signalProcessing/correlator/LTA_urams.vhd \
+  *libraries/signalProcessing/correlator/row_col_dataIn.vhd \
+  *libraries/signalProcessing/correlator/LTA_top.vhd \
+  *libraries/signalProcessing/correlator/centroid_divider.vhd \
+  *libraries/signalProcessing/correlator/vis2fp.vhd \
+  *libraries/signalProcessing/correlator/dv_tci_mem.vhd \
+  *libraries/signalProcessing/correlator/sqrt_rom.vhd \
+  *libraries/signalProcessing/correlator/fp32_x_Uint.vhd \
+  *libraries/signalProcessing/correlator/inv_rom_top.vhd \
+  *libraries/signalProcessing/correlator/inv_rom0.vhd \
+  *libraries/signalProcessing/correlator/inv_rom1.vhd \
+  *libraries/signalProcessing/correlator/inv_rom2.vhd \
+  *libraries/signalProcessing/correlator/inv_rom3.vhd \
+  *libraries/signalProcessing/correlator/inv_rom4.vhd \
+  *libraries/signalProcessing/correlator/inv_rom5.vhd \
+  *libraries/signalProcessing/correlator/inv_rom6.vhd \
+  *libraries/signalProcessing/correlator/inv_rom7.vhd \
+  *libraries/signalProcessing/correlator/inv_rom8.vhd \
+  *libraries/signalProcessing/correlator/cmac_quad_wrapper.vhd \
+  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac.vhd \
+  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add.vhd \
+  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add_dsp.vhd \
+  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
+  *libraries/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  *libraries/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
+  *signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
+}]
+
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd]
+set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/spead/src/spead_registers.vhd]
+
+source $RLIBRARIES_PATH/signalProcessing/correlator/LTA.tcl
+
 ##############################################################
 # setup sim set for SPEAD
 
@@ -522,7 +605,7 @@ set_property library correlator_lib [get_files {\
 }]
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/HBM_axi_tbModel.vhd]
-set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/tb_correlatorCore.vhd]
+#set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/tb_correlatorCore.vhd]
 
 set_property top tb_correlatorCore [get_filesets sim_dcmac]
 set_property top_lib xil_defaultlib [get_filesets sim_dcmac]

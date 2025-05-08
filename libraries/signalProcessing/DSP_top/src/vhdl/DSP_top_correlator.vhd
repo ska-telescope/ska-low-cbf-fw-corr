@@ -623,7 +623,7 @@ begin
         i_eth_disable_fsm_dbg => i_eth_disable_fsm_dbg, -- : in std_logic_vector(4 downto 0)
         i_hbm_rst_dbg  => i_hbm_rst_dbg   -- in t_slv_32_arr(5 downto 0);
     );
-gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE    
+   
     -- Correlator
     correlator_inst : entity correlator_lib.correlator_top
     generic map (
@@ -762,7 +762,7 @@ gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE
         o_freq_index0_repeat => freq_index0_repeat
     );
     
-END GENERATE;    
+   
     -----------------------------------------------------------------------------------------------
     -- 100GE output 
     
