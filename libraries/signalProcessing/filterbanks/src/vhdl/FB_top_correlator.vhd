@@ -491,7 +491,7 @@ END GENERATE;
 -- ARGS Gaskets for V80
 gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
 
-    i_lfaa_noc : entity noc_lib.args_noc
+    i_fb_noc : entity noc_lib.args_noc
     generic map (
         G_DEBUG => FALSE
     )

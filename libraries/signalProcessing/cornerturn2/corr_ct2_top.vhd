@@ -70,15 +70,17 @@
 --        Data is packed into HBM first by station, then by fine channel, then by time block (1 time block = 32 time samples)
 ----------------------------------------------------------------------------------
 library IEEE, ct_lib, DSP_top_lib, common_lib, axi4_lib;
+Library xpm, correlator_lib, noc_lib;
+
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use DSP_top_lib.DSP_top_pkg.all;
-USE common_lib.common_pkg.ALL;
+use common_lib.common_pkg.ALL;
 use axi4_lib.axi4_lite_pkg.ALL;
-USE axi4_lib.axi4_full_pkg.ALL;
+use axi4_lib.axi4_full_pkg.ALL;
 use ct_lib.corr_ct2_reg_pkg.all;
-Library xpm;
 use xpm.vcomponents.all;
+use correlator_lib.target_fpga_pkg.ALL;
 
 entity corr_ct2_top is
     generic (
@@ -323,6 +325,16 @@ architecture Behavioral of corr_ct2_top is
     signal cor_bp_rd_addr : std_logic_vector(7 downto 0);
     signal cor_bp_rd_data : std_logic_vector(1 downto 0);
     signal dout_HBM_buffer : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+    
+    signal noc_wren                 : STD_LOGIC;
+    signal noc_rden                 : STD_LOGIC;
+    signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_dat_mux           : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal bram_addr_d1             : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
     
 begin
     
@@ -737,6 +749,8 @@ begin
     
     ------------------------------------------------------------------------------
     -- Registers
+-- ARGS U55
+gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE
     reginst : entity ct_lib.corr_ct2_reg
     PORT map (
         MM_CLK              => i_axi_clk,   -- in  std_logic;
@@ -750,7 +764,51 @@ begin
         STATCTRL_SUBARRAY_BEAM_IN  => subarray_beam_in, -- in  t_statctrl_subarray_beam_ram_in;
         STATCTRL_SUBARRAY_BEAM_OUT => subarray_beam_out -- out t_statctrl_subarray_beam_ram_out
     );
+
+END GENERATE;
+
+
+-- ARGS Gaskets for V80
+gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+    i_ct2_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => FALSE
+    )
+    port map ( 
+        i_clk       => i_axi_clk,
+        i_rst       => i_axi_rst,
     
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat_mux
+    );
+
+    reginst : entity ct_lib.corr_ct2_versal
+    PORT map (
+        MM_CLK              => i_axi_clk,   -- in  std_logic;
+        MM_RST              => i_axi_rst,   -- in  std_logic;
+
+        noc_wren            => noc_wren,
+        noc_rden            => noc_rden,
+        noc_wr_adr          => noc_wr_adr,
+        noc_wr_dat          => noc_wr_dat,
+        noc_rd_adr          => noc_rd_adr,
+        noc_rd_dat          => noc_rd_dat_mux,
+        
+        STATCTRL_FIELDS_RW	=> statctrl_rw, -- out t_statctrl_rw; single field .buf0_subarray_beams_table0, .buf0_subarray_beams_table1, .buf1_subarray_beams_table0, .buf1_subarray_beams_table1
+        STATCTRL_FIELDS_RO	=> statctrl_ro, -- in  t_statctrl_ro
+        STATCTRL_VC_DEMAP_IN       => vc_demap_in,      -- in  t_statctrl_vc_demap_ram_in;
+        STATCTRL_VC_DEMAP_OUT      => vc_demap_out,     -- out t_statctrl_vc_demap_ram_out;
+        STATCTRL_SUBARRAY_BEAM_IN  => subarray_beam_in, -- in  t_statctrl_subarray_beam_ram_in;
+        STATCTRL_SUBARRAY_BEAM_OUT => subarray_beam_out -- out t_statctrl_subarray_beam_ram_out
+    );
+
+
+END GENERATE;
+
     statctrl_ro.bufferoverflowerror <= '0';
     statctrl_ro.readouterror <= '0';
     statctrl_ro.hbmbuf0packetcount <= (others => '0');

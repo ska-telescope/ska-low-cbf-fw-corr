@@ -545,7 +545,7 @@ begin
             ct_rst_del2 <= ct_rst_del1;
         end if;
     end process;
-gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE        
+        
     -- Corner turn between filterbanks and correlator
     ct_cor_out_inst : entity CT_lib.corr_ct2_top
     generic map (
@@ -623,7 +623,7 @@ gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE
         i_eth_disable_fsm_dbg => i_eth_disable_fsm_dbg, -- : in std_logic_vector(4 downto 0)
         i_hbm_rst_dbg  => i_hbm_rst_dbg   -- in t_slv_32_arr(5 downto 0);
     );
-    
+gen_v80_dev : IF (C_TARGET_DEVICE = "U55") GENERATE    
     -- Correlator
     correlator_inst : entity correlator_lib.correlator_top
     generic map (
