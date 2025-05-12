@@ -143,6 +143,12 @@ constant C_SIM      : boolean := FALSE;
     );
     end component;
     
+    constant NOC_DATA_WIDTH     : integer   := 512;                 -- 32/64/128/256/512
+    constant NOC_ADDR_WIDTH     : integer   := 64;                  -- 12 to 64
+    constant NOC_ID_WIDTH       : integer   := 1;                   -- 1 to 16
+    constant NOC_AUSER_WIDTH    : integer   := 16;                  -- 16 for VNOC with parity disabled, 18 for VNOC with parity enabled 
+    constant NOC_DUSER_WIDTH    : integer   := 1;                   -- 2*DATA_WIDTH/8 for parity enablement with VNOC, 1 for VNOC with parity disabled cases.
+
     signal ap_rst : std_logic;
 
     signal system_fields_rw : t_system_rw;
@@ -189,19 +195,15 @@ constant C_SIM      : boolean := FALSE;
     signal fec_enable_reset         : std_logic := '0';
     
     -- Logic side signals of HBM reset mechanism
-    signal logic_HBM_axi_aw         : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
-    signal logic_HBM_axi_awreadyi   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_aw               : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
 
-    signal logic_HBM_axi_w          : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
-    signal logic_HBM_axi_wreadyi    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_w                : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
 
-    signal logic_HBM_axi_b          : t_axi4_full_b_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_b                : t_axi4_full_b_arr(g_HBM_INTERFACES-1 downto 0);
 
-    signal logic_HBM_axi_ar         : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
-    signal logic_HBM_axi_arreadyi   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);    
+    signal HBM_axi_ar               : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);   
 
-    signal logic_HBM_axi_r          : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
-    signal logic_HBM_axi_rreadyi    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_r                : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
 
     -- HBM reset
     signal hbm_reset                : std_logic_vector(5 downto 0);
@@ -209,28 +211,77 @@ constant C_SIM      : boolean := FALSE;
     signal hbm_rst_dbg              : t_slv_32_arr(5 downto 0);
     signal hbm_reset_combined       : std_logic_vector(5 downto 0);
     
-    signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
+    ---------------------------------------------------------------------------------------
+    -- AXI4 interfaces for accessing HBM
+    -- 0 = 3 Gbytes for LFAA ingest corner turn 
+    -- 1 = 3 Gbytes, buffer between the filterbanks and the correlator
+    --     First half, for fine channels that go to the first correlator instance.
+    -- 2 = 3 Gbytes, buffer between the filterbanks and the correlator
+    --     second half, for fine channels that go to the second correlator instance.
+    -- 3 = 0.5 Gbytes, Visibilities from First correlator instance;
+    -- 4 = 0.5 Gbytes, Visibilities from Second correlator instance;
+    signal HBM_axi_awvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awaddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awlock   : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awcache  : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awprot   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_awregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
 
-    signal HBM_axi_araddr256Mbytei, HBM_axi_awaddr256Mbytei : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_aw : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_awreadyi : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_w : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_wreadyi : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_b : t_axi4_full_b_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_ar : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_arreadyi : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_r : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_rreadyi : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_araddri, HBM_axi_awaddri : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_awsizei : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wstrb    : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_bvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_bready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_bresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_bid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_araddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arlock   : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arcache  : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arprot   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_arregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_rvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_rready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_rdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+    signal HBM_axi_rlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_rid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+    signal HBM_axi_rresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    signal HBM_axi_awuser   : t_slv_16_arr(g_HBM_INTERFACES-1 downto 0);
+
+    signal HBM_axi_wid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_wuser    : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_buser    : t_slv_16_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_aruser   : t_slv_16_arr(g_HBM_INTERFACES-1 downto 0);
+    signal HBM_axi_ruser    : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
+
+    signal HBM_axi_araddr256Mbyte, HBM_axi_awaddr256Mbyte : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
     
-    signal HBM_axi_awbursti : t_slv_2_arr(g_HBM_INTERFACES - 1 downto 0);
-    signal HBM_axi_breadyi : std_logic_vector(g_HBM_INTERFACES - 1 downto 0);
-    signal HBM_axi_wstrbi : t_slv_64_arr(g_HBM_INTERFACES - 1 downto 0);
-    signal HBM_axi_arsizei : t_slv_3_arr(g_HBM_INTERFACES - 1 downto 0);
-    signal HBM_axi_arbursti : t_slv_2_arr(g_HBM_INTERFACES - 1 downto 0);
-    signal HBM_shared : t_slv_64_arr(g_HBM_interfaces-1 downto 0);
-    
+    -- V80 contains 32GB of HBM
+    -- Base address for this is 0x40_0000_0000
+    -- Biggest HBM block in Correlator is 4GB
+    constant HBM_base_addr  : t_slv_64_arr(g_HBM_interfaces-1 downto 0) := ( x"0000004000000000",   -- Base
+                                                                             x"0000004100000000",   -- +4GB addr
+                                                                             x"0000004200000000",   -- +4GB addr
+                                                                             x"0000004300000000",   -- +4GB addr
+                                                                             x"0000004400000000",   -- +4GB addr
+                                                                             x"0000004500000000"    -- +4GB addr
+                                                                            );
+
+
     signal axi_dbg : std_logic_vector(127 downto 0);
     signal axi_dbg_valid : std_logic;
     
@@ -491,19 +542,19 @@ begin
         -----------------------------------------------------------------------
         -- AXI interfaces to HBM memory (5 interfaces used)
         -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_aw      => logic_HBM_axi_aw,       
-        i_HBM_axi_awready => logic_HBM_axi_awreadyi, -- in std_logic_vector(5:0);
+        o_HBM_axi_aw      => HBM_axi_aw,       
+        i_HBM_axi_awready => HBM_axi_awready, -- in std_logic_vector(5:0);
         -- w data buses : out t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_w       => logic_HBM_axi_w,        
-        i_HBM_axi_wready  => logic_HBM_axi_wreadyi,  -- in std_logic_vector(5:0);
+        o_HBM_axi_w       => HBM_axi_w,        
+        i_HBM_axi_wready  => HBM_axi_wready,  -- in std_logic_vector(5:0);
         -- write response bus : in t_axi4_full_b_arr(5:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_b       => logic_HBM_axi_b,
+        i_HBM_axi_b       => HBM_axi_b,
         -- read address bus : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_ar      => logic_HBM_axi_ar,
-        i_HBM_axi_arready => logic_HBM_axi_arreadyi, -- in std_logic_vector(5:0);
+        o_HBM_axi_ar      => HBM_axi_ar,
+        i_HBM_axi_arready => HBM_axi_arready, -- in std_logic_vector(5:0);
         -- r data bus : in t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_r       => logic_HBM_axi_r,
-        o_HBM_axi_rready  => logic_HBM_axi_rreadyi,  -- out std_logic_vector(5:0);
+        i_HBM_axi_r       => HBM_axi_r,
+        o_HBM_axi_rready  => HBM_axi_rready,  -- out std_logic_vector(5:0);
         
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
         -- used in testing with pre-load of the second corner turn HBM data
@@ -613,18 +664,124 @@ i_axis_tvalid_gated <= i_axis_tvalid;
     
    
     
+axi_HBM_gen : for i in 0 to 5 generate
 
+    -- ar and aw addresses need to be set to the correct offset within the HBM
+    HBM_axi_araddr256Mbyte(i)          <= HBM_axi_ar(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
+    HBM_axi_araddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
+    HBM_axi_araddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_araddr256Mbyte(i)));
+    HBM_axi_araddr(i)(27 downto 0)     <= HBM_axi_ar(i).addr(27 downto 0);
+    
+    HBM_axi_awaddr256Mbyte(i)          <= HBM_axi_aw(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
+    HBM_axi_awaddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
+    HBM_axi_awaddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_awaddr256Mbyte(i)));
+    HBM_axi_awaddr(i)(27 downto 0)     <= HBM_axi_aw(i).addr(27 downto 0);
+    
+    -- register slice ports that have a fixed value.
+    HBM_axi_awsize(i)       <= get_axi_size(g_HBM_AXI_DATA_WIDTH);
+    HBM_axi_awburst(i)      <= "01";   -- "01" indicates incrementing addresses for each beat in the burst.  -- out std_logic_vector(1 downto 0);
+    HBM_axi_bready(i)       <= '1';  -- Always accept acknowledgement of write transactions. -- out std_logic;
+    HBM_axi_wstrb(i)        <= (others => '1');  -- We always write all bytes in the bus. --  out std_logic_vector(63 downto 0);
+    HBM_axi_arsize(i)       <= get_axi_size(g_HBM_AXI_DATA_WIDTH);   -- 6 = 64 bytes per beat = 512 bit wide bus. -- out std_logic_vector(2 downto 0);
+    HBM_axi_arburst(i)      <= "01";    -- "01" = incrementing address for each beat in the burst. -- out std_logic_vector(1 downto 0);
+    
+    -- these have no ports on the axi register slice
+    HBM_axi_arlock(i)(0)    <= '0';
+    HBM_axi_awlock(i)(0)    <= '0';
+    HBM_axi_awcache(i)      <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+    HBM_axi_awprot(i)       <= "000";   -- Has no effect in Vitis environment. -- out std_logic_vector(2 downto 0);
+    HBM_axi_awqos(i)        <= "0000";  -- Has no effect in vitis environment, -- out std_logic_vector(3 downto 0);
+    HBM_axi_awregion(i)     <= "0000"; -- Has no effect in Vitis environment. -- out std_logic_vector(3 downto 0);
+    HBM_axi_arcache(i)      <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+    HBM_axi_arprot(i)       <= "000";   -- Has no effect in vitis environment; out std_logic_Vector(2 downto 0);
+    HBM_axi_arqos(i)        <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+    HBM_axi_arregion(i)     <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+    HBM_axi_awid(i)(0)      <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
+    HBM_axi_arid(i)(0)      <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
+
+    HBM_axi_awuser(i)       <= x"0000";     -- New NOC fields to keeep an eye on.
+    HBM_axi_wid(i)(0)       <= '0';         -- New NOC fields to keeep an eye on.
+    HBM_axi_wuser(i)(0)     <= '0';         -- New NOC fields to keeep an eye on.
+    HBM_axi_ruser(i)(0)     <= '0';         -- New NOC fields to keeep an eye on.
+
+    -- HBM Master NoC
+    i_hbm_noc : xpm_nmu_mm
+        generic map (
+            NOC_FABRIC    => "VNOC",			-- pl/pl_hbm
+            DATA_WIDTH    => NOC_DATA_WIDTH,			-- 32/64/128/256/512
+            ADDR_WIDTH    => NOC_ADDR_WIDTH,			-- 12 to 64
+            ID_WIDTH      => NOC_ID_WIDTH,				-- 1 to 16
+            AUSER_WIDTH   => NOC_AUSER_WIDTH,			-- 16 for VNOC with parity disabled, 18 for VNOC with parity enabled 
+            DUSER_WIDTH   => NOC_DUSER_WIDTH,			-- 2*DATA_WIDTH/8 for parity enablement with VNOC, 1 for VNOC with parity disabled cases
+            ENABLE_USR_INTERRUPT => "false",	-- false/true
+            SIDEBAND_PINS => "false"		-- false/true/addr/data
+        )
+        port map ( 
+            s_axi_aclk              => clk_300,
+            
+            -----------------------------------------------------
+            -- To Logic
+            -- ADDR
+            s_axi_awid              => HBM_axi_awid(i),
+            s_axi_awaddr            => HBM_axi_awaddr(i), --HBM_axi_aw(i).addr,
+            s_axi_awlen             => HBM_axi_aw(i).len,
+            s_axi_awsize            => HBM_axi_awsize(i),
+            s_axi_awburst           => HBM_axi_awburst(i),
+            s_axi_awlock            => HBM_axi_awlock(i),
+            s_axi_awcache           => HBM_axi_awcache(i),
+            s_axi_awprot            => HBM_axi_awprot(i),
+            s_axi_awregion          => HBM_axi_awregion(i),
+            s_axi_awqos             => HBM_axi_awqos(i),
+            s_axi_awuser            => HBM_axi_awuser(i),                -- Where does this go?
+            s_axi_awvalid           => HBM_axi_aw(i).valid,
+            s_axi_awready           => HBM_axi_awready(i),
+
+            -- DATA
+            s_axi_wid               => HBM_axi_wid(i),
+            s_axi_wdata             => HBM_axi_w(i).data,
+            s_axi_wstrb             => HBM_axi_wstrb(i),
+            s_axi_wlast             => HBM_axi_w(i).last,
+            s_axi_wuser             => HBM_axi_wuser(i),
+            s_axi_wvalid            => HBM_axi_w(i).valid,
+            s_axi_wready            => HBM_axi_wready(i),
+
+            s_axi_bid               => HBM_axi_bid(i),
+            s_axi_bresp             => HBM_axi_b(i).resp,
+            s_axi_buser             => HBM_axi_buser(i),
+            s_axi_bvalid            => HBM_axi_b(i).valid,
+            s_axi_bready            => HBM_axi_bready(i),
+            
+            -- reading from logic
+            -- ADDR
+
+            s_axi_arid              => HBM_axi_arid(i),
+            s_axi_araddr            => HBM_axi_araddr(i), --HBM_axi_ar(i).addr,
+            s_axi_arlen             => HBM_axi_ar(i).len,
+            s_axi_arsize            => HBM_axi_arsize(i),
+            s_axi_arburst           => HBM_axi_arburst(i),
+            s_axi_arlock            => HBM_axi_arlock(i),
+            s_axi_arcache           => HBM_axi_arcache(i),
+            s_axi_arprot            => HBM_axi_arprot(i),
+            s_axi_arregion          => HBM_axi_arregion(i),
+            s_axi_arqos             => HBM_axi_arqos(i),
+            s_axi_aruser            => HBM_axi_aruser(i),
+            s_axi_arvalid           => HBM_axi_ar(i).valid,
+            s_axi_arready           => HBM_axi_arready(i),
+
+            -- DATA
+            s_axi_rid               => HBM_axi_rid(i),
+            s_axi_rdata             => HBM_axi_r(i).data,
+            s_axi_rresp             => HBM_axi_r(i).resp,
+            s_axi_rlast             => HBM_axi_r(i).last,
+            s_axi_ruser             => HBM_axi_ruser(i),
+            s_axi_rvalid            => HBM_axi_r(i).valid,
+            s_axi_rready            => HBM_axi_rready(i),
+            
+            nmu_usr_interrupt_in    => x"0"
         
---    -- ar and aw addresses need to be set to the correct offset within the HBM
---    HBM_axi_araddr256Mbytei(i) <= HBM_axi_ar(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
---    HBM_axi_araddri(i)(63 downto 36) <= HBM_shared(i)(63 downto 36);
---    HBM_axi_araddri(i)(35 downto 28) <= std_logic_vector(unsigned(HBM_shared(i)(35 downto 28)) + unsigned(HBM_axi_araddr256Mbytei(i)));
---    HBM_axi_araddri(i)(27 downto 0) <= HBM_axi_ar(i).addr(27 downto 0);
+        );
 
---    HBM_axi_awaddr256Mbytei(i) <= HBM_axi_aw(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
---    HBM_axi_awaddri(i)(63 downto 36) <= HBM_shared(i)(63 downto 36);
---    HBM_axi_awaddri(i)(35 downto 28) <= std_logic_vector(unsigned(HBM_shared(i)(35 downto 28)) + unsigned(HBM_axi_awaddr256Mbytei(i)));
---    HBM_axi_awaddri(i)(27 downto 0) <= HBM_axi_aw(i).addr(27 downto 0);
+END GENERATE;
         
 
     

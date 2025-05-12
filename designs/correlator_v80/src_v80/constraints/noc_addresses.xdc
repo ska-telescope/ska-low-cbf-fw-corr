@@ -103,8 +103,96 @@ set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 
 # 0x201_0100_0000 -> 0x201_0104_FFFF Used by design components, possible to remap to higher?
 
 # HBM connections
-#HBM Ports
-#set hbm_port [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM0_PORT0_hbmc]
-#set hbm_input [get_noc_interfaces test_comp/i_hbm_noc/S_AXI_nmu]
-#set hbm_test [create_noc_connection -source $hbm_input -target $hbm_port]
+#i_v80_board/top_i/axi_noc_cips/HBM0_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM0_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM0_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM0_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM1_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM1_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM1_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM1_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM2_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM2_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM2_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM2_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM3_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM3_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM3_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM3_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM4_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM4_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM4_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM4_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM5_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM5_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM5_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM5_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM6_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM6_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM6_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM6_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM7_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM7_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM7_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM7_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM8_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM8_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM8_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM8_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM9_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM9_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM9_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM9_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM10_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM10_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM10_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM10_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM11_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM11_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM11_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM11_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM12_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM12_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM12_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM12_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM13_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM13_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM13_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM13_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM14_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM14_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM14_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM14_PORT3_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM15_PORT0_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM15_PORT1_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM15_PORT2_hbmc
+#i_v80_board/top_i/axi_noc_cips/HBM15_PORT3_hbmc
 
+# HPM port naming convention comes from the expample documentation
+# However it appears an alternative name for the port_1 below is
+# i_v80_board/top_i/axi_noc_cips/inst/MC_hbmc/inst/hbm_st0/I_hbm_chnl0
+# and this matches the naming on the NoC diagram and get_noc_interfaces
+
+set hbm_port_1 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM0_PORT0_hbmc]
+set hbm_input_1 [get_noc_interfaces i_correlator_core/axi_HBM_gen[0].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_1 [create_noc_connection -source $hbm_input_1 -target $hbm_port_1]
+
+set hbm_port_2 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM2_PORT0_hbmc]
+set hbm_input_2 [get_noc_interfaces i_correlator_core/axi_HBM_gen[1].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_2 [create_noc_connection -source $hbm_input_2 -target $hbm_port_2]
+
+set hbm_port_3 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM4_PORT0_hbmc]
+set hbm_input_3 [get_noc_interfaces i_correlator_core/axi_HBM_gen[2].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_3 [create_noc_connection -source $hbm_input_3 -target $hbm_port_3]
+
+set hbm_port_4 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM8_PORT0_hbmc]
+set hbm_input_4 [get_noc_interfaces i_correlator_core/axi_HBM_gen[3].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_4 [create_noc_connection -source $hbm_input_4 -target $hbm_port_4]
+
+set hbm_port_5 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM10_PORT0_hbmc]
+set hbm_input_5 [get_noc_interfaces i_correlator_core/axi_HBM_gen[4].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_5 [create_noc_connection -source $hbm_input_5 -target $hbm_port_5]
+
+set hbm_port_6 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM12_PORT0_hbmc]
+set hbm_input_6 [get_noc_interfaces i_correlator_core/axi_HBM_gen[5].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_6 [create_noc_connection -source $hbm_input_6 -target $hbm_port_6]
