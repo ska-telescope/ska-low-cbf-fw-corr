@@ -98,6 +98,8 @@ proc do_aved_create_design { } {
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
   add_files -fileset sources_1 [glob \
+    $ARGS_PATH/DCMAC/dcmac/DCMAC_dcmac_reg_pkg.vhd \
+    $ARGS_PATH/DCMAC/dcmac/DCMAC_dcmac_reg_versal.vhd \
     $COMMON_PATH/DCMAC/dcmac_syncer_reset.sv \
     $COMMON_PATH/DCMAC/dcmac_wrapper.vhd \
     $COMMON_PATH/DCMAC/packet_player.vhd \
@@ -108,6 +110,8 @@ proc do_aved_create_design { } {
   ]
 
   set_property library versal_dcmac_lib [get_files {\
+    */DCMAC_dcmac_reg_pkg.vhd \
+    */DCMAC_dcmac_reg_versal.vhd \
     */DCMAC/dcmac_syncer_reset.sv \
     */DCMAC/dcmac_wrapper.vhd \
     */DCMAC/packet_player.vhd \

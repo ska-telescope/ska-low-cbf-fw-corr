@@ -15,6 +15,7 @@ set spead_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/spead_packetiser
 set spead_2_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/spead_packetiser_top/additional_packetiser_gen.cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set spead_hbmrd_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/correlator_inst/cor1geni.icor1/HBM_reader/gen_v80_args.i_ct2_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set spead_hbmrd_2_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/correlator_inst/cor2geni.icor2/HBM_reader/gen_v80_args.i_ct2_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
+set dcmac_nsu [get_noc_interfaces "i_dcmac_wrapper/i_port_0_stats/i_dcmac_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 
 # Base address for the PL region and this is also mapped to BAR 0 - 0x201_0000_0000
 # correlator ARGs
@@ -96,6 +97,12 @@ set_property APERTURES [list {0x201_0012_0000:0x201_0013_FFFF}] $spead_hbmrd_2_n
 
 set spead_hbm_2_conn [create_noc_connection -source $nmu_0 -target $spead_hbmrd_2_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_hbm_2_conn
+########################
+# DCMAC
+set_property APERTURES [list {0x201_0014_0000:0x201_0015_FFFF}] $dcmac_nsu
+
+set dcmac_conn [create_noc_connection -source $nmu_0 -target $dcmac_nsu]
+set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $dcmac_conn
 
 
 # ADDRESS SPACE TO BE AWARE OF IN TOP BD

@@ -11,6 +11,7 @@ TARGET_ALVEO=(v80)
 
 XILINX_PATH=/tools/Xilinx
 VIVADO_VERSION_IN_USE=2024.2
+kernel="correlator_v80"
 
 if [ -z "`which ccze`" ]; then
     echo -e "Note: ccze not found, running in monochrome mode, install via apt"
@@ -42,18 +43,26 @@ while getopts ":h" option; do
     esac
 done
 
-# if [ "$#" -lt 3 ]; then
-#     echo "Not enough parameters"
-#     ShowHelp
-#     exit 1
-# fi
 
-export GITREPO=$(pwd) #$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+
+export GITREPO=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 echo -e "\nBase Git directory: $GITREPO"
 export SVN=$GITREPO
 echo -e "\n"
 source $GITREPO/tools/bin/setup_radiohdl.sh 
 echo -e "\nRADIOHDL is : $RADIOHDL"
+
+echo
+echo "<><><><><><><><><><><><><>  Automatic Register Generation System (ARGS)  <><><><><><><><><><><><><>"
+echo
+
+echo "SKA Design: Re-generating ARGS from configuration YAML files"
+echo
+python3 $GITREPO/tools/radiohdl/base/vivado_config.py -l kernel -a | $COLOUR
+
+if [ "$1" = "args" ]; then
+    exit 0
+fi
 
 # ##Clean the build directory if we pass in a command line parameter called clean
 # if [ "$1" = "clean" ]; then
@@ -75,13 +84,6 @@ if [ ! -d "$GITREPO/common/v80_infra/iprepo" ]; then
     echo -e "Seek help from a higher power."
     exit 1
 fi
-
-##Check for IP repo not included in common
-# if [ ! -d "$GITREPO/build/v80_statics" ]; then
-#     echo -e "Dir missing .... $GITREPO/build/v80_statics"
-#     echo -e "Wherever you go .... there you are."
-#     exit 1
-# fi
 
 echo "Generate build info file"
 cd $GITREPO/build

@@ -65,8 +65,13 @@ specifically mentions another license.
 
 ## FPGA IDE
 
-Xilinx tool is Vitis 2022.2
-Target ALVEO - U55C - platform 3
+* AMD / Xilinx tool 
+  * U55C - platform 3 for Ubuntu 22.04 - Vitis 2022.2
+    * License required is 100G CMAC for US+. (Free from AMD license website)
+  * V80 - Vivado 2024.2
+    * Licenses required
+      * 600G DCMAC for Versal. (Free from AMD license website)
+      * SMBuS IP core for AVED. (Free from AMD, requires V80 Lounge access as of Q2 2025)
 
 ## Tool Environment
 
@@ -80,6 +85,7 @@ project files:
 * Make (Available in /tools/bin for win32 platforms)
 * Python 3.6+
 * Python Libraries (numpy, pylatex, yaml)
+* CMake
 
 ## Environment Variables
 
