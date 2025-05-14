@@ -176,22 +176,27 @@ set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 
 set hbm_port_1 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM0_PORT0_hbmc]
 set hbm_input_1 [get_noc_interfaces i_correlator_core/axi_HBM_gen[0].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_1 [create_noc_connection -source $hbm_input_1 -target $hbm_port_1]
+set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_1
 
 set hbm_port_2 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM2_PORT0_hbmc]
 set hbm_input_2 [get_noc_interfaces i_correlator_core/axi_HBM_gen[1].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_2 [create_noc_connection -source $hbm_input_2 -target $hbm_port_2]
+set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_2
 
 set hbm_port_3 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM4_PORT0_hbmc]
 set hbm_input_3 [get_noc_interfaces i_correlator_core/axi_HBM_gen[2].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_3 [create_noc_connection -source $hbm_input_3 -target $hbm_port_3]
+set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_3
 
 set hbm_port_4 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM8_PORT0_hbmc]
 set hbm_input_4 [get_noc_interfaces i_correlator_core/axi_HBM_gen[3].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_4 [create_noc_connection -source $hbm_input_4 -target $hbm_port_4]
+set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_4
 
 set hbm_port_5 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM10_PORT0_hbmc]
 set hbm_input_5 [get_noc_interfaces i_correlator_core/axi_HBM_gen[4].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_5 [create_noc_connection -source $hbm_input_5 -target $hbm_port_5]
+set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_5
 
 set hbm_port_6 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM12_PORT0_hbmc]
 set hbm_input_6 [get_noc_interfaces i_correlator_core/axi_HBM_gen[5].i_hbm_noc/S_AXI_nmu]

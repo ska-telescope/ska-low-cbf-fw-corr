@@ -13,4 +13,7 @@ fi
 cp build/v80/v80_top.pdi output/
 
 # find and copy ltx file
-find . -name '*.ltx' | xargs cp -t output/
+find . -name 'v80_top.ltx' | xargs cp -t output/
+
+# Get ARGs map
+find . -name 'fpga*.py' | xargs cp -t output/
