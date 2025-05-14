@@ -7,10 +7,10 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, util_lib, dsp_top_lib, correlator_lib;
-library LFAADecode_lib, timingcontrol_lib, capture128bit_lib, versal_dcmac_lib, noc_lib, axi4_lib;
+LIBRARY LFAADecode_lib, timingcontrol_lib, capture128bit_lib, versal_dcmac_lib, noc_lib, axi4_lib, xpm;
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
---USE common_lib.common_pkg.ALL;
+USE common_lib.common_pkg.ALL;
 --USE common_lib.common_mem_pkg.ALL;
 USE axi4_lib.axi4_lite_pkg.ALL;
 --USE axi4_lib.axi4_stream_pkg.ALL;
@@ -18,12 +18,11 @@ USE axi4_lib.axi4_full_pkg.ALL;
 --USE technology_lib.tech_mac_100g_pkg.ALL;
 --USE technology_lib.technology_pkg.ALL;
 --USE technology_lib.technology_select_pkg.all;
-use correlator_lib.version_pkg.all;
+USE correlator_lib.version_pkg.all;
 USE versal_dcmac_lib.versal_dcmac_pkg.ALL;
 
 USE UNISIM.vcomponents.all;
-Library xpm;
-use xpm.vcomponents.all;
+USE xpm.vcomponents.all;
 
 -------------------------------------------------------------------------------
 ENTITY v80_top IS
@@ -148,10 +147,7 @@ signal fec_enable_322m : std_logic;
 signal eth100g_clk     : std_logic;
 signal eth100g_locked  : std_logic;
 
-signal eth100G_rx_total_packets : std_logic_vector(31 downto 0);
-signal eth100G_rx_bad_fcs       : std_logic_vector(31 downto 0);
-signal eth100G_rx_bad_code      : std_logic_vector(31 downto 0);
-signal eth100G_tx_total_packets : std_logic_vector(31 downto 0);
+signal system_stats_vec     : t_slv_32_arr(3 downto 0);
 
 signal Clock_100            : std_logic;
 signal Clock_100_resetn     : std_logic;
@@ -236,7 +232,14 @@ begin
         i_clk                   => Clock_100_GTY_buf,
         i_reset                 => Clock_100_resetn,
         
-        i_host_clk              => Clock_100,
+        i_host_clk              => clock_300,
+        i_host_clk_rst          => clock_300_rst,
+        
+        ------------------------
+        
+        o_system_stats_vec      => system_stats_vec,
+        
+        ------------------------
    
         qsfp0_322mhz_clk_p      => qsfp0_322mhz_clk_p,
         qsfp0_322mhz_clk_n      => qsfp0_322mhz_clk_n,
@@ -400,10 +403,10 @@ i_correlator_core : entity correlator_lib.correlator_core
         o_eth100_reset_final    => open,
         o_fec_enable_322m       => open,
         
-        i_eth100G_rx_total_packets  => (others => '0'),
-        i_eth100G_rx_bad_fcs        => (others => '0'),
-        i_eth100G_rx_bad_code       => (others => '0'),
-        i_eth100G_tx_total_packets  => (others => '0'),
+        i_eth100G_rx_total_packets  => system_stats_vec(0),
+        i_eth100G_rx_bad_fcs        => system_stats_vec(1),
+        i_eth100G_rx_bad_code       => system_stats_vec(2),
+        i_eth100G_tx_total_packets  => system_stats_vec(3),
         
         
         -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.

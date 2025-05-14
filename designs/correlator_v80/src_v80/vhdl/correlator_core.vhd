@@ -419,54 +419,29 @@ begin
     --------------------------------------------------------------------------------------------------
     -- debug
     
-    debug_correlator_core : ila_0 
-    Port map ( 
-        clk                     => clk_300,
-        probe0(31 downto 0)     => ap_clk_count,
-        probe0(63 downto 32)    => uptime,
-        probe0(191 downto 64)   => (others => '0')
-    );
-    
-
---    --------------------------------------------------------------------------------------------------
---    -- 100G PORT A or Upper for U55C
---    locked_100G_port_a : xpm_cdc_single
---    generic map (
---        DEST_SYNC_FF    => 2,   
---        INIT_SYNC_FF    => 0,   
---        SIM_ASSERT_CHK  => 0, 
---        SRC_INPUT_REG   => 1   
---    )
---    port map (
---        dest_out    => system_fields_ro.eth100G_locked,
---        dest_clk    => ap_clk,
---        src_clk     => i_eth100G_clk,   
---        src_in      => i_eth100G_locked 
+--    debug_correlator_core : ila_0 
+--    Port map ( 
+--        clk                     => clk_300,
+--        probe0(31 downto 0)     => ap_clk_count,
+--        probe0(63 downto 32)    => uptime,
+--        probe0(191 downto 64)   => (others => '0')
 --    );
+    
 
---    system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
---    system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
---    system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
---    system_fields_ro.eth100G_tx_total_packets       <= i_eth100G_tx_total_packets;
---    system_fields_ro.eth100g_ptp_nano_seconds       <= i_PTP_time_ARGs_clk(31 downto 0);
---    system_fields_ro.eth100g_ptp_lower_seconds      <= i_PTP_time_ARGs_clk(63 downto 32);
---    system_fields_ro.eth100g_ptp_upper_seconds      <= x"0000" & i_PTP_time_ARGs_clk(79 downto 64);
-    
-    
-    
-    process(i_eth100G_clk)
-    begin
-        if rising_edge(i_eth100G_clk) then
-            if (unsigned(eth100G_uptime) < 322000000) then
-                eth100G_uptime <= std_logic_vector(unsigned(eth100G_uptime) + 1);
-            else
-                eth100G_uptime <= (others => '0');
-                eth100G_seconds <= std_logic_vector(unsigned(eth100G_seconds) + 1);
-            end if;
-            
-        end if;
-    end process;
+    --------------------------------------------------------------------------------------------------
 
+
+    system_fields_ro.eth100G_locked                 <= i_eth100G_locked;
+    system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
+    system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
+    system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
+    system_fields_ro.eth100G_tx_total_packets       <= i_eth100G_tx_total_packets;
+    system_fields_ro.eth100g_ptp_nano_seconds       <= x"BADBAD00";
+    system_fields_ro.eth100g_ptp_lower_seconds      <= x"BADBAD00";
+    system_fields_ro.eth100g_ptp_upper_seconds      <= x"BADBAD00";
+    
+    
+    
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
