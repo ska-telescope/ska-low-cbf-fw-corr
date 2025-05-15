@@ -185,4 +185,4 @@ fpga lint v80:
     - *vitis_settings
     - *self_test
   script:
-    - common/scripts/lint_step.sh
+    - common/scripts/lint_step_v80.sh
