@@ -153,7 +153,7 @@ create project v80:
     TARGET_ALVEO: "v80"
     VITIS_VERSION: "2024.2"
     EXTRA_DEVELOPER_TAG: ""
-    PERSONALITY: "correlator_v80"
+    PERSONALITY: "correlator_v80" # used to choose design
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
   before_script:
     - *vitis_settings
@@ -164,3 +164,24 @@ create project v80:
   artifacts:
     paths:
       - build/
+
+fpga lint v80:
+  stage: lint
+  # allow this job to be cancelled if new pipeline comes along
+  interruptible: true
+  needs:
+    - create project v80
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2024.2"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "v80_top"    # project name based on general approach
+    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+  before_script:
+    - *vitis_settings
+    - *self_test
+  script:
+    - common/scripts/lint_step.sh
