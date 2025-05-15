@@ -486,7 +486,7 @@ begin
                         -- One         |            - times_per_integration = 64 when SB_timeIntegrations = "00", or 192 when SB_timeIntegrations = "01". 
                         -- long        |            For cur_fineChannelOffset = 0:SB_fineIntegrations
                         -- term        |                - Data loaded into the row+col memories for the correlator cell is  :
-                        -- integration |                -   - 256 x 256 staions (= 1 "tile"), 
+                        -- integration |                -   - 256 x 256 stations (= 1 "tile"), 
                         --             |                -   - 64 time samples                        
                         --                   /--        For cur_station = (cur_tileColumn*256):16:(cur_tileColumn*256 + 256)
                         --                   |              Read HBM : 32 time samples, 16 stations
@@ -608,6 +608,8 @@ begin
                                     get_Addr <= '1';
                                     ar_fsm <= check_arFIFO;
                                 when others => -- only other case should be "0100"
+                                    cur_timeBase <= "0000";
+                                    cur_timeGroup <= "0000";
                                     get_Addr <= '0';
                                     ar_fsm <= next_fineBase;
                             end case;

@@ -205,7 +205,7 @@ architecture Behavioral of full_correlator is
     signal colDataDel : t_slv_17x17_arr32;
     signal rowDataDel : t_slv_17x17_arr32;
     
-    type rd_fsm_type is (idle, running, done);
+    type rd_fsm_type is (idle, running, wait_short_integration, wait_LTA, done);
     signal rd_fsm, rd_fsm_del1, rd_fsm_del2, rd_fsm_Del3, rd_fsm_del4 : rd_fsm_type := idle;
     signal buf0_tileCount, buf1_tileCount : std_logic_vector(9 downto 0);
     signal buf0_tileChannel, buf1_tileChannel : std_logic_vector(23 downto 0);
@@ -285,6 +285,7 @@ architecture Behavioral of full_correlator is
     signal badPolyDel : std_logic_vector(23 downto 0);
     signal tableSelectDel1, tableSelectDel2, tableSelectDel3, tableSelectDel4 : std_logic;
     signal tableSelectDel : std_logic_vector(23 downto 0);
+    signal wait_short_count : std_logic_vector(5 downto 0) := "000000";
     
 begin
     
@@ -712,9 +713,28 @@ begin
                     end if;
                 
                 when done =>
-                    -- notify that we have processed all the data in the input buffer
-                    rd_fsm <= idle;
-                    
+                    -- In this state notify that we have processed all the data in the input buffer
+                    if cur_tileFirst = '1' and lastCellDel1 = '1' then
+                        -- This integration only involves a single fine channel,
+                        -- so there is only a single readout of the correlator memory per long term accumulation
+                        -- In this case we need to wait until the data starts going into the LTA before LTA_ready will be valid
+                        rd_fsm <= wait_short_integration;
+                    else
+                        rd_fsm <= wait_LTA;
+                    end if;
+                    wait_short_count <= "000000";
+                
+                when wait_short_integration =>
+                    wait_short_count <= std_logic_vector(unsigned(wait_short_count) + 1);
+                    if wait_short_count = "100000" then
+                        rd_fsm <= wait_LTA;
+                    end if;
+                
+                when wait_LTA =>
+                    if LTA_ready = '1' then
+                        rd_fsm <= idle;
+                    end if;
+                
                 when others =>
                     rd_fsm <= idle;
                 
@@ -896,10 +916,17 @@ begin
             tableSelectDel(23 downto 1) <= tableSelectDel(22 downto 0);
             
             rowMetaDel(0)(0).sample_cnt(5 downto 0) <= rdTimeDel4;
-            rowMetaDel(0)(0).sample_cnt(7 downto 6) <= tileTimeDel4;
             colMetaDel(0)(0).sample_cnt(5 downto 0) <= rdTimeDel4;
-            colMetaDel(0)(0).sample_cnt(7 downto 6) <= tileTimeDel4;
-
+            if (unsigned(totalTimesDel4) = 64) then
+                -- short integration, only count from 0 to 63
+                -- This value is only used for calculating the time centroid interval
+                rowMetaDel(0)(0).sample_cnt(7 downto 6) <= "00";
+                colMetaDel(0)(0).sample_cnt(7 downto 6) <= "00";
+            else
+                rowMetaDel(0)(0).sample_cnt(7 downto 6) <= tileTimeDel4;
+                colMetaDel(0)(0).sample_cnt(7 downto 6) <= tileTimeDel4;
+            end if;
+            
             -- First entry in the shift out pipeline needs to align with valid data in the first cmac_quad.
             -- So 5 cycle latency here:
             shiftOutAdv(4 downto 1) <= shiftOutAdv(3 downto 0);

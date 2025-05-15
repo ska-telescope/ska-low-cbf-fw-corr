@@ -196,7 +196,7 @@ architecture Behavioral of LTA_top is
     signal deliverSubarrayBeamDel : t_slv_8_arr(15 downto 0);
     signal deliverBadPolyDel, deliverTableSelectDel : std_logic_vector(15 downto 0);
     signal cellLastDel : std_logic_vector(15 downto 0);
-    
+    signal buf0_inUse, buf1_inUse : std_logic := '0';
     signal end_cell_cnt     : unsigned(1 downto 0);
     
 begin
@@ -243,13 +243,23 @@ begin
             end if;
             
             if i_rst = '1' then
+                -- bufX_used indicates valid data in the buffer available to be read out
                 buf0_used <= '0';
                 buf1_used <= '0';
+                -- bufX_inUse indicates data has started to be written into the buffer
+                buf0_inUse <= '0';
+                buf1_inUse <= '0';
             else
                 if set_buf0_used = '1' then
                     buf0_used <= '1';
                 elsif (readout_fsm = done_readout and rdBuffer = '0') then
                     buf0_used <= '0';
+                end if;
+                
+                if accumulator_valid = '1' and wrBuffer = '0' then
+                    buf0_inUse <= '1';
+                elsif (readout_fsm = done_readout and rdBuffer = '0') then
+                    buf0_inUse <= '0';
                 end if;
                 
                 if set_buf1_used = '1' then
@@ -258,14 +268,24 @@ begin
                     buf1_used <= '0';
                 end if;
                 
+                if accumulator_valid = '1' and wrBuffer = '1' then
+                    buf1_inUse <= '1';
+                elsif (readout_fsm = done_readout and rdBuffer = '1') then
+                    buf1_inUse <= '0';
+                end if;
+                
             end if;
             
-            
-            if ((wrBuffer = '0' and buf1_used = '1') or (wrBuffer = '1' and buf0_used = '1')) then
-                o_ready <= '0';  -- !! think about this some more...
+            if ((buf0_used = '1' or buf0_inUse = '1') and (buf1_used = '1' or buf1_inUse = '1')) then
+                o_ready <= '0';
             else
                 o_ready <= '1';
             end if;
+--            if ((wrBuffer = '0' and (buf1_used = '1' or set_buf1_used = '1')) or (wrBuffer = '1' and (buf0_used = '1' or set_buf0_used = '1'))) then
+--                o_ready <= '0';
+--            else
+--                o_ready <= '1';
+--            end if;
             
             if i_valid = '1' then
                 if i_cellStart = '1' then

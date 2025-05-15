@@ -16,8 +16,20 @@
 --   - time centroid = (256/i_totalTimes) * (i_timeSum / i_Nsamples) - 128
 --      i.e. 256 * i_timeSum / (i_totalTimes * i_Nsamples) - 128
 --          Note  i_timeSum is always less than (i_totalTime * i_Nsamples)
+--
+--     There is an additional correction to account for the time sample numbering runs 0:(i_totalTimes-1)
+--     For short integrations (i_totalTimes = 64), the average time is (0+63)/2 = 31.5
+--     (The equation above would be correct if the time samples were at the center of the intervales,
+--      i.e. 0.5, 1.5, 2.5 etc)
+--     The offset of 0.5 is scaled up by a factor of 4 to get the 8-bit output value, so
+--     there is an offset of 2 in the final output value.
+--     Likewise for long integrations (i_totalTimes = 192), the 0.5 offset is scaled up by a factor 
+--     of (256/192) to 0.6666 in the output.
+--     To correct for this either 2 (short integrations) or 1 (long integrations) is added to the TCI as a final step.
+--
 --   - weight        = 255 * sqrt(i_Nsamples / (totalTimes * totalChannels)) 
 --          Likewise, i_Nsamples is at most (totalTimes * totalChannels)
+--   
 ----------------------------------------------------------------------------------
 
 library IEEE, common_lib, correlator_lib;
@@ -67,6 +79,8 @@ architecture Behavioral of centroid_divider is
     signal sqrt_input : std_logic_vector(11 downto 0);
     signal force_zeroA, force_zero0, force_zero1 : std_logic;
     signal force_zero : std_logic_vector(16 downto 0);
+    signal short_integrationA, short_integration0, short_integration1 : std_logic;
+    signal short_integration : std_logic_vector(16 downto 0);
     
 begin
     
@@ -83,6 +97,16 @@ begin
             else
                 force_zeroA <= '0';
             end if;
+            if (unsigned(i_totalTimes) < 128) then
+                -- Used to generate the final correction of +2 to account for off-by-0.5 
+                -- in the time centroids.
+                short_integrationA <= '1';
+            else
+                -- Long integrations (192 time samples, 0.849ms) need a correction of 0.6666 
+                -- at the output (but we have integers so we use a correction of +1 below) 
+                short_integrationA <= '0';
+            end if;
+            
             
             -- 2nd pipeline stage
             centroid_denominator0 <= totalTimes * Nsamples;
@@ -90,12 +114,14 @@ begin
             weight_denominator0 <= totalTimes * totalChannels;
             weight_numerator0 <= std_logic_vector(Nsamples(12 downto 0));
             force_zero0       <= force_zeroA;
+            short_integration0 <= short_integrationA;
             
             -- 3rd pipeline stage
             centroid_denominator1 <= std_logic_vector(centroid_denominator0(20 downto 0));
             centroid_numerator1   <= centroid_numerator0;
             weight_denominator1   <= std_logic_vector(weight_denominator0(12 downto 0));
             weight_numerator1     <= weight_numerator0;
+            short_integration1    <= short_integration0;
             force_zero1           <= force_zero0;
             
             -- 4th pipeline stage
@@ -104,6 +130,7 @@ begin
             weight_numerator(0) <= '0' & weight_numerator1;
             weight_denominator(0) <= '0' & weight_denominator1;
             force_zero(0) <= force_zero1;
+            short_integration(0) <= short_integration1;
             
             -- Extra 7 pipeline stages to match the latency of the weight
             centroid_del(0) <= std_logic_vector(unsigned(centroid_result(9)(7 downto 0)) - 128);
@@ -111,13 +138,18 @@ begin
             
             -- Extra 16 pipeline stages for force_zero signal, to match the dividers.
             force_zero(16 downto 1) <= force_zero(15 downto 0);
+            short_integration(16 downto 1) <= short_integration(15 downto 0);
             
             -- output stage
             if force_zero(16) = '1' then
                 o_centroid <= (others => '0');
                 o_weight <= (others => '0');
             else
-                o_centroid <= centroid_del(6);
+                if short_integration(16) = '1' then
+                    o_centroid <= std_logic_vector(unsigned(centroid_del(6)) + 2);
+                else
+                    o_centroid <= std_logic_vector(unsigned(centroid_del(6)) + 1);
+                end if;
                 o_weight <= sqrt_weight;
             end if;
             

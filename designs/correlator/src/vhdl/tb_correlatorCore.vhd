@@ -36,7 +36,12 @@ entity tb_correlatorCore is
         -- Location of the test case; All the other filenames in generics here are in this directory
         --g_TEST_CASE : string := "/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations/";
         --g_TEST_CASE        : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations/";
-        g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        
+        -- Test case worked as at 12/5/2025
+        --g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        
+        g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_2stations_cof/";
+                
         --/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations
         --g_TEST_CASE : string := "../../../../../../";
         -- text file with SPS packets
