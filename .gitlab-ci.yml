@@ -177,6 +177,7 @@ fpga lint v80:
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
+    VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
     - $EXTRA_DEVELOPER_TAG
