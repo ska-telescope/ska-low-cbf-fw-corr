@@ -154,7 +154,7 @@ create project v80:
     VITIS_VERSION: "2024.2"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "correlator_v80"
-    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_project.tcl"
+    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
   before_script:
     - *vitis_settings
     - *args_settings
