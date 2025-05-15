@@ -129,53 +129,21 @@ ska-low-cbf-fw-testing:
     CORR_FW_SOURCE: "gitlab"
 
 ####################################################################################################################
-### Example of how to add jobs to build for a different platform/card.
-### Update & un-comment to enable the next generation card for testing.
-# create project u55_base_2:
-#   extends: create project
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
-
-# fpga lint u55_base_2:
-#   extends: fpga lint
-#   needs:
-#     - create project u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
-
-# package kernel u55_base_2:
-#   extends: package kernel
-#   needs:
-#     - job: create project u55_base_2
-#       artifacts: true
-#     - job: fpga lint u55_base_2
-#       artifacts: false
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
-
-# generate xo u55_base_2:
-#   extends: generate xo
-#   needs:
-#     - package kernel u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
-
-# v++ u55_base_2:
-#   extends: v++
-#   needs:
-#     - generate xo u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
-
-# publish dev package u55_base_2:
-#   extends: publish dev package
-#   needs:
-#     - v++ u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
+### V80 CI jobs
+create project v80:
+  stage: .pre
+  needs:
+    - ARGS
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+    - $EXTRA_CREATE_PROJECT_TAG
+  before_script:
+    - *vitis_settings
+    - *args_settings
+    - *self_test
+  script:
+    - common/scripts/create_project_v80.sh
+  artifacts:
+    paths:
+      - build/
