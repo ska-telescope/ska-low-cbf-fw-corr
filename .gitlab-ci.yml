@@ -78,6 +78,17 @@ raw-build:
   - when: manual
     allow_failure: true
 
+################################################################################
+.vitis_settings: &vitis_settings
+  - source common/scripts/vitis_settings.sh
+
+.args_settings: &args_settings
+  - source common/scripts/args_settings.sh
+
+.self_test: &self_test
+  - common/scripts/self_test.sh
+################################################################################
+
 psi-low-test:
   stage: integration
   tags:
@@ -138,6 +149,12 @@ create project v80:
     - v80
     - $EXTRA_DEVELOPER_TAG
     - $EXTRA_CREATE_PROJECT_TAG
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2024.2"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "correlator_v80"
+    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_project.tcl"
   before_script:
     - *vitis_settings
     - *args_settings
