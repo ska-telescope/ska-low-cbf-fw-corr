@@ -56,6 +56,9 @@ echo
 echo "<><><><><><><><><><><><><>  Automatic Register Generation System (ARGS)  <><><><><><><><><><><><><>"
 echo
 
+# Delete any existing ARGs
+rm -rf $GITREPO/build/ARGS
+
 echo "SKA Design: Re-generating ARGS from configuration YAML files"
 echo
 python3 $GITREPO/tools/radiohdl/base/vivado_config.py -l kernel -a | $COLOUR
