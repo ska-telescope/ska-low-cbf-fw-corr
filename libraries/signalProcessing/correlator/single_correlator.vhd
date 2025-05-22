@@ -71,7 +71,7 @@ entity single_correlator is
         
         -- more correlator configuration
         i_cor_tileTotalTimes    : in std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
-        i_cor_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        i_cor_tiletotalChannels : in std_logic_vector(6 downto 0); -- Number of frequency channels to integrate for this tile.
         i_cor_rowstations       : in std_logic_vector(8 downto 0); -- Number of stations in the row memories to process; up to 256.
         i_cor_colstations       : in std_logic_vector(8 downto 0); -- Number of stations in the col memories to process; up to 256.        
         i_cor_totalStations     : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
@@ -230,7 +230,7 @@ begin
         -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor_tile.
         i_cor_tileChannel       => i_cor_tileChannel,       -- in (23:0);
         i_cor_tileTotalTimes    => i_cor_tileTotalTimes,    -- in (7:0); Number of time samples to integrate for this tile.
-        i_cor_tiletotalChannels => i_cor_tileTotalChannels, -- in (4:0); Number of frequency channels to integrate for this tile.
+        i_cor_tiletotalChannels => i_cor_tileTotalChannels, -- in (6:0); Number of frequency channels to integrate for this tile.
         i_cor_row_stations      => i_cor_rowStations,   -- in (8:0); Number of stations in the row memories to process; up to 256.
         i_cor_col_stations      => i_cor_colStations,   -- in (8:0); Number of stations in the col memories to process; up to 256.
         i_cor_totalStations     => i_cor_totalStations, -- in (15:0); Total number of stations being processing for this subarray-beam.

@@ -143,8 +143,8 @@ peripherals:
                                                         while other entries can specify different output data products with different start frequencies and zoom resolutions \
                                     Word 1 : bits (15:0) = starting fine frequency channel \
                                     word 2 : bits (23:0) = Number of fine channels stored \
-                                             bits (29:24) = Fine channels per integration \
-                                             bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+                                             bits (30:24) = Fine channels per integration \
+                                             bits (31) = integration time; 0 = 283 ms, 1 = 849 ms \
                                     Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
                                    Data is written to the HBM in blocks of 512 bytes. \
                                    The 512 byte blocks are arranged in a 3-D array (fine_channel, i_time_block, station) \

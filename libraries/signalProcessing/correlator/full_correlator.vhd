@@ -135,7 +135,7 @@ entity full_correlator is
         -- Fine channel, relative to the start of the buffer in HBM
         i_cor_tileChannel : in std_logic_vector(23 downto 0);
         i_cor_tileTotalTimes : in std_logic_vector(7 downto 0);    -- Number of time samples to integrate for this tile.
-        i_cor_tiletotalChannels : in std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        i_cor_tiletotalChannels : in std_logic_vector(6 downto 0); -- Number of frequency channels to integrate for this tile.
         i_cor_row_stations : in std_logic_vector(8 downto 0); -- number of stations in the row memories to process; up to 256.
         i_cor_col_stations : in std_logic_vector(8 downto 0); -- number of stations in the col memories to process; up to 256.
         i_cor_totalStations : in std_logic_vector(15 downto 0); -- Total number of stations being processing for this subarray-beam.
@@ -182,16 +182,16 @@ architecture Behavioral of full_correlator is
     --signal correlator_fsm : correlator_fsm_type := done;
     signal buf0_done_axi_clk, buf1_done_axi_clk : std_logic := '0';
     signal buf0Used, buf1Used : std_logic := '0';
-    signal axi_to_cor_cdc_din : std_logic_vector(94 downto 0);
+    signal axi_to_cor_cdc_din : std_logic_vector(96 downto 0);
     signal tileChannel : std_logic_vector(23 downto 0);
     signal tileTotalTimes    : std_logic_vector(7 downto 0);    -- Number of time samples to integrate for this tile.
-    signal tiletotalChannels : std_logic_Vector(4 downto 0);
+    signal tiletotalChannels : std_logic_vector(6 downto 0);
     
     signal tileCount : std_logic_vector(9 downto 0);
     signal rowStations_minus1 : std_logic_vector(8 downto 0);
     signal colStations_minus1 : std_logic_vector(8 downto 0);
     signal axi_to_cor_src_rcv : std_logic;
-    signal axi_to_cor_dest_out : std_logic_vector(94 downto 0);
+    signal axi_to_cor_dest_out : std_logic_vector(96 downto 0);
     signal axi_to_cor_dest_req : std_logic;
     signal axi_to_cor_src_send : std_logic := '0';
     signal cdc_wrBuffer : std_logic;
@@ -212,7 +212,7 @@ architecture Behavioral of full_correlator is
     signal buf0_rowStations_minus1, buf0_colStations_minus1, buf1_rowStations_minus1, buf1_colStations_minus1 : std_logic_vector(7 downto 0);
     signal buf0_tileType, buf1_tileType : std_logic := '0';
     signal buf0_tileTotalTimes, buf1_tileTotalTimes : std_logic_vector(7 downto 0);    -- Number of time samples to integrate for this tile.
-    signal buf0_tiletotalChannels, buf1_tiletotalChannels : std_logic_vector(4 downto 0);
+    signal buf0_tiletotalChannels, buf1_tiletotalChannels : std_logic_vector(6 downto 0);
     
     signal cor_buf0_used, cor_buf1_used : std_logic := '0';
     signal cur_tileCount, tileDel1, tileDel2, tileDel3, tileDel4 : std_logic_Vector(9 downto 0);
@@ -226,7 +226,7 @@ architecture Behavioral of full_correlator is
     signal corBuf0Done, corBuf1Done : std_logic;
     signal cur_tileFirst, cur_tileFinal : std_logic := '0';
     signal cur_totalTimes : std_logic_vector(7 downto 0);
-    signal cur_totalChannels : std_logic_vector(4 downto 0);
+    signal cur_totalChannels : std_logic_vector(6 downto 0);
     
     signal RdTime, rdTimeDel1, rdTimeDel2, rdTimeDel3, rdTimeDel4 : std_logic_vector(5 downto 0) := "000000";
     signal tileTime, cur_tileTime, buf0_tileTime, buf1_tileTime : std_logic_vector(1 downto 0) := "00";
@@ -256,9 +256,9 @@ architecture Behavioral of full_correlator is
     signal cellStartDel : std_logic_vector(23 downto 0);
     
     signal totalTimesDel1, totalTimesDel2, totalTimesDel3, totalTimesDel4 : std_logic_vector(7 downto 0);
-    signal totalChannelsDel1, totalChannelsDel2, totalChannelsDel3, totalChannelsDel4 : std_logic_vector(4 downto 0);
+    signal totalChannelsDel1, totalChannelsDel2, totalChannelsDel3, totalChannelsDel4 : std_logic_vector(6 downto 0);
     signal totalTimesDel : t_slv_8_arr(23 downto 0);
-    signal totalChannelsDel : t_slv_5_arr(23 downto 0); 
+    signal totalChannelsDel : t_slv_7_arr(23 downto 0); 
     signal LTA_ready, LTA_ready_axi_clk, LTA_ready_hold : std_logic;
     
     signal colBRAMDout, rowBRAMDout : t_slv_32_arr(15 downto 0);
@@ -478,7 +478,7 @@ begin
                 tileBadPoly <= i_cor_badPoly;
                 tileTableSelect <= i_cor_tableSelect;
                 tileTotalTimes <= i_cor_tileTotalTimes; -- in 8 bits; Number of time samples to integrate for this tile.
-                tileTotalChannels <= i_cor_tiletotalChannels; -- 5 bits input
+                tileTotalChannels <= i_cor_tiletotalChannels; -- 7 bits input
                 tileTime <= i_cor_time(7 downto 6); -- which block of 64 time samples is this ?
                 tileFirst <= i_cor_first;           -- first block of data for this tile;
                 tileFinal <= i_cor_final;           -- This is the last block of input data for the integration for this tile.
@@ -500,15 +500,26 @@ begin
     axi_to_cor_cdc_din(49 downto 42) <= colStations_minus1(7 downto 0);
     axi_to_cor_cdc_din(51 downto 50) <= tileTime;
     axi_to_cor_cdc_din(59 downto 52) <= tileTotalTimes;
-    axi_to_cor_cdc_din(64 downto 60) <= tileTotalChannels;
-    axi_to_cor_cdc_din(65) <= tileType;
-    axi_to_cor_cdc_din(66) <= cdc_wrBuffer;
-    axi_to_cor_cdc_din(67) <= tileFirst;
-    axi_to_cor_cdc_din(68) <= tileFinal;
-    axi_to_cor_cdc_din(84 downto 69) <= tileTotalStations;
-    axi_to_cor_cdc_din(92 downto 85) <= tileSubarrayBeam;
-    axi_to_cor_cdc_din(93) <= tileBadPoly;
-    axi_to_cor_cdc_din(94) <= tileTableSelect;
+    --
+    axi_to_cor_cdc_din(66 downto 60) <= tileTotalChannels;  -- 7 bits
+    axi_to_cor_cdc_din(67) <= tileType;
+    axi_to_cor_cdc_din(68) <= cdc_wrBuffer;
+    axi_to_cor_cdc_din(69) <= tileFirst;
+    axi_to_cor_cdc_din(70) <= tileFinal;
+    axi_to_cor_cdc_din(86 downto 71) <= tileTotalStations;
+    axi_to_cor_cdc_din(94 downto 87) <= tileSubarrayBeam;
+    axi_to_cor_cdc_din(95) <= tileBadPoly;
+    axi_to_cor_cdc_din(96) <= tileTableSelect;    
+    
+--    axi_to_cor_cdc_din(64 downto 60) <= tileTotalChannels;  -- 7 bits
+--    axi_to_cor_cdc_din(65) <= tileType;
+--    axi_to_cor_cdc_din(66) <= cdc_wrBuffer;
+--    axi_to_cor_cdc_din(67) <= tileFirst;
+--    axi_to_cor_cdc_din(68) <= tileFinal;
+--    axi_to_cor_cdc_din(84 downto 69) <= tileTotalStations;
+--    axi_to_cor_cdc_din(92 downto 85) <= tileSubarrayBeam;
+--    axi_to_cor_cdc_din(93) <= tileBadPoly;
+--    axi_to_cor_cdc_din(94) <= tileTableSelect;
 
     xpm_cdc_handshake_inst : xpm_cdc_handshake
     generic map (
@@ -517,7 +528,7 @@ begin
         INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
         SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         SRC_SYNC_FF => 4,    -- DECIMAL; range: 2-10
-        WIDTH => 95           -- DECIMAL; range: 1-1024
+        WIDTH => 97           -- DECIMAL; range: 1-1024
     ) port map (
         dest_out => axi_to_cor_dest_out, -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
         dest_req => axi_to_cor_dest_req, -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic.
@@ -569,21 +580,21 @@ begin
             --------------------------------------------------------------------------
             -- Control signals to and from the axi clock domain
             if axi_to_cor_dest_req = '1' then
-                if axi_to_cor_dest_out(66) = '0' then  -- input buffer 0 has just been written.
+                if axi_to_cor_dest_out(68) = '0' then  -- input buffer 0 has just been written.
                     buf0_tileCount <= axi_to_cor_dest_out(9 downto 0);
                     buf0_tileChannel <= axi_to_cor_dest_out(33 downto 10);
                     buf0_rowStations_minus1 <= axi_to_cor_dest_out(41 downto 34);
                     buf0_colStations_minus1 <= axi_to_cor_dest_out(49 downto 42);
                     buf0_tileTime <= axi_to_cor_dest_out(51 downto 50);
                     buf0_tileTotalTimes <= axi_to_cor_dest_out(59 downto 52);
-                    buf0_tileTotalChannels <= axi_to_cor_dest_out(64 downto 60);
-                    buf0_tileType <= axi_to_cor_dest_out(65);
-                    buf0_tileFirst <= axi_to_cor_dest_out(67);
-                    buf0_tileFinal <= axi_to_cor_dest_out(68);
-                    buf0_tileTotalStations <= axi_to_cor_dest_out(84 downto 69);
-                    buf0_tileSubarrayBeam <= axi_to_cor_dest_out(92 downto 85);
-                    buf0_badPoly <= axi_to_cor_dest_out(93);
-                    buf0_tableSelect <= axi_to_cor_dest_out(94);
+                    buf0_tileTotalChannels <= axi_to_cor_dest_out(66 downto 60);
+                    buf0_tileType <= axi_to_cor_dest_out(67);
+                    buf0_tileFirst <= axi_to_cor_dest_out(69);
+                    buf0_tileFinal <= axi_to_cor_dest_out(70);
+                    buf0_tileTotalStations <= axi_to_cor_dest_out(86 downto 71);
+                    buf0_tileSubarrayBeam <= axi_to_cor_dest_out(94 downto 87);
+                    buf0_badPoly <= axi_to_cor_dest_out(95);
+                    buf0_tableSelect <= axi_to_cor_dest_out(96);
                 else
                     -- Input buffer 1 has just been written.
                     buf1_tileCount <= axi_to_cor_dest_out(9 downto 0);
@@ -592,18 +603,18 @@ begin
                     buf1_colStations_minus1 <= axi_to_cor_dest_out(49 downto 42);
                     buf1_tileTime <= axi_to_cor_dest_out(51 downto 50);
                     buf1_tileTotalTimes <= axi_to_cor_dest_out(59 downto 52);
-                    buf1_tileTotalChannels <= axi_to_cor_dest_out(64 downto 60);
-                    buf1_tileType <= axi_to_cor_dest_out(65);
-                    buf1_tileFirst <= axi_to_cor_dest_out(67);
-                    buf1_tileFinal <= axi_to_cor_dest_out(68);
-                    buf1_tileTotalStations <= axi_to_cor_dest_out(84 downto 69);
-                    buf1_tileSubarrayBeam <= axi_to_cor_dest_out(92 downto 85);
-                    buf1_badPoly <= axi_to_cor_dest_out(93);
-                    buf1_tableSelect <= axi_to_cor_dest_out(94);
+                    buf1_tileTotalChannels <= axi_to_cor_dest_out(66 downto 60);
+                    buf1_tileType <= axi_to_cor_dest_out(67);
+                    buf1_tileFirst <= axi_to_cor_dest_out(69);
+                    buf1_tileFinal <= axi_to_cor_dest_out(70);
+                    buf1_tileTotalStations <= axi_to_cor_dest_out(86 downto 71);
+                    buf1_tileSubarrayBeam <= axi_to_cor_dest_out(94 downto 87);
+                    buf1_badPoly <= axi_to_cor_dest_out(95);
+                    buf1_tableSelect <= axi_to_cor_dest_out(96);
                 end if;
             end if;
             
-            if axi_to_cor_dest_req = '1' and axi_to_cor_dest_out(66) = '0' then
+            if axi_to_cor_dest_req = '1' and axi_to_cor_dest_out(68) = '0' then
                 cor_buf0_used <= '1';
             elsif rd_fsm = done and cur_buf = '0' then
                 cor_buf0_used <= '0';
@@ -615,7 +626,7 @@ begin
                 corBuf0Done <= '0';
             end if;
             
-            if axi_to_cor_dest_req = '1' and axi_to_cor_dest_out(66) = '1' then
+            if axi_to_cor_dest_req = '1' and axi_to_cor_dest_out(68) = '1' then
                 cor_buf1_used <= '1';
             elsif rd_fsm = done and cur_buf = '1' then
                 cor_buf1_used <= '0';
@@ -1105,7 +1116,7 @@ begin
         i_first   => tileFirstDel(22), -- in std_logic; 
         i_last    => lastCellDel(22),  -- in std_logic;  This is the last integration for the last cell; after this, the buffers switch and the completed cells are read out.
         i_totalTimes => totalTimesDel(22), -- in (7:0);  Total time samples being integrated, e.g. 192. 
-        i_totalChannels => totalChannelsDel(22), -- in (4:0);  Number of channels integrated, typically 24.
+        i_totalChannels => totalChannelsDel(22), -- in (6:0);  Number of channels integrated, typically 24.
         -- valid goes high for a burst of 64 clocks, to get all the data from the correlation array.
         i_valid     => array_visValid(0)(16), -- in std_logic; -- indicates valid data, 4 clocks in advance of i_data. Needed since there is a long latency on the ultraRAM reads.
         -- 16 parrallel data streams with 3+3 byte visibilities from the correlation array. 

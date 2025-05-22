@@ -50,9 +50,9 @@ entity vis2fp is
         -- data input
         i_valid        : in std_logic;
         i_vis          : in std_logic_vector(255 downto 0);
-        i_validSamples : in std_logic_vector(12 downto 0);
+        i_validSamples : in std_logic_vector(15 downto 0);
         i_Ntimes       : in std_logic_vector(7 downto 0);
-        i_Nchannels    : in std_logic_vector(4 downto 0);
+        i_Nchannels    : in std_logic_vector(6 downto 0);
         -- Data output, 16 clock latency
         o_vis : out std_logic_vector(255 downto 0);
         o_valid : out std_logic
@@ -62,8 +62,8 @@ end vis2fp;
 architecture Behavioral of vis2fp is
 
     signal Ntimes : std_logic_vector(8 downto 0);
-    signal Nchannels : std_logic_vector(5 downto 0);
-    signal totalSamples_s : signed(14 downto 0);
+    signal Nchannels : std_logic_vector(7 downto 0);
+    signal totalSamples_s : signed(16 downto 0);
     signal totalSamples : std_logic_vector(15 downto 0);
     signal validInv_fp32, invScaled_fp32 : std_logic_vector(31 downto 0);
 
@@ -95,6 +95,7 @@ architecture Behavioral of vis2fp is
     
     signal visDel1 : std_logic_vector(255 downto 0);
     signal validDel1 : std_logic;
+    signal validInv_fp32_exp_adjust : std_logic_vector(3 downto 0);
     
 begin
     
@@ -105,8 +106,9 @@ begin
             -- 3 cycle latency, so the output matches the output from the inverse lookup ("inv_rom_top")
             Ntimes <= '0' & i_Ntimes;
             Nchannels <= '0' & i_Nchannels;
-            totalSamples_s <= signed(Ntimes) * signed(Nchannels);
-            totalSamples <= '0' & std_logic_vector(totalSamples_s);
+            totalSamples_s <= signed(Ntimes) * signed(Nchannels); -- 9 bit x 8 bit
+            -- The maximum possible value should be 127 * 192 = 24384, so the top bit of totalSamples must be 0
+            totalSamples <= std_logic_vector(totalSamples_s(15 downto 0));
             
             visDel1 <= i_vis;
             validDel1 <= i_valid;
@@ -121,7 +123,8 @@ begin
         i_din => i_validSamples, -- in std_logic_vector(12 downto 0); -- Integer values in the range 0 to 4608
         -- inverse of i_din, as a single precision floating point value, 3 clock latency. 
         -- Divide by 0 gives an output of 0. (not NaN or Inf). 
-        o_dout => validInv_fp32  -- out std_logic_vector(31 downto 0) 
+        o_dout => validInv_fp32, -- out (31:0) floating point result
+        o_exp_adjust => validInv_fp32_exp_adjust  -- out std_logic_vector(3 downto 0) -- Amount to subtract from the exponent in o_dout
     );
     
     -- 4 cycle latency
@@ -129,7 +132,8 @@ begin
     port map (
         i_clk  => i_clk, --  in std_logic;
         i_fp32 => validInv_fp32, --  in std_logic_vector(31 downto 0);
-        i_uint => totalSamples(12 downto 0), --  in std_logic_vector(12 downto 0); -- unsigned integer value
+        i_fp32_exp_adjust => validInv_fp32_exp_adjust, -- in (3:0)
+        i_uint => totalSamples(15 downto 0), --  in std_logic_vector(15 downto 0); -- unsigned integer value
         -- 
         o_fp32 => invScaled_fp32 --  out std_logic_vector(31 downto 0) -- 4 cycle latency
     );
