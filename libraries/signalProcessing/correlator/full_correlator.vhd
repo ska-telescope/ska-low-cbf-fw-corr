@@ -286,6 +286,7 @@ architecture Behavioral of full_correlator is
     signal tableSelectDel1, tableSelectDel2, tableSelectDel3, tableSelectDel4 : std_logic;
     signal tableSelectDel : std_logic_vector(23 downto 0);
     signal wait_short_count : std_logic_vector(5 downto 0) := "000000";
+    signal cor_buf_newest : std_logic := '0';
     
 begin
     
@@ -616,20 +617,22 @@ begin
             
             if axi_to_cor_dest_req = '1' and axi_to_cor_dest_out(68) = '0' then
                 cor_buf0_used <= '1';
+                cor_buf_newest <= '0'; -- indicate that the most recent buffer is buffer 0
             elsif rd_fsm = done and cur_buf = '0' then
                 cor_buf0_used <= '0';
+            end if;
+
+            if axi_to_cor_dest_req = '1' and axi_to_cor_dest_out(68) = '1' then
+                cor_buf1_used <= '1';
+                cor_buf_newest <= '1'; -- indicate that the most recent buffer is buffer 1
+            elsif rd_fsm = done and cur_buf = '1' then
+                cor_buf1_used <= '0';
             end if;
             
             if rd_fsm = done and cur_buf = '0' then
                 corBuf0Done <= '1';
             else
                 corBuf0Done <= '0';
-            end if;
-            
-            if axi_to_cor_dest_req = '1' and axi_to_cor_dest_out(68) = '1' then
-                cor_buf1_used <= '1';
-            elsif rd_fsm = done and cur_buf = '1' then
-                cor_buf1_used <= '0';
             end if;
             
             if rd_fsm = done and cur_buf = '1' then
@@ -646,7 +649,10 @@ begin
                     if cor_buf0_used = '1' or cor_buf1_used = '1' then
                         rd_fsm <= running;
                     end if;
-                    if cor_buf0_used = '1' then
+                    if ((cor_buf0_used = '1' and cor_buf1_used = '0') or
+                        (cor_buf0_used = '1' and cor_buf1_used = '1' and cor_buf_newest = '1')) then
+                        -- either only buffer 0 is used, or they are both used and the most recently written buffer is 1
+                        -- then process buffer 0
                         cur_tileCount <= buf0_tileCount;
                         cur_tileChannel <= buf0_tileChannel;
                         cur_totalStations <= buf0_tileTotalStations;
