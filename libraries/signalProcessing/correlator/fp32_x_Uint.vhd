@@ -70,10 +70,10 @@ begin
                 shifted1 <= frac_x_uint_del1(35 downto 9);
             elsif frac_x_uint_del1(31 downto 28) /= "0000" then
                 exp_del3 <= std_logic_vector(unsigned(exp_del2) + 8);
-                shifted1 <= frac_x_uint_del1(29 downto 3);
+                shifted1 <= frac_x_uint_del1(31 downto 5);
             elsif frac_x_uint_del1(27 downto 24) /= "0000" then
                 exp_del3 <= std_logic_vector(unsigned(exp_del2) + 4);
-                shifted1 <= frac_x_uint_del1(25 downto 0) & '0';
+                shifted1 <= frac_x_uint_del1(27 downto 1);
             else
                 exp_del3 <= exp_del2;
                 shifted1 <= frac_x_uint_del1(23 downto 0) & "000";
