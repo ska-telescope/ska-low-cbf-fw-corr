@@ -145,7 +145,6 @@ peripherals:
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-
               field_description : "Count of SPS packets on the filterbank read out with no data."
               
           - - field_name        : buffers_sent_count
