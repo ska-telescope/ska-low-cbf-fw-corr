@@ -171,6 +171,8 @@ signal dcmac_tx_data_1      : seg_streaming_axi;
 
 signal dcmac_tx_ready_0     : std_logic;
 
+signal dcmac_reset_sys_peripheral   : std_logic;
+
 begin
 
 ----------------------------------------------------------------
@@ -258,6 +260,8 @@ begin
         
         ------------------------
         o_dcmac_clk             => dcmac_clk,
+        
+        i_dcmac_rst_trigger     => dcmac_reset_sys_peripheral,
         
         o_port_0_rx_bus         => dcmac_rx_data_0,
         o_port_1_rx_bus         => dcmac_rx_data_1,
@@ -400,8 +404,7 @@ i_correlator_core : entity correlator_lib.correlator_core
         
         -- Other signals to/from the timeslave 
         i_PTP_time_ARGs_clk     => (others => '0'),
-        o_eth100_reset_final    => open,
-        o_fec_enable_322m       => open,
+        o_dcmac_reset           => dcmac_reset_sys_peripheral,
         
         i_eth100G_rx_total_packets  => system_stats_vec(0),
         i_eth100G_rx_bad_fcs        => system_stats_vec(1),

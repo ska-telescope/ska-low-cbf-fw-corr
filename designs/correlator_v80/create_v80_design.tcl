@@ -252,8 +252,8 @@ proc do_aved_create_design { } {
   #############################################################
   # Design Specific files
   add_files -fileset sources_1 [glob \
-    $ARGS_PATH/correlator/system/correlator_system_reg_pkg.vhd \
-    $ARGS_PATH/correlator/system/correlator_system_reg_versal.vhd \
+    $ARGS_PATH/correlator_v80/system/correlator_v80_system_reg_pkg.vhd \
+    $ARGS_PATH/correlator_v80/system/correlator_v80_system_reg_versal.vhd \
     $DESIGN_PATH/src_v80/vhdl/correlator_core.vhd \
     $DESIGN_PATH/src_v80/vhdl/version_pkg.vhd \
     $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
@@ -261,8 +261,8 @@ proc do_aved_create_design { } {
   ]
 
   set_property library correlator_lib [get_files {\
-    */correlator_system_reg_pkg.vhd \
-    */correlator_system_reg_versal.vhd \
+    */correlator_v80_system_reg_pkg.vhd \
+    */correlator_v80_system_reg_versal.vhd \
     */correlator_core.vhd \
     */version_pkg.vhd \
     */target_fpga_pkg.vhd \

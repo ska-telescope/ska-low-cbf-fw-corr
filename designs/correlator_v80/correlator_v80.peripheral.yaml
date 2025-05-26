@@ -116,6 +116,54 @@ peripherals:
               reset_value       : 0x0
               field_description : "upper 16-bits of 48 bit second time vector"
           #################################
+          - - field_name        : dead_space_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_5
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_6
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_7
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_8
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
           - - field_name        : eth100G_locked
               width             : 1
               access_mode       : RO

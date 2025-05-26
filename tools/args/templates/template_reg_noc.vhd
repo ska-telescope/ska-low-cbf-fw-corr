@@ -90,12 +90,18 @@ begin
     rd_dat <=
     <{rd_dat}>
 
-    reg_wren        <= noc_wren;
-    reg_rden        <= noc_rden;
-    wr_adr          <= noc_wr_adr(c_addr_w-1 DOWNTO 0);
-    wr_dat          <= noc_wr_dat;
-    rd_adr          <= noc_rd_adr(c_addr_w-1 DOWNTO 0);
-    noc_rd_dat      <= rd_data_del2;
+    p_reg_noc : process( MM_CLK )
+    begin
+        if rising_edge(MM_CLK) then
+            reg_wren        <= noc_wren;
+            reg_rden        <= noc_rden;
+            wr_adr          <= noc_wr_adr(c_addr_w-1 DOWNTO 0);
+            wr_dat          <= noc_wr_dat;
+            rd_adr          <= noc_rd_adr(c_addr_w-1 DOWNTO 0);
+        end if;
+    end process;
+
+    noc_rd_dat      <= rd_data_del1;
 
     p_delay_rd_data : process( MM_CLK )
     begin

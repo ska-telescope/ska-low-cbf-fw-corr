@@ -22,7 +22,7 @@ USE axi4_lib.axi4_full_pkg.ALL;
 USE technology_lib.technology_pkg.ALL;
 USE technology_lib.technology_select_pkg.all;
 use correlator_lib.build_details_pkg.all;
-USE correlator_lib.correlator_system_reg_pkg.ALL;
+USE correlator_lib.correlator_v80_system_reg_pkg.ALL;
 
 USE versal_dcmac_lib.versal_dcmac_pkg.ALL;
 
@@ -85,9 +85,8 @@ ENTITY correlator_core IS
         -- reset of the valid memory is in progress.
         o_validMemRstActive : out std_logic;
         -- Other signals to/from the timeslave 
-        i_PTP_time_ARGs_clk  : std_logic_vector(79 downto 0);
-        o_eth100_reset_final : out std_logic;
-        o_fec_enable_322m    : out std_logic;
+        i_PTP_time_ARGs_clk     : std_logic_vector(79 downto 0);
+        o_dcmac_reset           : out std_logic;
         
         i_eth100G_rx_total_packets : in std_logic_vector(31 downto 0);
         i_eth100G_rx_bad_fcs       : in std_logic_vector(31 downto 0);
@@ -352,7 +351,8 @@ begin
     ---------------------------------------------------------------------------
     i_system_noc : entity noc_lib.args_noc
     generic map (
-        G_DEBUG => FALSE
+        G_DEBUG         => TRUE,
+        G_TEST_HARNESS  => FALSE
     )
     port map ( 
         i_clk       => clk_300,
@@ -366,7 +366,7 @@ begin
         noc_rd_dat  => noc_rd_dat
     );
  
-    i_system_regs: entity correlator_lib.correlator_system_versal
+    i_system_regs: entity correlator_lib.correlator_v80_system_versal
     GENERIC MAP (
         g_technology      => c_tech_alveo
     )
@@ -400,6 +400,8 @@ begin
 
     system_fields_ro.no_of_correlator_instances <= std_logic_vector(to_unsigned(g_CORRELATORS , 4));
     
+    o_dcmac_reset                           <= system_fields_rw.qsfpgty_resets;
+    
     -- Uptime counter
     process(clk_300)
     begin
@@ -419,13 +421,18 @@ begin
     --------------------------------------------------------------------------------------------------
     -- debug
     
---    debug_correlator_core : ila_0 
---    Port map ( 
---        clk                     => clk_300,
---        probe0(31 downto 0)     => ap_clk_count,
---        probe0(63 downto 32)    => uptime,
---        probe0(191 downto 64)   => (others => '0')
---    );
+    debug_correlator_core : ila_0 
+    Port map ( 
+        clk                     => clk_300,
+        probe0(31 downto 0)     => ap_clk_count,
+        probe0(63 downto 32)    => i_eth100G_rx_total_packets,
+        probe0(95 downto 64)    => i_eth100G_rx_bad_fcs,
+        probe0(127 downto 96)   => i_eth100G_rx_bad_code,
+        probe0(159 downto 128)  => i_eth100G_tx_total_packets,
+        probe0(160)             => i_eth100G_locked,
+        
+        probe0(191 downto 161)  => (others => '0')
+    );
     
 
     --------------------------------------------------------------------------------------------------
@@ -445,120 +452,120 @@ begin
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
-    dsp_topi : entity dsp_top_lib.DSP_top_correlator
-    generic map (
-        g_DEBUG_ILA             => g_DEBUG_ILA,
-        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
-        g_USE_META              => g_USE_META,
-        g_CORRELATORS           => g_CORRELATORS,  -- number of correlator blocks to instantiate.
-        g_USE_DUMMY_FB          => g_USE_DUMMY_FB
-    ) port map (
-        -- Received data from 100GE
-        i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
-        i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
-        i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
-        i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
-        -- Data to be transmitted on 100GE
-        o_bytes_to_transmit     => bytes_to_transmit,
-        o_data_to_player        => data_to_player,
-        o_data_to_player_wr     => data_to_player_wr,
-        i_data_to_player_rdy    => data_to_player_rdy,
+   dsp_topi : entity dsp_top_lib.DSP_top_correlator
+   generic map (
+       g_DEBUG_ILA             => g_DEBUG_ILA,
+       g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
+       g_USE_META              => g_USE_META,
+       g_CORRELATORS           => g_CORRELATORS,  -- number of correlator blocks to instantiate.
+       g_USE_DUMMY_FB          => g_USE_DUMMY_FB
+   ) port map (
+       -- Received data from 100GE
+       i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+       i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
+       i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
+       i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
+       i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
+       -- Data to be transmitted on 100GE
+       o_bytes_to_transmit     => bytes_to_transmit,
+       o_data_to_player        => data_to_player,
+       o_data_to_player_wr     => data_to_player_wr,
+       i_data_to_player_rdy    => data_to_player_rdy,
         
-        i_clk_100GE         => i_eth100G_clk,      -- in std_logic;
-        i_eth100G_locked    => i_eth100G_locked,
-        -- Filterbank processing clock, 450 MHz
-        i_clk425            => clk425,  -- in std_logic;
-        i_clk400            => clk400,  -- in std_logic;
-        -----------------------------------------------------------------------
-        -- reset of the valid memory is in progress.
-        o_validMemRstActive => o_validMemRstActive,
-        -----------------------------------------------------------------------
-        -- AXI slave interfaces for modules
-        i_MACE_clk  => clk_300, -- in std_logic;
-        i_MACE_rst  => clk_300_rst, -- in std_logic;
-        -- LFAADecode, lite + full slave
-        i_LFAALite_axi_mosi             => c_axi4_lite_mosi_rst, 
-        o_LFAALite_axi_miso => open,
-        i_LFAAFull_axi_mosi             => c_axi4_full_mosi_null,
-        o_LFAAFull_axi_miso => open,
-        -- Corner Turn between LFAA Ingest and the filterbanks.
-        i_LFAA_CT_axi_mosi              => c_axi4_lite_mosi_rst,
-        o_LFAA_CT_axi_miso => open,
-        i_poly_full_axi_mosi            => c_axi4_full_mosi_null,
-        o_poly_full_axi_miso => open,
-        -- Filterbanks
-        i_FB_axi_mosi                   => c_axi4_lite_mosi_rst,
-        o_FB_axi_miso => open,
-        -- Corner turn between filterbanks and the correlator
-        i_cor_CT_axi_mosi               => c_axi4_lite_mosi_rst,
-        o_cor_CT_axi_miso => open,
-        -- correlator
-        i_cor_axi_mosi                  => c_axi4_lite_mosi_rst,
-        o_cor_axi_miso => open,
-        -- Output HBM
-        i_spead_hbm_rd_lite_axi_mosi(0) => c_axi4_lite_mosi_rst,
-        i_spead_hbm_rd_lite_axi_mosi(1) => c_axi4_lite_mosi_rst,
+       i_clk_100GE         => i_eth100G_clk,      -- in std_logic;
+       i_eth100G_locked    => i_eth100G_locked,
+       -- Filterbank processing clock, 450 MHz
+       i_clk425            => clk425,  -- in std_logic;
+       i_clk400            => clk400,  -- in std_logic;
+       -----------------------------------------------------------------------
+       -- reset of the valid memory is in progress.
+       o_validMemRstActive => o_validMemRstActive,
+       -----------------------------------------------------------------------
+       -- AXI slave interfaces for modules
+       i_MACE_clk  => clk_300, -- in std_logic;
+       i_MACE_rst  => clk_300_rst, -- in std_logic;
+       -- LFAADecode, lite + full slave
+       i_LFAALite_axi_mosi             => c_axi4_lite_mosi_rst, 
+       o_LFAALite_axi_miso => open,
+       i_LFAAFull_axi_mosi             => c_axi4_full_mosi_null,
+       o_LFAAFull_axi_miso => open,
+       -- Corner Turn between LFAA Ingest and the filterbanks.
+       i_LFAA_CT_axi_mosi              => c_axi4_lite_mosi_rst,
+       o_LFAA_CT_axi_miso => open,
+       i_poly_full_axi_mosi            => c_axi4_full_mosi_null,
+       o_poly_full_axi_miso => open,
+       -- Filterbanks
+       i_FB_axi_mosi                   => c_axi4_lite_mosi_rst,
+       o_FB_axi_miso => open,
+       -- Corner turn between filterbanks and the correlator
+       i_cor_CT_axi_mosi               => c_axi4_lite_mosi_rst,
+       o_cor_CT_axi_miso => open,
+       -- correlator
+       i_cor_axi_mosi                  => c_axi4_lite_mosi_rst,
+       o_cor_axi_miso => open,
+       -- Output HBM
+       i_spead_hbm_rd_lite_axi_mosi(0) => c_axi4_lite_mosi_rst,
+       i_spead_hbm_rd_lite_axi_mosi(1) => c_axi4_lite_mosi_rst,
         
-        o_spead_hbm_rd_lite_axi_miso(0) => o_null,
-        o_spead_hbm_rd_lite_axi_miso(1) => o_null,
+       o_spead_hbm_rd_lite_axi_miso(0) => o_null,
+       o_spead_hbm_rd_lite_axi_miso(1) => o_null,
 
-        -- SDP SPEAD
-        i_spead_lite_axi_mosi(0)        => c_axi4_lite_mosi_rst,
-        i_spead_lite_axi_mosi(1)        => c_axi4_lite_mosi_rst,
+       -- SDP SPEAD
+       i_spead_lite_axi_mosi(0)        => c_axi4_lite_mosi_rst,
+       i_spead_lite_axi_mosi(1)        => c_axi4_lite_mosi_rst,
 
-        o_spead_lite_axi_miso           => open,
+       o_spead_lite_axi_miso           => open,
 
-        i_spead_full_axi_mosi(0)        => c_axi4_full_mosi_null, 
-        i_spead_full_axi_mosi(1)        => c_axi4_full_mosi_null, 
+       i_spead_full_axi_mosi(0)        => c_axi4_full_mosi_null, 
+       i_spead_full_axi_mosi(1)        => c_axi4_full_mosi_null, 
 
-        o_spead_full_axi_miso           => open,
+       o_spead_full_axi_miso           => open,
 
-        -----------------------------------------------------------------------
-        -- AXI interfaces to HBM memory (5 interfaces used)
-        -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_aw      => HBM_axi_aw,       
-        i_HBM_axi_awready => HBM_axi_awready, -- in std_logic_vector(5:0);
-        -- w data buses : out t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_w       => HBM_axi_w,        
-        i_HBM_axi_wready  => HBM_axi_wready,  -- in std_logic_vector(5:0);
-        -- write response bus : in t_axi4_full_b_arr(5:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_b       => HBM_axi_b,
-        -- read address bus : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_ar      => HBM_axi_ar,
-        i_HBM_axi_arready => HBM_axi_arready, -- in std_logic_vector(5:0);
-        -- r data bus : in t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_r       => HBM_axi_r,
-        o_HBM_axi_rready  => HBM_axi_rready,  -- out std_logic_vector(5:0);
+       -----------------------------------------------------------------------
+       -- AXI interfaces to HBM memory (5 interfaces used)
+       -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
+       o_HBM_axi_aw      => HBM_axi_aw,       
+       i_HBM_axi_awready => HBM_axi_awready, -- in std_logic_vector(5:0);
+       -- w data buses : out t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
+       o_HBM_axi_w       => HBM_axi_w,        
+       i_HBM_axi_wready  => HBM_axi_wready,  -- in std_logic_vector(5:0);
+       -- write response bus : in t_axi4_full_b_arr(5:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+       i_HBM_axi_b       => HBM_axi_b,
+       -- read address bus : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
+       o_HBM_axi_ar      => HBM_axi_ar,
+       i_HBM_axi_arready => HBM_axi_arready, -- in std_logic_vector(5:0);
+       -- r data bus : in t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
+       i_HBM_axi_r       => HBM_axi_r,
+       o_HBM_axi_rready  => HBM_axi_rready,  -- out std_logic_vector(5:0);
         
-        -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
-        -- used in testing with pre-load of the second corner turn HBM data
-        i_ct2_readout_start => i_ct2_readout_start,
-        i_ct2_readout_buffer => i_ct2_readout_buffer,
-        i_ct2_readout_frameCount => i_ct2_readout_frameCount,
-        ---------------------------------------------------------------
-        -- copy of the bus taking data to be written to the HBM.
-        -- Used for simulation only, to check against the model data.
-        o_tb_data      => o_tb_data,     -- out (255:0);
-        o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
-        o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
-        o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
-        o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
-        o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   => o_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
-        -- Start of a burst of data through the filterbank, 
-        -- Used in the testbench to trigger download of the data written into the CT2 memory.
-        o_FB_out_sof   => o_FB_out_sof,   -- out std_logic
+       -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
+       -- used in testing with pre-load of the second corner turn HBM data
+       i_ct2_readout_start => i_ct2_readout_start,
+       i_ct2_readout_buffer => i_ct2_readout_buffer,
+       i_ct2_readout_frameCount => i_ct2_readout_frameCount,
+       ---------------------------------------------------------------
+       -- copy of the bus taking data to be written to the HBM.
+       -- Used for simulation only, to check against the model data.
+       o_tb_data      => o_tb_data,     -- out (255:0);
+       o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+       o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+       o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+       o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+       o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+       o_tb_channel   => o_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
+       -- Start of a burst of data through the filterbank, 
+       -- Used in the testbench to trigger download of the data written into the CT2 memory.
+       o_FB_out_sof   => o_FB_out_sof,   -- out std_logic
 
-        -- HBM reset
-        o_hbm_reset    => hbm_reset,
-        i_hbm_status   => hbm_status,
-        i_hbm_rst_dbg  => hbm_rst_dbg,
-        i_hbm_reset_final => hbm_reset_final,   -- 1 bit
-        i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
-        i_axi_dbg => axi_dbg, -- 128 bits
-        i_axi_dbg_valid => axi_dbg_valid
-    );
+       -- HBM reset
+       o_hbm_reset    => hbm_reset,
+       i_hbm_status   => hbm_status,
+       i_hbm_rst_dbg  => hbm_rst_dbg,
+       i_hbm_reset_final => hbm_reset_final,   -- 1 bit
+       i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
+       i_axi_dbg => axi_dbg, -- 128 bits
+       i_axi_dbg_valid => axi_dbg_valid
+   );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
     hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
