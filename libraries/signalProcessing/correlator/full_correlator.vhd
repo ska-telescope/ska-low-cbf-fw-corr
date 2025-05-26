@@ -159,7 +159,8 @@ entity full_correlator is
         o_tableSelect : out std_logic;
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
-        i_stop     : in std_logic
+        i_stop     : in std_logic;
+        i_ro_stall : in std_logic  -- Packetiser notification FIFO is close to being full
     );
     
     -- prevent optimisation across module boundaries.
@@ -456,7 +457,7 @@ begin
                 buf1Used <= '1';
             end if;
             
-            if ((LTA_ready_hold = '1') and ((wrBuffer = '0' and buf0Used = '0') or (wrBuffer = '1' and buf1Used = '0'))) then
+            if ((i_ro_stall = '0') and (LTA_ready_hold = '1') and ((wrBuffer = '0' and buf0Used = '0') or (wrBuffer = '1' and buf1Used = '0'))) then
                 o_cor_ready <= '1';
             else
                 o_cor_ready <= '0';

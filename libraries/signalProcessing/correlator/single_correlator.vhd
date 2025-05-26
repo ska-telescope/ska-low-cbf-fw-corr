@@ -174,6 +174,7 @@ architecture Behavioral of single_correlator is
     signal freq_index0_repeat, time_since_f0_set : std_logic := '0';
     signal ro_bad_poly : std_logic;
     signal ro_table_select : std_logic;
+    signal ro_stall_del2, ro_stall_del1, ro_stall : std_logic := '0';
     
 begin
 
@@ -254,7 +255,8 @@ begin
         o_tableSelect => tableSelect_del(0), -- out std_logic;
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
-        i_stop     => HBM_stop(g_PIPELINE_STAGES)  -- in std_logic
+        i_stop     => HBM_stop(g_PIPELINE_STAGES),  -- in std_logic
+        i_ro_stall => ro_stall_del2
     );
     
     
@@ -373,6 +375,8 @@ begin
             -- TBD : Fix for 283ms integrations 
             ro_time_ref(33 downto 32) <= "10";
             ro_time_ref(31 downto 0) <= i_cor_frameCount;
+            ro_stall_del1 <= ro_stall;
+            ro_stall_del2 <= ro_stall_del1;
         end if;
     end process;
 
@@ -402,6 +406,7 @@ begin
         i_row               => ro_row,
         i_row_count         => ro_row_count,
         i_data_valid        => ro_valid,
+        o_data_stall        => ro_stall,  -- out std_logic; FIFO is close to full, stop sending new data on i_data_valid
 
         o_HBM_curr_addr     => o_HBM_curr_rd_addr,
 

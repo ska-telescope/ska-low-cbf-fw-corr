@@ -72,6 +72,7 @@ entity correlator_data_reader is
         i_bad_poly          : in std_logic;
         i_table_select      : in std_logic;
         i_data_valid        : in std_logic;
+        o_data_stall        : out std_logic;                        -- FIFO is close to full, stop sending new data on i_data_valid
         i_time_ref          : in std_logic_vector(63 downto 0);     -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms
                                                                     -- integration time.
         i_row               : in std_logic_vector(12 downto 0);     -- The index of the first row that is available, counts from zero.
@@ -113,6 +114,7 @@ signal reset                    : std_logic;
 -- metadata from correlator.
 constant meta_cache_width       : INTEGER := 1 + 1 + 32 + 8 + 17 + 64 + 13 + 9;
 constant meta_cache_depth       : INTEGER := 64;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
+constant meta_cache_limit      : integer := 56;
 
 signal meta_cache_fifo_in_reset : std_logic;
 signal meta_cache_fifo_rd       : std_logic;
@@ -379,6 +381,13 @@ begin
                     page_flip_count <= page_flip_count + 1; 
                 end if;
             end if;
+            
+            if unsigned(meta_cache_fifo_wr_count) > meta_cache_limit then
+                o_data_stall <= '1';
+            else
+                o_data_stall <= '0';
+            end if;
+            
         end if;
     end process;
     ---------------------------------------------------------------------------

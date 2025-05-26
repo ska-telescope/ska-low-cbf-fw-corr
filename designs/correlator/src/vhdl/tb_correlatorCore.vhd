@@ -8,6 +8,28 @@
 -- Description: 
 --  Testbench for the correlator
 -- 
+--Enable packetiser
+-- i_debug 0x400 enables the packetiser
+-- add_force {/tb_correlatorCore/dut/dsp_topi/spead_packetiser_top/i_debug} -radix hex {400 0ns}
+-- Number of bytes in a packet, dependent on the number of stations
+--  Stations Value
+--   1
+--   2         0x6E
+--   3         0xD4
+--   4         0x15C
+--   6         0x2D2
+--   8         0x4D0
+--   16        0x1218
+--   18        0x16BE
+-- add_force {/tb_correlatorCore/dut/dsp_topi/spead_packetiser_top/cor_speader/host_interface/heap_size_data} -radix hex {6E 0ns}
+--
+--block messages about hold violations in clock crossing
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[3]} -radix hex {0 0ns}
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[2]} -radix hex {0 0ns}
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[1]} -radix hex {0 0ns}
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[0]} -radix hex {0 0ns}
+--
+--
 ----------------------------------------------------------------------------------
 library IEEE;
 library common_lib, correlator_lib;
