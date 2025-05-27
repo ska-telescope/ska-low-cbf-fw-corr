@@ -7,7 +7,7 @@ fpga_name         : correlator_v80
 fpga_description  : "V80 edition of Correlator"
 
 alignment:
-  peripheral: 0x4_0000
+  peripheral: 0x10_0000
   sub_peripheral: 0x1_0000
 
 peripherals:
