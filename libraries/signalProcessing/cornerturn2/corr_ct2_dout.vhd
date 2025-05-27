@@ -165,7 +165,10 @@ entity corr_ct2_dout is
         o_ar_fsm_dbg : out std_logic_vector(3 downto 0);
         o_readout_fsm_dbg : out std_logic_vector(3 downto 0);
         o_arFIFO_wr_count : out std_logic_vector(6 downto 0);
-        o_dataFIFO_wrCount : out std_logic_vector(9 downto 0)
+        o_dataFIFO_wrCount : out std_logic_vector(9 downto 0);
+        o_readout_error       : out std_logic;
+        o_recent_start_gap    : out std_logic_vector(31 downto 0);
+        o_recent_readout_time : out std_logic_vector(31 downto 0)
     );
 end corr_ct2_dout;
 
@@ -250,6 +253,9 @@ architecture Behavioral of corr_ct2_dout is
     signal SB_badPoly : std_logic;
     signal SB_fineStart_ext, SB_N_fine_plus_SB_fineStart : std_logic_vector(23 downto 0);
     signal SB_outputDisable : std_logic := '0';
+    signal readout_error : std_logic := '0';
+    signal recent_start_gap, start_gap  : std_logic_vector(31 downto 0) := x"00000000";
+    signal recent_readout_time, readout_time : std_logic_vector(31 downto 0) := x"00000000";
     
 begin
     
@@ -257,6 +263,10 @@ begin
     o_readout_fsm_dbg <= readout_fsm_dbg;
     o_arFIFO_wr_count <= arFIFO_wr_count;
     o_dataFIFO_wrCount <= dataFIFO_wrCount;
+    
+    o_readout_error <= readout_error;
+    o_recent_start_gap <= recent_start_gap;
+    o_recent_readout_time <= recent_readout_time;
     
     hbm_addri : entity ct_lib.get_ct2_HBM_addr
     port map(
@@ -328,6 +338,27 @@ begin
                 tiles_per_row_minus1 <= std_logic_vector(unsigned(SB_stations_div256) - 1);
             else
                 tiles_per_row_minus1 <= SB_stations_div256; 
+            end if;
+            
+            if i_start = '1' then
+                start_gap <= (others => '0');
+                recent_start_gap <= start_gap;
+            elsif start_gap(31) = '0' then
+                start_gap <= std_logic_vector(unsigned(start_gap) + 1);
+            end if;
+            
+            if i_start = '1' then
+                readout_time <= (others => '0');
+            elsif ar_fsm = done and ar_fsm_del1 /= done then
+                recent_readout_time <= readout_time;
+            elsif (ar_fsm /= done) and readout_time(31) = '0' then
+                readout_time <= std_logic_vector(unsigned(readout_time) + 1);
+            end if;
+            
+            if i_rst = '1' then
+                readout_error <= '0';
+            elsif i_start = '1' and ar_fsm /= done then
+                readout_error <= '1';
             end if;
             
             if i_rst = '1' then

@@ -45,11 +45,23 @@ peripherals:
               reset_value       : 0x0
               field_description : "Write buffer used to transfer filterbank data into the HBM overflowed. Cleared by a reset in the first stage corner turn. Should never happen."
           #################################
-          - - field_name        : readoutError
-              width             : 1
+          - - field_name        : readoutTime
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Readout to the correlator did not finish before the readout of the next HBM buffer started. Cleared by a reset passed in from the first stage corner turn. Should never happen."
+              field_description : "Number of 300MHz clocks to read out the most recent buffer, for the first correlator instance. This depends on the correlator configuration."
+          #################################
+          - - field_name        : readoutGap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of 300MHz clocks from the start of one readout to the start of the next readout. Should correspond to 849ms."
+          #################################
+          - - field_name        : readoutError
+              width             : 2
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Readout to the correlator did not finish before the readout of the next HBM buffer started. One bit for each correlator instance. Cleared by a reset passed in from the first stage corner turn. Should never happen."
           #################################
           - - field_name        : HBMBuf0PacketCount
               width             : 32

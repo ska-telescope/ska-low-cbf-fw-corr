@@ -324,6 +324,9 @@ architecture Behavioral of corr_ct2_top is
     signal cor_bp_rd_addr : std_logic_vector(7 downto 0);
     signal cor_bp_rd_data : std_logic_vector(1 downto 0);
     signal dout_HBM_buffer : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+    signal dout_readout_error : std_logic_vector(1 downto 0);
+    signal dout_recent_start_gap :  std_logic_vector(31 downto 0);
+    signal dout_recent_readout_time : std_logic_vector(31 downto 0);
     
 begin
     
@@ -640,7 +643,10 @@ begin
         o_ar_fsm_dbg      => dout_ar_fsm_dbg,  -- : out std_logic_vector(3 downto 0);
         o_readout_fsm_dbg => dout_readout_fsm_dbg, --: out std_logic_vector(3 downto 0);
         o_arFIFO_wr_count => dout_arFIFO_wr_count, -- out std_logic_vector(6 downto 0);
-        o_dataFIFO_wrCount => dout_dataFIFO_wrCount -- out std_logic_vector(9 downto 0)
+        o_dataFIFO_wrCount => dout_dataFIFO_wrCount, -- out std_logic_vector(9 downto 0);
+        o_readout_error       => dout_readout_error(0), --  out std_logic;
+        o_recent_start_gap    => dout_recent_start_gap,   -- out std_logic_vector(31 downto 0);
+        o_recent_readout_time => dout_recent_readout_time -- out std_logic_vector(31 downto 0)
     );
     o_cor_tableSelect(0) <= readout_tableSelect;
     o_cor_valid <= cor_valid_int;
@@ -704,7 +710,9 @@ begin
             o_HBM_axi_ar      => HBM_axi_ar(i),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
             i_HBM_axi_arready => i_HBM_axi_arready(i), -- in  std_logic;
             i_HBM_axi_r       => i_HBM_axi_r(i),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-            o_HBM_axi_rready  => HBM_axi_rready(i)   -- out std_logic
+            o_HBM_axi_rready  => HBM_axi_rready(i),   -- out std_logic
+            -- status
+            o_readout_error       => dout_readout_error(i)  --  out std_logic;
         );
         o_cor_tableSelect(i) <= readout_tableSelect;
         
@@ -732,6 +740,7 @@ begin
         HBM_axi_ar(1).len <= (others => '0');
         HBM_axi_rready(1) <= '1';
         dout_SB_req(1) <= '0';
+        dout_readout_error(1) <= '0';
         
     end generate;
     
@@ -755,7 +764,9 @@ begin
     );
     
     statctrl_ro.bufferoverflowerror <= '0';
-    statctrl_ro.readouterror <= '0';
+    statctrl_ro.readouterror <= dout_readout_error;
+    statctrl_ro.readoutGap <= dout_recent_start_gap;
+    statctrl_ro.readoutTime <= dout_recent_readout_time;
     statctrl_ro.hbmbuf0packetcount <= (others => '0');
     statctrl_ro.hbmbuf1packetcount <= (others => '0');
     

@@ -61,8 +61,9 @@ entity tb_correlatorCore is
         
         -- Test case worked as at 12/5/2025
         --g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
-        
-        g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_2stations_cof/";
+        -- Last run 26/5/2025
+        --g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_2stations_cof/";
+        g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_8stations_cof/";
                 
         --/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations
         --g_TEST_CASE : string := "../../../../../../";
