@@ -157,6 +157,7 @@ entity full_correlator is
         o_subarrayBeam : out std_logic_vector(7 downto 0);   -- Index into the subarray-beam table.
         o_badPoly  : out std_logic;
         o_tableSelect : out std_logic;
+        o_shortIntegration : out std_logic_vector(2 downto 0);
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     : in std_logic;
@@ -277,6 +278,7 @@ architecture Behavioral of full_correlator is
     
     signal totalStationsDel : t_slv_16_arr(23 downto 0);
     signal subarrayBeamDel  : t_slv_8_arr(23 downto 0);
+    signal tileTimeDel : t_slv_2_arr(23 downto 0);
     signal cur_totalStations : std_logic_vector(15 downto 0);
     signal cur_subarrayBeam : std_logic_vector(7 downto 0);
     signal cur_badPoly, cur_tableSelect : std_logic;
@@ -511,17 +513,7 @@ begin
     axi_to_cor_cdc_din(86 downto 71) <= tileTotalStations;
     axi_to_cor_cdc_din(94 downto 87) <= tileSubarrayBeam;
     axi_to_cor_cdc_din(95) <= tileBadPoly;
-    axi_to_cor_cdc_din(96) <= tileTableSelect;    
-    
---    axi_to_cor_cdc_din(64 downto 60) <= tileTotalChannels;  -- 7 bits
---    axi_to_cor_cdc_din(65) <= tileType;
---    axi_to_cor_cdc_din(66) <= cdc_wrBuffer;
---    axi_to_cor_cdc_din(67) <= tileFirst;
---    axi_to_cor_cdc_din(68) <= tileFinal;
---    axi_to_cor_cdc_din(84 downto 69) <= tileTotalStations;
---    axi_to_cor_cdc_din(92 downto 85) <= tileSubarrayBeam;
---    axi_to_cor_cdc_din(93) <= tileBadPoly;
---    axi_to_cor_cdc_din(94) <= tileTableSelect;
+    axi_to_cor_cdc_din(96) <= tileTableSelect;
 
     xpm_cdc_handshake_inst : xpm_cdc_handshake
     generic map (
@@ -912,6 +904,7 @@ begin
                 subarrayBeamDel(0) <= subarrayBeamDel4;
                 badPolyDel(0) <= badPolyDel4;
                 tableSelectDel(0) <= tableSelectDel4;
+                tileTimeDel(0) <= tileTimeDel4;
             else
                 colMetaDel(0)(0).last <= '0';
                 rowMetaDel(0)(0).last <= '0';
@@ -932,6 +925,7 @@ begin
             subarrayBeamDel(23 downto 1) <= subarrayBeamDel(22 downto 0);
             badPolyDel(23 downto 1) <= badPolyDel(22 downto 0);
             tableSelectDel(23 downto 1) <= tableSelectDel(22 downto 0);
+            tileTimeDel(23 downto 1) <= tileTimeDel(22 downto 0);
             
             rowMetaDel(0)(0).sample_cnt(5 downto 0) <= rdTimeDel4;
             colMetaDel(0)(0).sample_cnt(5 downto 0) <= rdTimeDel4;
@@ -1118,6 +1112,7 @@ begin
         i_subarrayBeam => subarrayBeamDel(22),   -- in (7:0);
         i_badPoly => badPolyDel(22), -- in std_logic;
         i_tableSelect => tableSelectDel(22),
+        i_tileTime => tileTimeDel(22),  -- in (1:0); which 283 ms block
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
         i_first   => tileFirstDel(22), -- in std_logic; 
@@ -1150,6 +1145,7 @@ begin
         o_subarrayBeam => o_subarrayBeam,   -- out (7:0); Index into the subarray-beam table.
         o_badPoly => o_badPoly,             -- out std_logic;
         o_tableSelect => o_tableSelect,     -- out std_logic;
+        o_shortIntegration => o_shortIntegration, -- out (2:0); bit 2 = short integration, bits 1:0 = "00", "01", or "10" for which 283ms block (out of 849ms)
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     => i_stop      -- in std_logic 

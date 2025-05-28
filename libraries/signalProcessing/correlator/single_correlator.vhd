@@ -136,11 +136,13 @@ architecture Behavioral of single_correlator is
     signal subarrayBeam_del : t_slv_8_arr(g_PIPELINE_STAGES downto 0);
     signal badPoly_del : std_logic_vector(g_PIPELINE_STAGES downto 0);
     signal tableSelect_del : std_logic_vector(g_PIPELINE_STAGES downto 0);
+    signal shortIntegration_del : t_slv_3_arr(g_PIPELINE_STAGES downto 0);
     signal HBM_stop    : std_logic_vector(g_PIPELINE_STAGES downto 0);
     
     signal ro_HBM_start_addr : std_logic_vector(31 downto 0);
     signal ro_subarray : std_logic_vector(7 downto 0);
     signal ro_freq_index : std_logic_vector(16 downto 0);
+    signal ro_time_ref_shortIntegrations : std_logic_vector(2 downto 0);
     signal ro_time_ref : std_logic_vector(63 downto 0);
     signal ro_row : std_logic_vector(12 downto 0);
     signal ro_row_count : std_logic_vector(8 downto 0);
@@ -253,6 +255,7 @@ begin
         o_subarrayBeam  => subarrayBeam_del(0),  -- out std_logic_vector(7 downto 0);  -- Index into the subarray-beam table.
         o_badPoly => badPoly_del(0), -- out std_logic;
         o_tableSelect => tableSelect_del(0), -- out std_logic;
+        o_shortIntegration => shortIntegration_del(0), -- out std_logic_vector(2 downto 0);
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop     => HBM_stop(g_PIPELINE_STAGES),  -- in std_logic
@@ -277,6 +280,7 @@ begin
             subarrayBeam_del(g_PIPELINE_STAGES downto 1)  <= subarrayBeam_del(g_PIPELINE_STAGES-1 downto 0);
             badPoly_del(g_PIPELINE_STAGES downto 1)  <= badPoly_del(g_PIPELINE_STAGES-1 downto 0);
             tableSelect_del(g_PIPELINE_STAGES downto 1)  <= tableSelect_del(g_PIPELINE_STAGES-1 downto 0);
+            shortIntegration_del(g_PIPELINE_STAGES downto 1) <= shortIntegration_del(g_PIPELINE_STAGES-1 downto 0);
             -- HBM interface back to the correlator array.
             HBM_stop(g_PIPELINE_STAGES downto 1) <= HBM_stop(g_PIPELINE_STAGES-1 downto 0);
             
@@ -317,6 +321,7 @@ begin
         i_subarrayBeam => subarrayBeam_del(g_PIPELINE_STAGES),
         i_badPoly => badpoly_del(g_PIPELINE_STAGES),
         i_tableSelect => tableSelect_del(g_PIPELINE_STAGES),
+        i_shortIntegration => shortIntegration_del(g_PIPELINE_STAGES),
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         o_stop      => HBM_stop(0),                     --  out std_logic;
@@ -339,9 +344,8 @@ begin
         -- output frequency index. Count of the frequency channels being generated
         -- by the correlator. Counts from 0.
         o_ro_freq_index => ro_freq_index, -- out (16:0);
-        -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
-        -- integration time.
-        o_ro_time_ref => open, -- out (63:0);
+        -- bit 2 = short integration, bits 1:0 = 0, 1, or 2 = which of 3 short integration periods within the 849ms corner turn frame
+        o_ro_time_ref => ro_time_ref_shortIntegrations, -- out (2:0);
         -- The first of the block of rows in the visibility matrix that is now available for readout.
         -- Counts from 0. 
         -- The number of columns to read out for the first row will be (o_row + 1).
@@ -371,15 +375,17 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            ro_time_ref(63 downto 34) <= (others => '0');
-            -- TBD : Fix for 283ms integrations 
-            ro_time_ref(33 downto 32) <= "10";
+            ro_time_ref(63 downto 35) <= (others => '0');
+            -- bit 34 = '0' => 849 ms integration
+            -- bit 34 = '1' => 283 ms integration
+            -- For the 283ms case, bits 33:32 = "00","01", or "10" to indicate which 283 ms integration this is.
+            -- For the 849ms case, bits 33:32 = "10", since it's always the end of the 849 ms interval.
             ro_time_ref(31 downto 0) <= i_cor_frameCount;
             ro_stall_del1 <= ro_stall;
             ro_stall_del2 <= ro_stall_del1;
         end if;
     end process;
-
+    ro_time_ref(34 downto 32) <= ro_time_ref_shortIntegrations;
 
     HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
         DEBUG_ILA           => FALSE

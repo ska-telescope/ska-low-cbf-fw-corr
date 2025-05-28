@@ -517,7 +517,7 @@ begin
                         --                  - step through the rows of the visibility matrix in "tiles", i.e. blocks of 256 stations.
                         --                  For cur_tileColumn = 0:tiles_per_row     -- Note : number of tile columns = number of tile rows; correlation matrices are always square
                         --                      - After processing all the tiles in a single row, the output stage can start sending data to SDP. 
-                        --             /--      For cur_timeGroup(3:2) = 0:times_per_integration/64  -- e.g. 1 block of 64 times, if 283 ms integrations, or 3 blocks of 64 times if 849 ms integrations.
+                        --             /--      For cur_timeGroup(2:1) = 0:times_per_integration/64  -- e.g. 1 block of 64 times, if 283 ms integrations, or 3 blocks of 64 times if 849 ms integrations.
                         -- One         |            - times_per_integration = 64 when SB_timeIntegrations = '0', or 192 when SB_timeIntegrations = '1'. 
                         -- long        |            For cur_fineChannelOffset = 0:SB_fineIntegrations
                         -- term        |                - Data loaded into the row+col memories for the correlator cell is  :

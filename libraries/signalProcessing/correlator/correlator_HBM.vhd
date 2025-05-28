@@ -77,6 +77,7 @@ entity correlator_HBM is
         i_subarrayBeam : in std_logic_vector(7 downto 0);   -- Index into the subarray-beam table.
         i_badPoly : in std_logic;
         i_tableSelect : in std_logic;
+        i_shortIntegration : in std_logic_vector(2 downto 0);
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between o_stop going high and data stopping.
         o_stop      : out std_logic;
@@ -99,9 +100,8 @@ entity correlator_HBM is
         -- output frequency index. Count of the frequency channels being generated
         -- by the correlator. Counts from 0.
         o_ro_freq_index : out std_logic_vector(16 downto 0);
-        -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
-        -- integration time.
-        o_ro_time_ref : out std_logic_vector(63 downto 0);
+        -- bit 2 = short integration, bits 1:0 = 0, 1, or 2 = which of 3 short integration periods within the 849ms corner turn frame
+        o_ro_time_ref : out std_logic_vector(2 downto 0);
         -- The first of the block of rows in the visibility matrix that is now available for readout.
         -- Counts from 0. 
         -- The number of columns to read out for the first row will be (o_row + 1).
@@ -156,9 +156,10 @@ architecture Behavioral of correlator_HBM is
     signal cellLastDel1 : std_logic;
     
     signal SPEAD_trigger_we : std_logic;
-    signal SPEAD_trigger_din, SPEAD_trigger_dout : std_logic_vector(56 downto 0);
+    signal SPEAD_trigger_din, SPEAD_trigger_dout : std_logic_vector(59 downto 0);
     signal SPEAD_trigger_rd_Del1, SPEAD_trigger_rd, SPEAD_trigger_full, SPEAD_trigger_empty : std_logic;
     signal ro_rows_minus1 : std_logic_vector(8 downto 0);
+    signal shortIntegrationDel1 : std_logic_vector(2 downto 0);
     
 begin
     
@@ -174,6 +175,7 @@ begin
             subarrayBeamDel1 <= i_subarrayBeam;
             badPolyDel1 <= i_badPoly;
             tableSelectDel1 <= i_tableSelect;
+            shortIntegrationDel1 <= i_shortIntegration;
             lastStationDel1 <= std_logic_vector(unsigned(i_totalStations) - 1);
             
             o_HBM_end <= "0000" & fifo_wr_ptr & "0000000000000";
@@ -218,6 +220,7 @@ begin
                 SPEAD_trigger_din(54 downto 40) <= start_of_row_ptr;
                 SPEAD_trigger_din(55) <= badpolyDel1;
                 SPEAD_trigger_din(56) <= tableSelectDel1;
+                SPEAD_trigger_din(59 downto 57) <= shortIntegrationDel1;
             else
                 -- Do not trigger reading of the SPEAD_trigger_fifo 
                 w_fifo_din(513) <= '0';
@@ -439,12 +442,12 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
-        READ_DATA_WIDTH => 57,      -- DECIMAL
+        READ_DATA_WIDTH => 60,      -- DECIMAL
         READ_MODE => "std",         -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 57,     -- DECIMAL
+        WRITE_DATA_WIDTH => 60,     -- DECIMAL
         WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
     ) port map (
         almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -505,10 +508,8 @@ begin
 
                 o_ro_bad_Poly <= SPEAD_trigger_dout(55);
                 o_ro_table_select <= SPEAD_trigger_dout(56);
-                -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms 
-                -- integration time.
-                o_ro_time_ref <= (others => '0'); -- TODO - work out how this should be set.
-
+                -- 3 bits, bit 2 = short integration, bits 1:0 = which short integration period
+                o_ro_time_ref <= SPEAD_trigger_dout(59 downto 57);
                 -- valid indicates that the other signals are valid. 
                 -- valid will pulse high for 1 clock cycle when a strip of data from the visibility matrix is available.
                 o_ro_valid <= '1';

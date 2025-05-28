@@ -42,6 +42,7 @@ entity LTA_top is
         i_subarrayBeam : in std_logic_vector(7 downto 0);
         i_badPoly : in std_logic;
         i_tableSelect : in std_logic;
+        i_tileTime : in std_logic_vector(1 downto 0);
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
         i_first   : in std_logic; 
@@ -80,6 +81,7 @@ entity LTA_top is
         o_subarrayBeam : out std_logic_vector(7 downto 0);
         o_badPoly : out std_logic;
         o_tableSelect : out std_logic;
+        o_shortIntegration : out std_logic_vector(2 downto 0);
         -- stop sending data; somewhere downstream there is a FIFO that is almost full.
         -- There can be a lag of about 20 clocks between i_stop going high and data stopping.
         i_stop    : in std_logic 
@@ -138,7 +140,7 @@ architecture Behavioral of LTA_top is
     
     signal cor_to_axi_send : std_logic := '0';
     signal cor_to_axi_src_rcv : std_logic := '0';
-    signal cor_to_axi_din : std_logic_vector(82 downto 0);
+    signal cor_to_axi_din : std_logic_vector(84 downto 0);
     
     signal axi_cellMax : std_logic_vector(7 downto 0);
     signal axi_totalTimes : std_logic_vector(7 downto 0);
@@ -146,7 +148,7 @@ architecture Behavioral of LTA_top is
     signal axi_totalChannels : std_logic_vector(6 downto 0);
     signal axi_tile : std_logic_vector(9 downto 0);
     signal cor_to_axi_req : std_logic;
-    signal cor_to_axi_dout : std_logic_vector(82 downto 0);
+    signal cor_to_axi_dout : std_logic_vector(84 downto 0);
     signal fifo_rd_en : std_logic;
     
     signal visReadoutCount_del : t_slv_8_arr(22 downto 0);
@@ -184,6 +186,7 @@ architecture Behavioral of LTA_top is
     signal accumulator_subarrayBeam, buf0_subarrayBeam, buf1_subarrayBeam : std_logic_vector(7 downto 0);
     signal accumulator_badPoly, buf0_badPoly, buf1_badPoly : std_logic;
     signal accumulator_tableSelect, buf0_tableSelect, buf1_tableSelect : std_logic;
+    signal accumulator_tileTime : std_logic_vector(1 downto 0);
     signal deliver_totalStations, axi_totalStations : std_logic_vector(15 downto 0);
     signal deliver_subarrayBeam, axi_subarrayBeam : std_logic_vector(7 downto 0);
     signal axi_badPoly, axi_tableSelect : std_logic;
@@ -199,6 +202,10 @@ architecture Behavioral of LTA_top is
     signal end_cell_cnt   : unsigned(1 downto 0);
     signal rd_timeSamples, wr_timeSamples : t_slv_16_arr(15 downto 0);
     signal rd_timeSum, wr_timeSum : t_slv_24_arr(15 downto 0);
+    signal deliverShortIntegrationDel : std_logic_vector(15 downto 0);
+    signal rdTileTime, buf0_tileTime, buf1_tileTime : std_logic_vector(1 downto 0);
+    signal deliver_shortIntegrationCount, axi_tileTime : std_logic_vector(1 downto 0);
+    signal deliverShortIntegrationCountDel : t_slv_2_arr(15 downto 0);
     
 begin
     
@@ -224,6 +231,7 @@ begin
                     buf0_subarrayBeam <= accumulator_subarrayBeam;
                     buf0_badPoly <= accumulator_badPoly;
                     buf0_tableSelect <= accumulator_tableSelect;
+                    buf0_tileTime <= accumulator_tileTime;
                 else
                     wrBuffer <= '0';
                     set_buf0_used <= '0';
@@ -237,6 +245,7 @@ begin
                     buf1_subarrayBeam <= accumulator_subarrayBeam;
                     buf1_badPoly <= accumulator_badPoly;
                     buf1_tableSelect <= accumulator_tableSelect;
+                    buf1_tileTime <= accumulator_tileTime;
                 end if;
             else
                 set_buf0_used <= '0';
@@ -282,11 +291,6 @@ begin
             else
                 o_ready <= '1';
             end if;
---            if ((wrBuffer = '0' and (buf1_used = '1' or set_buf1_used = '1')) or (wrBuffer = '1' and (buf0_used = '1' or set_buf0_used = '1'))) then
---                o_ready <= '0';
---            else
---                o_ready <= '1';
---            end if;
             
             if i_valid = '1' then
                 if i_cellStart = '1' then
@@ -303,6 +307,7 @@ begin
                     accumulator_subarrayBeam <= i_subarrayBeam;
                     accumulator_badPoly <= i_badPoly;
                     accumulator_tableSelect <= i_tableSelect;
+                    accumulator_tileTime <= i_tileTime;
                 elsif accumulator_valid = '1' then
                     accumulator_rdAddr <= std_logic_vector(unsigned(accumulator_rdAddr) + 1);
                 end if;
@@ -353,6 +358,7 @@ begin
                         rdsubarrayBeam <= buf0_subarrayBeam;
                         rdBadPoly <= buf0_badPoly;
                         rdTableSelect <= buf0_tableSelect;
+                        rdTileTime <= buf0_tileTime;
                         readout_fsm <= start_readout;
                     elsif buf1_used = '1' then
                         rdBuffer <= '1';
@@ -365,6 +371,7 @@ begin
                         rdsubarrayBeam <= buf1_subarrayBeam;
                         rdBadPoly <= buf1_badPoly;
                         rdTableSelect <= buf1_tableSelect;
+                        rdTileTime <= buf1_tileTime;
                         readout_fsm <= start_readout;
                     end if;
                     readoutCell <= (others => '0');
@@ -435,6 +442,7 @@ begin
             cor_to_axi_din(80 downto 73) <= rdsubarrayBeam;
             cor_to_axi_din(81) <= rdBadPoly;
             cor_to_axi_din(82) <= rdTableSelect;
+            cor_to_axi_din(84 downto 83) <= rdTileTime;
             if readout_fsm = idle then
                 readoutActive <= '0';
             else
@@ -607,7 +615,7 @@ begin
         INIT_SYNC_FF => 1,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
         SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         SRC_SYNC_FF => 3,    -- DECIMAL; range: 2-10
-        WIDTH => 83          -- DECIMAL; range: 1-1024
+        WIDTH => 85          -- DECIMAL; range: 1-1024
     ) port map (
         dest_out => cor_to_axi_dout,   -- WIDTH-bit output: Input bus (src_in) synchronized to destination clock domain. This output is registered.
         dest_req => cor_to_axi_req,    -- 1-bit output: Assertion of this signal indicates that new dest_out data has been received and is ready to be used or captured by the destination logic. 
@@ -634,6 +642,7 @@ begin
                 axi_subarrayBeam <= cor_to_axi_dout(80 downto 73);
                 axi_badPoly <= cor_to_axi_dout(81);
                 axi_tableSelect <= cor_to_axi_dout(82);
+                axi_tileTime <= cor_to_axi_dout(84 downto 83);
                 axi_meta_valid <= '1';
             elsif data_deliver_fsm = idle then
                 axi_meta_valid <= '0';
@@ -652,6 +661,7 @@ begin
                         deliver_subarrayBeam <= axi_subarrayBeam;
                         deliver_badPoly <= axi_badPoly;
                         deliver_tableSelect <= axi_tableSelect;
+                        deliver_shortIntegrationCount <= axi_tileTime;
                     end if;
                     cellReadoutCount <= (others => '0'); -- which cell in the tile are we up to ? (0 to axi_cellMax)
                     visReadoutCount <= (others => '0'); -- which visibility in the cell are we up to  (0 to 255 for every cell)
@@ -738,6 +748,9 @@ begin
                 o_subarrayBeam <= deliverSubarrayBeamDel(15);
                 o_badPoly <= deliverBadPolyDel(15);
                 o_tableSelect <= deliverTableSelectDel(15);
+                -- 3 bits, top bit = '1' for 283ms integrations, '0' for 849ms integrations
+                -- Low 2 bits = which 283ms integration ? "00", "01" or "10"
+                o_shortIntegration <= deliverShortIntegrationDel(15) & deliverShortIntegrationCountDel(15);
             else
                 o_data <= dv_tci_dout;
                 o_visValid <= '0';
@@ -786,6 +799,16 @@ begin
             
             delivertableSelectDel(0) <= deliver_tableSelect;
             delivertableSelectDel(15 downto 1) <= deliverTableSelectDel(14 downto 0);
+            
+            deliverShortIntegrationCountDel(0) <= deliver_ShortIntegrationCount;
+            deliverShortIntegrationCountDel(15 downto 1) <= deliverShortIntegrationCountDel(14 downto 0);
+            
+            if unsigned(deliver_totalTimes) = 192 then
+                deliverShortIntegrationDel(0) <= '0'; -- 192 time samples, not a short integration
+            else
+                deliverShortIntegrationDel(0) <= '1'; -- This is a short integration (64 time samples)
+            end if;
+            deliverShortIntegrationDel(15 downto 1) <= deliverShortIntegrationDel(14 downto 0);
             
             -- 18 clocks from fifo_rd_en(0) to 
             fifo_rd_en_del(22 downto 1) <= fifo_rd_en_del(21 downto 0);
