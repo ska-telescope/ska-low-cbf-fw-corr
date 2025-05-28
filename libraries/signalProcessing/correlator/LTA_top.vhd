@@ -42,7 +42,7 @@ entity LTA_top is
         i_subarrayBeam : in std_logic_vector(7 downto 0);
         i_badPoly : in std_logic;
         i_tableSelect : in std_logic;
-        i_tileTime : in std_logic_vector(1 downto 0);
+        i_tileTime : in std_logic_vector(1 downto 0);  -- which 283 ms interval this is for
         -- first time this cell is being written to, so just write, don't accumulate with existing value.
         -- i_tile and i_channel are captured when i_first = '1', i_cellStart = '1' and i_wrCell = 0, 
         i_first   : in std_logic; 
