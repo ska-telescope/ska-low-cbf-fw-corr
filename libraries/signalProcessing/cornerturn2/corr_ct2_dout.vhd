@@ -259,14 +259,18 @@ architecture Behavioral of corr_ct2_dout is
     
 begin
     
-    o_ar_fsm_dbg <= ar_fsm_dbg;
-    o_readout_fsm_dbg <= readout_fsm_dbg;
-    o_arFIFO_wr_count <= arFIFO_wr_count;
-    o_dataFIFO_wrCount <= dataFIFO_wrCount;
-    
-    o_readout_error <= readout_error;
-    o_recent_start_gap <= recent_start_gap;
-    o_recent_readout_time <= recent_readout_time;
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            o_ar_fsm_dbg <= ar_fsm_dbg;
+            o_readout_fsm_dbg <= readout_fsm_dbg;
+            o_arFIFO_wr_count <= arFIFO_wr_count;
+            o_dataFIFO_wrCount <= dataFIFO_wrCount;
+            o_readout_error <= readout_error;
+            o_recent_start_gap <= recent_start_gap;
+            o_recent_readout_time <= recent_readout_time;
+        end if;
+    end process;
     
     hbm_addri : entity ct_lib.get_ct2_HBM_addr
     port map(
