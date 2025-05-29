@@ -108,7 +108,6 @@ PORT (
     probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
 END COMPONENT;
 
-signal clk                      : std_logic;
 signal reset                    : std_logic;
 
 -- metadata from correlator.
@@ -302,11 +301,9 @@ signal current_page_ct1             : std_logic;
 --------------------------------------------------------------------------------
 begin
     
-    clk                     <= i_axi_clk;
-    
-    reg_proc : process(clk)
+    reg_proc : process(i_axi_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(i_axi_clk) then
             reset           <= i_axi_rst OR i_local_reset;
         end if;
     end process;
@@ -335,9 +332,9 @@ begin
     o_to_spead_pack.table_select            <= table_select;
     o_to_spead_pack.trigger_end_packets     <= trigger_end_packets;
     ---------------------------------------------------------------------------
-    meta_reg_proc : process(clk)
+    meta_reg_proc : process(i_axi_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(i_axi_clk) then
             bytes_in_heap           <= unsigned(i_from_spead_pack.bytes_in_heap);
 
             if testmode_select = '0' then
@@ -401,7 +398,7 @@ begin
     )
     Port map ( 
         fifo_reset          => reset,
-        fifo_clk            => clk,
+        fifo_clk            => i_axi_clk,
         fifo_in_reset       => meta_cache_fifo_in_reset,
         -- RD    
         fifo_rd             => meta_cache_fifo_rd,
@@ -417,9 +414,9 @@ begin
     );
     ---------------------------------------------------------------------------
     -- SM to process correlated data.
-    SM_data_config_proc : process(clk)
+    SM_data_config_proc : process(i_axi_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(i_axi_clk) then
             if reset = '1' then
                 cor_tri_fsm_debug   <= x"F";
                 cor_triangle_fsm    <= idle;
@@ -571,7 +568,7 @@ begin
         )
         port map ( 
             -- clock used for all data input and output from this module (300 MHz)
-            clk                         => clk,
+            clk                         => i_axi_clk,
             reset                       => reset,
     
             i_fifo_reset                => reset_cache_fifos,
@@ -628,9 +625,9 @@ begin
     -- i_row               : in std_logic_vector(12 downto 0);     -- The index of the first row that is available, counts from zero.
     -- i_row_count         : in std_logic_vector(8 downto 0);      -- The number of rows available to be read out. Valid range is 1 to 256.
 
-    pack_process : process(clk)
+    pack_process : process(i_axi_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(i_axi_clk) then
             if reset = '1' then
                 pack_it_fsm_debug   <= x"F";
                 pack_it_fsm         <= IDLE;
@@ -807,9 +804,9 @@ hbm_data_cache_le   <=  hbm_data_cache(7 downto 0) &        hbm_data_cache(15 do
 ---------------------------------------------------------------------------
 -- align the data to 64bytes, from 2 x 34 bytes
 
-align_64b_proc : process(clk)
+align_64b_proc : process(i_axi_clk)
 begin
-    if rising_edge(clk) then
+    if rising_edge(i_axi_clk) then
         if cor_triangle_fsm = idle OR reset = '1' then
             pack_counter                <= x"01";
 
@@ -868,9 +865,9 @@ end process;
 
 pack_wr   <= '1' when (pack_byte_tracker >= 64) else '0';
 
-reg_512_align_proc : process(clk)
+reg_512_align_proc : process(i_axi_clk)
 begin
-    if rising_edge(clk) then
+    if rising_edge(i_axi_clk) then
         if reset = '1' then
             aligned_packed_wr               <= '0';
             aligned_packed_fifo_data        <= (others => '0');
@@ -944,7 +941,7 @@ end process;
     )
     Port map ( 
         fifo_reset          => reset,
-        fifo_clk            => clk,
+        fifo_clk            => i_axi_clk,
         fifo_in_reset       => packed_fifo_in_reset,
         -- RD    
         fifo_rd             => packed_fifo_rd,
@@ -967,9 +964,9 @@ end process;
     ---------------------------------------------------------------------------
     -- PROC to push data to packetiser.
     
-    push_proc : process(clk)
+    push_proc : process(i_axi_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(i_axi_clk) then
             if reset = '1' then
                 bytes_to_process        <= ( others => '0');
                 send_spead_data         <= "00";
@@ -1048,9 +1045,9 @@ end process;
 
     ---------------------------------------------------------------------------
     -- debug
-    debug_proc : process(clk)
+    debug_proc : process(i_axi_clk)
     begin
-        if rising_edge(clk) then
+        if rising_edge(i_axi_clk) then
             if reset = '1' then
                 debug_instruction_writes    <= (others => '0');
             else
@@ -1097,7 +1094,7 @@ end process;
 ila_gen : if DEBUG_ILA generate
 
     hbm_wide_rd_ila_debug : ila_0 PORT MAP (
-        clk                     => clk,
+        clk                     => i_axi_clk,
             
         probe0(3 downto 0)      => pack_it_fsm_debug,
         probe0(7 downto 4)      => cor_tri_fsm_debug,
@@ -1117,7 +1114,7 @@ ila_gen : if DEBUG_ILA generate
         );
         
     byte_ila_debug : ila_8k PORT MAP (
-        clk                     => clk,
+        clk                     => i_axi_clk,
             
         probe0(3 downto 0)      => pack_it_fsm_debug,
         probe0(7 downto 4)      => cor_tri_fsm_debug,
