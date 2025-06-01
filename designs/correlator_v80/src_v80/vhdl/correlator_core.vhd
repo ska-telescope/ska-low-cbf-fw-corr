@@ -413,10 +413,22 @@ begin
                 ap_clk_count <= (others => '0');
                 uptime <= std_logic_vector(unsigned(uptime) + 1);
             end if;
+            
+
+            system_fields_ro.time_uptime                    <= uptime;
+            system_fields_ro.status_clocks_locked           <= '1';
+            system_fields_ro.eth100G_locked                 <= i_eth100G_locked;
+            system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
+            system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
+            system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
+            system_fields_ro.eth100G_tx_total_packets       <= i_eth100G_tx_total_packets;
+            system_fields_ro.eth100g_ptp_nano_seconds       <= x"BADBAD00";
+            system_fields_ro.eth100g_ptp_lower_seconds      <= x"BADBAD00";
+            system_fields_ro.eth100g_ptp_upper_seconds      <= x"BADBAD00";
+            
         end if;
     end process;
-    system_fields_ro.time_uptime <= uptime;
-    system_fields_ro.status_clocks_locked <= '1';
+
     
     --------------------------------------------------------------------------------------------------
     -- debug
@@ -434,20 +446,7 @@ begin
         probe0(191 downto 161)  => (others => '0')
     );
     
-
-    --------------------------------------------------------------------------------------------------
-
-
-    system_fields_ro.eth100G_locked                 <= i_eth100G_locked;
-    system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
-    system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
-    system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
-    system_fields_ro.eth100G_tx_total_packets       <= i_eth100G_tx_total_packets;
-    system_fields_ro.eth100g_ptp_nano_seconds       <= x"BADBAD00";
-    system_fields_ro.eth100g_ptp_lower_seconds      <= x"BADBAD00";
-    system_fields_ro.eth100g_ptp_upper_seconds      <= x"BADBAD00";
-    
-    
+   
     
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
