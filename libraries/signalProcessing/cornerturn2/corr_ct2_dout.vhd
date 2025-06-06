@@ -93,10 +93,11 @@ entity corr_ct2_dout is
         i_SB_done   : in std_logic;     -- Indicates that all the subarray beams for this correlator core has been processed.
         i_stations  : in std_logic_vector(15 downto 0);    -- The number of (sub)stations in this subarray-beam
         i_coarseStart : in std_logic_vector(15 downto 0);  -- The first coarse channel in this subarray-beam
+        i_outputDisable : in std_logic;
         i_fineStart   : in std_logic_vector(15 downto 0);  -- The first fine channel in this subarray-beam
         i_n_fine      : in std_logic_vector(23 downto 0);  -- The number of fine channels in this subarray-beam
-        i_fineIntegrations : in std_logic_vector(5 downto 0);  -- Number of fine channels to integrate
-        i_timeIntegrations : in std_logic_vector(1 downto 0);  -- Number of time samples per integration.
+        i_fineIntegrations : in std_logic_vector(6 downto 0);  -- Number of fine channels to integrate
+        i_timeIntegrations : in std_logic;                     -- Number of time samples per integration.
         i_HBM_base_addr    : in std_logic_vector(31 downto 0); -- Base address in HBM for this subarray-beam.        
         i_bad_poly    : in std_logic;
         ---------------------------------------------------------------
@@ -148,7 +149,7 @@ entity corr_ct2_dout is
         -- (relative to the start of the buffer for this subarray-beam).
         o_cor_tileChannel       : out std_logic_vector(23 downto 0); -- 24 bit, so can represent up to 2^24/3456 = 4854 coarse channels.
         o_cor_tileTotalTimes    : out std_logic_vector(7 downto 0); -- Number of time samples to integrate for this tile.
-        o_cor_tiletotalChannels : out std_logic_Vector(4 downto 0); -- Number of frequency channels to integrate for this tile.
+        o_cor_tiletotalChannels : out std_logic_vector(6 downto 0); -- Number of frequency channels to integrate for this tile.
         o_cor_rowstations       : out std_logic_vector(8 downto 0); -- Number of stations in the row memories to process; up to 256.
         o_cor_colstations       : out std_logic_vector(8 downto 0); -- Number of stations in the col memories to process; up to 256. 
         o_cor_badPoly           : out std_logic;  -- No valid polynomial
@@ -164,7 +165,10 @@ entity corr_ct2_dout is
         o_ar_fsm_dbg : out std_logic_vector(3 downto 0);
         o_readout_fsm_dbg : out std_logic_vector(3 downto 0);
         o_arFIFO_wr_count : out std_logic_vector(6 downto 0);
-        o_dataFIFO_wrCount : out std_logic_vector(9 downto 0)
+        o_dataFIFO_wrCount : out std_logic_vector(9 downto 0);
+        o_readout_error       : out std_logic;
+        o_recent_start_gap    : out std_logic_vector(31 downto 0);
+        o_recent_readout_time : out std_logic_vector(31 downto 0)
     );
 end corr_ct2_dout;
 
@@ -176,7 +180,7 @@ architecture Behavioral of corr_ct2_dout is
         probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
     END COMPONENT;
 
-    type ar_fsm_type is (check_arFIFO, get_SB_data, wait_SB_data, set_ar, set_ar2, wait_ar, update_addr, next_fine, next_tile, check_fineBase, next_fineBase, next_timeBase, done);
+    type ar_fsm_type is (check_arFIFO, get_SB_data, wait_SB_data, set_ar, set_ar2, wait_ar, update_addr, next_fine, next_tile, check_fineBase, next_fineBase, next_timeBase, done, SB_wait1, SB_wait2, SB_wait3);
     signal ar_fsm, ar_fsm_del1 : ar_fsm_type := done;
     signal readBuffer : std_logic := '0';
     
@@ -200,15 +204,15 @@ architecture Behavioral of corr_ct2_dout is
     signal SB_coarseStart : std_logic_vector(8 downto 0);  -- The first coarse channel in this subarray-beam
     signal SB_fineStart : std_logic_vector(11 downto 0);    -- The first fine channel in this subarray-beam
     signal SB_n_fine : std_logic_vector(23 downto 0);       -- The number of fine channels in this subarray-beam
-    signal SB_fineIntegrations : std_logic_vector(5 downto 0);  -- number of fine channels to integrate
-    signal SB_timeIntegrations : std_logic_vector(1 downto 0);  -- 2 bits, number of time samples per integration.
+    signal SB_fineIntegrations : std_logic_vector(6 downto 0);  -- number of fine channels to integrate
+    signal SB_timeIntegrations : std_logic;                     -- 2 bits, number of time samples per integration.
     signal SB_base_addr : std_logic_vector(31 downto 0);        -- 32 bits,
     
     signal cur_skyFrequency : std_logic_vector(8 downto 0);
     signal cur_fineChannel : std_logic_vector(23 downto 0);
     signal cur_fineChannelBase : std_logic_vector(23 downto 0);
     signal cur_correlationChannelCount : std_logic_vector(23 downto 0);
-    signal cur_fineChannelOffset : std_logic_vector(5 downto 0);
+    signal cur_fineChannelOffset : std_logic_vector(6 downto 0);
     signal cur_station, cur_station_plus16 : std_logic_vector(11 downto 0);
     signal cur_timeGroup : std_logic_vector(3 downto 0);
     signal cur_tileColumn, cur_tileColumn_plus1 : std_logic_vector(3 downto 0);  -- Which tile are we currently up to; 256 stations in a tile, so up to 16x256 = 4096 stations altogether 
@@ -228,8 +232,8 @@ architecture Behavioral of corr_ct2_dout is
     signal cur_tileRow_x256, rowStations_remaining : std_logic_vector(15 downto 0);
     signal cur_tileColumn_x256, colStations_remaining : std_logic_vector(15 downto 0);
     signal readoutRowStations, readoutColStations : std_logic_vector(8 downto 0);
-    signal readoutTotalChannels : std_logic_vector(5 downto 0);
-    signal readoutTimeIntegration : std_logic_vector(1 downto 0);
+    signal readoutTotalChannels : std_logic_vector(6 downto 0);
+    signal readoutTimeIntegration : std_logic;
     signal first_req_in_integration : std_logic := '0';
     signal readoutFirst : std_logic;
     signal cur_station_offset_ext : std_logic_vector(22 downto 0);
@@ -248,13 +252,25 @@ architecture Behavioral of corr_ct2_dout is
     signal readoutBadPoly : std_logic;
     signal SB_badPoly : std_logic;
     signal SB_fineStart_ext, SB_N_fine_plus_SB_fineStart : std_logic_vector(23 downto 0);
+    signal SB_outputDisable : std_logic := '0';
+    signal readout_error : std_logic := '0';
+    signal recent_start_gap, start_gap  : std_logic_vector(31 downto 0) := x"00000000";
+    signal recent_readout_time, readout_time : std_logic_vector(31 downto 0) := x"00000000";
     
 begin
     
-    o_ar_fsm_dbg <= ar_fsm_dbg;
-    o_readout_fsm_dbg <= readout_fsm_dbg;
-    o_arFIFO_wr_count <= arFIFO_wr_count;
-    o_dataFIFO_wrCount <= dataFIFO_wrCount;
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            o_ar_fsm_dbg <= ar_fsm_dbg;
+            o_readout_fsm_dbg <= readout_fsm_dbg;
+            o_arFIFO_wr_count <= arFIFO_wr_count;
+            o_dataFIFO_wrCount <= dataFIFO_wrCount;
+            o_readout_error <= readout_error;
+            o_recent_start_gap <= recent_start_gap;
+            o_recent_readout_time <= recent_readout_time;
+        end if;
+    end process;
     
     hbm_addri : entity ct_lib.get_ct2_HBM_addr
     port map(
@@ -280,8 +296,8 @@ begin
         o_valid            => HBM_addr_valid  -- out std_logic; Some fixed number of clock cycles after i_valid.
     );
     
-    cur_fineChannelOffset_ext(23 downto 6) <= (others => '0');
-    cur_fineChannelOffset_ext(5 downto 0) <= cur_fineChannelOffset;
+    cur_fineChannelOffset_ext(23 downto 7) <= (others => '0');
+    cur_fineChannelOffset_ext(6 downto 0) <= cur_fineChannelOffset;
     cur_fineChannel <= std_logic_vector(unsigned(cur_fineChannelBase) + unsigned(cur_fineChannelOffset_ext));
     
     -- Always read blocks of 512 bytes = 8 x (512 bit) words.
@@ -328,6 +344,27 @@ begin
                 tiles_per_row_minus1 <= SB_stations_div256; 
             end if;
             
+            if i_start = '1' then
+                start_gap <= (others => '0');
+                recent_start_gap <= start_gap;
+            elsif start_gap(31) = '0' then
+                start_gap <= std_logic_vector(unsigned(start_gap) + 1);
+            end if;
+            
+            if i_start = '1' then
+                readout_time <= (others => '0');
+            elsif ar_fsm = done and ar_fsm_del1 /= done then
+                recent_readout_time <= readout_time;
+            elsif (ar_fsm /= done) and readout_time(31) = '0' then
+                readout_time <= std_logic_vector(unsigned(readout_time) + 1);
+            end if;
+            
+            if i_rst = '1' then
+                readout_error <= '0';
+            elsif i_start = '1' and ar_fsm /= done then
+                readout_error <= '1';
+            end if;
+            
             if i_rst = '1' then
                 ar_fsm <= done;
                 o_SB_req <= '0';
@@ -350,6 +387,7 @@ begin
                         ar_fsm <= wait_SB_data;
                         clear_hold <= '0';  -- Hold of the output of the address calculation.
                         o_HBM_axi_ar.valid <= '0';
+                        get_addr <= '0';
                     
                     when wait_SB_data =>
                         ar_fsm_dbg <= "0010";
@@ -363,15 +401,16 @@ begin
                             SB_fineStart <= i_fineStart(11 downto 0);     -- The first fine channel in this subarray-beam
                             SB_n_fine <= i_n_fine;                        -- 24 bits, the number of fine channels in this subarray-beam
                             SB_fineIntegrations <= i_fineIntegrations; -- 6 bits, number of fine channels to integrate
-                            SB_timeIntegrations <= i_timeIntegrations; -- 2 bits, number of time samples per integration.
+                            SB_timeIntegrations <= i_timeIntegrations; -- 1 bit, number of time samples per integration.
                             SB_base_addr <= i_HBM_base_addr; -- 32 bits, base address in HBM for this subarray-beam.
                             SB_SB <= SB_del;
                             SB_badPoly <= i_bad_poly;
+                            SB_outputDisable <= i_outputDisable;
                             
                             cur_skyFrequency <= i_coarseStart(8 downto 0);
                             cur_fineChannelBase <= "000000000000" & i_fineStart(11 downto 0);
                             cur_correlationChannelCount <= (others => '0');  -- Count of the output correlation channels.
-                            cur_fineChannelOffset <= "000000"; -- counts through the channels that we step through within a single integration
+                            cur_fineChannelOffset <= "0000000"; -- counts through the channels that we step through within a single integration
                             cur_station <= (others => '0');    -- The station within the array that we are getting; always starts from 0. 
                             cur_station_offset <= "00";        -- Which group of 4 stations are we up to for the memory request (fsm does 4 requests to get data for up to 16 stations in a burst)
                             cur_tileColumn <= (others => '0'); -- Which tile are we currently up to 
@@ -380,23 +419,53 @@ begin
                             cur_TimeGroup <= "0000"; -- steps through "000", "001", "010", "011", "100", "101" for the 6 groups of 32 times, since data in HBM is written in 512 byte blocks with 32 times.
                             
                             ar_fsm <= check_arFIFO;
-                            get_addr <= '1';         -- Get the first address to use
+                            if i_outputDisable = '0' then
+                                get_addr <= '1';         -- Get the first address to use
+                            else
+                                get_addr <= '0';
+                            end if;
                         end if;
                         clear_hold <= '0';
                         o_HBM_axi_ar.valid <= '0';
                 
                     when check_arFIFO =>
                         ar_fsm_dbg <= "0011";
-                        -- check there is space in the ar FIFO.
-                        -- Up to 4 requests get made at a time, so make sure there is 
-                        -- at least 4 slots free in the ar fifo.
-                        if (unsigned(arFIFO_wr_count) < 56) then
-                            ar_fsm <= set_ar;
+                        if SB_outputDisable = '1' then
+                            -- Do not generate any output from this subarray-beam table entry, 
+                            -- move on to the next entry.
+                            ar_fsm <= SB_wait1;
+                        else
+                            -- check there is space in the ar FIFO.
+                            -- Up to 4 requests get made at a time, so make sure there is 
+                            -- at least 4 slots free in the ar fifo.
+                            if (unsigned(arFIFO_wr_count) < 56) then
+                                ar_fsm <= set_ar;
+                            end if;
                         end if;
                         get_addr <= '0';
                         clear_hold <= '0';
                         o_SB_req <= '0';
                         o_HBM_axi_ar.valid <= '0';
+                    
+                    when SB_wait1 =>
+                        ar_fsm_dbg <= "1110";
+                        -- Wait a few clocks for i_SB_done to reflect the new value
+                        ar_fsm <= SB_wait2;
+                        clear_hold <= '1';
+                    
+                    when SB_wait2 =>
+                        ar_fsm_dbg <= "1110";
+                        ar_fsm <= SB_wait3;
+                        clear_hold <= '1';
+                    
+                    when SB_wait3 =>
+                        ar_fsm_dbg <= "1110";
+                        if (i_SB_done = '1') then
+                            ar_fsm <= done;
+                        else
+                            ar_fsm <= get_SB_data;
+                        end if;
+                        clear_hold <= '1';
                     
                     when set_ar =>
                         ar_fsm_dbg <= "0100";
@@ -443,16 +512,16 @@ begin
                         --      For cur_fineChannelBase = SB_fineStart:SB_fineIntegrations:(SB_fineStart + SB_N_fine)
                         --          - i.e. Step each block of fine channels that get integrated together.
                         --          For cur_timeBase = 0:integrations_per_849ms
-                        --              - integrations_per_849ms : from SB_timeIntegrations, "00" = 64 time samples = 3 integrations per 849ms; "01" = 192 time samples = 1 integration per 849 ms
+                        --              - integrations_per_849ms : from SB_timeIntegrations, '0' = 64 time samples = 3 integrations per 849ms; '1' = 192 time samples = 1 integration per 849 ms
                         --              For cur_tileRow = 0:tiles_per_row  -- note tiles_per_row=ceil(SB_stations/256)
                         --                  - step through the rows of the visibility matrix in "tiles", i.e. blocks of 256 stations.
                         --                  For cur_tileColumn = 0:tiles_per_row     -- Note : number of tile columns = number of tile rows; correlation matrices are always square
                         --                      - After processing all the tiles in a single row, the output stage can start sending data to SDP. 
-                        --             /--      For cur_timeGroup(3:2) = 0:times_per_integration/64  -- e.g. 1 block of 64 times, if 283 ms integrations, or 3 blocks of 64 times if 849 ms integrations.
-                        -- One         |            - times_per_integration = 64 when SB_timeIntegrations = "00", or 192 when SB_timeIntegrations = "01". 
+                        --             /--      For cur_timeGroup(2:1) = 0:times_per_integration/64  -- e.g. 1 block of 64 times, if 283 ms integrations, or 3 blocks of 64 times if 849 ms integrations.
+                        -- One         |            - times_per_integration = 64 when SB_timeIntegrations = '0', or 192 when SB_timeIntegrations = '1'. 
                         -- long        |            For cur_fineChannelOffset = 0:SB_fineIntegrations
                         -- term        |                - Data loaded into the row+col memories for the correlator cell is  :
-                        -- integration |                -   - 256 x 256 staions (= 1 "tile"), 
+                        -- integration |                -   - 256 x 256 stations (= 1 "tile"), 
                         --             |                -   - 64 time samples                        
                         --                   /--        For cur_station = (cur_tileColumn*256):16:(cur_tileColumn*256 + 256)
                         --                   |              Read HBM : 32 time samples, 16 stations
@@ -503,7 +572,7 @@ begin
                         -- Advancing to the next fine channel is a separate state to the update_addr state since at this point we have finished a full block of row and col mem data for the correlator. 
                         if (unsigned(cur_fineChannelOffset) = (unsigned(SB_fineIntegrations) - 1)) then
                             cur_fineChannelOffset <= (others => '0');
-                            if SB_timeIntegrations = "00" then
+                            if SB_timeIntegrations = '0' then
                                 -- Only integrating over 283 ms = 64 time samples, so the integration is complete
                                 ar_fsm <= next_tile;
                             else
@@ -560,7 +629,7 @@ begin
                         
                     when next_timeBase =>
                         ar_fsm_dbg <= "1010";
-                        if SB_timeIntegrations = "00" then 
+                        if SB_timeIntegrations = '0' then 
                             -- only integrating over 283 ms, go to the next timebase
                             case cur_timeBase is
                                 when "0000" =>
@@ -574,6 +643,8 @@ begin
                                     get_Addr <= '1';
                                     ar_fsm <= check_arFIFO;
                                 when others => -- only other case should be "0100"
+                                    cur_timeBase <= "0000";
+                                    cur_timeGroup <= "0000";
                                     get_Addr <= '0';
                                     ar_fsm <= next_fineBase;
                             end case;
@@ -611,6 +682,7 @@ begin
                         o_SB_req <= '0';
                         ar_fsm <= done; -- Wait until we get i_start again.
                         o_HBM_axi_ar.valid <= '0';
+                        get_addr <= '0';
                         
                 end case;
             end if;
@@ -648,8 +720,8 @@ begin
                     arFIFO_din(65 downto 57) <= colStations_remaining(8 downto 0);
                 end if;
                 
-                arFIFO_din(71 downto 66) <= SB_fineIntegrations;
-                arFIFO_din(73 downto 72) <= SB_timeIntegrations;
+                arFIFO_din(72 downto 66) <= SB_fineIntegrations;
+                arFIFO_din(73) <= SB_timeIntegrations;
                 -- first data for a new integration
                 arFIFO_din(74) <= first_req_in_integration;
                 arFIFO_din(76 downto 75) <= cur_station_offset;
@@ -808,8 +880,8 @@ begin
                             readoutTileLocation <= arFIFO_dout(47 downto 40);
                             readoutRowStations <= arFIFO_dout(56 downto 48);
                             readoutColStations <= arFIFO_dout(65 downto 57);
-                            readoutTotalChannels <= arFIFO_dout(71 downto 66);
-                            readoutTimeIntegration <= arFIFO_dout(73 downto 72);
+                            readoutTotalChannels <= arFIFO_dout(72 downto 66);
+                            readoutTimeIntegration <= arFIFO_dout(73);
                             readoutFirst <= arFIFO_dout(74);
                             readoutStationOffset <= arFIFO_dout(76 downto 75); -- 4 ar requests to get 16 stations.
                             
@@ -893,7 +965,7 @@ begin
             o_cor_tileType <= readoutTriangle; -- 1 bit output; '0' for triangle, '1' for a square subset of the correlation matrix.
             o_cor_rowStations <= readoutRowStations;
             o_cor_colStations <= readoutColStations;
-            o_cor_tileTotalChannels <= readoutTotalChannels(4 downto 0);
+            o_cor_tileTotalChannels <= readoutTotalChannels(6 downto 0);
             o_cor_frameCount <= readoutFrameCount;
             if readoutFirst = '1' then 
                 cor_first_int <= '1';
@@ -911,10 +983,10 @@ begin
             else
                 o_cor_final <= '0';
             end if;
-            if readoutTimeIntegration = "00" then
-                -- Either 64 or 192 time samples to be integrated.
+            if readoutTimeIntegration = '0' then
+                -- 64 time samples to be integrated.
                 o_cor_tileTotalTimes <= x"40";
-            else
+            else -- 192 time samples to be integrated
                 o_cor_tileTotalTimes <= x"C0";
             end if;
             

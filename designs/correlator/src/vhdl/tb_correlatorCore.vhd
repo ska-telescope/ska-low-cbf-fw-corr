@@ -8,6 +8,28 @@
 -- Description: 
 --  Testbench for the correlator
 -- 
+--Enable packetiser
+-- i_debug 0x400 enables the packetiser
+-- add_force {/tb_correlatorCore/dut/dsp_topi/spead_packetiser_top/i_debug} -radix hex {400 0ns}
+-- Number of bytes in a packet, dependent on the number of stations
+--  Stations Value
+--   1
+--   2         0x6E
+--   3         0xD4
+--   4         0x15C
+--   6         0x2D2
+--   8         0x4D0
+--   16        0x1218
+--   18        0x16BE
+-- add_force {/tb_correlatorCore/dut/dsp_topi/spead_packetiser_top/cor_speader/host_interface/heap_size_data} -radix hex {6E 0ns}
+--
+--block messages about hold violations in clock crossing
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[3]} -radix hex {0 0ns}
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[2]} -radix hex {0 0ns}
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[1]} -radix hex {0 0ns}
+-- add_force {/tb_correlatorCore/dut/dsp_topi/LFAAin/LFAAProcessInst/reg_ro_data_clk[0]} -radix hex {0 0ns}
+--
+--
 ----------------------------------------------------------------------------------
 library IEEE;
 library common_lib, correlator_lib;
@@ -35,7 +57,15 @@ entity tb_correlatorCore is
         g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
         --g_TEST_CASE : string := "/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations/";
-        g_TEST_CASE        : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations/";
+        --g_TEST_CASE        : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_6stations/";
+        
+        -- Test case worked as at 12/5/2025
+        --g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_6stations_cof/";
+        -- Last run 26/5/2025
+        g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_2stations_cof/";
+        -- Last run 29/5/2025
+        --g_TEST_CASE : string := "/home/hum089/projects/perentie/low-cbf-model/src_atomic/run_cor_1sa_8stations_cof/";
+                
         --/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations
         --g_TEST_CASE : string := "../../../../../../";
         -- text file with SPS packets
@@ -180,7 +210,7 @@ architecture Behavioral of tb_correlatorCore is
     signal m00_rvalid :  STD_LOGIC;
     signal m00_rready :  STD_LOGIC;
     
-    constant g_HBM_INTERFACES : integer := 5;
+    constant g_HBM_INTERFACES : integer := 6;
     signal HBM_axi_awvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awaddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
@@ -1375,6 +1405,13 @@ begin
         i_init_mem   => '0',   -- in std_logic;
         i_init_fname => ""  -- in string
     );
+    
+    
+    -- HBM ila - not recorded here, just tie off the signals
+    HBM_axi_awready(5) <= '1';
+    HBM_axi_wready(5) <= '1';
+    HBM_axi_arready(5) <= '1';
+    HBM_axi_rvalid(5) <= '0';
     
     
 end Behavioral;

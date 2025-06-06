@@ -99,6 +99,8 @@ signal time_of_int              : std_logic;
 
 signal data_valid               : std_logic := '0';
 
+signal stim_count               : integer := 0;
+
 constant DEBUG_VEC_SIZE         : integer := 11;
 signal tb_debug                 : std_logic_vector((DEBUG_VEC_SIZE-1) downto 0);
 
@@ -427,9 +429,14 @@ begin
 -- 70	    255	        1109768	    0x10EF08
 -- 71	    256	        1118472	    0x111108
 
+            if stim_count = 35000 then
+                stim_count <= 100;
+            elsif clock_300_rst = '0' then
+                stim_count  <= stim_count + 1;
+            end if;
 
                 -- some stimulus for initial triangle testing.
-                if testCount_300 = 1000 then 
+                if stim_count = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"6";
@@ -438,7 +445,7 @@ begin
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"0";
     
-                elsif testCount_300 = 4000 then
+                elsif stim_count = 4000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"6";
@@ -447,7 +454,7 @@ begin
                     stim_freq_index <= 17D"1";
                     stim_sub_array  <= 8D"0";
                     
-                elsif testCount_300 = 7000 then
+                elsif stim_count = 7000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"6";
@@ -455,7 +462,7 @@ begin
     
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"0";
-                elsif testCount_300 = 10000 then
+                elsif stim_count = 10000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"16";
@@ -463,7 +470,7 @@ begin
     
                     stim_freq_index <= 17D"1";
                     stim_sub_array  <= 8D"3";
-                elsif testCount_300 = 13000 then
+                elsif stim_count = 13000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"18";
@@ -473,9 +480,9 @@ begin
                     stim_sub_array  <= 8D"4";
                     
                     stim_time_ref(31 downto 0)  <= 32D"4";
-                    stim_time_ref(33 downto 32) <= "01";
+                    stim_time_ref(33 downto 32) <= "00";
                     stim_time_ref(34)           <= '1';
-                elsif testCount_300 = 17000 then
+                elsif stim_count = 17000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"20";
@@ -485,9 +492,9 @@ begin
                     stim_sub_array  <= 8D"5";
                     
                     stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "00";
-                    stim_time_ref(34)           <= '0';
-                elsif testCount_300 = 21000 then
+                    stim_time_ref(33 downto 32) <= "01";
+                    stim_time_ref(34)           <= '1';
+                elsif stim_count = 21000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"22";
@@ -497,10 +504,10 @@ begin
                     stim_sub_array  <= 8D"6";
                     
                     stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "00";
-                    stim_time_ref(34)           <= '0';
+                    stim_time_ref(33 downto 32) <= "10";
+                    stim_time_ref(34)           <= '1';
     
-                elsif testCount_300 = 25000 then
+                elsif stim_count = 25000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"50";

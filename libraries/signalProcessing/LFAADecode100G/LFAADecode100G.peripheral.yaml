@@ -83,7 +83,9 @@ peripherals:
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse."
+              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse. \
+                                   The virtual channels processed through the filterbank run from \
+                                   (virtual channel 0) to (total_channels_tableX - 1) inclusive."
           #################################
           - - field_name        : total_stations_table1
               width             : 16
@@ -101,7 +103,8 @@ peripherals:
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse."
+              field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse. \
+                                   See also the description above for total_channels_table0 "
           #################################
           - - field_name        : total_packet_count
               width             : 32

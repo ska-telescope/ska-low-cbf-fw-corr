@@ -45,11 +45,23 @@ peripherals:
               reset_value       : 0x0
               field_description : "Write buffer used to transfer filterbank data into the HBM overflowed. Cleared by a reset in the first stage corner turn. Should never happen."
           #################################
-          - - field_name        : readoutError
-              width             : 1
+          - - field_name        : readoutTime
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "Readout to the correlator did not finish before the readout of the next HBM buffer started. Cleared by a reset passed in from the first stage corner turn. Should never happen."
+              field_description : "Number of 300MHz clocks to read out the most recent buffer, for the first correlator instance. This depends on the correlator configuration."
+          #################################
+          - - field_name        : readoutGap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of 300MHz clocks from the start of one readout to the start of the next readout. Should correspond to 849ms."
+          #################################
+          - - field_name        : readoutError
+              width             : 2
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Readout to the correlator did not finish before the readout of the next HBM buffer started. One bit for each correlator instance. Cleared by a reset passed in from the first stage corner turn. Should never happen."
           #################################
           - - field_name        : HBMBuf0PacketCount
               width             : 32
@@ -136,12 +148,29 @@ peripherals:
                                    Double buffered with the buffer selected by the table select register in CT1. \
                                    Each entry has : \
                                     Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
-                                             bits(31:16) = starting coarse frequency channel, \
+                                             bits(30:16) = starting coarse frequency channel, \
+                                             bit (31) = Output disable. If set to 1, then this entry does not generate any output to the correlator \
+                                                        This allows overlapping or partially used filterbank data. \
+                                                        By using this bit, one entry in the subarray beam table can specify where data will be stored in the HBM, \
+                                                        while other entries can specify different output data products with different start frequencies and zoom resolutions \
                                     Word 1 : bits (15:0) = starting fine frequency channel \
                                     word 2 : bits (23:0) = Number of fine channels stored \
-                                             bits (29:24) = Fine channels per integration \
-                                             bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+                                             bits (30:24) = Fine channels per integration \
+                                             bits (31) = integration time; 0 = 283 ms, 1 = 849 ms \
                                     Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
+                                   Data is written to the HBM in blocks of 512 bytes. \
+                                   The 512 byte blocks are arranged in a 3-D array (fine_channel, i_time_block, station) \
+                                   where data is ordered in memory first by station and last by fine channel \
+                                   The HBM address for a 512 byte block is: \
+                                    HBM_addr = SB_HBM_base_addr + 512 * [fine_channel * 6 * ceil(SB_stations/4) + time_block * ceil(SB_stations/4) + station_group] \
+                                   Where : \
+                                    SB_stations = total number of stations in this subarray-beam, i.e. the value in word 0 bits (15:0) \
+                                    time_block = 0 to 5, for 6 blocks of 32 time samples each (there are 32 time samples in a 512 byte block written to the HBM). \
+                                                 Note 6 x 32 = 192 time samples total = 849 ms of data. \
+                                    station_group = floor(station/4); where station runs from 0 to (SB_stations-1)  \
+                                                    Groups of 4 stations are stored in each 512 byte data block, \
+                                                    so the low 2 bits of i_station are ignored (thus floor(station/4)) \
+                                    fine_channel = fine channel offset relative to the first fine channel stored \
                                    "
           #################################
           - - field_name        : HBM_reset_corr_1
