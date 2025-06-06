@@ -1,5 +1,11 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.4
+    * Firmware enables Zooms
+        * Zooms from 1 correlator fine channel (=226Hz resolution ) to standard visibilities (=5.4kHz resolution) to 24kHz resolution.
+        * Zoom window IDs are zero for standard visibilities and non-zero for zooms.
+        * The value for zoom window ID is set in subarray configuration parameters.
+    * Short integrations of 0.283 now available.
 * 0.1.3
     * 59 tap ripple correction filter for 16d and 18a TPM filters
     * Selectable using the ripple_select regiser in CT1
