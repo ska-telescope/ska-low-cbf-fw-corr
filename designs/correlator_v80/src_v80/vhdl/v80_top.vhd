@@ -383,8 +383,10 @@ i_correlator_core : entity correlator_lib.correlator_core
         clk_100         => Clock_100_GTY_buf,
         clk_100_rst     => '0',
         
-        clk_300         => clock_300,
-        clk_300_rst     => clock_300_rst,
+        clk_300             => clock_300,
+        clk_300_rst         => clock_300_rst,
+        
+        i_dcmac_locked_300m => dcmac_locked_300m,
         
         -- Received data from 100GE
         i_axis_tdata        => rx_axis_tdata,
@@ -397,8 +399,8 @@ i_correlator_core : entity correlator_lib.correlator_core
         o_dcmac_tx_data_0   => dcmac_tx_data_0,
         i_dcmac_tx_ready_0  => dcmac_tx_ready_0,
         
-        i_eth100g_clk       => clock_300,
-        i_eth100g_locked    => dcmac_locked_300m,
+        i_eth100g_clk       => dcmac_clk,
+        i_eth100g_locked    => dcmac_locked(0),
         -- reset of the valid memory is in progress.
         o_validMemRstActive => open,
         

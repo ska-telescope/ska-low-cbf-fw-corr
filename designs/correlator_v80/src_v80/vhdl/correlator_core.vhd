@@ -69,6 +69,8 @@ ENTITY correlator_core IS
         clk_300         : in std_logic;
         clk_300_rst     : in std_logic;
         
+        i_dcmac_locked_300m : in std_logic;
+        
         -- Received data from 100GE
         i_axis_tdata    : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
         i_axis_tkeep    : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
@@ -141,6 +143,14 @@ constant C_SIM      : boolean := FALSE;
         clk_out1 : out STD_LOGIC
     );
     end component;
+    
+    COMPONENT ila_twoby256_16k
+    PORT (
+        clk : IN STD_LOGIC;
+        probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0);
+        probe1 : IN STD_LOGIC_VECTOR(255 DOWNTO 0) 
+    );
+    END COMPONENT;
     
     constant NOC_DATA_WIDTH     : integer   := 512;                 -- 32/64/128/256/512
     constant NOC_ADDR_WIDTH     : integer   := 64;                  -- 12 to 64
@@ -328,6 +338,8 @@ constant C_SIM      : boolean := FALSE;
     
     signal o_null               : t_axi4_lite_miso;
     
+    signal HBM_ila_counter      : unsigned(31 downto 0);
+    
 begin
     
     ---------------------------------------------------------------------------
@@ -443,7 +455,7 @@ begin
         probe0(159 downto 128)  => i_eth100G_tx_total_packets,
         probe0(160)             => i_eth100G_locked,
         
-        probe0(191 downto 161)  => (others => '0')
+        probe0(191 downto 161)  => uptime(30 downto 0)
     );
     
    
@@ -471,8 +483,8 @@ begin
        o_data_to_player_wr     => data_to_player_wr,
        i_data_to_player_rdy    => data_to_player_rdy,
         
-       i_clk_100GE         => i_eth100G_clk,      -- in std_logic;
-       i_eth100G_locked    => i_eth100G_locked,
+       i_clk_100GE         => clk_300,          -- CDC from 195 to 300 one level up.
+       i_eth100G_locked    => i_dcmac_locked_300m,
        -- Filterbank processing clock, 450 MHz
        i_clk425            => clk425,  -- in std_logic;
        i_clk400            => clk400,  -- in std_logic;
@@ -585,10 +597,10 @@ i_axis_tvalid_gated <= i_axis_tvalid;
     end process;
     
     i_packet_player : entity versal_dcmac_lib.dcmac_packet_player
---    Generic (
---        g_DEBUG_ILA             : BOOLEAN := FALSE;
---        PLAYER_CDC_FIFO_DEPTH   : INTEGER := 1024        -- FIFO is 512 Wide, 9KB packets = 73728 bits, 512 * 256 = 131072, 256 depth allows ~1.88 9K packets, we are target packets sizes smaller than this.
---    );
+    Generic Map (
+        g_DEBUG_ILA             => TRUE,
+        PLAYER_CDC_FIFO_DEPTH   => 1024        -- FIFO is 512 Wide, 9KB packets = 73728 bits, 512 * 256 = 131072, 256 depth allows ~1.88 9K packets, we are target packets sizes smaller than this.
+    )
     Port Map ( 
         i_clk                   => clk_300,
         i_clk_reset             => clk_300_rst,
@@ -643,7 +655,80 @@ i_axis_tvalid_gated <= i_axis_tvalid;
 --        -----------------------------------------------------
 --    );    
     
-   
+   hbm_LFAAin_ila: ila_twoby256_16k
+    PORT MAP (
+        clk                     => clk_300,
+        probe0(0)               => HBM_axi_wid(0)(0),
+        probe0(1)               => HBM_axi_wuser(0)(0),
+        probe0(2)               => HBM_axi_ruser(0)(0),
+        probe0(3)               => HBM_axi_awready(0),
+        probe0(19 downto 4)     => HBM_axi_buser(0),
+        probe0(35 downto 20)    => HBM_axi_aruser(0),
+
+        probe0(36)              => HBM_axi_awvalid(0),
+        probe0(39 downto 37)    => HBM_axi_awsize(0),
+        probe0(103 downto 40)   => HBM_axi_awaddr(0),
+
+        probe0(111 downto 104)  => HBM_axi_awlen(0),
+    
+        probe0(113 downto 112)  => HBM_axi_awburst(0),
+        probe0(114)             => HBM_axi_awlock(0)(0),
+        probe0(118 downto 115)  => HBM_axi_awcache(0),
+        probe0(121 downto 119)  => HBM_axi_awprot(0),
+        probe0(125 downto 122)  => HBM_axi_awqos(0),
+        probe0(129 downto 126)  => HBM_axi_awregion(0),
+    
+        probe0(130)             => HBM_axi_wvalid(0),
+        probe0(131)             => HBM_axi_wready(0),
+        probe0(132)             => HBM_axi_wlast(0),
+        probe0(133)             => HBM_axi_bvalid(0),
+        probe0(134)             => HBM_axi_bready(0),
+        probe0(136 downto 135)  => HBM_axi_bresp(0),
+        probe0(137)             => HBM_axi_bid(0)(0),
+
+        probe0(159 downto 138)  => (others => '0'),
+
+        probe0(191 downto 160)  => HBM_axi_wdata(0)(31 downto 0),
+        probe0(255 downto 192)  => HBM_axi_wstrb(0),
+
+
+        probe1(63 downto 0)     => HBM_axi_araddr(0),
+        probe1(71 downto 64)    => HBM_axi_arlen(0),
+        probe1(75 downto 72)    => HBM_axi_arcache(0),
+        probe1(79 downto 76)    => HBM_axi_arqos(0),
+
+        probe1(95 downto 80)    => HBM_axi_awuser(0),
+        probe1(99 downto 96)    => HBM_axi_arregion(0),
+
+        probe1(102 downto 100)  => HBM_axi_arsize(0),
+        probe1(105 downto 103)  => HBM_axi_arprot(0),
+        probe1(107 downto 106)  => HBM_axi_arburst(0),
+        probe1(109 downto 108)  => HBM_axi_rresp(0),
+
+        probe1(110)             => HBM_axi_arid(0)(0),
+        probe1(111)             => HBM_axi_arlock(0)(0),
+        probe1(112)             => HBM_axi_rvalid(0),
+        probe1(113)             => HBM_axi_rready(0),
+        probe1(114)             => HBM_axi_rlast(0),
+        probe1(115)             => HBM_axi_rresp(0)(0),
+        probe1(116)             => HBM_axi_rid(0)(0),
+
+        probe1(117)             => HBM_axi_arvalid(0),
+        probe1(118)             => HBM_axi_arready(0),
+
+        probe1(127 downto 119)  => ( others => '0' ),
+        probe1(159 downto 128)  => std_logic_vector(HBM_ila_counter),
+        probe1(255 downto 160)  => HBM_axi_rdata(0)(95 downto 0)
+
+    );
+    -----------------------------------------------------------------------------------------------------------
+    hbm_ila_debug_chk : process(clk_300)
+    begin
+        if rising_edge(clk_300) then
+            HBM_ila_counter <= HBM_ila_counter + 1;
+        end if;
+    end process;
+    
     
 axi_HBM_gen : for i in 0 to 5 generate
 
@@ -683,7 +768,6 @@ axi_HBM_gen : for i in 0 to 5 generate
     HBM_axi_awuser(i)       <= x"0000";     -- New NOC fields to keeep an eye on.
     HBM_axi_wid(i)(0)       <= '0';         -- New NOC fields to keeep an eye on.
     HBM_axi_wuser(i)(0)     <= '0';         -- New NOC fields to keeep an eye on.
-    HBM_axi_ruser(i)(0)     <= '0';         -- New NOC fields to keeep an eye on.
 
     -- HBM Master NoC
     i_hbm_noc : xpm_nmu_mm

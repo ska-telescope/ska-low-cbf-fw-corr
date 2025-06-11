@@ -45,61 +45,61 @@ set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 
 ########################
 # LFAA is entry 2 and 3 on the list, 128K between NoCs so starts at 128K and covers up to 256K from the base address.
 # two 64K addresses, assign 128K
-set_property APERTURES [list {0x201_0010_0000:0x201_0011_FFFF}] $lfaa_1_nsu
+set_property APERTURES [list {0x201_0010_0000:0x201_0017_FFFF}] $lfaa_1_nsu
 
 set lfaa_1_conn [create_noc_connection -source $nmu_0 -target $lfaa_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $lfaa_1_conn
 ########################
 # CT_1
-set_property APERTURES [list {0x201_0020_0000:0x201_0021_FFFF}] $ct_1_nsu
+set_property APERTURES [list {0x201_0020_0000:0x201_0027_FFFF}] $ct_1_nsu
 
 set ct_1_conn [create_noc_connection -source $nmu_0 -target $ct_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $ct_1_conn
 ########################
 # Filterbank
-set_property APERTURES [list {0x201_0030_0000:0x201_0031_FFFF}] $fb_nsu
+set_property APERTURES [list {0x201_0030_0000:0x201_0037_FFFF}] $fb_nsu
 
 set fb_conn [create_noc_connection -source $nmu_0 -target $fb_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $fb_conn
 ########################
 # CT_2
-set_property APERTURES [list {0x201_0040_0000:0x201_0041_FFFF}] $ct_2_nsu
+set_property APERTURES [list {0x201_0040_0000:0x201_0047_FFFF}] $ct_2_nsu
 
 set ct_2_conn [create_noc_connection -source $nmu_0 -target $ct_2_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $ct_2_conn
 ########################
 # Correlator
-set_property APERTURES [list {0x201_0050_0000:0x201_0051_FFFF}] $corr_nsu
+set_property APERTURES [list {0x201_0050_0000:0x201_0057_FFFF}] $corr_nsu
 
 set corr_conn [create_noc_connection -source $nmu_0 -target $corr_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $corr_conn
 ########################
 # SPEAD
-set_property APERTURES [list {0x201_0060_0000:0x201_0061_FFFF}] $spead_1_nsu
+set_property APERTURES [list {0x201_0060_0000:0x201_0067_FFFF}] $spead_1_nsu
 
 set spead_conn [create_noc_connection -source $nmu_0 -target $spead_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_conn
 ########################
 # SPEAD 2
-set_property APERTURES [list {0x201_0070_0000:0x201_0071_FFFF}] $spead_2_nsu
+set_property APERTURES [list {0x201_0070_0000:0x201_0077_FFFF}] $spead_2_nsu
 
 set spead_2_conn [create_noc_connection -source $nmu_0 -target $spead_2_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_2_conn
 ########################
 # Spead HBM
-set_property APERTURES [list {0x201_0080_0000:0x201_0081_FFFF}] $spead_hbmrd_1_nsu
+set_property APERTURES [list {0x201_0080_0000:0x201_0087_FFFF}] $spead_hbmrd_1_nsu
 
 set spead_hbm_conn [create_noc_connection -source $nmu_0 -target $spead_hbmrd_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_hbm_conn
 ########################
 # Spead HBM 2
-set_property APERTURES [list {0x201_0090_0000:0x201_0091_FFFF}] $spead_hbmrd_2_nsu
+set_property APERTURES [list {0x201_0090_0000:0x201_0097_FFFF}] $spead_hbmrd_2_nsu
 
 set spead_hbm_2_conn [create_noc_connection -source $nmu_0 -target $spead_hbmrd_2_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_hbm_2_conn
 ########################
 # DCMAC
-set_property APERTURES [list {0x201_00A0_0000:0x201_00A1_FFFF}] $dcmac_nsu
+set_property APERTURES [list {0x201_00A0_0000:0x201_00A7_FFFF}] $dcmac_nsu
 
 set dcmac_conn [create_noc_connection -source $nmu_0 -target $dcmac_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $dcmac_conn
@@ -188,23 +188,24 @@ set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWI
 set hbm_port_2 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM2_PORT0_hbmc]
 set hbm_input_2 [get_noc_interfaces i_correlator_core/axi_HBM_gen[1].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_2 [create_noc_connection -source $hbm_input_2 -target $hbm_port_2]
-set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_2
+set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_2
 
 set hbm_port_3 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM4_PORT0_hbmc]
 set hbm_input_3 [get_noc_interfaces i_correlator_core/axi_HBM_gen[2].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_3 [create_noc_connection -source $hbm_input_3 -target $hbm_port_3]
-set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_3
+set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_3
 
 set hbm_port_4 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM8_PORT0_hbmc]
 set hbm_input_4 [get_noc_interfaces i_correlator_core/axi_HBM_gen[3].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_4 [create_noc_connection -source $hbm_input_4 -target $hbm_port_4]
-set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_4
+set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_4
 
 set hbm_port_5 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM10_PORT0_hbmc]
 set hbm_input_5 [get_noc_interfaces i_correlator_core/axi_HBM_gen[4].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_5 [create_noc_connection -source $hbm_input_5 -target $hbm_port_5]
-set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_5
+set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_5
 
 set hbm_port_6 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM12_PORT0_hbmc]
 set hbm_input_6 [get_noc_interfaces i_correlator_core/axi_HBM_gen[5].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_6 [create_noc_connection -source $hbm_input_6 -target $hbm_port_6]
+set_property -dict [list READ_BANDWIDTH 400 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_6
