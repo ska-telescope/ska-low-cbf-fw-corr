@@ -429,7 +429,7 @@ begin
 
             system_fields_ro.time_uptime                    <= uptime;
             system_fields_ro.status_clocks_locked           <= '1';
-            system_fields_ro.eth100G_locked                 <= i_eth100G_locked;
+            system_fields_ro.eth100G_locked                 <= i_dcmac_locked_300m;
             system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
             system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
             system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
@@ -453,7 +453,7 @@ begin
         probe0(95 downto 64)    => i_eth100G_rx_bad_fcs,
         probe0(127 downto 96)   => i_eth100G_rx_bad_code,
         probe0(159 downto 128)  => i_eth100G_tx_total_packets,
-        probe0(160)             => i_eth100G_locked,
+        probe0(160)             => i_dcmac_locked_300m,
         
         probe0(191 downto 161)  => uptime(30 downto 0)
     );
