@@ -229,11 +229,11 @@ constant C_SIM      : boolean := FALSE;
     --     second half, for fine channels that go to the second correlator instance.
     -- 3 = 0.5 Gbytes, Visibilities from First correlator instance;
     -- 4 = 0.5 Gbytes, Visibilities from Second correlator instance;
-    signal HBM_axi_awvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_awvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awaddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_awlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_awlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awlock   : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
@@ -242,20 +242,20 @@ constant C_SIM      : boolean := FALSE;
     signal HBM_axi_awqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_awregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
 
-    signal HBM_axi_wvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_wvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_wready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_wdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_wdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_wstrb    : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_wlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_wlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_bvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_bready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_bresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_bid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_arvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_arvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_arready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_araddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_arid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_arlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_arlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_arsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_arburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_arlock   : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
@@ -263,12 +263,12 @@ constant C_SIM      : boolean := FALSE;
     signal HBM_axi_arprot   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_arqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_arregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_rvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_rvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_rready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
-    signal HBM_axi_rdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
-    signal HBM_axi_rlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    --signal HBM_axi_rdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+    --signal HBM_axi_rlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
     signal HBM_axi_rid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
-    signal HBM_axi_rresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    --signal HBM_axi_rresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
     signal HBM_axi_awuser   : t_slv_16_arr(g_HBM_INTERFACES-1 downto 0);
 
     signal HBM_axi_wid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);
@@ -665,11 +665,11 @@ i_axis_tvalid_gated <= i_axis_tvalid;
         probe0(19 downto 4)     => HBM_axi_buser(0),
         probe0(35 downto 20)    => HBM_axi_aruser(0),
 
-        probe0(36)              => HBM_axi_awvalid(0),
+        probe0(36)              => HBM_axi_aw(0).valid,
         probe0(39 downto 37)    => HBM_axi_awsize(0),
         probe0(103 downto 40)   => HBM_axi_awaddr(0),
 
-        probe0(111 downto 104)  => HBM_axi_awlen(0),
+        probe0(111 downto 104)  => HBM_axi_aw(0).len,
     
         probe0(113 downto 112)  => HBM_axi_awburst(0),
         probe0(114)             => HBM_axi_awlock(0)(0),
@@ -678,9 +678,9 @@ i_axis_tvalid_gated <= i_axis_tvalid;
         probe0(125 downto 122)  => HBM_axi_awqos(0),
         probe0(129 downto 126)  => HBM_axi_awregion(0),
     
-        probe0(130)             => HBM_axi_wvalid(0),
+        probe0(130)             => HBM_axi_w(0).valid,
         probe0(131)             => HBM_axi_wready(0),
-        probe0(132)             => HBM_axi_wlast(0),
+        probe0(132)             => HBM_axi_w(0).last,
         probe0(133)             => HBM_axi_bvalid(0),
         probe0(134)             => HBM_axi_bready(0),
         probe0(136 downto 135)  => HBM_axi_bresp(0),
@@ -688,12 +688,12 @@ i_axis_tvalid_gated <= i_axis_tvalid;
 
         probe0(159 downto 138)  => (others => '0'),
 
-        probe0(191 downto 160)  => HBM_axi_wdata(0)(31 downto 0),
+        probe0(191 downto 160)  => HBM_axi_w(0).data(31 downto 0),
         probe0(255 downto 192)  => HBM_axi_wstrb(0),
 
 
         probe1(63 downto 0)     => HBM_axi_araddr(0),
-        probe1(71 downto 64)    => HBM_axi_arlen(0),
+        probe1(71 downto 64)    => HBM_axi_ar(0).len,
         probe1(75 downto 72)    => HBM_axi_arcache(0),
         probe1(79 downto 76)    => HBM_axi_arqos(0),
 
@@ -703,22 +703,22 @@ i_axis_tvalid_gated <= i_axis_tvalid;
         probe1(102 downto 100)  => HBM_axi_arsize(0),
         probe1(105 downto 103)  => HBM_axi_arprot(0),
         probe1(107 downto 106)  => HBM_axi_arburst(0),
-        probe1(109 downto 108)  => HBM_axi_rresp(0),
+        probe1(109 downto 108)  => HBM_axi_r(0).resp,
 
         probe1(110)             => HBM_axi_arid(0)(0),
         probe1(111)             => HBM_axi_arlock(0)(0),
-        probe1(112)             => HBM_axi_rvalid(0),
+        probe1(112)             => HBM_axi_r(0).valid,
         probe1(113)             => HBM_axi_rready(0),
-        probe1(114)             => HBM_axi_rlast(0),
-        probe1(115)             => HBM_axi_rresp(0)(0),
-        probe1(116)             => HBM_axi_rid(0)(0),
+        probe1(114)             => HBM_axi_r(0).last,
+        probe1(116 downto 115)  => HBM_axi_r(0).resp,
+        probe1(117)             => HBM_axi_rid(0)(0),
 
-        probe1(117)             => HBM_axi_arvalid(0),
-        probe1(118)             => HBM_axi_arready(0),
+        probe1(118)             => HBM_axi_ar(0).valid,
+        probe1(119)             => HBM_axi_arready(0),
 
-        probe1(127 downto 119)  => ( others => '0' ),
+        probe1(127 downto 120)  => ( others => '0' ),
         probe1(159 downto 128)  => std_logic_vector(HBM_ila_counter),
-        probe1(255 downto 160)  => HBM_axi_rdata(0)(95 downto 0)
+        probe1(255 downto 160)  => HBM_axi_r(0).data(95 downto 0)
 
     );
     -----------------------------------------------------------------------------------------------------------
