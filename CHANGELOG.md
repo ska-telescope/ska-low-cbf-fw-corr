@@ -1,5 +1,10 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.5
+    * Bug release
+        * Visibility Flags in data packets Endian swapped
+        * Powerup Value for INIT padding now 256, counter for this increased to 16 bits.
+        * Integration ID incrementing correctly for single subarray configurations.
 * 0.1.4
     * Firmware enables Zooms
         * Zooms from 1 correlator fine channel (=226Hz resolution ) to standard visibilities (=5.4kHz resolution) to 24kHz resolution.
