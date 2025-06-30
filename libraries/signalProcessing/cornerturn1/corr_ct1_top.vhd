@@ -195,6 +195,7 @@ entity corr_ct1_top is
         -- r bus - read data
         i_m01_axi_r       : in  t_axi4_full_data;
         o_m01_axi_rready  : out std_logic;
+        i_m01_axi_rst_dbg : in std_logic_vector(31 downto 0); -- in (31:0)
         -------------------------------------------------------------
         -- debug data dump to HBM
         o_m06_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -210,7 +211,7 @@ entity corr_ct1_top is
         i_m06_axi_r       : in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
         o_m06_axi_rready  : out std_logic;
         --
-        i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0)
+        i_m06_axi_rst_dbg : in std_logic_vector(31 downto 0) -- in (31:0)
     );
     
     -- prevent optimisation across module boundaries.
@@ -365,6 +366,8 @@ architecture Behavioral of corr_ct1_top is
     signal vct_table_in_use, ct2_tables_in_use : std_logic;
     signal readoutData : t_slv_32_arr(3 downto 0);
     signal validOut_final : std_logic;
+    signal m01_axi_rst_dbg : std_logic_vector(31 downto 0);
+    signal clks_between_readouts, recent_clks_between_readouts, min_clks_between_readouts : std_logic_vector(31 downto 0) := (others => '1');
     
 begin
     
@@ -556,6 +559,31 @@ begin
                 o_table_swap_in_progress <= '0';
             end if;
             o_packetiser_table_select <= config_rw.table_select(1);
+            
+            --------------------------------------------------------------
+            if trigger_readout = '1' then
+                clks_between_readouts <= (others => '0');
+            elsif clks_between_readouts(31) = '0' then
+                clks_between_readouts <= std_logic_vector(unsigned(clks_between_readouts) + 1);
+            end if;
+            
+            if data_rst = '1' then
+                recent_clks_between_readouts <= (others => '1');
+                min_clks_between_readouts <= (others => '1');
+            elsif trigger_readout = '1' then
+                recent_clks_between_readouts <= clks_between_readouts;
+                if unsigned(clks_between_readouts) < unsigned(min_clks_between_readouts) then
+                    min_clks_between_readouts <= clks_between_readouts;
+                end if;
+            end if;
+            
+            m01_axi_rst_dbg <= i_m01_axi_rst_dbg;
+            
+            config_ro.recent_readout_gap <= recent_clks_between_readouts;
+            config_ro.minimum_readout_gap <= min_clks_between_readouts;
+            config_ro.hbm_status <= m01_axi_rst_dbg;
+            
+            --------------------------------------------------------------
             
             if data_rst = '1' then
                 input_fsm <= idle;
@@ -1496,12 +1524,12 @@ begin
             dbg_hbm_ar_valid <= m01_axi_ar.valid;
             dbg_hbm_ar_ready <= i_m01_axi_arready;
             
-            dbg_rd_tracker_bad <= i_hbm_rst_dbg(1)(0);
-            dbg_wr_tracker_bad <= i_hbm_rst_dbg(1)(1);
-            dbg_wr_tracker <= i_hbm_rst_dbg(1)(27 downto 16);
+            dbg_rd_tracker_bad <= i_m01_axi_rst_dbg(0);
+            dbg_wr_tracker_bad <= i_m01_axi_rst_dbg(1);
+            dbg_wr_tracker <= i_m01_axi_rst_dbg(27 downto 16);
             
-            dbg_hbm_reset <= i_hbm_rst_dbg(1)(2);
-            dbg_hbm_reset_fsm <= i_hbm_rst_dbg(1)(31 downto 28);
+            dbg_hbm_reset <= i_m01_axi_rst_dbg(2);
+            dbg_hbm_reset_fsm <= i_m01_axi_rst_dbg(31 downto 28);
             
         end if;
     end process;

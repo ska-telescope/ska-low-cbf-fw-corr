@@ -113,6 +113,11 @@ entity corr_ct2_din is
         -- Status
         o_status1 : out std_logic_vector(31 downto 0);
         o_status2 : out std_logic_vector(31 downto 0);
+        --
+        o_max_copyAW_time : out std_logic_vector(31 downto 0); -- time required to put out all the addresses
+        o_max_copyData_time : out std_logic_vector(31 downto 0); -- time required to put out all the data
+        o_min_trigger_interval : out std_logic_Vector(31 downto 0); -- minimum time available
+        o_wr_overflow : out std_logic_vector(31 downto 0); --overflow + debug info when the overflow occurred.
         -------------------------------------------------------------------
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
@@ -236,6 +241,12 @@ architecture Behavioral of corr_ct2_din is
     signal bad_poly_fsm : t_bad_poly_fsm := idle;
     signal bp_wr_en0, bp_wr_en1, bp_wr_data0, bp_wr_data1, bad_poly_del1, bad_poly : std_logic;
     signal bad_poly_wait_count : std_logic_vector(7 downto 0);
+    
+    signal max_copyAW_time : std_logic_vector(31 downto 0); -- time required to put out all the addresses
+    signal max_copyData_readout_time : std_logic_vector(31 downto 0); -- time required to put out all the data
+    signal minimum_time_between_wr_triggers : std_logic_Vector(31 downto 0); -- minimum time available
+    signal wr_overflow : std_logic_vector(31 downto 0);
+    signal copyAW_time, copydata_readout_time, time_between_wr_triggers : std_logic_vector(31 downto 0);
     
 begin
     
@@ -857,6 +868,66 @@ begin
             dataFIFO_wrEn(1) <= dataFIFO1_wrEn(15);
             dataFIFO_din(0) <= cbuffer(15) & last_word_in_frame(15) & last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
             dataFIFO_din(1) <= cbuffer(15) & last_word_in_frame(15) & last(15) & bufDout(3) & bufDout(2) & bufDout(1) & bufDout(0);
+            
+            --------------------------------------------------------
+            -- Keep track of things for registers:
+            --   - minimum time between copy triggers
+            --   - Max time for a readout
+            --   - overwrite occurred - read trigger while still writing
+            --
+            if copyToHBM = '1' then
+                time_between_wr_triggers <= (others => '0');
+            elsif time_between_wr_triggers(31) = '0' then
+                time_between_wr_triggers <= std_logic_vector(unsigned(time_between_wr_triggers) + 1);
+            end if;
+            
+            if i_rst = '1' then
+                minimum_time_between_wr_triggers <= (others => '1');
+            elsif copyToHBM = '1' and (unsigned(time_between_wr_triggers) < unsigned(minimum_time_between_wr_triggers)) then
+                minimum_time_between_wr_triggers <= time_between_wr_triggers;
+            end if;
+            
+            if trigger_copyData_fsm = '1' then
+                copydata_readout_time <= (others => '0');
+            elsif copydata_fsm /= idle then
+                copydata_readout_time <= std_logic_vector(unsigned(copydata_readout_time) + 1);
+            end if;
+            
+            if i_rst = '1' then
+                max_copydata_readout_time <= (others => '0');
+            elsif trigger_copyData_fsm = '1' and (unsigned(copydata_readout_time) > unsigned(max_copydata_readout_time)) then
+                max_copydata_readout_time <= copydata_readout_time;
+            end if;
+            
+            if copyToHBM = '1' then
+                copyAW_time <= (others => '0');
+            elsif copy_fsm /= idle then
+                copyAW_time <= std_logic_vector(unsigned(copyAW_time) + 1);
+            end if;
+            
+            if i_rst = '1' then
+                max_copyAW_time <= (others => '0');
+            elsif copyToHBM = '1' and (unsigned(copyAW_time) > unsigned(max_copyAW_time)) then
+                max_copyAW_time <= copyAW_time;
+            end if;
+            
+            if i_rst = '1' then
+                wr_overflow <= (others => '0');
+            elsif wr_overflow(1 downto 0) = "00" then
+                if trigger_copydata_fsm = '1' and copyData_fsm /= idle then
+                    wr_overflow(0) <= '1';
+                    wr_overflow(15 downto 4) <= copydata_fineRemaining;
+                end if;
+                if copyToHBM = '1' and copy_fsm /= idle then
+                    wr_overflow(1) <= '1';
+                    wr_overflow(31 downto 20) <= copy_fineChannel(11 downto 0);
+                end if;
+            end if;
+            
+            o_max_copyAW_time <= max_copyAW_time;  -- time required to put out all the addresses
+            o_max_copyData_time <= max_copydata_readout_time; -- time required to put out all the data
+            o_min_trigger_interval <= minimum_time_between_wr_triggers; -- minimum time available
+            o_wr_overflow <= wr_overflow; -- overflow + debug info when the overflow occurred.
             
         end if;
     end process;

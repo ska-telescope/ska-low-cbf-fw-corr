@@ -39,11 +39,36 @@ peripherals:
               reset_value       : 0x0
               field_description : "Number of subarray beams stored in the second 1.5 Gbytes of HBM, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
           #################################
+          - - field_name        : min_trigger_interval
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Minimum time between triggering a burst of writes to the HBM, in 300MHz clocks. A write burst is (3456 fine channels)x(32 times)x(4 VCs)x(2 pol)x(2 complex) = 1769472 bytes"
+          - - field_name        : max_copyAW_time
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Maximum time required to complete addresses for a write burst to HBM, in 300MHz clocks"
+          - - field_name        : max_copyData_time
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Maximum time required to complete data for a write burst to HBM, in 300MHz clocks"
           - - field_name        : bufferOverflowError
-              width             : 1
+              width             : 32
               access_mode       : RO
               reset_value       : 0x0
               field_description : "Write buffer used to transfer filterbank data into the HBM overflowed. Cleared by a reset in the first stage corner turn. Should never happen."
+          - - field_name        : hbm_status0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "hbm reset status. Bit 0 = rd_tracker_bad, bit 1 = wr_tracker_bad, bit 2 = in reset, bits 15:4 = rd tracker, bits 27:16 = wr tracker, bits 31:28 = fsm debug"
+          - - field_name        : hbm_status1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "hbm reset status. Bit 0 = rd_tracker_bad, bit 1 = wr_tracker_bad, bit 2 = in reset, bits 15:4 = rd tracker, bits 27:16 = wr tracker, bits 31:28 = fsm debug"
           #################################
           - - field_name        : readoutTime
               width             : 32

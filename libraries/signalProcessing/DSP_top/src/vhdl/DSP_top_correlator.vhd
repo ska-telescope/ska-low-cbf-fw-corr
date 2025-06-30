@@ -400,6 +400,7 @@ begin
         -- r bus - read data
         i_m01_axi_r      => i_HBM_axi_r(0),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
         o_m01_axi_rready => o_HBM_axi_rready(0),   -- out std_logic;
+        i_m01_axi_rst_dbg => i_hbm_rst_dbg(0),     -- in (31:0)
         -------------------------------------------------------------
         -- HBM ILA
         o_m06_axi_aw      => o_HBM_axi_aw(5),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -415,7 +416,7 @@ begin
         i_m06_axi_r      => i_HBM_axi_r(5),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
         o_m06_axi_rready => o_HBM_axi_rready(5),   -- out std_logic;
         --
-        i_hbm_rst_dbg  => i_hbm_rst_dbg
+        i_m06_axi_rst_dbg => i_hbm_rst_dbg(5)      -- in (31:0)
     );
     
     -- Correlator filterbank and fine delay.

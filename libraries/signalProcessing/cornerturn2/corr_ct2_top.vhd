@@ -169,7 +169,9 @@ entity corr_ct2_top is
         i_hbm_status   : in t_slv_8_arr(5 downto 0);
         i_hbm_reset_final : in std_logic;
         i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0);
-        i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0)
+        --
+        i_hbm0_rst_dbg : in std_logic_vector(31 downto 0);
+        i_hbm1_rst_dbg : in std_logic_vector(31 downto 0)
     );
 end corr_ct2_top;
 
@@ -327,6 +329,11 @@ architecture Behavioral of corr_ct2_top is
     signal dout_readout_error : std_logic_vector(1 downto 0);
     signal dout_recent_start_gap :  std_logic_vector(31 downto 0);
     signal dout_recent_readout_time : std_logic_vector(31 downto 0);
+    
+    signal max_copyAW_time : std_logic_vector(31 downto 0); -- time required to put out all the addresses
+    signal max_copyData_time : std_logic_vector(31 downto 0); -- time required to put out all the data
+    signal min_trigger_interval : std_logic_Vector(31 downto 0); -- minimum time available
+    signal wr_overflow : std_logic_vector(31 downto 0); --
     
 begin
     
@@ -531,7 +538,10 @@ begin
         -- Status
         o_status1 => din_status1,
         o_status2 => din_status2,
-        
+        o_max_copyAW_time => max_copyAW_time, -- out std_logic_vector(31 downto 0); -- time required to put out all the addresses
+        o_max_copyData_time => max_copyData_time, -- out std_logic_vector(31 downto 0); -- time required to put out all the data
+        o_min_trigger_interval => min_trigger_interval, -- : out std_logic_Vector(31 downto 0); -- minimum time available
+        o_wr_overflow => wr_overflow, -- : out std_logic_vector(31 downto 0); --overflow + debug info when the overflow occurred.
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         -- two HBM interfaces
@@ -763,13 +773,23 @@ begin
         STATCTRL_SUBARRAY_BEAM_OUT => subarray_beam_out -- out t_statctrl_subarray_beam_ram_out
     );
     
-    statctrl_ro.bufferoverflowerror <= '0';
-    statctrl_ro.readouterror <= dout_readout_error;
-    statctrl_ro.readoutGap <= dout_recent_start_gap;
-    statctrl_ro.readoutTime <= dout_recent_readout_time;
-    statctrl_ro.hbmbuf0packetcount <= (others => '0');
-    statctrl_ro.hbmbuf1packetcount <= (others => '0');
-    
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            statctrl_ro.bufferoverflowerror <= wr_overflow;  -- 32 bits of debug info
+            statctrl_ro.max_copyAW_time <= max_copyAW_time; -- out std_logic_vector(31 downto 0); -- time required to put out all the addresses
+            statctrl_ro.max_copyData_time <= max_copyData_time; --  : out std_logic_vector(31 downto 0); -- time required to put out all the data
+            statctrl_ro.min_trigger_interval <= min_trigger_interval; --  out std_logic_Vector(31 downto 0); -- minimum time available
+            statctrl_ro.hbm_status0 <= i_hbm0_rst_dbg;
+            statctrl_ro.hbm_status1 <= i_hbm1_rst_dbg;
+            
+            statctrl_ro.readouterror <= dout_readout_error;
+            statctrl_ro.readoutGap <= dout_recent_start_gap;
+            statctrl_ro.readoutTime <= dout_recent_readout_time;
+            statctrl_ro.hbmbuf0packetcount <= (others => '0');
+            statctrl_ro.hbmbuf1packetcount <= (others => '0');
+        end if;
+    end process;
     vc_demap_in.adr(9 downto 1) <= din_tableSelect & vc_demap_rd_addr; -- full address is 10 bits
     vc_demap_in.adr(0) <= '0' when vc_demap_req = '1' else '1';
 	vc_demap_in.wr_dat <= (others => '0');  -- 32 bit write data; unused.
@@ -1121,9 +1141,9 @@ begin
             dbg_eth_disable_fsm_dbg <= i_eth_disable_fsm_dbg; -- 5 bits
             
             --
-            dbg_rd_tracker_bad <= i_hbm_rst_dbg(1)(0);
-            dbg_wr_tracker_bad <= i_hbm_rst_dbg(1)(1);
-            dbg_wr_tracker <= i_hbm_rst_dbg(1)(27 downto 16);
+            dbg_rd_tracker_bad <= i_hbm0_rst_dbg(0);
+            dbg_wr_tracker_bad <= i_hbm0_rst_dbg(1);
+            dbg_wr_tracker <= i_hbm0_rst_dbg(27 downto 16);
             
             --o_dbg(0) <= rd_tracker_bad;
             --o_dbg(1) <= wr_tracker_bad;

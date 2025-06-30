@@ -63,6 +63,21 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "status. "
+          - - field_name        : recent_readout_gap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of 300MHz clocks between start of CT1 readout. Should be about 84900000 clks = 283 ms. Reset by lfaadecode reset bit."
+          - - field_name        : minimum_readout_gap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Running minimum number of 300MHz clocks between start of CT1 readout. Should be about 84900000 clks = 283 ms. Reset by lfaadecode reset bit."
+          - - field_name        : hbm_status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "hbm reset status. Bit 0 = rd_tracker_bad, bit 1 = wr_tracker_bad, bit 2 = in reset, bits 15:4 = rd tracker, bits 27:16 = wr tracker, bits 31:28 = fsm debug"
         ###########################################################################      
           - - field_name        : table_select
               width             : 2
