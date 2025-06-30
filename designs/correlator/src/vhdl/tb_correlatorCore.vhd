@@ -99,8 +99,9 @@ entity tb_correlatorCore is
         
         g_RDOUT_HBM_DUMP_SIZE : integer := 32768;  
         g_RDOUT_HBM_DUMP_ADDR : integer := 0; -- Address to start the memory dump at.
-        g_RDOUT_HBM_DUMP_FNAME : string := "RDOUT_hbm_dump.txt"
-        
+        g_RDOUT_HBM_DUMP_FNAME : string := "RDOUT_hbm_dump.txt";
+        -- Use 256 bit wide interface to the HBM for CT1
+        g_USE_256_HBM0 : std_logic := '1'
     );
 end tb_correlatorCore;
 
@@ -251,6 +252,46 @@ architecture Behavioral of tb_correlatorCore is
     signal HBM_axi_rid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
     signal HBM_axi_rresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
 
+    signal HBM256_axi_awvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_awready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_awaddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- out std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
+    signal HBM256_axi_awid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+    signal HBM256_axi_awlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(7 downto 0);
+    signal HBM256_axi_awsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
+    signal HBM256_axi_awburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
+    signal HBM256_axi_awlock   : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(1 downto 0);
+    signal HBM256_axi_awcache  : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+    signal HBM256_axi_awprot   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(2 downto 0);
+    signal HBM256_axi_awqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- out std_logic_vector(3 downto 0);
+    signal HBM256_axi_awregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(3 downto 0);
+    signal HBM256_axi_wvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_wready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_wdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+    signal HBM256_axi_wstrb    : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0);  -- std_logic_vector(M01_AXI_DATA_WIDTH/8-1 downto 0);
+    signal HBM256_axi_wlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_bvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_bready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_bresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    signal HBM256_axi_bid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+    signal HBM256_axi_arvalid  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_arready  : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_araddr   : t_slv_64_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ADDR_WIDTH-1 downto 0);
+    signal HBM256_axi_arid     : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH-1 downto 0);
+    signal HBM256_axi_arlen    : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(7 downto 0);
+    signal HBM256_axi_arsize   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(2 downto 0);
+    signal HBM256_axi_arburst  : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    signal HBM256_axi_arlock   : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    signal HBM256_axi_arcache  : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+    signal HBM256_axi_arprot   : t_slv_3_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_Vector(2 downto 0);
+    signal HBM256_axi_arqos    : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+    signal HBM256_axi_arregion : t_slv_4_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(3 downto 0);
+    signal HBM256_axi_rvalid   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_rready   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_rdata    : t_slv_512_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_DATA_WIDTH-1 downto 0);
+    signal HBM256_axi_rlast    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal HBM256_axi_rid      : t_slv_1_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(M01_AXI_ID_WIDTH - 1 downto 0);
+    signal HBM256_axi_rresp    : t_slv_2_arr(g_HBM_INTERFACES-1 downto 0); -- std_logic_vector(1 downto 0);
+    
     signal setupDone : std_logic;
     signal eth100G_clk : std_logic := '0';
     signal eth100G_locked : std_logic := '0';
@@ -338,6 +379,14 @@ architecture Behavioral of tb_correlatorCore is
     
     signal input_HBM_reset      : std_logic;
     
+    signal shim_axi_w, shim_axi_r : t_axi4_full_data;
+    signal shim_axi_aw : t_axi4_full_addr;
+    signal shim_axi_ar : t_axi4_full_addr;
+    signal shim_axi_b : t_axi4_full_b;
+    signal shim256_axi_w, shim256_axi_r : t_axi4_full_data;
+    signal shim256_axi_aw : t_axi4_full_addr;
+    signal shim256_axi_ar : t_axi4_full_addr;
+    signal shim256_axi_b : t_axi4_full_b;
     
     -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
     -- +bid buser
@@ -389,10 +438,34 @@ architecture Behavioral of tb_correlatorCore is
         axi_mosi.rready <= '0';
     end procedure;
     
+    signal clk500 : std_logic := '0';
+    signal shim256_axi_awsize : std_logic_vector(2 downto 0);
+    signal shim256_axi_awburst : std_logic_vector(1 downto 0);
+    signal shim256_axi_bready : std_logic;
+    signal shim256_axi_wstrb : std_logic_vector(63 downto 0);
+    signal shim256_axi_arsize : std_logic_vector(2 downto 0);
+    signal shim256_axi_arburst : std_logic_vector(1 downto 0);
+    
+    signal shim256_axi_arlock : std_logic_vector(1 downto 0);
+    signal shim256_axi_awlock : std_logic_vector(1 downto 0);
+    signal shim256_axi_awcache : std_logic_vector(3 downto 0);  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+    signal shim256_axi_awprot : std_logic_vector(2 downto 0);   -- Has no effect in Vitis environment. -- out std_logic_vector(2 downto 0);
+    signal shim256_axi_awqos : std_logic_vector(3 downto 0); -- Has no effect in vitis environment, -- out std_logic_vector(3 downto 0);
+    signal shim256_axi_awregion : std_logic_vector(3 downto 0); -- Has no effect in Vitis environment. -- out std_logic_vector(3 downto 0);
+    signal shim256_axi_arcache : std_logic_Vector(3 downto 0); -- <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+    signal shim256_axi_arprot : std_logic_vector(2 downto 0); --  <= "000";   -- Has no effect in vitis environment; out std_logic_Vector(2 downto 0);
+    signal shim256_axi_arqos : std_logic_vector(3 downto 0); --    <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+    signal shim256_axi_arregion : std_logic_vector(3 downto 0); -- <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+    signal shim256_axi_awid : std_logic_vector(0 downto 0); -- <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
+    signal shim256_axi_arid : std_logic_vector(0 downto 0); -- = '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
+    
+    signal shim256_axi_wready, shim256_axi_awready, shim256_axi_arready, shim256_axi_rready : std_logic;
+    
 begin
 
     ap_clk <= not ap_clk after 1.666 ns; -- 300 MHz clock.
     clk100 <= not clk100 after 5 ns; -- 100 MHz clock
+    clk500 <= not clk500 after 1 ns; -- 500 MHz clock
     eth100G_clk <= not eth100G_clk after 1.553 ns; -- 322 MHz
 
     eth100G_locking_proc: process(eth100G_clk)
@@ -1092,66 +1165,223 @@ begin
     ----------------------------------------------------------------------------------
     -- Emulate HBM
     -- 3 Gbyte of memory for the first corner turn.
-    HBM3G_1 : entity correlator_lib.HBM_axi_tbModel
-    generic map (
-        AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
-        AXI_ID_WIDTH => 1, -- integer := 1;
-        AXI_DATA_WIDTH => 512, -- integer := 256;  -- Must be a multiple of 32 bits.
-        READ_QUEUE_SIZE => 16, --  integer := 16;
-        MIN_LAG => 60,  -- integer := 80   
-        INCLUDE_PROTOCOL_CHECKER => TRUE,
-        RANDSEED => 43526, -- : natural := 12345;
-        LATENCY_LOW_PROBABILITY => 95, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
-        LATENCY_ZERO_PROBABILITY => 80 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
-    ) Port map (
-        i_clk => ap_clk,
-        i_rst_n => ap_rst_n,
-        axi_awaddr   => HBM_axi_awaddr(0)(31 downto 0),
-        axi_awid     => HBM_axi_awid(0), -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_awlen    => HBM_axi_awlen(0),
-        axi_awsize   => HBM_axi_awsize(0),
-        axi_awburst  => HBM_axi_awburst(0),
-        axi_awlock   => HBM_axi_awlock(0),
-        axi_awcache  => HBM_axi_awcache(0),
-        axi_awprot   => HBM_axi_awprot(0),
-        axi_awqos    => HBM_axi_awqos(0), -- in(3:0)
-        axi_awregion => HBM_axi_awregion(0), -- in(3:0)
-        axi_awvalid  => HBM_axi_awvalid(0),
-        axi_awready  => HBM_axi_awready(0),
-        axi_wdata    => HBM_axi_wdata(0),
-        axi_wstrb    => HBM_axi_wstrb(0),
-        axi_wlast    => HBM_axi_wlast(0),
-        axi_wvalid   => HBM_axi_wvalid(0),
-        axi_wready   => HBM_axi_wready(0),
-        axi_bresp    => HBM_axi_bresp(0),
-        axi_bvalid   => HBM_axi_bvalid(0),
-        axi_bready   => HBM_axi_bready(0),
-        axi_bid      => HBM_axi_bid(0), -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
-        axi_araddr   => HBM_axi_araddr(0)(31 downto 0),
-        axi_arlen    => HBM_axi_arlen(0),
-        axi_arsize   => HBM_axi_arsize(0),
-        axi_arburst  => HBM_axi_arburst(0),
-        axi_arlock   => HBM_axi_arlock(0),
-        axi_arcache  => HBM_axi_arcache(0),
-        axi_arprot   => HBM_axi_arprot(0),
-        axi_arvalid  => HBM_axi_arvalid(0),
-        axi_arready  => HBM_axi_arready(0),
-        axi_arqos    => HBM_axi_arqos(0),
-        axi_arid     => HBM_axi_arid(0),
-        axi_arregion => HBM_axi_arregion(0),
-        axi_rdata    => HBM_axi_rdata(0),
-        axi_rresp    => HBM_axi_rresp(0),
-        axi_rlast    => HBM_axi_rlast(0),
-        axi_rvalid   => HBM_axi_rvalid(0),
-        axi_rready   => HBM_axi_rready(0),
-        i_write_to_disk => '0', -- : in std_logic;
-        i_fname => "", -- : in string
-        i_write_to_disk_addr => 0, -- in integer; -- address to start the memory dump at.
-        i_write_to_disk_size => 0, -- in integer; -- size in bytes
-        -- Initialisation of the memory
-        i_init_mem   => load_ct1_HBM,   -- in std_logic;
-        i_init_fname => g_TEST_CASE & g_CT1_INIT_FILENAME  -- in string
-    );
+    
+    gen_256_HBM0 : if g_USE_256_HBM0 = '1' generate
+        
+        -- Use 256 bit wide HBM interface, as in the v80
+        shim_axi_w.valid <= HBM_axi_wvalid(0);
+        shim_axi_w.data <= HBM_axi_wdata(0);
+        shim_axi_w.last <= HBM_axi_wlast(0);
+        shim_axi_w.resp <= (others => '0');
+        
+        shim_axi_aw.valid <= HBM_axi_awvalid(0);
+        shim_axi_aw.addr <= HBM_axi_awaddr(0)(39 downto 0);
+        shim_axi_aw.len <= HBM_axi_awlen(0);
+        
+        shim_axi_ar.valid <= HBM_axi_arvalid(0);
+        shim_axi_ar.addr <= HBM_axi_arAddr(0)(39 downto 0);
+        shim_axi_ar.len <= HBM_axi_arLen(0);
+        
+        HBM_axi_rvalid(0) <= shim_axi_r.valid;
+        HBM_axi_rdata(0) <= shim_axi_r.data;
+        HBM_axi_rlast(0) <= shim_axi_r.last; 
+        HBM_axi_rresp(0) <= shim_axi_r.resp;
+        
+        HBM_axi_bValid(0) <= shim_axi_b.valid;
+        HBM_axi_bResp(0) <= shim_axi_b.resp;
+        
+        shim512_256 : entity common_lib.axi512_to_256
+        Port map (
+            ---------------------------------------------------------
+            -- 512 bit wide slave interface
+            -- w bus
+            i_clks        => ap_clk, -- in std_logic;         -- clock for slave side interface
+            i_clks_reset  => '0',    -- in std_logic;
+            i_axi_w       => shim_axi_w, --  in t_axi4_full_data;  -- write data (.valid, .data(511:0), .last, .resp(1:0))   
+            o_axi_wready  => HBM_axi_wready(0), -- out std_logic;
+            -- aw bus - write address
+            i_axi_aw      => shim_axi_aw,        -- in t_axi4_full_addr; -- write address (.valid, .addr(39:0), .len(7:0))
+            o_axi_awready => HBM_axi_awready(0), -- out std_logic;
+            -- b bus - write response; not used; o_axi_b.valid is tied to '0'
+            o_axi_b       => shim_axi_b,         -- out t_axi4_full_b;   -- (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+            -- ar bus - read address
+            i_axi_ar      => shim_axi_ar,        -- in t_axi4_full_addr; -- read address (.valid, .addr(39:0), .len(7:0))
+            o_axi_arready => HBM_axi_arready(0), -- out std_logic;
+            -- r bus - read data
+            o_axi_r       => shim_axi_r,         -- out t_axi4_full_data; -- read data (.wvalid, .wdata(511:0), .wlast)
+            i_axi_rready  => HBM_axi_rready(0),  -- in  std_logic;
+            ---------------------------------------------------------
+            -- 256 bit wide master interface
+            -- w bus
+            i_clkm        => clk500, --  in std_logic;          -- clock for the master side interface
+            i_clkm_reset  => '0',    --  in std_logic;
+            o_axi_w       => shim256_axi_w, -- out t_axi4_full_data;  -- write data (.valid, .data(255:0), .last, .resp(1:0))
+            i_axi_wready  => shim256_axi_wready, -- in  std_logic;
+            -- aw bus - write address
+            o_axi_aw      => shim256_axi_aw, --  out t_axi4_full_addr;  -- write address (.valid, .addr(39:0), .len(7:0))
+            i_axi_awready => shim256_axi_awready, -- in  std_logic;
+            -- b bus - write response
+            i_axi_b       => shim256_axi_b, -- in t_axi4_full_b;      -- write response (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+            -- ar bus - read address
+            o_axi_ar      => shim256_axi_ar,  -- out t_axi4_full_addr;  -- read address (.valid, .addr(39:0), .len(7:0))
+            i_axi_arready => shim256_axi_arready, -- in  std_logic;
+            -- r bus - read data
+            i_axi_r       => shim256_axi_r,      -- in t_axi4_full_data;  -- read data (.valid, .data(255:0), .last, .resp(1:0))
+            o_axi_rready  => shim256_axi_rready, -- out std_logic;
+            ----------------------------------------------------------
+            -- Status
+            o_status => open -- out std_logic_vector(31 downto 0)
+        );
+    
+        shim256_axi_awsize <= "101";
+        shim256_axi_awburst <= "01";   -- "01" indicates incrementing addresses for each beat in the burst.  -- out std_logic_vector(1 downto 0);
+        shim256_axi_bready <= '1';  -- Always accept acknowledgement of write transactions. -- out std_logic;
+        shim256_axi_wstrb  <= (others => '1');  -- We always write all bytes in the bus. --  out std_logic_vector(63 downto 0);
+        shim256_axi_arsize  <= "101";  -- 5 = 32 bytes per beat = 256 bit wide bus. -- out std_logic_vector(2 downto 0);
+        shim256_axi_arburst <= "01";    -- "01" = incrementing address for each beat in the burst. -- out std_logic_vector(1 downto 0);
+        
+        -- these have no ports on the axi register slice
+        shim256_axi_arlock   <= "00";
+        shim256_axi_awlock   <= "00";
+        shim256_axi_awcache  <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+        shim256_axi_awprot   <= "000";   -- Has no effect in Vitis environment. -- out std_logic_vector(2 downto 0);
+        shim256_axi_awqos    <= "0000";  -- Has no effect in vitis environment, -- out std_logic_vector(3 downto 0);
+        shim256_axi_awregion <= "0000"; -- Has no effect in Vitis environment. -- out std_logic_vector(3 downto 0);
+        shim256_axi_arcache  <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
+        shim256_axi_arprot   <= "000";   -- Has no effect in vitis environment; out std_logic_Vector(2 downto 0);
+        shim256_axi_arqos    <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+        shim256_axi_arregion <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
+        shim256_axi_awid(0) <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
+        shim256_axi_arid(0) <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
+
+    
+    
+        HBM3G256_1 : entity correlator_lib.HBM_axi_tbModel
+        generic map (
+            AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
+            AXI_ID_WIDTH => 1, -- integer := 1;
+            AXI_DATA_WIDTH => 256, -- integer := 256;  -- Must be a multiple of 32 bits.
+            READ_QUEUE_SIZE => 16, --  integer := 16;
+            MIN_LAG => 60,  -- integer := 80   
+            INCLUDE_PROTOCOL_CHECKER => TRUE,
+            RANDSEED => 43526, -- : natural := 12345;
+            LATENCY_LOW_PROBABILITY => 97, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+            LATENCY_ZERO_PROBABILITY => 90 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
+        ) Port map (
+            i_clk => clk500,
+            i_rst_n => ap_rst_n,
+            axi_awaddr   => shim256_axi_aw.addr(31 downto 0),
+            axi_awid     => shim256_axi_awid, -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+            axi_awlen    => shim256_axi_aw.len,
+            axi_awsize   => shim256_axi_awsize,
+            axi_awburst  => shim256_axi_awburst,
+            axi_awlock   => shim256_axi_awlock,
+            axi_awcache  => shim256_axi_awcache,
+            axi_awprot   => shim256_axi_awprot,
+            axi_awqos    => shim256_axi_awqos, -- in(3:0)
+            axi_awregion => shim256_axi_awregion, -- in(3:0)
+            axi_awvalid  => shim256_axi_aw.valid,
+            axi_awready  => shim256_axi_awready,
+            axi_wdata    => shim256_axi_w.data(255 downto 0),
+            axi_wstrb    => shim256_axi_wstrb(31 downto 0),
+            axi_wlast    => shim256_axi_w.last,
+            axi_wvalid   => shim256_axi_w.valid,
+            axi_wready   => shim256_axi_wready,
+            axi_bresp    => shim256_axi_b.resp,
+            axi_bvalid   => shim256_axi_b.valid,
+            axi_bready   => shim256_axi_bready,
+            axi_bid      => open, -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+            axi_araddr   => shim256_axi_ar.addr(31 downto 0),
+            axi_arlen    => shim256_axi_ar.len,
+            axi_arsize   => shim256_axi_arsize,
+            axi_arburst  => shim256_axi_arburst,
+            axi_arlock   => shim256_axi_arlock,
+            axi_arcache  => shim256_axi_arcache,
+            axi_arprot   => shim256_axi_arprot,
+            axi_arvalid  => shim256_axi_ar.valid,
+            axi_arready  => shim256_axi_arready,
+            axi_arqos    => shim256_axi_arqos,
+            axi_arid     => shim256_axi_arid,
+            axi_arregion => shim256_axi_arregion,
+            axi_rdata    => shim256_axi_r.data(255 downto 0),
+            axi_rresp    => open,
+            axi_rlast    => shim256_axi_r.last,
+            axi_rvalid   => shim256_axi_r.valid,
+            axi_rready   => shim256_axi_rready,
+            i_write_to_disk => '0', -- : in std_logic;
+            i_fname => "", -- : in string
+            i_write_to_disk_addr => 0, -- in integer; -- address to start the memory dump at.
+            i_write_to_disk_size => 0, -- in integer; -- size in bytes
+            -- Initialisation of the memory
+            i_init_mem   => load_ct1_HBM,   -- in std_logic;
+            i_init_fname => g_TEST_CASE & g_CT1_INIT_FILENAME  -- in string
+        );
+        
+    end generate;
+
+
+    nogen_256_HBM0 : if g_USE_256_HBM0 = '0' generate
+        HBM3G_1 : entity correlator_lib.HBM_axi_tbModel
+        generic map (
+            AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
+            AXI_ID_WIDTH => 1, -- integer := 1;
+            AXI_DATA_WIDTH => 512, -- integer := 256;  -- Must be a multiple of 32 bits.
+            READ_QUEUE_SIZE => 16, --  integer := 16;
+            MIN_LAG => 60,  -- integer := 80   
+            INCLUDE_PROTOCOL_CHECKER => TRUE,
+            RANDSEED => 43526, -- : natural := 12345;
+            LATENCY_LOW_PROBABILITY => 95, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+            LATENCY_ZERO_PROBABILITY => 80 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
+        ) Port map (
+            i_clk => ap_clk,
+            i_rst_n => ap_rst_n,
+            axi_awaddr   => HBM_axi_awaddr(0)(31 downto 0),
+            axi_awid     => HBM_axi_awid(0), -- in std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+            axi_awlen    => HBM_axi_awlen(0),
+            axi_awsize   => HBM_axi_awsize(0),
+            axi_awburst  => HBM_axi_awburst(0),
+            axi_awlock   => HBM_axi_awlock(0),
+            axi_awcache  => HBM_axi_awcache(0),
+            axi_awprot   => HBM_axi_awprot(0),
+            axi_awqos    => HBM_axi_awqos(0), -- in(3:0)
+            axi_awregion => HBM_axi_awregion(0), -- in(3:0)
+            axi_awvalid  => HBM_axi_awvalid(0),
+            axi_awready  => HBM_axi_awready(0),
+            axi_wdata    => HBM_axi_wdata(0),
+            axi_wstrb    => HBM_axi_wstrb(0),
+            axi_wlast    => HBM_axi_wlast(0),
+            axi_wvalid   => HBM_axi_wvalid(0),
+            axi_wready   => HBM_axi_wready(0),
+            axi_bresp    => HBM_axi_bresp(0),
+            axi_bvalid   => HBM_axi_bvalid(0),
+            axi_bready   => HBM_axi_bready(0),
+            axi_bid      => HBM_axi_bid(0), -- out std_logic_vector(AXI_ID_WIDTH - 1 downto 0);
+            axi_araddr   => HBM_axi_araddr(0)(31 downto 0),
+            axi_arlen    => HBM_axi_arlen(0),
+            axi_arsize   => HBM_axi_arsize(0),
+            axi_arburst  => HBM_axi_arburst(0),
+            axi_arlock   => HBM_axi_arlock(0),
+            axi_arcache  => HBM_axi_arcache(0),
+            axi_arprot   => HBM_axi_arprot(0),
+            axi_arvalid  => HBM_axi_arvalid(0),
+            axi_arready  => HBM_axi_arready(0),
+            axi_arqos    => HBM_axi_arqos(0),
+            axi_arid     => HBM_axi_arid(0),
+            axi_arregion => HBM_axi_arregion(0),
+            axi_rdata    => HBM_axi_rdata(0),
+            axi_rresp    => HBM_axi_rresp(0),
+            axi_rlast    => HBM_axi_rlast(0),
+            axi_rvalid   => HBM_axi_rvalid(0),
+            axi_rready   => HBM_axi_rready(0),
+            i_write_to_disk => '0', -- : in std_logic;
+            i_fname => "", -- : in string
+            i_write_to_disk_addr => 0, -- in integer; -- address to start the memory dump at.
+            i_write_to_disk_size => 0, -- in integer; -- size in bytes
+            -- Initialisation of the memory
+            i_init_mem   => load_ct1_HBM,   -- in std_logic;
+            i_init_fname => g_TEST_CASE & g_CT1_INIT_FILENAME  -- in string
+        );
+    end generate;
     
     -- 3 GBytes second stage corner turn, first correlator cell
     HBM3G_2 : entity correlator_lib.HBM_axi_tbModel
