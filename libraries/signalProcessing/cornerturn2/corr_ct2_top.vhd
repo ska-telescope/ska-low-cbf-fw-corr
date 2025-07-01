@@ -334,6 +334,7 @@ architecture Behavioral of corr_ct2_top is
     signal max_copyData_time : std_logic_vector(31 downto 0); -- time required to put out all the data
     signal min_trigger_interval : std_logic_Vector(31 downto 0); -- minimum time available
     signal wr_overflow : std_logic_vector(31 downto 0); --
+    signal dout_min_start_gap : std_logic_vector(31 downto 0);
     
 begin
     
@@ -654,9 +655,10 @@ begin
         o_readout_fsm_dbg => dout_readout_fsm_dbg, --: out std_logic_vector(3 downto 0);
         o_arFIFO_wr_count => dout_arFIFO_wr_count, -- out std_logic_vector(6 downto 0);
         o_dataFIFO_wrCount => dout_dataFIFO_wrCount, -- out std_logic_vector(9 downto 0);
-        o_readout_error       => dout_readout_error(0), --  out std_logic;
-        o_recent_start_gap    => dout_recent_start_gap,   -- out std_logic_vector(31 downto 0);
-        o_recent_readout_time => dout_recent_readout_time -- out std_logic_vector(31 downto 0)
+        o_readout_error       => dout_readout_error(0),    -- out std_logic;
+        o_recent_start_gap    => dout_recent_start_gap,    -- out std_logic_vector(31 downto 0);
+        o_recent_readout_time => dout_recent_readout_time, -- out std_logic_vector(31 downto 0)
+        o_min_start_gap       => dout_min_start_gap        -- out std_logic_vector(31 downto 0)
     );
     o_cor_tableSelect(0) <= readout_tableSelect;
     o_cor_valid <= cor_valid_int;
@@ -785,9 +787,12 @@ begin
             
             statctrl_ro.readouterror <= dout_readout_error;
             statctrl_ro.readoutGap <= dout_recent_start_gap;
+            statctrl_ro.minReadoutGap <= dout_min_start_gap;
             statctrl_ro.readoutTime <= dout_recent_readout_time;
             statctrl_ro.hbmbuf0packetcount <= (others => '0');
             statctrl_ro.hbmbuf1packetcount <= (others => '0');
+            
+            
         end if;
     end process;
     vc_demap_in.adr(9 downto 1) <= din_tableSelect & vc_demap_rd_addr; -- full address is 10 bits
