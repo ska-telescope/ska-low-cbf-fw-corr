@@ -81,6 +81,11 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "Number of 300MHz clocks from the start of one readout to the start of the next readout. Should correspond to 849ms."
+          - - field_name        : minReadoutGap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Minimum number of 300MHz clocks from the start of one readout to the start of the next readout. Should correspond to 849ms."
           #################################
           - - field_name        : readoutError
               width             : 2
