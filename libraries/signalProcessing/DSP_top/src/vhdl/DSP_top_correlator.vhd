@@ -622,7 +622,8 @@ begin
         i_hbm_status   => i_hbm_status, -- : in t_slv_8_arr(5 downto 0);
         i_hbm_reset_final => i_hbm_reset_final, -- : in std_logic;
         i_eth_disable_fsm_dbg => i_eth_disable_fsm_dbg, -- : in std_logic_vector(4 downto 0)
-        i_hbm_rst_dbg  => i_hbm_rst_dbg   -- in t_slv_32_arr(5 downto 0);
+        i_hbm0_rst_dbg  => i_hbm_rst_dbg(1), -- in (31:0);
+        i_hbm1_rst_dbg  => i_hbm_rst_dbg(2)
     );
     
     -- Correlator
