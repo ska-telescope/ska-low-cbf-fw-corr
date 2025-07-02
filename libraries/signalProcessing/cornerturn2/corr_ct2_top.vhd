@@ -543,6 +543,7 @@ begin
         o_max_copyData_time => max_copyData_time, -- out std_logic_vector(31 downto 0); -- time required to put out all the data
         o_min_trigger_interval => min_trigger_interval, -- : out std_logic_Vector(31 downto 0); -- minimum time available
         o_wr_overflow => wr_overflow, -- : out std_logic_vector(31 downto 0); --overflow + debug info when the overflow occurred.
+        i_insert_dbg => statctrl_rw.insert_dbg(0), -- in std_logic;
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         -- two HBM interfaces

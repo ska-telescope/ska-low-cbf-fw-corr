@@ -39,6 +39,12 @@ peripherals:
               reset_value       : 0x0
               field_description : "Number of subarray beams stored in the second 1.5 Gbytes of HBM, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
           #################################
+          - - field_name        : insert_dbg
+              width             : 8
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "set to 1 to replace filterbank data with debug data"
+          #################################
           - - field_name        : min_trigger_interval
               width             : 32
               access_mode       : RO

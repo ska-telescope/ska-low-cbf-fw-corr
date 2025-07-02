@@ -118,6 +118,8 @@ entity corr_ct2_din is
         o_max_copyData_time : out std_logic_vector(31 downto 0); -- time required to put out all the data
         o_min_trigger_interval : out std_logic_Vector(31 downto 0); -- minimum time available
         o_wr_overflow : out std_logic_vector(31 downto 0); --overflow + debug info when the overflow occurred.
+        --
+        i_insert_dbg : in std_logic;
         -------------------------------------------------------------------
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
@@ -135,10 +137,10 @@ end corr_ct2_din;
 architecture Behavioral of corr_ct2_din is
     
     signal bufDout : t_slv_128_arr(3 downto 0);
-    signal bufWE, bufWEFinal : std_logic_vector(3 downto 0);
+    signal bufWE, bufWEFinal, bufWEFinal_del1 : std_logic_vector(3 downto 0);
     signal bufWE_slv : t_slv_1_arr(3 downto 0);
-    signal bufWrAddr, bufWrAddrFinal : std_logic_vector(15 downto 0);
-    signal bufWrData, bufWrDataFinal : std_logic_vector(127 downto 0);
+    signal bufWrAddr, bufWrAddrFinal, bufWrAddrFinal_del1 : std_logic_vector(15 downto 0);
+    signal bufWrData, bufWrDataFinal, bufWrDataFinal_del1 : std_logic_vector(127 downto 0);
     signal bufRdAddr : std_logic_vector(15 downto 0);
     
     signal timeStep : std_logic_vector(5 downto 0);
@@ -153,8 +155,8 @@ architecture Behavioral of corr_ct2_din is
     --signal copy_channelGroup : std_logic_vector(7 downto 0);
     signal copyToHBM_time : std_logic_vector(2 downto 0);
     signal copy_time : std_logic_vector(2 downto 0);
-    signal fineChannel : std_logic_vector(11 downto 0);
-    signal virtualChannel : std_logic_vector(15 downto 0);
+    signal fineChannel, fineChannel_del1 : std_logic_vector(11 downto 0);
+    signal virtualChannel, virtualChannel1, virtualChannel2, virtualChannel3 : std_logic_vector(15 downto 0);
     signal frameCount_mod3 : std_logic_vector(1 downto 0);
     signal frameCount_849ms : std_logic_vector(31 downto 0);
     
@@ -247,6 +249,7 @@ architecture Behavioral of corr_ct2_din is
     signal minimum_time_between_wr_triggers : std_logic_Vector(31 downto 0); -- minimum time available
     signal wr_overflow : std_logic_vector(31 downto 0);
     signal copyAW_time, copydata_readout_time, time_between_wr_triggers : std_logic_vector(31 downto 0);
+    signal insert_dbg : std_logic;
     
 begin
     
@@ -386,6 +389,9 @@ begin
                 -- Just use the first filterbanks virtual channel.
                 -- This module assumes that i_virtualChannel(0), (1), (2), and (3) are consecutive values.
                 virtualChannel <= virtualChannel0Del1;
+                virtualChannel1 <= std_logic_vector(unsigned(virtualChannel0Del1) + 1);
+                virtualChannel2 <= std_logic_vector(unsigned(virtualChannel0Del1) + 2);
+                virtualChannel3 <= std_logic_vector(unsigned(virtualChannel0Del1) + 3);
                 last_virtual_channel <= i_lastchannel;
                 frameCount_mod3 <= i_frameCount_mod3;
                 frameCount_849ms <= i_frameCount_849ms;
@@ -460,6 +466,7 @@ begin
                     fineChannel <= std_logic_vector(unsigned(fineChannel) + 1);
                 end if;
             end if;
+            fineChannel_del1 <= fineChannel;
             
             bufWrDataFinal <= bufWrData;
             if (timeStep(5) = '0') then
@@ -472,6 +479,39 @@ begin
                 bufWrAddrFinal <= std_logic_vector(unsigned(bufWrAddr) + 28672);  
             end if;
             bufWEFinal <= bufWE;
+            
+            -----------------------------------------
+            -- Insert debug data if requested
+            bufWEFinal_del1 <= bufWEFinal;
+            bufWrAddrFinal_del1 <= bufWrAddrFinal;
+            insert_dbg <= i_insert_dbg;
+            if (insert_dbg = '1') then
+                bufWrDataFinal_del1(9 downto 0) <= virtualChannel(9 downto 0);
+                bufWrDataFinal_del1(21 downto 10) <= fineChannel_del1(11 downto 0);
+                bufWrDataFinal_del1(27 downto 22) <= timeStep(5 downto 0);
+                bufWrDataFinal_del1(29 downto 28) <= frameCount_mod3(1 downto 0);
+                bufWrDataFinal_del1(31 downto 30) <= frameCount_849ms(1 downto 0);
+                --
+                bufWrDataFinal_del1(32+9 downto 32+0) <= virtualChannel1(9 downto 0);
+                bufWrDataFinal_del1(32+21 downto 32+10) <= fineChannel_del1(11 downto 0);
+                bufWrDataFinal_del1(32+27 downto 32+22) <= timeStep(5 downto 0);
+                bufWrDataFinal_del1(32+29 downto 32+28) <= frameCount_mod3(1 downto 0);
+                bufWrDataFinal_del1(32+31 downto 32+30) <= frameCount_849ms(1 downto 0);
+                --
+                bufWrDataFinal_del1(64+9 downto 64+0) <= virtualChannel2(9 downto 0);
+                bufWrDataFinal_del1(64+21 downto 64+10) <= fineChannel_del1(11 downto 0);
+                bufWrDataFinal_del1(64+27 downto 64+22) <= timeStep(5 downto 0);
+                bufWrDataFinal_del1(64+29 downto 64+28) <= frameCount_mod3(1 downto 0);
+                bufWrDataFinal_del1(64+31 downto 64+30) <= frameCount_849ms(1 downto 0);
+                --
+                bufWrDataFinal_del1(96+9 downto 96+0) <= virtualChannel3(9 downto 0);
+                bufWrDataFinal_del1(96+21 downto 96+10) <= fineChannel_del1(11 downto 0);
+                bufWrDataFinal_del1(96+27 downto 96+22) <= timeStep(5 downto 0);
+                bufWrDataFinal_del1(96+29 downto 96+28) <= frameCount_mod3(1 downto 0);
+                bufWrDataFinal_del1(96+31 downto 96+30) <= frameCount_849ms(1 downto 0);
+            else
+                bufWrDataFinal_del1 <= bufWrDataFinal;
+            end if;
             
             ------------------------------------------
             -- Trigger copying of data to the HBM.
@@ -560,8 +600,8 @@ begin
             clka                    => i_axi_clk,  -- Filterbank clock, 300 MHz
             ena                     => '1',
             wea                     => bufWE_slv(i),
-            addra                   => bufWrAddrFinal,
-            dina                    => bufWrDataFinal,
+            addra                   => bufWrAddrFinal_del1,
+            dina                    => bufWrDataFinal_del1,
             injectsbiterra          => '0',
             injectdbiterra          => '0',
             -- Port B (read side)
@@ -574,7 +614,7 @@ begin
             sbiterrb                => open,
             dbiterrb                => open
         );
-        bufWE_slv(i)(0) <= bufWEFinal(i);
+        bufWE_slv(i)(0) <= bufWEFinal_del1(i);
     end generate;
     
     -- At completion of 32 times, copy data from the ultraRAM buffer to the HBM
