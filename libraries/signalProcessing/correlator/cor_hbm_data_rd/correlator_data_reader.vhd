@@ -1066,9 +1066,9 @@ end process;
                     debug_packed_fifo(31 downto 16) <= std_logic_vector(unsigned(debug_packed_fifo(31 downto 16)) + 1);
                 end if;
             end if;
-            
+
             packed_fifo_wr_cnt_reg  <= unsigned(packed_fifo_wr_count);
-            
+
             debug_packed_fifo(15 downto 0)  <= "000" & packed_fifo_wr_count;
             dbg_bytes_in_heap_trkr          <= bytes_in_heap_tracker;
         end if;
