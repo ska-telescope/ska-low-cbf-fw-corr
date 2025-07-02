@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="1,288.000001 us"></ZoomEndTime>
-      <Cursor1Time time="1.000000 us"></Cursor1Time>
+      <ZoomStartTime time="2,676,945.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="2,683,405.001 ns"></ZoomEndTime>
+      <Cursor1Time time="2,679,620.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="263"></NameColumnWidth>
-      <ValueColumnWidth column_width="88"></ValueColumnWidth>
+      <ValueColumnWidth column_width="84"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="521" />
+   <WVObjectSize size="523" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -417,8 +417,8 @@
       <obj_property name="ObjectShortName">addr_offsets_array[2:0][5:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/govern_count">
-      <obj_property name="ElementShortName">govern_count[7:0]</obj_property>
-      <obj_property name="ObjectShortName">govern_count[7:0]</obj_property>
+      <obj_property name="ElementShortName">govern_count[15:0]</obj_property>
+      <obj_property name="ObjectShortName">govern_count[15:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/current_udp.dst_port">
@@ -452,8 +452,8 @@
       <obj_property name="ObjectShortName">scratchpad_updated</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_sm_fsm_debug">
-      <obj_property name="ElementShortName">spead_sm_fsm_debug[3:0]</obj_property>
-      <obj_property name="ObjectShortName">spead_sm_fsm_debug[3:0]</obj_property>
+      <obj_property name="ElementShortName">spead_sm_fsm_debug[7:0]</obj_property>
+      <obj_property name="ObjectShortName">spead_sm_fsm_debug[7:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/init_packet_data">
       <obj_property name="ElementShortName">init_packet_data[511:0]</obj_property>
@@ -898,6 +898,14 @@
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_rd">
       <obj_property name="ElementShortName">hbm_data_fifo_rd</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_rd</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/hbm_data_rd_fifo_mux">
+      <obj_property name="ElementShortName">hbm_data_rd_fifo_mux</obj_property>
+      <obj_property name="ObjectShortName">hbm_data_rd_fifo_mux</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_debug">
+      <obj_property name="ElementShortName">i_debug[0:0]</obj_property>
+      <obj_property name="ObjectShortName">i_debug[0:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_q">
       <obj_property name="ElementShortName">hbm_data_fifo_q[511:0]</obj_property>
@@ -2230,8 +2238,8 @@
       <obj_property name="ObjectShortName">spead_sm</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_sm_fsm_debug">
-      <obj_property name="ElementShortName">spead_sm_fsm_debug[3:0]</obj_property>
-      <obj_property name="ObjectShortName">spead_sm_fsm_debug[3:0]</obj_property>
+      <obj_property name="ElementShortName">spead_sm_fsm_debug[7:0]</obj_property>
+      <obj_property name="ObjectShortName">spead_sm_fsm_debug[7:0]</obj_property>
    </wvobject>
    <wvobject fp_name="divider511" type="divider">
       <obj_property name="label">INIT- instance 0</obj_property>

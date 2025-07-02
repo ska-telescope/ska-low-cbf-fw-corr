@@ -149,7 +149,7 @@ signal hbm_meta_fifo_rd_count : std_logic_vector(((ceil_log2(META_FIFO_READ_DEPT
 --------------------------------------------------------------------------------
 -- Packed data to SPEAD packets
 constant packed_width       : INTEGER := 512;   -- 34 bytes = 32 data + 2 meta.
-constant packed_depth       : INTEGER := 512;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
+constant packed_depth       : INTEGER := 4096;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
 
 signal packed_fifo_in_reset : std_logic;
 signal packed_fifo_rd       : std_logic;
@@ -162,6 +162,8 @@ signal packed_fifo_wr       : std_logic;
 signal packed_fifo_data     : std_logic_vector(271 downto 0);
 signal packed_fifo_full     : std_logic;
 signal packed_fifo_wr_count : std_logic_vector(((ceil_log2(packed_depth))) downto 0);
+
+signal packed_fifo_wr_cnt_reg : unsigned(((ceil_log2(packed_depth))) downto 0);
 
 signal packed_fifo_data_d1  : std_logic_vector(271 downto 0);
 signal packed_fifo_data_d2  : std_logic_vector(271 downto 0);
@@ -268,6 +270,7 @@ signal spead_data_rd            : std_logic;
 signal bytes_in_heap            : unsigned(31 downto 0);
 
 signal bytes_in_heap_tracker    : unsigned(31 downto 0);
+signal dbg_bytes_in_heap_trkr   : unsigned(31 downto 0);
 
 signal matrix_packed            : std_logic_vector(1 downto 0);
 
@@ -297,6 +300,8 @@ signal page_flip_count              : unsigned(3 downto 0)  := x"0";
 signal find_page_flip               : std_logic := '0';
 
 signal current_page_ct1             : std_logic;
+
+signal debug_packed_fifo            : std_logic_vector(31 downto 0);
 
 --------------------------------------------------------------------------------
 begin
@@ -761,6 +766,7 @@ begin
                         end if;
 
                     when WAIT_RETURN =>
+                        pack_it_fsm_debug       <= x"6";
                         matrix_packed(0)        <= '0';
                         if hbm_rq_complete = '1' then     -- All data has returned.
                             pack_it_fsm         <= COMPLETE;
@@ -998,7 +1004,7 @@ end process;
                 -- 128 deep = 8K data + vis, match this against the programmed desired data chunk size.
                 -- i_from_spead_pack.spead_data_heap_size(15 downto 0)      8192 = bit 13.
 
-                if packed_fifo_rd_count(7 downto 0) >= i_from_spead_pack.spead_data_heap_size(13 downto 6) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
+                if packed_fifo_rd_count(12 downto 0) >= i_from_spead_pack.spead_data_heap_size(13 downto 6) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
                     send_spead_data     <= "01";
                     bytes_to_packetise  <= bytes_to_send; --14D"8192";                       -- stream out 8k.
                 elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
@@ -1049,12 +1055,22 @@ end process;
     begin
         if rising_edge(i_axi_clk) then
             if reset = '1' then
-                debug_instruction_writes    <= (others => '0');
+                debug_instruction_writes        <= (others => '0');
+                debug_packed_fifo(31 downto 16) <= (others => '0');
             else
                 if meta_cache_fifo_wr = '1' then
                     debug_instruction_writes    <= debug_instruction_writes + 1;
                 end if;
+                
+                if (packed_fifo_wr_cnt_reg >= 4000) AND (aligned_packed_wr_d = '1') then
+                    debug_packed_fifo(31 downto 16) <= std_logic_vector(unsigned(debug_packed_fifo(31 downto 16)) + 1);
+                end if;
             end if;
+            
+            packed_fifo_wr_cnt_reg  <= unsigned(packed_fifo_wr_count);
+            
+            debug_packed_fifo(15 downto 0)  <= "000" & packed_fifo_wr_count;
+            dbg_bytes_in_heap_trkr          <= bytes_in_heap_tracker;
         end if;
     end process;
 
@@ -1080,6 +1096,8 @@ end process;
     hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
 
     hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
+    hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo;
+    hbm_rd_debug_ro.debug_bytes_in_heap_trkr    <= std_logic_vector(dbg_bytes_in_heap_trkr);
     
     testmode_select				<= hbm_rd_debug_rw.testmode_select;
     testmode_hbm_start_addr		<= hbm_rd_debug_rw.testmode_hbm_start_addr;
