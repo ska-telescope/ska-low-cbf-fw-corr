@@ -168,7 +168,18 @@ entity corr_ct1_readout is
         o_bad_readstart : out std_logic;    -- read start occured prior to delay calculation finishing for the previous read.
         -- Debug data
         o_dbg_vec : out std_logic_vector(255 downto 0);
-        o_dbg_valid : out std_logic
+        o_dbg_valid : out std_logic;
+        -- mismatch between output and expected when sending debug data inserted in lfaaIngest
+        o_dbgCheckData0 : out std_logic_vector(31 downto 0);
+        o_dbgCheckData1 : out std_logic_vector(31 downto 0);
+        o_dbgCheckData2 : out std_logic_vector(31 downto 0);
+        o_dbgCheckData3 : out std_logic_vector(31 downto 0);
+        o_dbgBadData0 : out std_logic_vector(31 downto 0);
+        o_dbgBadData1 : out std_logic_vector(31 downto 0);
+        o_dbgBadData2 : out std_logic_vector(31 downto 0);
+        o_dbgBadData3 : out std_logic_vector(31 downto 0);
+        o_mismatch_set : out std_logic_vector(3 downto 0);
+        i_reset_mismatch : in std_logic
     );
 end corr_ct1_readout;
 
@@ -368,6 +379,14 @@ architecture Behavioral of corr_ct1_readout is
     signal sample_offset : t_slv_20_arr(3 downto 0);
     signal rdBufSamplesRemaining : t_slv_20_arr(3 downto 0);
     signal firstPacket : std_logic := '0';
+    signal readoutData_int, readoutCheckData, readoutCheckData_del, readoutData_del : t_slv_32_arr(3 downto 0);
+
+    signal start_checking : std_logic := '0';
+    signal readout_mismatch : std_logic_vector(3 downto 0) := "0000";
+
+    signal reset_mismatch : std_logic := '0';
+    signal mismatch_set : std_logic_vector(3 downto 0) := "0000";
+    signal readoutCheckData_reg, readoutData_reg : t_slv_32_arr(3 downto 0);
 
 begin
     
@@ -2049,12 +2068,13 @@ begin
             i_valid    => bufRdValid(i), -- in std_logic; -- should go high no more than once every 4 clocks
             o_stop     => rdStop(i), -- out std_logic;
             -- data out
-            o_data    => o_readoutData(i),    -- out std_logic_vector(31 downto 0); 
+            o_data    => readoutData_int(i),    -- out std_logic_vector(31 downto 0); 
             i_run     => readPacket,        -- in std_logic -- should go high for a burst of 64 clocks to output a packet.
             o_valid   => validOut(i)        -- out std_logic;
         );
     end generate;
     
+    o_readoutData <= readoutData_int;
     o_valid <= validOut(0);
     
     o_meta0.integration <= FBintegration; -- (31:0); integration in units of 849ms relative to the epoch.
@@ -2072,5 +2092,66 @@ begin
     o_meta3.integration <= FBintegration;
     o_meta3.ctFrame <= FBctFrame;
     o_meta3.virtualChannel <= meta3VirtualChannel;
+    
+    ----------------------------------------------------------------
+    -- Check output against meta data that can optionally be inserted in the input
+    process(shared_clk)
+    begin
+        if rising_edge(shared_clk) then
+            if sof = '1' then
+                -- restart checking for a new virtual channel
+                start_checking <= '1';
+                readout_mismatch <= "0000";
+            elsif validOut(0) = '1' then
+                start_checking <= '0';
+                if start_checking = '1' then
+                    -- Get the first value being sent for this channel, add 1 to get the next value that should be sent
+                    for i in 0 to 3 loop
+                        readoutCheckData(i) <= std_logic_vector(unsigned(readoutData_int(i)) + 1);
+                    end loop;
+                    readout_mismatch <= "0000";
+                else
+                    for i in 0 to 3 loop
+                        readoutCheckData(i) <= std_logic_vector(unsigned(readoutCheckData(i)) + 1);
+                        if readoutCheckData(i) /= readoutData_int(i) then
+                            readout_mismatch(i) <= '1';
+                        else
+                            readout_mismatch(i) <= '0';
+                        end if;
+                    end loop;
+                end if;
+            else
+                readout_mismatch <= "0000";
+            end if;
+            
+            -- Capture mismatches to registers
+            readoutCheckData_del <= readoutCheckData;
+            readoutData_del <= readoutData_int;
+            
+            for i in 0 to 3 loop
+                if reset_mismatch = '1' then
+                    mismatch_set(i) <= '0';
+                elsif mismatch_set(i) = '0' and readout_mismatch(i) = '1' then
+                    readoutCheckData_reg(i) <= readoutCheckData_del(i);
+                    readoutData_reg(i) <= readoutData_del(i);
+                    mismatch_set(i) <= '1';
+                end if;
+            end loop;
+            
+            reset_mismatch <= i_reset_mismatch;
+        end if;
+    end process;
+    
+    o_dbgCheckData0 <= readoutCheckData_reg(0);
+    o_dbgCheckData1 <= readoutCheckData_reg(1);
+    o_dbgCheckData2 <= readoutCheckData_reg(2);
+    o_dbgCheckData3 <= readoutCheckData_reg(3);
+    
+    o_dbgBadData0 <= readoutData_reg(0);
+    o_dbgBadData1 <= readoutData_reg(1);
+    o_dbgBadData2 <= readoutData_reg(2);
+    o_dbgBadData3 <= readoutData_reg(3);
+    
+    o_mismatch_set <= mismatch_set;
     
 end Behavioral;

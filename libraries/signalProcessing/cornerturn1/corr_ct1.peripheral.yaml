@@ -168,6 +168,66 @@ peripherals:
               reset_value       : 0x0
               field_description : "total number of 283ms buffers read out and sent to the filterbanks."
 
+          - - field_name        : reset_mismatch
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Reset search for mismatched data. Write high then low to reset."
+
+          - - field_name        : mismatch_set
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "One bit for each of the 4 output lanes to indicate that a mismatch with expected debug data has been found"
+
+          - - field_name        : dbgCheckData0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 0 expected data"
+
+          - - field_name        : dbgCheckData1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 1 expected data"
+
+          - - field_name        : dbgCheckData2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 2 expected data"
+
+          - - field_name        : dbgCheckData3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 3 expected data"
+
+          - - field_name        : dbgBadData0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 0 actual data"
+
+          - - field_name        : dbgBadData1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 1 actual data"
+
+          - - field_name        : dbgBadData2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 2 actual data"
+
+          - - field_name        : dbgBadData3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 3 actual data"
+
           - error:
             - field_name        : input_overflow
               width             : 1

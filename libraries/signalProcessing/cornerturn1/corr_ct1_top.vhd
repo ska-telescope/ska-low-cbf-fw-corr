@@ -1077,7 +1077,18 @@ begin
         o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
         o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
         o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
-        o_dbg_valid => dbg_vec_valid  -- out std_logic
+        o_dbg_valid => dbg_vec_valid,  -- out std_logic
+        -- mismatch between output and expected when sending debug data inserted in lfaaIngest
+        o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
+        o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
+        o_dbgCheckData2 => config_ro.dbgCheckData2, -- out std_logic_vector(31 downto 0);
+        o_dbgCheckData3 => config_ro.dbgCheckData3, -- out std_logic_vector(31 downto 0);
+        o_dbgBadData0 => config_ro.dbgBadData0, --  out std_logic_vector(31 downto 0);
+        o_dbgBadData1 => config_ro.dbgBadData1, -- out std_logic_vector(31 downto 0);
+        o_dbgBadData2 => config_ro.dbgBadData2, -- out std_logic_vector(31 downto 0);
+        o_dbgBadData3 => config_ro.dbgBadData3, -- out std_logic_vector(31 downto 0);
+        o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
+        i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
     );
     
     

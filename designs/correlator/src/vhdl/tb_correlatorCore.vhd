@@ -53,7 +53,7 @@ USE technology_lib.tech_mac_100g_pkg.ALL;
 entity tb_correlatorCore is
     generic (
         g_SPS_PACKETS_PER_FRAME : integer := 128;
-        g_CORRELATORS : integer := 2; -- Number of correlator instances to instantiate (0, 1, 2)
+        g_CORRELATORS : integer := 0; -- Number of correlator instances to instantiate (0, 1, 2)
         g_USE_DUMMY_FB : boolean := TRUE;  -- use a dummy version of the filterbank to speed up simulation.
         -- Location of the test case; All the other filenames in generics here are in this directory
         --g_TEST_CASE : string := "/home/bab031/Documents/_ska_low/ska-low-cbf-fw-corr/low-cbf-model/src_atomic/run_cor_1sa_17stations/";
