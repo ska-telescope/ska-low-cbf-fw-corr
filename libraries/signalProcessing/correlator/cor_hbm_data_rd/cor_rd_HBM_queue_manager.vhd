@@ -59,6 +59,7 @@ entity cor_rd_HBM_queue_manager is
         o_hbm_data_fifo_q           : out std_logic_vector((hbm_data_width-1) downto 0);
         o_hbm_data_fifo_empty       : out std_logic;
         o_hbm_data_fifo_rd_count    : out std_logic_vector(((ceil_log2(hbm_data_depth))) downto 0);
+        o_hbm_data_fifo_q_valid     : out std_logic;
 
         -- Meta Data FIFO RD interface
         i_hbm_meta_fifo_rd          : in std_logic;
@@ -239,6 +240,7 @@ hbm_data_fifo_rd                <= i_hbm_data_fifo_rd;
 o_hbm_data_fifo_q               <= hbm_data_fifo_q;
 o_hbm_data_fifo_empty           <= hbm_data_fifo_empty;
 o_hbm_data_fifo_rd_count        <= hbm_data_fifo_rd_count;
+o_hbm_data_fifo_q_valid         <= hbm_data_fifo_q_valid;
 
 -- Meta Data FIFO RD interface
 hbm_meta_fifo_rd                <= i_hbm_meta_fifo_rd;

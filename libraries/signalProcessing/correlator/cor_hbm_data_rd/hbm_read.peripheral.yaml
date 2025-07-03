@@ -125,7 +125,13 @@ peripherals:
                                     Bit 7 -> 4  - 4 bit rolling counter tracking page flips passed with instruction
                                     Bit 15 -> 8 - 0
                                   "
-
+         #################################
+          - - field_name        : debug_packed_fifo
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " packed FIFO is 4096 x 64byte FIFO containing vis+meta ready for packetiser.
+                                    31 - 16 = writes to FIFO when already 4000 USED, 15 - 0 = current used." 
 
   - peripheral_name        : hbm_rd_debug_2
     peripheral_description : "debug and statistic registers"
@@ -252,3 +258,10 @@ peripherals:
                                     Bit 7 -> 4  - 4 bit rolling counter tracking page flips passed with instruction
                                     Bit 15 -> 8 - 0
                                   "
+         #################################
+          - - field_name        : debug_packed_fifo
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " packed FIFO is 4096 x 64byte FIFO containing vis+meta ready for packetiser.
+                                    31 - 16 = writes to FIFO when already 4000 USED, 15 - 0 = current used." 

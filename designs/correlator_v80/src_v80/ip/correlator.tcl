@@ -43,3 +43,27 @@ set_property -dict [list \
   CONFIG.PRIM_SOURCE {Global_buffer} \
 ] [get_ips clk_mmcm_400]
 create_ip_run [get_ips clk_mmcm_400]
+
+create_ip -name clk_wizard -vendor xilinx.com -library ip -version 1.0 -module_name clk_mmcm_450
+set_property -dict [list \
+  CONFIG.CLKOUT_DRIVES {BUFG,BUFG,BUFG,BUFG,BUFG,BUFG,BUFG} \
+  CONFIG.CLKOUT_DYN_PS {None,None,None,None,None,None,None} \
+  CONFIG.CLKOUT_GROUPING {Auto,Auto,Auto,Auto,Auto,Auto,Auto} \
+  CONFIG.CLKOUT_MATCHED_ROUTING {false,false,false,false,false,false,false} \
+  CONFIG.CLKOUT_PORT {clk_out1,clk_out2,clk_out3,clk_out4,clk_out5,clk_out6,clk_out7} \
+  CONFIG.CLKOUT_REQUESTED_DUTY_CYCLE {50.000,50.000,50.000,50.000,50.000,50.000,50.000} \
+  CONFIG.CLKOUT_REQUESTED_OUT_FREQUENCY {450.00,100.000,100.000,100.000,100.000,100.000,100.000} \
+  CONFIG.CLKOUT_REQUESTED_PHASE {0.000,0.000,0.000,0.000,0.000,0.000,0.000} \
+  CONFIG.CLKOUT_USED {true,false,false,false,false,false,false} \
+  CONFIG.PRIM_SOURCE {Global_buffer} \
+] [get_ips clk_mmcm_450]
+create_ip_run [get_ips clk_mmcm_450]
+
+create_ip -name axis_ila -vendor xilinx.com -library ip -version 1.3 -module_name ila_twoby256_4k
+set_property -dict [list \
+  CONFIG.C_DATA_DEPTH {4096} \
+  CONFIG.C_NUM_OF_PROBES {2} \
+  CONFIG.C_PROBE0_WIDTH {256} \
+  CONFIG.C_PROBE1_WIDTH {256} \
+] [get_ips ila_twoby256_4k]
+create_ip_run [get_ips ila_twoby256_4k]

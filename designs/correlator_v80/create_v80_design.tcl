@@ -180,6 +180,10 @@ proc do_aved_create_design { } {
   $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
+  $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd \
+  $COMMON_PATH/common/src/vhdl/axi512_to_256_addr.vhd \
+  $COMMON_PATH/common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
+  $COMMON_PATH/common/src/vhdl/rdy_valid_reg_slice.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
   ]
@@ -190,6 +194,10 @@ proc do_aved_create_design { } {
   */common/src/vhdl/xpm_fifo_wrapper.vhd \
   */common/src/vhdl/memory_tdp_wrapper.vhd \
   */common/src/vhdl/args_axi_terminus.vhd \
+  */common/src/vhdl/axi512_to_256.vhd \
+  */common/src/vhdl/axi512_to_256_addr.vhd \
+  */common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
+  */common/src/vhdl/rdy_valid_reg_slice.vhd \
   }]
 
   set_property library ethernet_lib [get_files {\
@@ -588,6 +596,54 @@ set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing
 set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/spead/src/spead_registers.vhd]
 
 source $RLIBRARIES_PATH/signalProcessing/correlator/LTA.tcl
+
+##############################################################
+# setup sim set for AXI converter for HBM
+
+  puts "Create HBM converter sim ..."
+
+create_fileset -simset sim_hbm_axi
+
+set_property SOURCE_SET {} [get_filesets sim_hbm_axi]
+
+add_files -fileset sim_hbm_axi [glob \
+  $COMMON_PATH/common/src/tb/tb_axi512_to_256.vhd \
+  $COMMON_PATH/common/src/tb/tb_axi512_to_256.wcfg \
+  $COMMON_PATH/common/src/vhdl/sync.vhd \
+  $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
+  $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
+  $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd \
+  $COMMON_PATH/common/src/vhdl/axi512_to_256_addr.vhd \
+  $COMMON_PATH/common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
+  $COMMON_PATH/common/src/vhdl/rdy_valid_reg_slice.vhd \
+  $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
+  $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
+]
+
+set_property library signal_processing_common [get_files {\
+  */common/src/vhdl/sync.vhd \
+  */common/src/vhdl/sync_vector.vhd \
+  */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
+  */common/src/vhdl/xpm_fifo_wrapper.vhd \
+  */common/src/vhdl/memory_tdp_wrapper.vhd \
+  */common/src/vhdl/args_axi_terminus.vhd \
+  */common/src/vhdl/axi512_to_256.vhd \
+  */common/src/vhdl/axi512_to_256_addr.vhd \
+  */common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
+  */common/src/vhdl/rdy_valid_reg_slice.vhd \
+ }]
+
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/tb/tb_axi512_to_256.vhd]
+
+set_property top tb_axi512_to_256 [get_filesets sim_hbm_axi]
+set_property top_lib xil_defaultlib [get_filesets sim_hbm_axi]
+update_compile_order -fileset sim_hbm_axi
+
+######################
+
 
 ##############################################################
 # setup sim set for SPEAD

@@ -136,6 +136,7 @@ signal hbm_data_fifo_rd       : std_logic;
 signal hbm_data_fifo_q        : std_logic_vector((hbm_data_width-1) downto 0);
 signal hbm_data_fifo_empty    : std_logic;
 signal hbm_data_fifo_rd_count : std_logic_vector(((ceil_log2(hbm_data_depth))) downto 0);
+signal hbm_data_fifo_q_valid  : std_logic;
 
 -- META data from correlator.
 constant META_FIFO_WRITE_WIDTH : integer := 512;
@@ -593,6 +594,7 @@ begin
             o_hbm_data_fifo_q           => hbm_data_fifo_q,
             o_hbm_data_fifo_empty       => hbm_data_fifo_empty,
             o_hbm_data_fifo_rd_count    => hbm_data_fifo_rd_count,
+            o_hbm_data_fifo_q_valid     => hbm_data_fifo_q_valid,
     
             -- Meta Data FIFO RD interface
             i_hbm_meta_fifo_rd          => hbm_data_fifo_rd,    -- SAME cadence used due to same data width ratios.
@@ -696,6 +698,9 @@ begin
 
                     when CALC =>
                         pack_it_fsm_debug   <= x"2";
+                        -- Packed FIFO is the buffer to fill before requesting access to the packetiser.
+                        -- Fifo is 512 deep and 64 bytes wide.
+                        -- A packet is 8192 bytes or 128 FIFO entries.
                         if unsigned(packed_fifo_wr_count) < 256 then
                             -- Mux into vector the starting row number and add to end the number of reads for the triangle on 16x16 basis.
                             data_rd_counter(12 downto 0)    <= matrix_tracker(9 downto 0) & read_keep_per_line(strut_counter)(2 downto 0);
@@ -708,9 +713,8 @@ begin
                     -- READING data to be packed along a ROW.
                     when PROCESSING =>
                         pack_it_fsm_debug   <= x"3";
-                        packed_fifo_wr      <= '1';
+                        packed_fifo_wr      <= '1';-- AND hbm_data_fifo_q_valid;
                         
-                        hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
                         if hbm_data_cache_sel = '0' then
                             hbm_data_cache      <= hbm_data_fifo_q(255 downto 0);
                             meta_data_cache     <= hbm_meta_fifo_q(15 downto 0);
@@ -719,7 +723,11 @@ begin
                             meta_data_cache     <= hbm_meta_fifo_q(31 downto 16);
                         end if;
 
-                        hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);
+                        hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);-- AND hbm_data_fifo_q_valid;
+
+                        --if hbm_data_fifo_q_valid = '1' then
+                            hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
+                       -- end if;
 
                         if hbm_data_fifo_rd = '1' then
                             if data_rd_counter = 0 then

@@ -118,6 +118,13 @@ COMPONENT clk_system_base
     );
 END COMPONENT;
 
+component clk_mmcm_400 is
+Port ( 
+    clk_in1 : in STD_LOGIC;
+    clk_out1 : out STD_LOGIC
+);
+end component;
+
 component ila_0 is
 Port ( 
     clk : in STD_LOGIC;

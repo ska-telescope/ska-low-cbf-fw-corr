@@ -97,7 +97,7 @@ set_property APERTURES [list {0x201_0090_0000:0x201_0097_FFFF}] $spead_hbmrd_2_n
 
 set spead_hbm_2_conn [create_noc_connection -source $nmu_0 -target $spead_hbmrd_2_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_hbm_2_conn
-########################
+#########################
 # DCMAC
 set_property APERTURES [list {0x201_00A0_0000:0x201_00A7_FFFF}] $dcmac_nsu
 
@@ -179,32 +179,81 @@ set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 
 # However it appears an alternative name for the port_1 below is
 # i_v80_board/top_i/axi_noc_cips/inst/MC_hbmc/inst/hbm_st0/I_hbm_chnl0
 # and this matches the naming on the NoC diagram and get_noc_interfaces
+#
+# refer to PG313, v1.1, pages 95-96 for address range to memory controller
+#
+# the GT for the network connection is on the right hand side on the device map
+# assume NoC map is the same, assign LFAA input to the right side as well
+# this means HBM14 and 15.
 
-set hbm_port_1 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM0_PORT0_hbmc]
+######################################
+## HBM LFAA - HBM14 and 15, 3GB
+set hbm14_port0 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM14_PORT0_hbmc]
 set hbm_input_1 [get_noc_interfaces i_correlator_core/axi_HBM_gen[0].i_hbm_noc/S_AXI_nmu]
-set hbm_conn_1 [create_noc_connection -source $hbm_input_1 -target $hbm_port_1]
-set_property -dict [list READ_BANDWIDTH 12500 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 12500 WRITE_AVERAGE_BURST 64] $hbm_conn_1
+set hbm_conn_lfaa_1 [create_noc_connection -source $hbm_input_1 -target $hbm14_port0]
+set_property -dict [list READ_BANDWIDTH 4200 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 4200 WRITE_AVERAGE_BURST 64] $hbm_conn_lfaa_1
 
-set hbm_port_2 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM2_PORT0_hbmc]
-set hbm_input_2 [get_noc_interfaces i_correlator_core/axi_HBM_gen[1].i_hbm_noc/S_AXI_nmu]
-set hbm_conn_2 [create_noc_connection -source $hbm_input_2 -target $hbm_port_2]
-set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_2
+set hbm14_port1 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM14_PORT2_hbmc]
+set hbm_input_1 [get_noc_interfaces i_correlator_core/axi_HBM_gen[0].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_lfaa_2 [create_noc_connection -source $hbm_input_1 -target $hbm14_port1]
+set_property -dict [list READ_BANDWIDTH 4200 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 4200 WRITE_AVERAGE_BURST 64] $hbm_conn_lfaa_2
 
-set hbm_port_3 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM4_PORT0_hbmc]
-set hbm_input_3 [get_noc_interfaces i_correlator_core/axi_HBM_gen[2].i_hbm_noc/S_AXI_nmu]
-set hbm_conn_3 [create_noc_connection -source $hbm_input_3 -target $hbm_port_3]
-set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_3
+set hbm15_port0 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM15_PORT0_hbmc]
+set hbm_input_1 [get_noc_interfaces i_correlator_core/axi_HBM_gen[0].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_lfaa_3 [create_noc_connection -source $hbm_input_1 -target $hbm15_port0]
+set_property -dict [list READ_BANDWIDTH 4200 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 4200 WRITE_AVERAGE_BURST 64] $hbm_conn_lfaa_3
 
+######################################
+# 3GB for CT2 - Correlator 1
+set hbm2_port0 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM2_PORT0_hbmc]
+set hbm_input_ct2_1a [get_noc_interfaces i_correlator_core/axi_HBM_gen[1].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_ct2_1a [create_noc_connection -source $hbm_input_ct2_1a -target $hbm2_port0]
+set_property -dict [list READ_BANDWIDTH 3250 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 3250 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1a
+
+set hbm2_port1 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM2_PORT2_hbmc]
+set hbm_input_ct2_1b [get_noc_interfaces i_correlator_core/axi_HBM_gen[1].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_ct2_1b [create_noc_connection -source $hbm_input_ct2_1b -target $hbm2_port1]
+set_property -dict [list READ_BANDWIDTH 3250 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 3250 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1b
+
+set hbm3_port0 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM3_PORT0_hbmc]
+set hbm_input_ct2_1c [get_noc_interfaces i_correlator_core/axi_HBM_gen[1].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_ct2_1c [create_noc_connection -source $hbm_input_ct2_1c -target $hbm3_port0]
+set_property -dict [list READ_BANDWIDTH 3250 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 3250 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1c
+
+
+######################################
+# 3GB for CT2 - Correlator 2
+set hbm4_port0 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM4_PORT0_hbmc]
+set hbm_input_ct2_2a [get_noc_interfaces i_correlator_core/axi_HBM_gen[2].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_ct2_2a [create_noc_connection -source $hbm_input_ct2_2a -target $hbm4_port0]
+set_property -dict [list READ_BANDWIDTH 3250 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 3250 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_2a
+
+set hbm4_port1 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM4_PORT2_hbmc]
+set hbm_input_ct2_2b [get_noc_interfaces i_correlator_core/axi_HBM_gen[2].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_ct2_2b [create_noc_connection -source $hbm_input_ct2_2b -target $hbm4_port1]
+set_property -dict [list READ_BANDWIDTH 3250 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 3250 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_2b
+
+set hbm5_port0 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM5_PORT0_hbmc]
+set hbm_input_ct2_2c [get_noc_interfaces i_correlator_core/axi_HBM_gen[2].i_hbm_noc/S_AXI_nmu]
+set hbm_conn_ct2_2c [create_noc_connection -source $hbm_input_ct2_2c -target $hbm5_port0]
+set_property -dict [list READ_BANDWIDTH 3250 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 3250 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_2c
+
+
+######################################
+# 1GB for Corr_1 output
 set hbm_port_4 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM8_PORT0_hbmc]
 set hbm_input_4 [get_noc_interfaces i_correlator_core/axi_HBM_gen[3].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_4 [create_noc_connection -source $hbm_input_4 -target $hbm_port_4]
 set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_4
 
+######################################
+# 1GB for Corr_2 output
 set hbm_port_5 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM10_PORT0_hbmc]
 set hbm_input_5 [get_noc_interfaces i_correlator_core/axi_HBM_gen[4].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_5 [create_noc_connection -source $hbm_input_5 -target $hbm_port_5]
 set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_5
 
+# 4GB for ILA
 set hbm_port_6 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM12_PORT0_hbmc]
 set hbm_input_6 [get_noc_interfaces i_correlator_core/axi_HBM_gen[5].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_6 [create_noc_connection -source $hbm_input_6 -target $hbm_port_6]

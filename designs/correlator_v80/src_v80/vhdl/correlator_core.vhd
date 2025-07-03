@@ -9,7 +9,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib;
-LIBRARY noc_lib, versal_dcmac_lib, system_lib;
+LIBRARY noc_lib, versal_dcmac_lib, system_lib, signal_processing_common;
 
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -143,8 +143,15 @@ constant C_SIM      : boolean := FALSE;
         clk_out1 : out STD_LOGIC
     );
     end component;
-    
-    COMPONENT ila_twoby256_16k
+
+    component clk_mmcm_450 is
+    Port ( 
+        clk_in1 : in STD_LOGIC;
+        clk_out1 : out STD_LOGIC
+    );
+    end component;
+        
+    COMPONENT ila_twoby256_4k
     PORT (
         clk : IN STD_LOGIC;
         probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0);
@@ -152,7 +159,7 @@ constant C_SIM      : boolean := FALSE;
     );
     END COMPONENT;
     
-    constant NOC_DATA_WIDTH     : integer   := 512;                 -- 32/64/128/256/512
+    constant NOC_DATA_WIDTH     : integer   := 256;                 -- 32/64/128/256/512
     constant NOC_ADDR_WIDTH     : integer   := 64;                  -- 12 to 64
     constant NOC_ID_WIDTH       : integer   := 1;                   -- 1 to 16
     constant NOC_AUSER_WIDTH    : integer   := 16;                  -- 16 for VNOC with parity disabled, 18 for VNOC with parity enabled 
@@ -187,6 +194,11 @@ constant C_SIM      : boolean := FALSE;
 
     signal clk400 : std_logic;
     signal clk425 : std_logic;
+    
+    signal clk_450          : std_logic;
+    signal clk_450_rst      : std_logic := '1';
+    signal clk_450_rst_cnt  : unsigned(31 downto 0) := x"00001000";
+    
     signal clk_gt_freerun_use : std_logic;
     
     signal eth100G_uptime : std_logic_vector(31 downto 0) := (others => '0');
@@ -220,6 +232,32 @@ constant C_SIM      : boolean := FALSE;
     signal hbm_rst_dbg              : t_slv_32_arr(5 downto 0);
     signal hbm_reset_combined       : std_logic_vector(5 downto 0);
     
+    ---------------------------------------------------------------------------------------
+    -- HBM GASKET
+    signal slave_wr_data_bus        : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
+    signal slave_wr_addr_bus        : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
+    
+    signal slave_rd_data_bus        : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
+    signal slave_rd_addr_bus        : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
+    
+    signal master_wr_data_bus       : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
+    signal master_wr_addr_bus       : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
+    
+    signal master_rd_data_bus       : t_axi4_full_data_arr(g_HBM_INTERFACES-1 downto 0);
+    signal master_rd_addr_bus       : t_axi4_full_addr_arr(g_HBM_INTERFACES-1 downto 0);
+    
+    signal slave_wr_data_bus_rdy    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal slave_wr_addr_bus_rdy    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    
+    signal slave_rd_data_bus_rdy    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal slave_rd_addr_bus_rdy    : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    
+    signal master_wr_data_bus_rdy   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal master_wr_addr_bus_rdy   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    
+    signal master_rd_data_bus_rdy   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+    signal master_rd_addr_bus_rdy   : std_logic_vector(g_HBM_INTERFACES-1 downto 0);
+
     ---------------------------------------------------------------------------------------
     -- AXI4 interfaces for accessing HBM
     -- 0 = 3 Gbytes for LFAA ingest corner turn 
@@ -282,12 +320,12 @@ constant C_SIM      : boolean := FALSE;
     -- V80 contains 32GB of HBM
     -- Base address for this is 0x40_0000_0000
     -- Biggest HBM block in Correlator is 4GB
-    constant HBM_base_addr  : t_slv_64_arr(g_HBM_interfaces-1 downto 0) := ( x"0000004000000000",   -- Base
-                                                                             x"0000004100000000",   -- +4GB addr
-                                                                             x"0000004200000000",   -- +4GB addr
-                                                                             x"0000004300000000",   -- +4GB addr
+    constant HBM_base_addr  : t_slv_64_arr(g_HBM_interfaces-1 downto 0) := ( x"0000004500000000",   -- Base         
                                                                              x"0000004400000000",   -- +4GB addr
-                                                                             x"0000004500000000"    -- +4GB addr
+                                                                             x"0000004300000000",   -- +4GB addr
+                                                                             x"0000004200000000",   -- +4GB addr
+                                                                             x"0000004100000000",   -- +4GB addr
+                                                                             x"0000004700000000"    -- +4GB addr    -- LFAA
                                                                             );
 
 
@@ -357,13 +395,31 @@ begin
         clk_in1     => clk_100,
         clk_out1    => clk425
     );
-   
+
+    i_mmcm_450 : clk_mmcm_450
+    Port map ( 
+        clk_in1     => clk_100,
+        clk_out1    => clk_450
+    );
+    
+    reset_450_proc : process(clk_450)
+    begin
+        if rising_edge(clk_450) then
+            if clk_450_rst_cnt = 1 then
+                clk_450_rst     <= '0';
+            else
+                clk_450_rst_cnt <= clk_450_rst_cnt - 1;
+                clk_450_rst     <= '1';
+            end if;
+        end if;
+    end process;
+
     ---------------------------------------------------------------------------
     -- System Peripheral Registers  --
     ---------------------------------------------------------------------------
     i_system_noc : entity noc_lib.args_noc
     generic map (
-        G_DEBUG         => TRUE,
+        G_DEBUG         => FALSE,
         G_TEST_HARNESS  => FALSE
     )
     port map ( 
@@ -655,76 +711,78 @@ i_axis_tvalid_gated <= i_axis_tvalid;
 --        -----------------------------------------------------
 --    );    
     
-   hbm_LFAAin_ila: ila_twoby256_16k
-    PORT MAP (
-        clk                     => clk_300,
-        probe0(0)               => HBM_axi_wid(0)(0),
-        probe0(1)               => HBM_axi_wuser(0)(0),
-        probe0(2)               => HBM_axi_ruser(0)(0),
-        probe0(3)               => HBM_axi_awready(0),
-        probe0(19 downto 4)     => HBM_axi_buser(0),
-        probe0(35 downto 20)    => HBM_axi_aruser(0),
+--   hbm_LFAAin_ila: ila_twoby256_4k
+--    PORT MAP (
+--        clk                     => clk_450,
+--        probe0(0)               => HBM_axi_wid(0)(0),
+--        probe0(1)               => HBM_axi_wuser(0)(0),
+--        probe0(2)               => HBM_axi_ruser(0)(0),
+--        probe0(3)               => master_wr_addr_bus_rdy(0),
+--        probe0(19 downto 4)     => HBM_axi_buser(0),
+--        probe0(35 downto 20)    => HBM_axi_aruser(0),
 
-        probe0(36)              => HBM_axi_aw(0).valid,
-        probe0(39 downto 37)    => HBM_axi_awsize(0),
-        probe0(103 downto 40)   => HBM_axi_awaddr(0),
+--        probe0(36)              => master_wr_addr_bus(0).valid,
+--        probe0(39 downto 37)    => HBM_axi_awsize(0),
+--        probe0(103 downto 40)   => HBM_axi_awaddr(0),
 
-        probe0(111 downto 104)  => HBM_axi_aw(0).len,
+--        probe0(111 downto 104)  => master_wr_addr_bus(0).len,
     
-        probe0(113 downto 112)  => HBM_axi_awburst(0),
-        probe0(114)             => HBM_axi_awlock(0)(0),
-        probe0(118 downto 115)  => HBM_axi_awcache(0),
-        probe0(121 downto 119)  => HBM_axi_awprot(0),
-        probe0(125 downto 122)  => HBM_axi_awqos(0),
-        probe0(129 downto 126)  => HBM_axi_awregion(0),
+--        probe0(113 downto 112)  => HBM_axi_awburst(0),
+--        probe0(114)             => HBM_axi_awlock(0)(0),
+--        probe0(118 downto 115)  => HBM_axi_awcache(0),
+--        probe0(121 downto 119)  => HBM_axi_awprot(0),
+--        probe0(125 downto 122)  => HBM_axi_awqos(0),
+--        probe0(129 downto 126)  => HBM_axi_awregion(0),
     
-        probe0(130)             => HBM_axi_w(0).valid,
-        probe0(131)             => HBM_axi_wready(0),
-        probe0(132)             => HBM_axi_w(0).last,
-        probe0(133)             => HBM_axi_bvalid(0),
-        probe0(134)             => HBM_axi_bready(0),
-        probe0(136 downto 135)  => HBM_axi_bresp(0),
-        probe0(137)             => HBM_axi_bid(0)(0),
+--        probe0(130)             => master_wr_data_bus(0).valid,
+--        probe0(131)             => master_wr_data_bus_rdy(0),
+--        probe0(132)             => master_wr_data_bus(0).last,
+--        probe0(133)             => HBM_axi_bvalid(0),
+--        probe0(134)             => HBM_axi_bready(0),
+--        probe0(136 downto 135)  => HBM_axi_bresp(0),
+--        probe0(137)             => HBM_axi_bid(0)(0),
 
-        probe0(159 downto 138)  => (others => '0'),
+--        probe0(159 downto 138)  => (others => '0'),
 
-        probe0(191 downto 160)  => HBM_axi_w(0).data(31 downto 0),
-        probe0(255 downto 192)  => HBM_axi_wstrb(0),
+--        probe0(191 downto 160)  => master_wr_data_bus(0).data(31 downto 0),
+--        probe0(255 downto 192)  => HBM_axi_wstrb(0),
 
 
-        probe1(63 downto 0)     => HBM_axi_araddr(0),
-        probe1(71 downto 64)    => HBM_axi_ar(0).len,
-        probe1(75 downto 72)    => HBM_axi_arcache(0),
-        probe1(79 downto 76)    => HBM_axi_arqos(0),
+--        probe1(63 downto 0)     => HBM_axi_araddr(0),
+--        probe1(71 downto 64)    => master_rd_addr_bus(0).len,
+--        probe1(75 downto 72)    => HBM_axi_arcache(0),
+--        probe1(79 downto 76)    => HBM_axi_arqos(0),
 
-        probe1(95 downto 80)    => HBM_axi_awuser(0),
-        probe1(99 downto 96)    => HBM_axi_arregion(0),
+--        probe1(95 downto 80)    => HBM_axi_awuser(0),
+--        probe1(99 downto 96)    => HBM_axi_arregion(0),
 
-        probe1(102 downto 100)  => HBM_axi_arsize(0),
-        probe1(105 downto 103)  => HBM_axi_arprot(0),
-        probe1(107 downto 106)  => HBM_axi_arburst(0),
-        probe1(109 downto 108)  => HBM_axi_r(0).resp,
+--        probe1(102 downto 100)  => HBM_axi_arsize(0),
+--        probe1(105 downto 103)  => HBM_axi_arprot(0),
+--        probe1(107 downto 106)  => HBM_axi_arburst(0),
+--        probe1(109 downto 108)  => master_wr_data_bus(0).resp,
 
-        probe1(110)             => HBM_axi_arid(0)(0),
-        probe1(111)             => HBM_axi_arlock(0)(0),
-        probe1(112)             => HBM_axi_r(0).valid,
-        probe1(113)             => HBM_axi_rready(0),
-        probe1(114)             => HBM_axi_r(0).last,
-        probe1(116 downto 115)  => HBM_axi_r(0).resp,
-        probe1(117)             => HBM_axi_rid(0)(0),
+--        probe1(110)             => HBM_axi_arid(0)(0),
+--        probe1(111)             => HBM_axi_arlock(0)(0),
+--        probe1(112)             => master_rd_data_bus(0).valid,
+--        probe1(113)             => master_rd_data_bus_rdy(0),
+--        probe1(114)             => master_rd_data_bus(0).last,
+--        probe1(116 downto 115)  => master_rd_data_bus(0).resp,
+--        probe1(117)             => HBM_axi_rid(0)(0),
 
-        probe1(118)             => HBM_axi_ar(0).valid,
-        probe1(119)             => HBM_axi_arready(0),
+--        probe1(118)             => master_rd_addr_bus(0).valid,
+--        probe1(119)             => master_rd_addr_bus_rdy(0),
 
-        probe1(127 downto 120)  => ( others => '0' ),
-        probe1(159 downto 128)  => std_logic_vector(HBM_ila_counter),
-        probe1(255 downto 160)  => HBM_axi_r(0).data(95 downto 0)
+--        probe1(127 downto 120)  => ( others => '0' ),
+--        probe1(159 downto 128)  => std_logic_vector(HBM_ila_counter),
+--        probe1(255 downto 160)  => master_rd_data_bus(0).data(95 downto 0)
 
-    );
+--    );
+
+
     -----------------------------------------------------------------------------------------------------------
-    hbm_ila_debug_chk : process(clk_300)
+    hbm_ila_debug_chk : process(clk_450)
     begin
-        if rising_edge(clk_300) then
+        if rising_edge(clk_450) then
             HBM_ila_counter <= HBM_ila_counter + 1;
         end if;
     end process;
@@ -732,23 +790,85 @@ i_axis_tvalid_gated <= i_axis_tvalid;
     
 axi_HBM_gen : for i in 0 to 5 generate
 
+    hbm_gasket : entity signal_processing_common.axi512_to_256
+        Port Map (
+            -- 256 wide connects to NOC MASTER UNIT.
+            ---------------------------------------------------------
+            -- 512 bit wide slave interface
+            -- w bus
+            i_clk_s         => clk_300,
+            i_clk_reset_s   => clk_300_rst,
+
+            i_axi_w_s       => slave_wr_data_bus(i),  -- write data (.valid, .data(511:0), .last, .resp(1:0))   
+            o_axi_wready_s  => slave_wr_data_bus_rdy(i),
+            -- aw bus - write address
+            i_axi_aw_s      => slave_wr_addr_bus(i),
+            o_axi_awready_s => slave_wr_addr_bus_rdy(i),
+            -- b bus - write response; not used; o_axi_b.valid is tied to '0'
+            o_axi_b_s       => open, -- we don't use this.
+            -- ar bus - read address
+            i_axi_ar_s      => slave_rd_addr_bus(i),
+            o_axi_arready_s => slave_rd_addr_bus_rdy(i),
+            -- r bus - read data
+            o_axi_r_s       => slave_rd_data_bus(i),
+            i_axi_rready_s  => slave_rd_data_bus_rdy(i),
+            ---------------------------------------------------------
+            -- 256 bit wide master interface
+            -- w bus
+            i_clk_m         => clk_450,
+            i_clk_reset_m   => clk_450_rst,
+
+            o_axi_w         => master_wr_data_bus(i),
+            i_axi_wready    => master_wr_data_bus_rdy(i),
+            -- aw bus - write address
+            o_axi_aw        => master_wr_addr_bus(i),
+            i_axi_awready   => master_wr_addr_bus_rdy(i),
+            -- b bus - write response
+            i_axi_b.valid   => '0',
+            i_axi_b.resp    => "00",
+            -- ar bus - read address
+            o_axi_ar        => master_rd_addr_bus(i),
+            i_axi_arready   => master_rd_addr_bus_rdy(i),
+            -- r bus - read data
+            i_axi_r         => master_rd_data_bus(i),
+            o_axi_rready    => master_rd_data_bus_rdy(i),      -- we are always ready
+            ----------------------------------------------------------
+            -- Status
+            o_status        => open
+        );
+
+    slave_wr_data_bus(i)        <= HBM_axi_w(i);
+    HBM_axi_wready(i)           <= slave_wr_data_bus_rdy(i);
+
+    slave_wr_addr_bus(i)        <= HBM_axi_aw(i);
+    HBM_axi_awready(i)          <= slave_wr_addr_bus_rdy(i);
+    
+
+    HBM_axi_r(i)                <= slave_rd_data_bus(i);
+    slave_rd_data_bus_rdy(i)    <= HBM_axi_rready(i);
+    
+    slave_rd_addr_bus(i)        <= HBM_axi_ar(i);
+    HBM_axi_arready(i)          <= slave_rd_addr_bus_rdy(i);
+
+
+    ------------------------------------------------------------------------------------
     -- ar and aw addresses need to be set to the correct offset within the HBM
-    HBM_axi_araddr256Mbyte(i)          <= HBM_axi_ar(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
+    HBM_axi_araddr256Mbyte(i)          <= master_rd_addr_bus(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
     HBM_axi_araddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
     HBM_axi_araddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_araddr256Mbyte(i)));
-    HBM_axi_araddr(i)(27 downto 0)     <= HBM_axi_ar(i).addr(27 downto 0);
+    HBM_axi_araddr(i)(27 downto 0)     <= master_rd_addr_bus(i).addr(27 downto 0);
     
-    HBM_axi_awaddr256Mbyte(i)          <= HBM_axi_aw(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
+    HBM_axi_awaddr256Mbyte(i)          <= master_wr_addr_bus(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
     HBM_axi_awaddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
     HBM_axi_awaddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_awaddr256Mbyte(i)));
-    HBM_axi_awaddr(i)(27 downto 0)     <= HBM_axi_aw(i).addr(27 downto 0);
+    HBM_axi_awaddr(i)(27 downto 0)     <= master_wr_addr_bus(i).addr(27 downto 0);
     
     -- register slice ports that have a fixed value.
-    HBM_axi_awsize(i)       <= get_axi_size(g_HBM_AXI_DATA_WIDTH);
+    HBM_axi_awsize(i)       <= get_axi_size(NOC_DATA_WIDTH);
     HBM_axi_awburst(i)      <= "01";   -- "01" indicates incrementing addresses for each beat in the burst.  -- out std_logic_vector(1 downto 0);
     HBM_axi_bready(i)       <= '1';  -- Always accept acknowledgement of write transactions. -- out std_logic;
     HBM_axi_wstrb(i)        <= (others => '1');  -- We always write all bytes in the bus. --  out std_logic_vector(63 downto 0);
-    HBM_axi_arsize(i)       <= get_axi_size(g_HBM_AXI_DATA_WIDTH);   -- 6 = 64 bytes per beat = 512 bit wide bus. -- out std_logic_vector(2 downto 0);
+    HBM_axi_arsize(i)       <= get_axi_size(NOC_DATA_WIDTH);   -- 6 = 64 bytes per beat = 512 bit wide bus. -- out std_logic_vector(2 downto 0);
     HBM_axi_arburst(i)      <= "01";    -- "01" = incrementing address for each beat in the burst. -- out std_logic_vector(1 downto 0);
     
     -- these have no ports on the axi register slice
@@ -782,14 +902,14 @@ axi_HBM_gen : for i in 0 to 5 generate
             SIDEBAND_PINS => "false"		-- false/true/addr/data
         )
         port map ( 
-            s_axi_aclk              => clk_300,
+            s_axi_aclk              => clk_450,
             
             -----------------------------------------------------
             -- To Logic
             -- ADDR
             s_axi_awid              => HBM_axi_awid(i),
             s_axi_awaddr            => HBM_axi_awaddr(i), --HBM_axi_aw(i).addr,
-            s_axi_awlen             => HBM_axi_aw(i).len,
+            s_axi_awlen             => master_wr_addr_bus(i).len,
             s_axi_awsize            => HBM_axi_awsize(i),
             s_axi_awburst           => HBM_axi_awburst(i),
             s_axi_awlock            => HBM_axi_awlock(i),
@@ -798,17 +918,17 @@ axi_HBM_gen : for i in 0 to 5 generate
             s_axi_awregion          => HBM_axi_awregion(i),
             s_axi_awqos             => HBM_axi_awqos(i),
             s_axi_awuser            => HBM_axi_awuser(i),                -- Where does this go?
-            s_axi_awvalid           => HBM_axi_aw(i).valid,
-            s_axi_awready           => HBM_axi_awready(i),
+            s_axi_awvalid           => master_wr_addr_bus(i).valid,
+            s_axi_awready           => master_wr_addr_bus_rdy(i),
 
             -- DATA
             s_axi_wid               => HBM_axi_wid(i),
-            s_axi_wdata             => HBM_axi_w(i).data,
-            s_axi_wstrb             => HBM_axi_wstrb(i),
-            s_axi_wlast             => HBM_axi_w(i).last,
+            s_axi_wdata             => master_wr_data_bus(i).data(255 downto 0),
+            s_axi_wstrb             => HBM_axi_wstrb(i)(31 downto 0),
+            s_axi_wlast             => master_wr_data_bus(i).last,
             s_axi_wuser             => HBM_axi_wuser(i),
-            s_axi_wvalid            => HBM_axi_w(i).valid,
-            s_axi_wready            => HBM_axi_wready(i),
+            s_axi_wvalid            => master_wr_data_bus(i).valid,
+            s_axi_wready            => master_wr_data_bus_rdy(i),
 
             s_axi_bid               => HBM_axi_bid(i),
             s_axi_bresp             => HBM_axi_b(i).resp,
@@ -821,7 +941,7 @@ axi_HBM_gen : for i in 0 to 5 generate
 
             s_axi_arid              => HBM_axi_arid(i),
             s_axi_araddr            => HBM_axi_araddr(i), --HBM_axi_ar(i).addr,
-            s_axi_arlen             => HBM_axi_ar(i).len,
+            s_axi_arlen             => master_rd_addr_bus(i).len,
             s_axi_arsize            => HBM_axi_arsize(i),
             s_axi_arburst           => HBM_axi_arburst(i),
             s_axi_arlock            => HBM_axi_arlock(i),
@@ -830,17 +950,17 @@ axi_HBM_gen : for i in 0 to 5 generate
             s_axi_arregion          => HBM_axi_arregion(i),
             s_axi_arqos             => HBM_axi_arqos(i),
             s_axi_aruser            => HBM_axi_aruser(i),
-            s_axi_arvalid           => HBM_axi_ar(i).valid,
-            s_axi_arready           => HBM_axi_arready(i),
+            s_axi_arvalid           => master_rd_addr_bus(i).valid,
+            s_axi_arready           => master_rd_addr_bus_rdy(i),
 
             -- DATA
             s_axi_rid               => HBM_axi_rid(i),
-            s_axi_rdata             => HBM_axi_r(i).data,
-            s_axi_rresp             => HBM_axi_r(i).resp,
-            s_axi_rlast             => HBM_axi_r(i).last,
+            s_axi_rdata             => master_rd_data_bus(i).data(255 downto 0),
+            s_axi_rresp             => master_rd_data_bus(i).resp,
+            s_axi_rlast             => master_rd_data_bus(i).last,
             s_axi_ruser             => HBM_axi_ruser(i),
-            s_axi_rvalid            => HBM_axi_r(i).valid,
-            s_axi_rready            => HBM_axi_rready(i),
+            s_axi_rvalid            => master_rd_data_bus(i).valid,
+            s_axi_rready            => master_rd_data_bus_rdy(i),
             
             nmu_usr_interrupt_in    => x"0"
         
