@@ -302,6 +302,7 @@ signal find_page_flip               : std_logic := '0';
 signal current_page_ct1             : std_logic;
 
 signal debug_packed_fifo            : std_logic_vector(31 downto 0);
+signal debug_packed_fifo_reg        : std_logic_vector(31 downto 0);
 
 --------------------------------------------------------------------------------
 begin
@@ -1071,6 +1072,8 @@ end process;
 
             debug_packed_fifo(15 downto 0)  <= "000" & packed_fifo_wr_count;
             dbg_bytes_in_heap_trkr          <= bytes_in_heap_tracker;
+
+            debug_packed_fifo_reg           <= debug_packed_fifo;
         end if;
     end process;
 
@@ -1096,7 +1099,7 @@ end process;
     hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
 
     hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
-    hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo;
+    hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo_reg;
     hbm_rd_debug_ro.debug_bytes_in_heap_trkr    <= std_logic_vector(dbg_bytes_in_heap_trkr);
     
     testmode_select				<= hbm_rd_debug_rw.testmode_select;
