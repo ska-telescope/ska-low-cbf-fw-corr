@@ -302,6 +302,7 @@ signal find_page_flip               : std_logic := '0';
 signal current_page_ct1             : std_logic;
 
 signal debug_packed_fifo            : std_logic_vector(31 downto 0);
+signal debug_packed_fifo_reg        : std_logic_vector(31 downto 0);
 
 --------------------------------------------------------------------------------
 begin
@@ -694,7 +695,7 @@ begin
 
                     when CALC =>
                         pack_it_fsm_debug   <= x"2";
-                        if unsigned(packed_fifo_wr_count) < 256 then
+                        if packed_fifo_wr_count(12 downto 9) = "0000" then --unsigned(packed_fifo_wr_count) < 256 then
                             -- Mux into vector the starting row number and add to end the number of reads for the triangle on 16x16 basis.
                             data_rd_counter(12 downto 0)    <= matrix_tracker(9 downto 0) & read_keep_per_line(strut_counter)(2 downto 0);
                             data_wr_counter(12 downto 0)    <= matrix_tracker(8 downto 0) & write_per_line(strut_counter)(3 downto 0);
@@ -1004,7 +1005,7 @@ end process;
                 -- 128 deep = 8K data + vis, match this against the programmed desired data chunk size.
                 -- i_from_spead_pack.spead_data_heap_size(15 downto 0)      8192 = bit 13.
 
-                if packed_fifo_rd_count(12 downto 0) >= i_from_spead_pack.spead_data_heap_size(13 downto 6) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
+                if packed_fifo_rd_count(12 downto 0) >= ("00000" & i_from_spead_pack.spead_data_heap_size(13 downto 6)) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
                     send_spead_data     <= "01";
                     bytes_to_packetise  <= bytes_to_send; --14D"8192";                       -- stream out 8k.
                 elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
@@ -1071,6 +1072,8 @@ end process;
 
             debug_packed_fifo(15 downto 0)  <= "000" & packed_fifo_wr_count;
             dbg_bytes_in_heap_trkr          <= bytes_in_heap_tracker;
+
+            debug_packed_fifo_reg           <= debug_packed_fifo;
         end if;
     end process;
 
@@ -1096,7 +1099,7 @@ end process;
     hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
 
     hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
-    hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo;
+    hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo_reg;
     hbm_rd_debug_ro.debug_bytes_in_heap_trkr    <= std_logic_vector(dbg_bytes_in_heap_trkr);
     
     testmode_select				<= hbm_rd_debug_rw.testmode_select;
