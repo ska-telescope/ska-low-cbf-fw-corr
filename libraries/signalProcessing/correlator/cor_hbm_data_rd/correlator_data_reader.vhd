@@ -163,6 +163,8 @@ signal packed_fifo_data     : std_logic_vector(271 downto 0);
 signal packed_fifo_full     : std_logic;
 signal packed_fifo_wr_count : std_logic_vector(((ceil_log2(packed_depth))) downto 0);
 
+signal packed_fifo_wr_pipe  : std_logic_vector(7 downto 0) := x"00";
+
 signal packed_fifo_wr_cnt_reg : unsigned(((ceil_log2(packed_depth))) downto 0);
 
 signal packed_fifo_data_d1  : std_logic_vector(271 downto 0);
@@ -649,6 +651,7 @@ begin
                 hbm_data_rd_en      <= '0';
                 reset_cache_fifos   <= '0';
                 matrix_packed       <= "00";
+                packed_fifo_wr_pipe <= x"00";
             else
 
                 case pack_it_fsm is
@@ -788,6 +791,7 @@ begin
 
                 matrix_packed(1)    <= matrix_packed(0);
 
+                packed_fifo_wr_pipe <= packed_fifo_wr_pipe(6 downto 0) & packed_fifo_wr;
             end if;
         end if;
     end process;
@@ -1005,21 +1009,23 @@ end process;
                 -- 128 deep = 8K data + vis, match this against the programmed desired data chunk size.
                 -- i_from_spead_pack.spead_data_heap_size(15 downto 0)      8192 = bit 13.
 
-                if packed_fifo_rd_count(12 downto 0) >= ("00000" & i_from_spead_pack.spead_data_heap_size(13 downto 6)) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
+                if (spead_data_rd = '1') OR (packed_fifo_empty = '1') then
+                    send_spead_data     <= "00";
+                elsif packed_fifo_rd_count(12 downto 0) >= ("00000" & i_from_spead_pack.spead_data_heap_size(13 downto 6)) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
                     send_spead_data     <= "01";
                     bytes_to_packetise  <= bytes_to_send; --14D"8192";                       -- stream out 8k.
                 elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
                     bytes_to_packetise  <= bytes_to_process(13 downto 0);
                     send_spead_data     <= "01";
-                elsif (spead_data_rd = '1') OR (packed_fifo_empty = '1') then
-                    send_spead_data     <= "00";
+--                elsif (spead_data_rd = '1') OR (packed_fifo_empty = '1') then
+--                    send_spead_data     <= "00";
                 end if;
 
                 if (pack_it_fsm = IDLE)  then
                     bytes_to_process        <= ( others => '0');
                     bytes_in_heap_tracker   <= bytes_in_heap;
                     bytes_to_process_dbg    <= ( others => '0');
-                elsif packed_fifo_rd = '1' AND packed_fifo_wr = '1' then
+                elsif packed_fifo_rd = '1' AND packed_fifo_wr_pipe(7) = '1' then
                     bytes_to_process        <= bytes_to_process - 30;
                     bytes_to_process_dbg    <= bytes_to_process_dbg + 34;
                     bytes_in_heap_tracker   <= bytes_in_heap_tracker - 64;
@@ -1027,7 +1033,7 @@ end process;
                     bytes_to_process    <= bytes_to_process - 64;
 
                     bytes_in_heap_tracker   <= bytes_in_heap_tracker - 64;
-                elsif packed_fifo_wr = '1' then
+                elsif packed_fifo_wr_pipe(7) = '1' then
                     bytes_to_process        <= bytes_to_process + 34;
                     bytes_to_process_dbg    <= bytes_to_process_dbg + 34;
                 end if;
@@ -1064,7 +1070,11 @@ end process;
                 end if;
                 
                 if (packed_fifo_wr_cnt_reg >= 4000) AND (aligned_packed_wr_d = '1') then
-                    debug_packed_fifo(31 downto 16) <= std_logic_vector(unsigned(debug_packed_fifo(31 downto 16)) + 1);
+                    debug_packed_fifo(23 downto 16) <= std_logic_vector(unsigned(debug_packed_fifo(23 downto 16)) + 1);
+                end if;
+                
+                if (packed_fifo_rd ='1') AND (packed_fifo_q_valid = '0') then
+                    debug_packed_fifo(31 downto 24) <= std_logic_vector(unsigned(debug_packed_fifo(31 downto 24)) + 1);
                 end if;
             end if;
 
