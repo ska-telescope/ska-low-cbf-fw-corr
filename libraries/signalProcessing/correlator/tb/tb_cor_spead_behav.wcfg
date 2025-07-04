@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="2,676,945.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="2,683,405.001 ns"></ZoomEndTime>
-      <Cursor1Time time="2,679,620.000 ns"></Cursor1Time>
+      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
+      <ZoomEndTime time="624.000001 us"></ZoomEndTime>
+      <Cursor1Time time="35.000000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="263"></NameColumnWidth>
-      <ValueColumnWidth column_width="84"></ValueColumnWidth>
+      <ValueColumnWidth column_width="76"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="523" />
+   <WVObjectSize size="524" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -899,14 +899,6 @@
       <obj_property name="ElementShortName">hbm_data_fifo_rd</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_rd</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/hbm_data_rd_fifo_mux">
-      <obj_property name="ElementShortName">hbm_data_rd_fifo_mux</obj_property>
-      <obj_property name="ObjectShortName">hbm_data_rd_fifo_mux</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_debug">
-      <obj_property name="ElementShortName">i_debug[0:0]</obj_property>
-      <obj_property name="ObjectShortName">i_debug[0:0]</obj_property>
-   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_q">
       <obj_property name="ElementShortName">hbm_data_fifo_q[511:0]</obj_property>
       <obj_property name="ObjectShortName">hbm_data_fifo_q[511:0]</obj_property>
@@ -1031,11 +1023,6 @@
       <obj_property name="ElementShortName">packed_fifo_rd</obj_property>
       <obj_property name="ObjectShortName">packed_fifo_rd</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_process">
-      <obj_property name="ElementShortName">bytes_to_process[31:0]</obj_property>
-      <obj_property name="ObjectShortName">bytes_to_process[31:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_packetise">
       <obj_property name="ElementShortName">bytes_to_packetise[13:0]</obj_property>
       <obj_property name="ObjectShortName">bytes_to_packetise[13:0]</obj_property>
@@ -1051,9 +1038,50 @@
       <obj_property name="ObjectShortName">packed_fifo_q[511:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_rd_count">
-      <obj_property name="ElementShortName">packed_fifo_rd_count[9:0]</obj_property>
-      <obj_property name="ObjectShortName">packed_fifo_rd_count[9:0]</obj_property>
+      <obj_property name="ElementShortName">packed_fifo_rd_count[12:0]</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_rd_count[12:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size">
+      <obj_property name="ElementShortName">.spead_data_heap_size[15:0]</obj_property>
+      <obj_property name="ObjectShortName">.spead_data_heap_size[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="vbus" fp_name="vbus3715">
+      <obj_property name="label">spead_data_heap 13 to 6</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[13]">
+         <obj_property name="ElementShortName">[13]</obj_property>
+         <obj_property name="ObjectShortName">[13]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[12]">
+         <obj_property name="ElementShortName">[12]</obj_property>
+         <obj_property name="ObjectShortName">[12]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[11]">
+         <obj_property name="ElementShortName">[11]</obj_property>
+         <obj_property name="ObjectShortName">[11]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[10]">
+         <obj_property name="ElementShortName">[10]</obj_property>
+         <obj_property name="ObjectShortName">[10]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[9]">
+         <obj_property name="ElementShortName">[9]</obj_property>
+         <obj_property name="ObjectShortName">[9]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[8]">
+         <obj_property name="ElementShortName">[8]</obj_property>
+         <obj_property name="ObjectShortName">[8]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[7]">
+         <obj_property name="ElementShortName">[7]</obj_property>
+         <obj_property name="ObjectShortName">[7]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[6]">
+         <obj_property name="ElementShortName">[6]</obj_property>
+         <obj_property name="ObjectShortName">[6]</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/data_rd_counter">
       <obj_property name="ElementShortName">data_rd_counter[12:0]</obj_property>
@@ -1113,6 +1141,10 @@
       <obj_property name="ElementShortName">meta_data_rd[3:0]</obj_property>
       <obj_property name="ObjectShortName">meta_data_rd[3:0]</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_wr_pipe">
+      <obj_property name="ElementShortName">packed_fifo_wr_pipe[7:0]</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_wr_pipe[7:0]</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/spead_data_pending">
       <obj_property name="ElementShortName">spead_data_pending</obj_property>
       <obj_property name="ObjectShortName">spead_data_pending</obj_property>
@@ -1166,6 +1198,11 @@
          <obj_property name="ElementShortName">[6]</obj_property>
          <obj_property name="ObjectShortName">[6]</obj_property>
       </wvobject>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_to_process">
+      <obj_property name="ElementShortName">bytes_to_process[31:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_to_process[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_in_heap_tracker">
       <obj_property name="ElementShortName">bytes_in_heap_tracker[31:0]</obj_property>
@@ -1628,8 +1665,8 @@
       </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_rd_count">
-      <obj_property name="ElementShortName">packed_fifo_rd_count[9:0]</obj_property>
-      <obj_property name="ObjectShortName">packed_fifo_rd_count[9:0]</obj_property>
+      <obj_property name="ElementShortName">packed_fifo_rd_count[12:0]</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_rd_count[12:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/byte_count">
@@ -1854,8 +1891,8 @@
       <obj_property name="ObjectShortName">reset</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_rd_count">
-      <obj_property name="ElementShortName">packed_fifo_rd_count[9:0]</obj_property>
-      <obj_property name="ObjectShortName">packed_fifo_rd_count[9:0]</obj_property>
+      <obj_property name="ElementShortName">packed_fifo_rd_count[12:0]</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_rd_count[12:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size">
