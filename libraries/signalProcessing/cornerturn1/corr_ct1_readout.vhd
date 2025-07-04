@@ -171,11 +171,11 @@ entity corr_ct1_readout is
         o_dbg_vec : out std_logic_vector(255 downto 0);
         o_dbg_valid : out std_logic;
         -- mismatch between output and expected when sending debug data inserted in lfaaIngest
-        o_dbgCheckData0 : out std_logic_vector(31 downto 0);
+        o_dbgCheckData0 : out std_logic_vector(31 downto 0);  -- expected
         o_dbgCheckData1 : out std_logic_vector(31 downto 0);
         o_dbgCheckData2 : out std_logic_vector(31 downto 0);
         o_dbgCheckData3 : out std_logic_vector(31 downto 0);
-        o_dbgBadData0 : out std_logic_vector(31 downto 0);
+        o_dbgBadData0 : out std_logic_vector(31 downto 0);   -- actual first time it doesnt match expected
         o_dbgBadData1 : out std_logic_vector(31 downto 0);
         o_dbgBadData2 : out std_logic_vector(31 downto 0);
         o_dbgBadData3 : out std_logic_vector(31 downto 0);
