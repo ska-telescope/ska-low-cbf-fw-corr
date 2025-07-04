@@ -2106,13 +2106,16 @@ begin
                 start_checking <= '0';
                 if start_checking = '1' then
                     -- Get the first value being sent for this channel, add 1 to get the next value that should be sent
+                    -- Low 22 bits should count, top 10 bits in each 32-bit word are the station number
                     for i in 0 to 3 loop
-                        readoutCheckData(i) <= std_logic_vector(unsigned(readoutData_int(i)) + 1);
+                        readoutCheckData(i)(21 downto 0) <= std_logic_vector(unsigned(readoutData_int(i)(21 downto 0)) + 1);
+                        readoutCheckData(i)(31 downto 22) <= readoutData_int(i)(21 downto 22);
                     end loop;
                     readout_mismatch <= "0000";
                 else
                     for i in 0 to 3 loop
-                        readoutCheckData(i) <= std_logic_vector(unsigned(readoutCheckData(i)) + 1);
+                        readoutCheckData(i)(31 downto 22) <= readoutCheckData(i)(31 downto 22);
+                        readoutCheckData(i)(21 downto 0) <= std_logic_vector(unsigned(readoutCheckData(i)(21 downto 0)) + 1);
                         if readoutCheckData(i) /= readoutData_int(i) then
                             readout_mismatch(i) <= '1';
                         else
