@@ -699,7 +699,8 @@ begin
         i_m06_axi_r       => m06_axi_r,  -- in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
         o_m06_axi_rready  => m06_rready, -- out std_logic
         --------------------------------------------------------------
-        i_hbm_rst_dbg  => (others => (others => '0')) --  in t_slv_32_arr(5 downto 0)
+        i_m01_axi_rst_dbg => (others => '0'), -- in std_logic_vector(31 downto 0); -- in (31:0)
+        i_m06_axi_rst_dbg => (others => '0')  -- in std_logic_vector(31 downto 0); -- in (31:0)
     );
     
     m01_awaddr <= m01_axi_aw.addr(31 downto 0);

@@ -166,20 +166,21 @@ entity corr_ct1_readout is
         o_Unexpected_rdata : out std_logic; -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
         o_dataMissing : out std_logic;      -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
         o_bad_readstart : out std_logic;    -- read start occured prior to delay calculation finishing for the previous read.
+        o_dFIFO_underflow : out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
         -- Debug data
         o_dbg_vec : out std_logic_vector(255 downto 0);
         o_dbg_valid : out std_logic;
         -- mismatch between output and expected when sending debug data inserted in lfaaIngest
-        o_dbgCheckData0 : out std_logic_vector(31 downto 0);
+        o_dbgCheckData0 : out std_logic_vector(31 downto 0);  -- expected
         o_dbgCheckData1 : out std_logic_vector(31 downto 0);
         o_dbgCheckData2 : out std_logic_vector(31 downto 0);
         o_dbgCheckData3 : out std_logic_vector(31 downto 0);
-        o_dbgBadData0 : out std_logic_vector(31 downto 0);
+        o_dbgBadData0 : out std_logic_vector(31 downto 0);   -- actual first time it doesnt match expected
         o_dbgBadData1 : out std_logic_vector(31 downto 0);
         o_dbgBadData2 : out std_logic_vector(31 downto 0);
         o_dbgBadData3 : out std_logic_vector(31 downto 0);
         o_mismatch_set : out std_logic_vector(3 downto 0);
-        i_reset_mismatch : in std_logic
+        i_reset_mismatch : in std_logic        
     );
 end corr_ct1_readout;
 
@@ -387,6 +388,7 @@ architecture Behavioral of corr_ct1_readout is
     signal reset_mismatch : std_logic := '0';
     signal mismatch_set : std_logic_vector(3 downto 0) := "0000";
     signal readoutCheckData_reg, readoutData_reg : t_slv_32_arr(3 downto 0);
+    signal dFIFO_underflow : std_logic_vector(3 downto 0) := "0000";
 
 begin
     
@@ -1544,6 +1546,7 @@ begin
         rdBufSamplesRemaining(i) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*2048 + 11*4096 + g_RIPPLE_PRELOAD + g_RIPPLE_POSTLOAD,20) + unsigned(sample_offset(i)));
     end generate;
     
+    
     -- Memory readout 
     process(shared_clk)
     begin
@@ -1557,6 +1560,13 @@ begin
             end if;
             
             shared_to_FB_valid_del1 <= shared_to_FB_valid;
+            
+            for i in 0 to 3 loop
+                if bufFIFO_rdEn(i) = '1' and bufFIFO_empty(i) = '1' then
+                    dFIFO_underflow(i) <= '1';
+                end if;
+            end loop;
+            o_dFIFO_underflow <= dFIFO_underflow;
             
             if rstInternal = '1' then
                 bufReadAddr0 <= (others => '0');
@@ -2109,7 +2119,7 @@ begin
                     -- Low 22 bits should count, top 10 bits in each 32-bit word are the station number
                     for i in 0 to 3 loop
                         readoutCheckData(i)(21 downto 0) <= std_logic_vector(unsigned(readoutData_int(i)(21 downto 0)) + 1);
-                        readoutCheckData(i)(31 downto 22) <= readoutData_int(i)(21 downto 22);
+                        readoutCheckData(i)(31 downto 22) <= readoutData_int(i)(31 downto 22);
                     end loop;
                     readout_mismatch <= "0000";
                 else

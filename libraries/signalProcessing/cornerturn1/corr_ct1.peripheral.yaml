@@ -228,6 +228,12 @@ peripherals:
               reset_value       : 0x0
               field_description : "Output lane 3 actual data"
 
+          - - field_name        : dFIFO_underflow
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output FIFO underflow occurred. This should never happen. "
+
           - error:
             - field_name        : input_overflow
               width             : 1

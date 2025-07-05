@@ -1078,6 +1078,7 @@ begin
         o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
         o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
         o_dbg_valid => dbg_vec_valid,  -- out std_logic
+        o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
         -- mismatch between output and expected when sending debug data inserted in lfaaIngest
         o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
         o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
