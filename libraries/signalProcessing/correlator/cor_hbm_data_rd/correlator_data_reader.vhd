@@ -513,7 +513,6 @@ begin
                         -- meta data is packed, 64 bytes = 32 correlations.
                         -- 8 reads per 512 bytes (as a HBM min). Therefore 1 read = 256 lots of meta data.
 
-                        -- revisit this during scale up!!!!
                         if cor_read_cells = 0 then
                             cor_triangle_fsm    <= start;
                             hbm_start           <= '1';
