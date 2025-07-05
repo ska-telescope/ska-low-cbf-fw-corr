@@ -163,6 +163,9 @@ signal packed_fifo_data     : std_logic_vector(271 downto 0);
 signal packed_fifo_full     : std_logic;
 signal packed_fifo_wr_count : std_logic_vector(((ceil_log2(packed_depth))) downto 0);
 
+signal packed_fifo_hold     : std_logic;
+signal packed_fifo_holdd    : std_logic;
+
 signal packed_fifo_wr_pipe  : std_logic_vector(7 downto 0) := x"00";
 
 signal packed_fifo_wr_cnt_reg : unsigned(((ceil_log2(packed_depth))) downto 0);
@@ -209,7 +212,7 @@ signal cor_tri_row_count        : unsigned(8 downto 0);
 signal cor_tri_bad_poly         : std_logic;
 signal cor_tri_table_select     : std_logic;
 
-signal cor_read_cells           : unsigned(16 downto 0);
+signal cor_read_cells           : unsigned(15 downto 0);
 signal cells_to_add             : unsigned(11 downto 0);
 signal cells_to_retrieve        : unsigned(16 downto 0);
 
@@ -273,6 +276,7 @@ signal bytes_in_heap            : unsigned(31 downto 0);
 
 signal bytes_in_heap_tracker    : unsigned(31 downto 0);
 signal dbg_bytes_in_heap_trkr   : unsigned(31 downto 0);
+signal dbg_heap_trkr_start      : std_logic_vector(31 downto 0);
 
 signal matrix_packed            : std_logic_vector(1 downto 0);
 
@@ -482,8 +486,8 @@ begin
                             cor_triangle_fsm            <= calculate_reads;
                         end if;
 
-                        -- how many lots of 16 rows (cells) to retrieve.
-                        cor_read_cells(4 downto 0)      <= cor_tri_row_count(8 downto 4);
+                        -- hold off for parameters in SPEAD packetiser to setup.
+                        cor_read_cells                  <= x"0008";
 
                         -- starting row gives a number of cells ontop of the first.
                         -- row 0 = 1 cell
@@ -509,6 +513,7 @@ begin
                         -- meta data is packed, 64 bytes = 32 correlations.
                         -- 8 reads per 512 bytes (as a HBM min). Therefore 1 read = 256 lots of meta data.
 
+                        -- revisit this during scale up!!!!
                         if cor_read_cells = 0 then
                             cor_triangle_fsm    <= start;
                             hbm_start           <= '1';
@@ -636,6 +641,13 @@ begin
     pack_process : process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
+            if packed_fifo_wr_count(11 downto 9) = "1111" then
+                packed_fifo_hold    <= '1';
+            else
+                packed_fifo_hold    <= '0';
+            end if;
+            packed_fifo_holdd   <= packed_fifo_hold;
+
             if reset = '1' then
                 pack_it_fsm_debug   <= x"F";
                 pack_it_fsm         <= IDLE;
@@ -710,9 +722,17 @@ begin
                     -- READING data to be packed along a ROW.
                     when PROCESSING =>
                         pack_it_fsm_debug   <= x"3";
-                        packed_fifo_wr      <= '1';
                         
-                        hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
+                        -- this hold off mechanism will need to checked with scaling up
+                        if packed_fifo_holdd = '1' then
+                            packed_fifo_wr      <= '0';
+                            hbm_data_fifo_rd    <= '0';
+                        else
+                            packed_fifo_wr      <= '1';
+                            hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
+                            hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);
+                        end if;
+
                         if hbm_data_cache_sel = '0' then
                             hbm_data_cache      <= hbm_data_fifo_q(255 downto 0);
                             meta_data_cache     <= hbm_meta_fifo_q(15 downto 0);
@@ -721,7 +741,6 @@ begin
                             meta_data_cache     <= hbm_meta_fifo_q(31 downto 16);
                         end if;
 
-                        hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);
 
                         if hbm_data_fifo_rd = '1' then
                             if data_rd_counter = 0 then
@@ -1025,6 +1044,7 @@ end process;
                     bytes_to_process        <= ( others => '0');
                     bytes_in_heap_tracker   <= bytes_in_heap;
                     bytes_to_process_dbg    <= ( others => '0');
+                    dbg_heap_trkr_start     <= std_logic_vector(bytes_in_heap);
                 elsif packed_fifo_rd = '1' AND packed_fifo_wr_pipe(7) = '1' then
                     bytes_to_process        <= bytes_to_process - 30;
                     bytes_to_process_dbg    <= bytes_to_process_dbg + 34;
@@ -1084,6 +1104,8 @@ end process;
             dbg_bytes_in_heap_trkr          <= bytes_in_heap_tracker;
 
             debug_packed_fifo_reg           <= debug_packed_fifo;
+            
+            hbm_rd_debug_ro.dbg_heap_trkr_start <= dbg_heap_trkr_start;
         end if;
     end process;
 

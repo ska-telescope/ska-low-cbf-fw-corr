@@ -137,8 +137,13 @@ peripherals:
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : " bytes in current heap sent to packetiser." 
-
+              field_description : " bytes in current heap sent to packetiser."
+         #################################
+          - - field_name        : dbg_heap_trkr_start
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Heap size given at the start of the current transaction."
 
 
   - peripheral_name        : hbm_rd_debug_2
@@ -278,4 +283,10 @@ peripherals:
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : " bytes in current heap sent to packetiser." 
+              field_description : " bytes in current heap sent to packetiser."
+         #################################
+          - - field_name        : dbg_heap_trkr_start
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Heap size given at the start of the current transaction."

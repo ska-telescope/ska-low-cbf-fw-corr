@@ -287,7 +287,7 @@ begin
             meta_data_sel   <= '0';
             test_meta_done  <= '0';
             init_mem        <= '0';
-            cmac_ready      <= '0';
+            
             tb_debug        <= (others => '0');
             
             ints_since_epoch<= 32D"0";
@@ -533,7 +533,7 @@ begin
             
             i <= 0;
             meta_data_sel <= '0';
-            cmac_ready  <= '1';
+            
         
             HBM_axi_r.resp  <= "00";
 
@@ -542,6 +542,20 @@ begin
     end if;
 end process;
 
+cmac_test_proc : process (clock_322)
+begin
+    if rising_edge(clock_322) then
+        if clock_322_rst = '1' then
+            cmac_ready      <= '0';
+        else
+            if (testcount_322 > 575000) AND (testcount_322 < 586000) then 
+                cmac_ready  <= '0';
+            else
+                cmac_ready  <= '1';
+            end if;
+        end if;
+    end if;
+end process;
 
 
 DUT : entity correlator_lib.correlator_data_reader generic map ( 

@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="624.000001 us"></ZoomEndTime>
-      <Cursor1Time time="35.000000 us"></Cursor1Time>
+      <ZoomStartTime time="66,724.770 ns"></ZoomStartTime>
+      <ZoomEndTime time="67,378.771 ns"></ZoomEndTime>
+      <Cursor1Time time="66,937.770 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="263"></NameColumnWidth>
-      <ValueColumnWidth column_width="76"></ValueColumnWidth>
+      <ValueColumnWidth column_width="68"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="524" />
+   <WVObjectSize size="533" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -140,8 +140,8 @@
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/cor_read_cells">
-      <obj_property name="ElementShortName">cor_read_cells[16:0]</obj_property>
-      <obj_property name="ObjectShortName">cor_read_cells[16:0]</obj_property>
+      <obj_property name="ElementShortName">cor_read_cells[15:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_read_cells[15:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/cells_to_add">
@@ -242,15 +242,38 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/no_of_freq_chan_return_p">
       <obj_property name="ElementShortName">no_of_freq_chan_return_p[1:0][31:0]</obj_property>
       <obj_property name="ObjectShortName">no_of_freq_chan_return_p[1:0][31:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/subarraybeam_addr_lkup">
       <obj_property name="ElementShortName">subarraybeam_addr_lkup[6:0]</obj_property>
       <obj_property name="ObjectShortName">subarraybeam_addr_lkup[6:0]</obj_property>
    </wvobject>
+   <wvobject type="other" fp_name="/tb_cor_spead/DUT/cor_triangle_fsm">
+      <obj_property name="ElementShortName">cor_triangle_fsm</obj_property>
+      <obj_property name="ObjectShortName">cor_triangle_fsm</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_cor_spead/DUT/pack_it_fsm">
+      <obj_property name="ElementShortName">pack_it_fsm</obj_property>
+      <obj_property name="ObjectShortName">pack_it_fsm</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/cor_tri_sub_array">
+      <obj_property name="ElementShortName">cor_tri_sub_array[7:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_tri_sub_array[7:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/current_subarray">
       <obj_property name="ElementShortName">current_subarray[7:0]</obj_property>
       <obj_property name="ObjectShortName">current_subarray[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/heap_size_data">
+      <obj_property name="ElementShortName">heap_size_data[31:0]</obj_property>
+      <obj_property name="ObjectShortName">heap_size_data[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/bytes_in_heap">
+      <obj_property name="ElementShortName">bytes_in_heap[31:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_in_heap[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/pack_start">
+      <obj_property name="ElementShortName">pack_start</obj_property>
+      <obj_property name="ObjectShortName">pack_start</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/spead_ctrl_reg.current_subarray_beam_target">
       <obj_property name="ElementShortName">.current_subarray_beam_target[7:0]</obj_property>
@@ -955,6 +978,18 @@
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/packed_fifo_wr">
       <obj_property name="ElementShortName">packed_fifo_wr</obj_property>
       <obj_property name="ObjectShortName">packed_fifo_wr</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/packed_fifo_hold">
+      <obj_property name="ElementShortName">packed_fifo_hold</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_hold</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/packed_fifo_holdd">
+      <obj_property name="ElementShortName">packed_fifo_holdd</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_holdd</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/cmac_ready">
+      <obj_property name="ElementShortName">cmac_ready</obj_property>
+      <obj_property name="ObjectShortName">cmac_ready</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_data_d1">
       <obj_property name="ElementShortName">packed_fifo_data_d1[271:0]</obj_property>
