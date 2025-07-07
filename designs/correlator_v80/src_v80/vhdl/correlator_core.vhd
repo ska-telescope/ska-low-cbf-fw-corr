@@ -320,14 +320,20 @@ constant C_SIM      : boolean := FALSE;
     -- V80 contains 32GB of HBM
     -- Base address for this is 0x40_0000_0000
     -- Biggest HBM block in Correlator is 4GB
-    constant HBM_base_addr  : t_slv_64_arr(g_HBM_interfaces-1 downto 0) := ( x"0000004500000000",   -- Base         
+    constant HBM_base_addr  : t_slv_64_arr(g_HBM_interfaces-1 downto 0) := ( x"0000004600000000",   -- Base         
+                                                                             x"0000004500000000",   -- +4GB addr
                                                                              x"0000004400000000",   -- +4GB addr
-                                                                             x"0000004300000000",   -- +4GB addr
                                                                              x"0000004200000000",   -- +4GB addr
                                                                              x"0000004100000000",   -- +4GB addr
                                                                              x"0000004700000000"    -- +4GB addr    -- LFAA
                                                                             );
-
+-- From Xilinx Doc PG313
+-- Base address 0 - LFAA    - HBM14_PORT0_hbmc  - 0x47_0000_0000
+-- Base address 1 - CT2_1   - HBM2_PORT0_hbmc   - 0x41_0000_0000
+-- Base address 2 - CT2_2   - HBM4_PORT0_hbmc   - 0x42_0000_0000
+-- Base address 3 - Corr_1  - HBM8_PORT0_hbmc   - 0x44_0000_0000
+-- Base address 4 - Corr_2  - HBM10_PORT0_hbmc  - 0x45_0000_0000
+-- Base address 5 - ILA     - HBM12_PORT0_hbmc  - 0x46_0000_0000
 
     signal axi_dbg : std_logic_vector(127 downto 0);
     signal axi_dbg_valid : std_logic;
@@ -778,6 +784,34 @@ i_axis_tvalid_gated <= i_axis_tvalid;
 
 --    );
 
+
+   hbm_LFAAin_ila: ila_0
+    PORT MAP (
+        clk                     => clk_450,
+
+        probe0(63 downto 0)     => HBM_axi_awaddr(0),
+        probe0(127 downto 64)   => HBM_axi_araddr(0),
+        probe0(135 downto 128)  => master_rd_addr_bus(0).len,
+        probe0(143 downto 136)  => master_wr_addr_bus(0).len,
+        probe0(144)             => master_wr_addr_bus_rdy(0),
+        probe0(145)             => master_wr_addr_bus(0).valid,
+
+        probe0(146)             => master_rd_data_bus(0).valid,
+        probe0(147)             => master_rd_data_bus_rdy(0),
+        probe0(148)             => master_rd_data_bus(0).last,
+
+        probe0(149)             => master_wr_data_bus(0).valid,
+        probe0(150)             => master_wr_data_bus_rdy(0),
+        probe0(151)             => master_wr_data_bus(0).last,
+        
+        probe0(152)             => master_rd_addr_bus(0).valid,
+        probe0(153)             => master_rd_addr_bus_rdy(0),
+        
+        probe0(169 downto 154)  => HBM_axi_buser(0),
+        probe0(185 downto 170)  => HBM_axi_aruser(0),       
+
+        probe0(191 downto 186)  => ( others => '0' )
+    );
 
     -----------------------------------------------------------------------------------------------------------
     hbm_ila_debug_chk : process(clk_450)
