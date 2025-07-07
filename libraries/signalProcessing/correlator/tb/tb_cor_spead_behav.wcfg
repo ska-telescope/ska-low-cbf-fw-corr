@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="2,913.600000 us"></ZoomStartTime>
-      <ZoomEndTime time="3,176.000001 us"></ZoomEndTime>
-      <Cursor1Time time="3,057.635970 us"></Cursor1Time>
+      <ZoomStartTime time="1,986.666666 us"></ZoomStartTime>
+      <ZoomEndTime time="4,402.666667 us"></ZoomEndTime>
+      <Cursor1Time time="4,000.000000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="261"></NameColumnWidth>
+      <NameColumnWidth column_width="257"></NameColumnWidth>
       <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="533" />
+   <WVObjectSize size="555" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -69,6 +69,94 @@
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_322_rst">
       <obj_property name="ElementShortName">clock_322_rst</obj_property>
       <obj_property name="ObjectShortName">clock_322_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider6876" type="divider">
+      <obj_property name="label">hbm instructin logger</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/timestamp">
+      <obj_property name="ElementShortName">timestamp[39:0]</obj_property>
+      <obj_property name="ObjectShortName">timestamp[39:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_data_1">
+      <obj_property name="ElementShortName">debug_data_1[31:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_data_1[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_data_2">
+      <obj_property name="ElementShortName">debug_data_2[31:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_data_2[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_i_bad_poly">
+      <obj_property name="ElementShortName">debug_i_bad_poly</obj_property>
+      <obj_property name="ObjectShortName">debug_i_bad_poly</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_i_data_valid">
+      <obj_property name="ElementShortName">debug_i_data_valid</obj_property>
+      <obj_property name="ObjectShortName">debug_i_data_valid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_i_freq_index">
+      <obj_property name="ElementShortName">debug_i_freq_index[16:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_i_freq_index[16:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_i_packetiser_table_select">
+      <obj_property name="ElementShortName">debug_i_packetiser_table_select</obj_property>
+      <obj_property name="ObjectShortName">debug_i_packetiser_table_select</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_i_sub_array">
+      <obj_property name="ElementShortName">debug_i_sub_array[7:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_i_sub_array[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_i_table_select">
+      <obj_property name="ElementShortName">debug_i_table_select</obj_property>
+      <obj_property name="ObjectShortName">debug_i_table_select</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_instruction_writes">
+      <obj_property name="ElementShortName">debug_instruction_writes[31:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_instruction_writes[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_rd_addr">
+      <obj_property name="ElementShortName">debug_rd_addr</obj_property>
+      <obj_property name="ObjectShortName">debug_rd_addr</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_rd_data_1">
+      <obj_property name="ElementShortName">debug_rd_data_1[31:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_rd_data_1[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_rd_data_2">
+      <obj_property name="ElementShortName">debug_rd_data_2[31:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_rd_data_2[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_1_mem/xpm_memory_tdpram_inst/xpm_memory_base_inst/mem">
+      <obj_property name="ElementShortName">mem[0:1023][31:0]</obj_property>
+      <obj_property name="ObjectShortName">mem[0:1023][31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider6963" type="divider">
+      <obj_property name="label">memory 2 contents</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_2_mem/xpm_memory_tdpram_inst/xpm_memory_base_inst/mem">
+      <obj_property name="ElementShortName">mem[0:1023][31:0]</obj_property>
+      <obj_property name="ObjectShortName">mem[0:1023][31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_table_select">
+      <obj_property name="ElementShortName">debug_table_select</obj_property>
+      <obj_property name="ObjectShortName">debug_table_select</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_wr">
+      <obj_property name="ElementShortName">debug_wr</obj_property>
+      <obj_property name="ObjectShortName">debug_wr</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_wr_addr">
+      <obj_property name="ElementShortName">debug_wr_addr[9:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_wr_addr[9:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_wr_ct1_table_change">
+      <obj_property name="ElementShortName">debug_wr_ct1_table_change</obj_property>
+      <obj_property name="ObjectShortName">debug_wr_ct1_table_change</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider6877" type="divider">
+      <obj_property name="label">tb</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/tb_debug">
       <obj_property name="ElementShortName">tb_debug[10:0]</obj_property>

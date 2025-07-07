@@ -315,7 +315,7 @@ signal current_page_ct1             : std_logic;
 signal debug_packed_fifo            : std_logic_vector(31 downto 0);
 signal debug_packed_fifo_reg        : std_logic_vector(31 downto 0);
 
-signal timestamp                    : unsigned(39 downto 0);
+signal timestamp                    : unsigned(39 downto 0) := (others => '0');
 
 signal debug_i_packetiser_table_select  : std_logic;        -- current table at CT1.
 signal debug_i_sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
@@ -324,11 +324,12 @@ signal debug_i_bad_poly                 : std_logic;
 signal debug_i_table_select             : std_logic;
 signal debug_i_data_valid               : std_logic;
 signal debug_table_select               : std_logic;
-signal debug_wr_ct1_table_change        : std_logic;
+signal debug_wr_ct1_table_change        : std_logic := '0';
 
-signal debug_wr                         : std_logic;
+signal debug_wr                         : std_logic := '0';
 signal debug_data_1, debug_data_2       : std_logic_vector(31 downto 0);
-signal debug_wr_addr                    : unsigned(9 downto 0);
+signal debug_data_wr_1, debug_data_wr_2 : std_logic := '0';
+signal debug_wr_addr                    : unsigned(9 downto 0) := (others => '0');
 signal debug_rd_addr                    : std_logic;
 signal debug_rd_data_1, debug_rd_data_2 : std_logic_vector(31 downto 0);
 
@@ -1141,6 +1142,7 @@ end process;
             debug_packed_fifo_reg           <= debug_packed_fifo;
             
             hbm_rd_debug_ro.dbg_heap_trkr_start <= dbg_heap_trkr_start;
+
         end if;
     end process;
 
@@ -1210,18 +1212,17 @@ ila_gen : if DEBUG_ILA generate
         probe0(28 downto 12)    => cor_tri_freq_index(16 downto 0),
 
         probe0(60 downto 29)    => std_logic_vector(bytes_to_process),
-        probe0(74 downto 61)    => std_logic_vector(bytes_to_packetise),
-        
-        probe0(75)              => send_spead_data(0),
---        probe0(50 downto 34)    => testmode_freqindex(16 downto 0),
---        probe0(58 downto 51)    => testmode_subarray(7 downto 0),
---        probe0(90 downto 59)    => testmode_hbm_start_addr(31 downto 0),
---        probe0(91)              => testmode_load_instruct,
---        probe0(92)              => testmode_load_instruct_d,
---        probe0(93)              => meta_cache_fifo_wr,
---        probe0(94)              => testmode_select,
+        probe0(65 downto 61)    => (others => '0'),
 
-        probe0(191 downto 76)  => (others => '0')
+        probe0(66)              => debug_data_wr_1,
+        probe0(67)              => debug_data_wr_2,
+        probe0(81 downto 68)    => args_addr,
+        probe0(95 downto 82)    => bram_addr_d2,
+
+        probe0(127 downto 96)   => debug_rd_data_1,
+        probe0(159 downto 128)  => debug_rd_data_2,
+
+        probe0(191 downto 160)  => bram_rddata
         );
 end generate;
 
@@ -1279,6 +1280,8 @@ end generate;
             if debug_wr = '1' then
                 debug_wr_addr   <= debug_wr_addr + 1;
             end if;
+
+            hbm_rd_debug_ro.dbg_dbg_ram_wr_addr <= x"00000" & "00" & std_logic_vector(debug_wr_addr);
         end if;
     end process;
     
@@ -1310,9 +1313,15 @@ begin
     end if;
 end process;
 
-bram_rddata     <=  debug_rd_data_1 when bram_addr_d2(13 downto 10) = "0000"        else
-                    debug_rd_data_2 when bram_addr_d2(13 downto 10) = "0001"        else
+bram_rddata     <=  debug_rd_data_1 when bram_addr_d2(10) = '0'        else
+                    debug_rd_data_2 when bram_addr_d2(10) = '1'        else
                     x"DEADBEEF";
+
+debug_data_wr_1 <=  '1' when (args_addr(10) = '0') AND bram_we(0) = '1' AND bram_en = '1' else
+                                '0';
+
+debug_data_wr_2 <=  '1' when (args_addr(10) = '1') AND bram_we(0) = '1' AND bram_en = '1' else
+                                '0';
 
 debug_1_mem : entity signal_processing_common.memory_tdp_wrapper 
     generic map (
@@ -1323,9 +1332,9 @@ debug_1_mem : entity signal_processing_common.memory_tdp_wrapper
         clk_a           => i_axi_clk,
         clk_b           => i_axi_clk,
     
-        data_a          => (others => '0'),
+        data_a          => bram_wrdata,
         addr_a          => args_addr(9 downto 0),
-        data_a_wr       => '0',
+        data_a_wr       => debug_data_wr_1,
         data_a_q        => debug_rd_data_1,
         
         data_b          => debug_data_1,
@@ -1343,9 +1352,9 @@ debug_2_mem : entity signal_processing_common.memory_tdp_wrapper
         clk_a           => i_axi_clk,
         clk_b           => i_axi_clk,
     
-        data_a          => (others => '0'),
+        data_a          => bram_wrdata,
         addr_a          => args_addr(9 downto 0),
-        data_a_wr       => '0',
+        data_a_wr       => debug_data_wr_2,
         data_a_q        => debug_rd_data_2,
         
         data_b          => debug_data_2,

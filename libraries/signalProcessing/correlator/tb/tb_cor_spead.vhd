@@ -569,6 +569,11 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_axi_rst           => clock_300_rst,
 
         i_local_reset       => NOT packetiser_enable(0),
+        
+        i_packetiser_table_select       => '0',
+        
+        i_spead_hbm_rd_full_axi_mosi    => c_axi4_full_mosi_null,
+        o_spead_hbm_rd_full_axi_miso    => open,
 
         -- ARGs Debug
         i_spead_hbm_rd_lite_axi_mosi => c_axi4_lite_mosi_rst,

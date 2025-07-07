@@ -392,7 +392,7 @@ begin
     ro_time_ref(34 downto 32) <= ro_time_ref_shortIntegrations;
 
     HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
-        DEBUG_ILA           => FALSE
+        DEBUG_ILA           => TRUE
     )
     Port map ( 
         -- clock used for all data input and output from this module (300 MHz)
