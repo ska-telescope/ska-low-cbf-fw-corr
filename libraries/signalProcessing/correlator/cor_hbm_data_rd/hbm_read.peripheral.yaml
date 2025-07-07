@@ -9,7 +9,23 @@ peripherals:
   - peripheral_name        : hbm_rd_debug
     peripheral_description : "debug and statistic registers"
     slave_ports:
-      #########################################################################################
+      #########################################################################################    
+      - slave_name        : hbm_debug
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Shared memory space for multiple parameters."
+        fields            :
+          - - field_name        : spead_shared_ram
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 2048
+              interface         : simple
+              reset_value       : 0
+              field_description : "Psuedo ILA capturing the instructions passed from correlator to HBM readout.
+
+                                  "
+      ######################################################################################### 
       - slave_name        : hbm_rd_debug
         slave_type        : reg
         number_of_slaves  : 1
@@ -149,7 +165,23 @@ peripherals:
   - peripheral_name        : hbm_rd_debug_2
     peripheral_description : "debug and statistic registers"
     slave_ports:
-      #########################################################################################
+      #########################################################################################    
+      - slave_name        : hbm_debug
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Shared memory space for multiple parameters."
+        fields            :
+          - - field_name        : spead_shared_ram
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 2048
+              interface         : simple
+              reset_value       : 0
+              field_description : "Psuedo ILA capturing the instructions passed from correlator to HBM readout.
+
+                                  "
+      ######################################################################################### 
       - slave_name        : hbm_rd_debug
         slave_type        : reg
         number_of_slaves  : 1

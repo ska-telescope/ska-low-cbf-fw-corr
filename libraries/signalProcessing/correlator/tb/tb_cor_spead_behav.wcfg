@@ -25,13 +25,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="66,724.770 ns"></ZoomStartTime>
-      <ZoomEndTime time="67,378.771 ns"></ZoomEndTime>
-      <Cursor1Time time="66,937.770 ns"></Cursor1Time>
+      <ZoomStartTime time="2,913.600000 us"></ZoomStartTime>
+      <ZoomEndTime time="3,176.000001 us"></ZoomEndTime>
+      <Cursor1Time time="3,057.635970 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="263"></NameColumnWidth>
-      <ValueColumnWidth column_width="68"></ValueColumnWidth>
+      <NameColumnWidth column_width="261"></NameColumnWidth>
+      <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="533" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">

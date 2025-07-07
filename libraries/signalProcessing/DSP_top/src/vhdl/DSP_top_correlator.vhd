@@ -101,6 +101,9 @@ entity DSP_top_correlator is
         -- Output HBM
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi_arr(1 downto 0);
         o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso_arr(1 downto 0);
+
+        i_spead_hbm_rd_full_axi_mosi : in t_axi4_full_mosi_arr(1 downto 0);
+        o_spead_hbm_rd_full_axi_miso : out t_axi4_full_miso_arr(1 downto 0);
         -- Output packetiser
         i_spead_lite_axi_mosi   : in t_axi4_lite_mosi_arr(1 downto 0); 
         o_spead_lite_axi_miso   : out t_axi4_lite_miso_arr(1 downto 0);
@@ -731,9 +734,13 @@ begin
 
         i_packetiser_enable     => packetiser_enable,
         
+        i_packetiser_table_select => packetiser_table_select, --  in std_logic;
+        
         -- ARGs Debug
         i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
         o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,
+        i_spead_hbm_rd_full_axi_mosi => i_spead_hbm_rd_full_axi_mosi,
+        o_spead_hbm_rd_full_axi_miso => o_spead_hbm_rd_full_axi_miso,
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi => i_cor_axi_mosi, -- in t_axi4_lite_mosi;
