@@ -816,10 +816,10 @@ begin
                                     -- This is where we switch over the ct2 tables, so that the new tables are used for 
                                     -- an entire integration interval (849 ms).
                                     if config_rw.table_select(0) = '0' then
-                                        -- table_select(0) = '0' => switch to add a subarray, so ct2_tables_in_use has to switch first
+                                        -- table_select(0) = '0' => switch to remove a subarray, so ct2_tables_in_use has to switch first
                                         ct2_tables_in_use <= config_rw.table_select(1);
                                     else
-                                        -- table_select(0) = '1' => switch to remove a subarray, so vct_table_in_use has to switch first
+                                        -- table_select(0) = '1' => switch to add a subarray, so vct_table_in_use has to switch first
                                         if vct_table_in_use = config_rw.table_select(1) then
                                             ct2_tables_in_use <= config_rw.table_select(1);
                                         end if;
