@@ -229,7 +229,8 @@ entity correlator_top is
 
         i_packetiser_enable     : in std_logic_vector(1 downto 0);
         
-        i_packetiser_table_select    : in std_logic;
+        i_packetiser_table_select   : in std_logic;
+        i_table_swap_in_progress    : in std_logic;
         
         -- Output HBM
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi_arr(1 downto 0);
@@ -364,6 +365,7 @@ begin
             i_packetiser_enable => i_packetiser_enable(0),
             
             i_packetiser_table_select    => i_packetiser_table_select, --  in std_logic;
+            i_table_swap_in_progress     => i_table_swap_in_progress,
             
             -- ARGs Debug
             i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi(0),
@@ -472,6 +474,7 @@ begin
             i_packetiser_enable => i_packetiser_enable(1),
             
             i_packetiser_table_select    => i_packetiser_table_select, --  in std_logic;
+            i_table_swap_in_progress     => i_table_swap_in_progress,
             
                     -- ARGs Debug
             i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi(1),

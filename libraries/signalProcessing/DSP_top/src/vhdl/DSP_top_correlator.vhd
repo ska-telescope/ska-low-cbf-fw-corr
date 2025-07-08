@@ -734,8 +734,8 @@ begin
 
         i_packetiser_enable     => packetiser_enable,
         
-        i_packetiser_table_select => packetiser_table_select, --  in std_logic;
-        
+        i_packetiser_table_select   => packetiser_table_select, --  in std_logic;
+        i_table_swap_in_progress    => table_swap_in_progress,
         -- ARGs Debug
         i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
         o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,

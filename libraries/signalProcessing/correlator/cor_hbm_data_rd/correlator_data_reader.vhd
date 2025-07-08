@@ -61,7 +61,8 @@ entity correlator_data_reader is
         i_axi_rst           : in std_logic;
         i_local_reset       : in std_logic;
         -- debug
-        i_packetiser_table_select    : in std_logic;        -- current table at CT1.
+        i_packetiser_table_select   : in std_logic;        -- current table at CT1.
+        i_table_swap_in_progress    : in std_logic;
         
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
         o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
@@ -318,6 +319,8 @@ signal debug_packed_fifo_reg        : std_logic_vector(31 downto 0);
 signal timestamp                    : unsigned(39 downto 0) := (others => '0');
 
 signal debug_i_packetiser_table_select  : std_logic;        -- current table at CT1.
+signal debug_i_table_swap_in_progress   : std_logic;
+
 signal debug_i_sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
 signal debug_i_freq_index               : std_logic_vector(16 downto 0);
 signal debug_i_bad_poly                 : std_logic;
@@ -326,12 +329,17 @@ signal debug_i_data_valid               : std_logic;
 signal debug_table_select               : std_logic;
 signal debug_wr_ct1_table_change        : std_logic := '0';
 
+signal debug_swap_in_progress           : std_logic;
+signal debug_wr_ct1_swap_progress       : std_logic := '0';
+
+CONSTANT no_of_debug_rams               : integer := 3;
 signal debug_wr                         : std_logic := '0';
-signal debug_data_1, debug_data_2       : std_logic_vector(31 downto 0);
-signal debug_data_wr_1, debug_data_wr_2 : std_logic := '0';
+signal debug_data                       : t_slv_32_arr((no_of_debug_rams-1) downto 0);
+signal debug_data_wr                    : std_logic_vector((no_of_debug_rams-1) downto 0) := (others => '0');
 signal debug_wr_addr                    : unsigned(9 downto 0) := (others => '0');
 signal debug_rd_addr                    : std_logic;
-signal debug_rd_data_1, debug_rd_data_2 : std_logic_vector(31 downto 0);
+signal debug_rd_data                    : t_slv_32_arr((no_of_debug_rams-1) downto 0);
+
 
 -- ARGs mappings.
 signal bram_rst                 : STD_LOGIC;
@@ -346,6 +354,8 @@ signal args_addr                : STD_LOGIC_VECTOR(13 DOWNTO 0);
 
 signal bram_addr_d1             : std_logic_vector(13 downto 0);
 signal bram_addr_d2             : std_logic_vector(13 downto 0);
+
+signal debug_vec_from_packet    : std_logic_vector(31 downto 0);
 
 --------------------------------------------------------------------------------
 begin
@@ -1214,13 +1224,13 @@ ila_gen : if DEBUG_ILA generate
         probe0(60 downto 29)    => std_logic_vector(bytes_to_process),
         probe0(65 downto 61)    => (others => '0'),
 
-        probe0(66)              => debug_data_wr_1,
-        probe0(67)              => debug_data_wr_2,
+        probe0(66)              => debug_data_wr(0),
+        probe0(67)              => debug_data_wr(1),
         probe0(81 downto 68)    => args_addr,
         probe0(95 downto 82)    => bram_addr_d2,
 
-        probe0(127 downto 96)   => debug_rd_data_1,
-        probe0(159 downto 128)  => debug_rd_data_2,
+        probe0(127 downto 96)   => debug_rd_data(0),
+        probe0(159 downto 128)  => debug_rd_data(1),
 
         probe0(191 downto 160)  => bram_rddata
         );
@@ -1252,14 +1262,19 @@ end generate;
             timestamp <= timestamp + 1;     -- 40 bit counter
 
             debug_i_packetiser_table_select <= i_packetiser_table_select;
+            debug_i_table_swap_in_progress  <= i_table_swap_in_progress;
+            
             debug_i_sub_array               <= i_sub_array;
             debug_i_freq_index              <= i_freq_index;
             debug_i_bad_poly                <= i_bad_poly;
             debug_i_table_select            <= i_table_select;
             debug_i_data_valid              <= i_data_valid;
 
+            debug_vec_from_packet           <= i_from_spead_pack.debug_vec;
+
             -- 2
             debug_table_select              <= debug_i_packetiser_table_select;
+            debug_swap_in_progress          <= debug_i_table_swap_in_progress;
 
             if (debug_table_select /= debug_i_packetiser_table_select) then
                 debug_wr_ct1_table_change   <= '1';
@@ -1267,15 +1282,29 @@ end generate;
                 debug_wr_ct1_table_change   <= '0';
             end if;
 
+            if (debug_swap_in_progress /= debug_i_table_swap_in_progress) then
+                debug_wr_ct1_swap_progress   <= '1';
+            else
+                debug_wr_ct1_swap_progress   <= '0';
+            end if;
+
             -- mappings
-            debug_wr        <= debug_wr_ct1_table_change OR debug_i_data_valid;
-            debug_data_1    <= std_logic_vector(timestamp(39 downto 8));
-            debug_data_2    <=  debug_i_freq_index(15 downto 0) &   -- 16
+            debug_wr        <=  debug_wr_ct1_table_change OR 
+                                debug_wr_ct1_swap_progress OR
+                                debug_vec_from_packet(14) OR
+                                debug_vec_from_packet(15) OR
+                                debug_i_data_valid;
+            debug_data(0)   <= std_logic_vector(timestamp(39 downto 8));
+            debug_data(1)   <=  debug_i_freq_index(15 downto 0) &   -- 16
                                 debug_i_sub_array(5 downto 0) &     -- 23
                                 debug_i_table_select &              -- 25
                                 debug_i_packetiser_table_select &   -- 26
                                 meta_cache_fifo_wr_count &
                                 debug_i_data_valid;
+            debug_data(2)   <=  "00000" & 
+                                debug_i_table_swap_in_progress &
+                                debug_vec_from_packet(25 downto 0);
+
 
             if debug_wr = '1' then
                 debug_wr_addr   <= debug_wr_addr + 1;
@@ -1313,53 +1342,41 @@ begin
     end if;
 end process;
 
-bram_rddata     <=  debug_rd_data_1 when bram_addr_d2(10) = '0'        else
-                    debug_rd_data_2 when bram_addr_d2(10) = '1'        else
+bram_rddata     <=  debug_rd_data(0) when bram_addr_d2(11 downto 10) = "00"  else
+                    debug_rd_data(1) when bram_addr_d2(11 downto 10) = "01"  else
+                    debug_rd_data(2) when bram_addr_d2(11 downto 10) = "10"  else
                     x"DEADBEEF";
 
-debug_data_wr_1 <=  '1' when (args_addr(10) = '0') AND bram_we(0) = '1' AND bram_en = '1' else
+debug_data_wr(0)    <=  '1' when (args_addr(11 downto 10) = "00") AND bram_we(0) = '1' AND bram_en = '1' else
+                                '0';
+debug_data_wr(1)    <=  '1' when (args_addr(11 downto 10) = "01") AND bram_we(0) = '1' AND bram_en = '1' else
+                                '0';
+debug_data_wr(2)    <=  '1' when (args_addr(11 downto 10) = "10") AND bram_we(0) = '1' AND bram_en = '1' else
                                 '0';
 
-debug_data_wr_2 <=  '1' when (args_addr(10) = '1') AND bram_we(0) = '1' AND bram_en = '1' else
-                                '0';
+debug_rams_gen : FOR i in 0 to (no_of_debug_rams-1) GENERATE
 
-debug_1_mem : entity signal_processing_common.memory_tdp_wrapper 
-    generic map (
-        MEMORY_INIT_FILE    => "none",
-        g_NO_OF_ADDR_BITS   => 10,
-        g_D_Q_WIDTH         => 32 )
-    port map ( 
-        clk_a           => i_axi_clk,
-        clk_b           => i_axi_clk,
-    
-        data_a          => bram_wrdata,
-        addr_a          => args_addr(9 downto 0),
-        data_a_wr       => debug_data_wr_1,
-        data_a_q        => debug_rd_data_1,
+    debug_1_mem : entity signal_processing_common.memory_tdp_wrapper 
+        generic map (
+            MEMORY_INIT_FILE    => "none",
+            g_NO_OF_ADDR_BITS   => 10,
+            g_D_Q_WIDTH         => 32 )
+        port map ( 
+            clk_a           => i_axi_clk,
+            clk_b           => i_axi_clk,
         
-        data_b          => debug_data_1,
-        addr_b          => std_logic_vector(debug_wr_addr),
-        data_b_wr       => debug_wr,
-        data_b_q        => open
-    );
+            data_a          => bram_wrdata,
+            addr_a          => args_addr(9 downto 0),
+            data_a_wr       => debug_data_wr(i),
+            data_a_q        => debug_rd_data(i),
+            
+            data_b          => debug_data(i),
+            addr_b          => std_logic_vector(debug_wr_addr),
+            data_b_wr       => debug_wr,
+            data_b_q        => open
+        );
 
-debug_2_mem : entity signal_processing_common.memory_tdp_wrapper 
-    generic map (
-        MEMORY_INIT_FILE    => "none",
-        g_NO_OF_ADDR_BITS   => 10,
-        g_D_Q_WIDTH         => 32 )
-    port map ( 
-        clk_a           => i_axi_clk,
-        clk_b           => i_axi_clk,
-    
-        data_a          => bram_wrdata,
-        addr_a          => args_addr(9 downto 0),
-        data_a_wr       => debug_data_wr_2,
-        data_a_q        => debug_rd_data_2,
-        
-        data_b          => debug_data_2,
-        addr_b          => std_logic_vector(debug_wr_addr),
-        data_b_wr       => debug_wr,
-        data_b_q        => open
-    );
+END GENERATE;
+
+
 end Behavioral;
