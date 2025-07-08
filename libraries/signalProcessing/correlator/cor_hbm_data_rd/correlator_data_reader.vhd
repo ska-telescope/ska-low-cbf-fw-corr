@@ -61,8 +61,15 @@ entity correlator_data_reader is
         i_axi_rst           : in std_logic;
         i_local_reset       : in std_logic;
         -- debug
+        i_packetiser_table_select   : in std_logic;        -- current table at CT1.
+        i_table_swap_in_progress    : in std_logic;
+        i_table_add_remove          : in std_logic;
+        
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
         o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
+        
+        i_spead_hbm_rd_full_axi_mosi : in t_axi4_full_mosi;
+        o_spead_hbm_rd_full_axi_miso : out t_axi4_full_miso;
 
         -- config of current sub/freq data read
         i_hbm_start_addr    : in std_logic_vector(31 downto 0);     -- Byte address in HBM of the start of a strip from the visibility matrix.
@@ -163,6 +170,9 @@ signal packed_fifo_data     : std_logic_vector(271 downto 0);
 signal packed_fifo_full     : std_logic;
 signal packed_fifo_wr_count : std_logic_vector(((ceil_log2(packed_depth))) downto 0);
 
+signal packed_fifo_hold     : std_logic;
+signal packed_fifo_holdd    : std_logic;
+
 signal packed_fifo_wr_pipe  : std_logic_vector(7 downto 0) := x"00";
 
 signal packed_fifo_wr_cnt_reg : unsigned(((ceil_log2(packed_depth))) downto 0);
@@ -209,7 +219,7 @@ signal cor_tri_row_count        : unsigned(8 downto 0);
 signal cor_tri_bad_poly         : std_logic;
 signal cor_tri_table_select     : std_logic;
 
-signal cor_read_cells           : unsigned(16 downto 0);
+signal cor_read_cells           : unsigned(15 downto 0);
 signal cells_to_add             : unsigned(11 downto 0);
 signal cells_to_retrieve        : unsigned(16 downto 0);
 
@@ -273,6 +283,7 @@ signal bytes_in_heap            : unsigned(31 downto 0);
 
 signal bytes_in_heap_tracker    : unsigned(31 downto 0);
 signal dbg_bytes_in_heap_trkr   : unsigned(31 downto 0);
+signal dbg_heap_trkr_start      : std_logic_vector(31 downto 0);
 
 signal matrix_packed            : std_logic_vector(1 downto 0);
 
@@ -305,6 +316,51 @@ signal current_page_ct1             : std_logic;
 
 signal debug_packed_fifo            : std_logic_vector(31 downto 0);
 signal debug_packed_fifo_reg        : std_logic_vector(31 downto 0);
+
+signal timestamp                    : unsigned(39 downto 0) := (others => '0');
+
+signal debug_i_packetiser_table_select  : std_logic;        -- current table at CT1.
+signal debug_i_table_swap_in_progress   : std_logic;
+signal debug_i_table_add_remove         : std_logic;
+
+signal debug_i_sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
+signal debug_i_freq_index               : std_logic_vector(16 downto 0);
+signal debug_i_bad_poly                 : std_logic;
+signal debug_i_table_select             : std_logic;
+signal debug_i_data_valid               : std_logic;
+signal debug_table_select               : std_logic;
+signal debug_wr_ct1_table_change        : std_logic := '0';
+
+signal debug_swap_in_progress           : std_logic;
+signal debug_wr_ct1_swap_progress       : std_logic := '0';
+
+signal debug_table_add_remove           : std_logic;
+signal debug_wr_table_add_remove        : std_logic := '0';
+
+CONSTANT no_of_debug_rams               : integer := 3;
+signal debug_wr                         : std_logic := '0';
+signal debug_data                       : t_slv_32_arr((no_of_debug_rams-1) downto 0);
+signal debug_data_wr                    : std_logic_vector((no_of_debug_rams-1) downto 0) := (others => '0');
+signal debug_wr_addr                    : unsigned(9 downto 0) := (others => '0');
+signal debug_rd_addr                    : std_logic;
+signal debug_rd_data                    : t_slv_32_arr((no_of_debug_rams-1) downto 0);
+
+
+-- ARGs mappings.
+signal bram_rst                 : STD_LOGIC;
+signal bram_clk                 : STD_LOGIC;
+signal bram_en                  : STD_LOGIC;
+signal bram_we                  : STD_LOGIC_VECTOR(3 DOWNTO 0);
+signal bram_addr                : STD_LOGIC_VECTOR(15 DOWNTO 0);
+signal bram_wrdata              : STD_LOGIC_VECTOR(31 DOWNTO 0);
+signal bram_rddata              : STD_LOGIC_VECTOR(31 DOWNTO 0);
+
+signal args_addr                : STD_LOGIC_VECTOR(13 DOWNTO 0);
+
+signal bram_addr_d1             : std_logic_vector(13 downto 0);
+signal bram_addr_d2             : std_logic_vector(13 downto 0);
+
+signal debug_vec_from_packet    : std_logic_vector(31 downto 0);
 
 --------------------------------------------------------------------------------
 begin
@@ -482,8 +538,8 @@ begin
                             cor_triangle_fsm            <= calculate_reads;
                         end if;
 
-                        -- how many lots of 16 rows (cells) to retrieve.
-                        cor_read_cells(4 downto 0)      <= cor_tri_row_count(8 downto 4);
+                        -- hold off for parameters in SPEAD packetiser to setup.
+                        cor_read_cells                  <= x"0008";
 
                         -- starting row gives a number of cells ontop of the first.
                         -- row 0 = 1 cell
@@ -636,6 +692,13 @@ begin
     pack_process : process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
+            if packed_fifo_wr_count(11 downto 9) = "1111" then
+                packed_fifo_hold    <= '1';
+            else
+                packed_fifo_hold    <= '0';
+            end if;
+            packed_fifo_holdd   <= packed_fifo_hold;
+
             if reset = '1' then
                 pack_it_fsm_debug   <= x"F";
                 pack_it_fsm         <= IDLE;
@@ -710,9 +773,17 @@ begin
                     -- READING data to be packed along a ROW.
                     when PROCESSING =>
                         pack_it_fsm_debug   <= x"3";
-                        packed_fifo_wr      <= '1';
                         
-                        hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
+                        -- this hold off mechanism will need to checked with scaling up
+                        if packed_fifo_holdd = '1' then
+                            packed_fifo_wr      <= '0';
+                            hbm_data_fifo_rd    <= '0';
+                        else
+                            packed_fifo_wr      <= '1';
+                            hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
+                            hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);
+                        end if;
+
                         if hbm_data_cache_sel = '0' then
                             hbm_data_cache      <= hbm_data_fifo_q(255 downto 0);
                             meta_data_cache     <= hbm_meta_fifo_q(15 downto 0);
@@ -721,7 +792,6 @@ begin
                             meta_data_cache     <= hbm_meta_fifo_q(31 downto 16);
                         end if;
 
-                        hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);
 
                         if hbm_data_fifo_rd = '1' then
                             if data_rd_counter = 0 then
@@ -1025,6 +1095,7 @@ end process;
                     bytes_to_process        <= ( others => '0');
                     bytes_in_heap_tracker   <= bytes_in_heap;
                     bytes_to_process_dbg    <= ( others => '0');
+                    dbg_heap_trkr_start     <= std_logic_vector(bytes_in_heap);
                 elsif packed_fifo_rd = '1' AND packed_fifo_wr_pipe(7) = '1' then
                     bytes_to_process        <= bytes_to_process - 30;
                     bytes_to_process_dbg    <= bytes_to_process_dbg + 34;
@@ -1084,6 +1155,9 @@ end process;
             dbg_bytes_in_heap_trkr          <= bytes_in_heap_tracker;
 
             debug_packed_fifo_reg           <= debug_packed_fifo;
+            
+            hbm_rd_debug_ro.dbg_heap_trkr_start <= dbg_heap_trkr_start;
+
         end if;
     end process;
 
@@ -1153,21 +1227,171 @@ ila_gen : if DEBUG_ILA generate
         probe0(28 downto 12)    => cor_tri_freq_index(16 downto 0),
 
         probe0(60 downto 29)    => std_logic_vector(bytes_to_process),
-        probe0(74 downto 61)    => std_logic_vector(bytes_to_packetise),
-        
-        probe0(75)              => send_spead_data(0),
---        probe0(50 downto 34)    => testmode_freqindex(16 downto 0),
---        probe0(58 downto 51)    => testmode_subarray(7 downto 0),
---        probe0(90 downto 59)    => testmode_hbm_start_addr(31 downto 0),
---        probe0(91)              => testmode_load_instruct,
---        probe0(92)              => testmode_load_instruct_d,
---        probe0(93)              => meta_cache_fifo_wr,
---        probe0(94)              => testmode_select,
+        probe0(65 downto 61)    => (others => '0'),
 
-        probe0(191 downto 76)  => (others => '0')
+        probe0(66)              => debug_data_wr(0),
+        probe0(67)              => debug_data_wr(1),
+        probe0(81 downto 68)    => args_addr,
+        probe0(95 downto 82)    => bram_addr_d2,
+
+        probe0(127 downto 96)   => debug_rd_data(0),
+        probe0(159 downto 128)  => debug_rd_data(1),
+
+        probe0(191 downto 160)  => bram_rddata
         );
 end generate;
 
     ---------------------------------------------------------------------------
+    -- Capturing instruction and metadata
+    -- register signals and capture for debugging
+
+    -- i_packetiser_table_select    : in std_logic;        -- current table at CT1.
+    -- -- config of current sub/freq data read
+    -- i_hbm_start_addr    : in std_logic_vector(31 downto 0);     -- Byte address in HBM of the start of a strip from the visibility matrix.
+    --                                                             -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
+    -- i_sub_array         : in std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
+    -- i_freq_index        : in std_logic_vector(16 downto 0);
+    -- i_bad_poly          : in std_logic;
+    -- i_table_select      : in std_logic;
+    -- i_data_valid        : in std_logic;
+    -- o_data_stall        : out std_logic;                        -- FIFO is close to full, stop sending new data on i_data_valid
+    -- i_time_ref          : in std_logic_vector(63 downto 0);     -- Some kind of timestamp. Will be the same for all subarrays within a single 849 ms
+    --                                                             -- integration time.
+    -- i_row               : in std_logic_vector(12 downto 0);     -- The index of the first row that is available, counts from zero.
+    -- i_row_count         : in std_logic_vector(8 downto 0);      -- The number of rows available to be read out. Valid range is 1 to 256.
+
+
+    pseduo_ila : process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            timestamp <= timestamp + 1;     -- 40 bit counter
+
+            debug_i_packetiser_table_select <= i_packetiser_table_select;
+            debug_i_table_swap_in_progress  <= i_table_swap_in_progress;
+            debug_i_table_add_remove        <= i_table_add_remove;
+            
+            debug_i_sub_array               <= i_sub_array;
+            debug_i_freq_index              <= i_freq_index;
+            debug_i_bad_poly                <= i_bad_poly;
+            debug_i_table_select            <= i_table_select;
+            debug_i_data_valid              <= i_data_valid;
+
+            debug_vec_from_packet           <= i_from_spead_pack.debug_vec;
+
+            -- 2
+            debug_table_select              <= debug_i_packetiser_table_select;
+            debug_swap_in_progress          <= debug_i_table_swap_in_progress;
+            debug_table_add_remove          <= debug_i_table_add_remove;
+
+            if (debug_table_select /= debug_i_packetiser_table_select) then
+                debug_wr_ct1_table_change   <= '1';
+            else
+                debug_wr_ct1_table_change   <= '0';
+            end if;
+
+            if (debug_swap_in_progress /= debug_i_table_swap_in_progress) then
+                debug_wr_ct1_swap_progress   <= '1';
+            else
+                debug_wr_ct1_swap_progress   <= '0';
+            end if;
+            
+            if (debug_table_add_remove /= debug_i_table_add_remove) then
+                debug_wr_table_add_remove    <= '1';
+            else
+                debug_wr_table_add_remove    <= '0';
+            end if;
+
+            -- mappings
+            debug_wr        <=  debug_wr_ct1_table_change OR 
+                                debug_wr_ct1_swap_progress OR
+                                debug_wr_table_add_remove OR
+                                debug_vec_from_packet(14) OR
+                                debug_vec_from_packet(15) OR
+                                debug_i_data_valid;
+            debug_data(0)   <= std_logic_vector(timestamp(39 downto 8));
+            debug_data(1)   <=  debug_i_freq_index(15 downto 0) &   -- 16
+                                debug_i_sub_array(5 downto 0) &     -- 23
+                                debug_i_table_select &              -- 25
+                                debug_i_packetiser_table_select &   -- 26
+                                meta_cache_fifo_wr_count &
+                                debug_i_data_valid;
+            debug_data(2)   <=  "0000" &
+                                debug_i_table_add_remove &
+                                debug_i_table_swap_in_progress &
+                                debug_vec_from_packet(25 downto 0);
+
+
+            if debug_wr = '1' then
+                debug_wr_addr   <= debug_wr_addr + 1;
+            end if;
+
+            hbm_rd_debug_ro.dbg_dbg_ram_wr_addr <= x"00000" & "00" & std_logic_vector(debug_wr_addr);
+        end if;
+    end process;
+    
+        
+hbm_rd_axi : entity spead_lib.spead_axi_bram_wrapper 
+    PORT MAP (
+        i_clk                   => i_axi_clk,
+        i_rst                   => i_axi_rst,
+        
+        i_spead_full_axi_mosi   => i_spead_hbm_rd_full_axi_mosi,
+        o_spead_full_axi_miso   => o_spead_hbm_rd_full_axi_miso,
+    
+        bram_rst                => bram_rst,
+        bram_clk                => bram_clk,
+        bram_en                 => bram_en,     --: OUT STD_LOGIC;
+        bram_we_byte            => bram_we,     --: OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+        bram_addr               => bram_addr,   --: OUT STD_LOGIC_VECTOR(14 DOWNTO 0);
+        bram_wrdata             => bram_wrdata, --: OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+        bram_rddata             => bram_rddata  --: IN STD_LOGIC_VECTOR(31 DOWNTO 0)
+    );  
+
+args_addr                <= bram_addr(15 downto 2);
+        
+bram_return_data_proc : process(i_axi_clk)
+begin
+    if rising_edge(i_axi_clk) then
+        bram_addr_d1    <= args_addr;
+        bram_addr_d2    <= bram_addr_d1;
+    end if;
+end process;
+
+bram_rddata     <=  debug_rd_data(0) when bram_addr_d2(11 downto 10) = "00"  else
+                    debug_rd_data(1) when bram_addr_d2(11 downto 10) = "01"  else
+                    debug_rd_data(2) when bram_addr_d2(11 downto 10) = "10"  else
+                    x"DEADBEEF";
+
+debug_data_wr(0)    <=  '1' when (args_addr(11 downto 10) = "00") AND bram_we(0) = '1' AND bram_en = '1' else
+                                '0';
+debug_data_wr(1)    <=  '1' when (args_addr(11 downto 10) = "01") AND bram_we(0) = '1' AND bram_en = '1' else
+                                '0';
+debug_data_wr(2)    <=  '1' when (args_addr(11 downto 10) = "10") AND bram_we(0) = '1' AND bram_en = '1' else
+                                '0';
+
+debug_rams_gen : FOR i in 0 to (no_of_debug_rams-1) GENERATE
+
+    debug_1_mem : entity signal_processing_common.memory_tdp_wrapper 
+        generic map (
+            MEMORY_INIT_FILE    => "none",
+            g_NO_OF_ADDR_BITS   => 10,
+            g_D_Q_WIDTH         => 32 )
+        port map ( 
+            clk_a           => i_axi_clk,
+            clk_b           => i_axi_clk,
+        
+            data_a          => bram_wrdata,
+            addr_a          => args_addr(9 downto 0),
+            data_a_wr       => debug_data_wr(i),
+            data_a_q        => debug_rd_data(i),
+            
+            data_b          => debug_data(i),
+            addr_b          => std_logic_vector(debug_wr_addr),
+            data_b_wr       => debug_wr,
+            data_b_q        => open
+        );
+
+END GENERATE;
+
 
 end Behavioral;

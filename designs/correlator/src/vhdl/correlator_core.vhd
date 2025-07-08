@@ -61,7 +61,7 @@ ENTITY correlator_core IS
         g_HBM_AXI_ID_WIDTH   : integer := 1;
         -- Number of correlator blocks to instantiate.
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
-        g_CORRELATORS        : integer := 2;  -- 1 or 2
+        g_CORRELATORS        : integer := 1;  -- 1 or 2
         g_USE_DUMMY_FB       : boolean := FALSE -- Should be FALSE for normal operation.
     );
     port (
@@ -925,6 +925,12 @@ begin
         
         o_spead_hbm_rd_lite_axi_miso(0) => mc_lite_miso(c_hbm_rd_debug_lite_index),
         o_spead_hbm_rd_lite_axi_miso(1) => mc_lite_miso(c_hbm_rd_debug_2_lite_index),
+        
+        i_spead_hbm_rd_full_axi_mosi(0) => mc_full_mosi(c_hbm_rd_debug_full_index),
+        i_spead_hbm_rd_full_axi_mosi(1) => mc_full_mosi(c_hbm_rd_debug_2_full_index),
+        
+        o_spead_hbm_rd_full_axi_miso(0) => mc_full_miso(c_hbm_rd_debug_full_index),
+        o_spead_hbm_rd_full_axi_miso(1) => mc_full_miso(c_hbm_rd_debug_2_full_index),
 
         -- SDP SPEAD
         i_spead_lite_axi_mosi(0)    => mc_lite_mosi(c_spead_sdp_lite_index),
