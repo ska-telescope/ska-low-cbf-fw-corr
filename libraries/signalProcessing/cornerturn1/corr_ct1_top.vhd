@@ -152,7 +152,8 @@ entity corr_ct1_top is
         -- The packetiser should hold its switch active bit high from when it sees a rising edge on 
         -- o_table_swap_in_progress through to when it gets notification of a packet to be sent using o_packetiser_table_select 
         o_table_swap_in_progress : out std_logic;
-        o_packetiser_table_select : out std_logic;  
+        o_packetiser_table_select : out std_logic;
+        o_table_add_remove          : out std_logic;
         -- 
         ------------------------------------------------------------------------------------
         -- Data output, to go to the filterbanks.
@@ -559,6 +560,8 @@ begin
                 o_table_swap_in_progress <= '0';
             end if;
             o_packetiser_table_select <= config_rw.table_select(1);
+            
+            o_table_add_remove        <= config_rw.table_select(0); 
             
             --------------------------------------------------------------
             if trigger_readout = '1' then

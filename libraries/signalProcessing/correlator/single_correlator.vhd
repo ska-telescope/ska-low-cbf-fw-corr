@@ -99,6 +99,7 @@ entity single_correlator is
         
         i_packetiser_table_select   : in std_logic;
         i_table_swap_in_progress    : in std_logic;
+        i_table_add_remove          : in std_logic;
         
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
         o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
@@ -404,6 +405,7 @@ begin
         
         i_packetiser_table_select   => i_packetiser_table_select, --  in std_logic;
         i_table_swap_in_progress    => i_table_swap_in_progress,
+        i_table_add_remove          => i_table_add_remove,
         -- ARGs Debug
         i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
         o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,

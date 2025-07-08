@@ -63,6 +63,7 @@ entity correlator_data_reader is
         -- debug
         i_packetiser_table_select   : in std_logic;        -- current table at CT1.
         i_table_swap_in_progress    : in std_logic;
+        i_table_add_remove          : in std_logic;
         
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
         o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
@@ -320,6 +321,7 @@ signal timestamp                    : unsigned(39 downto 0) := (others => '0');
 
 signal debug_i_packetiser_table_select  : std_logic;        -- current table at CT1.
 signal debug_i_table_swap_in_progress   : std_logic;
+signal debug_i_table_add_remove         : std_logic;
 
 signal debug_i_sub_array                : std_logic_vector(7 downto 0);      -- max of 16 zooms x 8 sub arrays = 128
 signal debug_i_freq_index               : std_logic_vector(16 downto 0);
@@ -331,6 +333,9 @@ signal debug_wr_ct1_table_change        : std_logic := '0';
 
 signal debug_swap_in_progress           : std_logic;
 signal debug_wr_ct1_swap_progress       : std_logic := '0';
+
+signal debug_table_add_remove           : std_logic;
+signal debug_wr_table_add_remove        : std_logic := '0';
 
 CONSTANT no_of_debug_rams               : integer := 3;
 signal debug_wr                         : std_logic := '0';
@@ -1263,6 +1268,7 @@ end generate;
 
             debug_i_packetiser_table_select <= i_packetiser_table_select;
             debug_i_table_swap_in_progress  <= i_table_swap_in_progress;
+            debug_i_table_add_remove        <= i_table_add_remove;
             
             debug_i_sub_array               <= i_sub_array;
             debug_i_freq_index              <= i_freq_index;
@@ -1275,6 +1281,7 @@ end generate;
             -- 2
             debug_table_select              <= debug_i_packetiser_table_select;
             debug_swap_in_progress          <= debug_i_table_swap_in_progress;
+            debug_table_add_remove          <= debug_i_table_add_remove;
 
             if (debug_table_select /= debug_i_packetiser_table_select) then
                 debug_wr_ct1_table_change   <= '1';
@@ -1287,10 +1294,17 @@ end generate;
             else
                 debug_wr_ct1_swap_progress   <= '0';
             end if;
+            
+            if (debug_table_add_remove /= debug_i_table_add_remove) then
+                debug_wr_table_add_remove    <= '1';
+            else
+                debug_wr_table_add_remove    <= '0';
+            end if;
 
             -- mappings
             debug_wr        <=  debug_wr_ct1_table_change OR 
                                 debug_wr_ct1_swap_progress OR
+                                debug_wr_table_add_remove OR
                                 debug_vec_from_packet(14) OR
                                 debug_vec_from_packet(15) OR
                                 debug_i_data_valid;
@@ -1301,7 +1315,8 @@ end generate;
                                 debug_i_packetiser_table_select &   -- 26
                                 meta_cache_fifo_wr_count &
                                 debug_i_data_valid;
-            debug_data(2)   <=  "00000" & 
+            debug_data(2)   <=  "0000" &
+                                debug_i_table_add_remove &
                                 debug_i_table_swap_in_progress &
                                 debug_vec_from_packet(25 downto 0);
 
