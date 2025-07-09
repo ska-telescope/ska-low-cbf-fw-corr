@@ -148,7 +148,10 @@ entity DSP_top_correlator is
         i_hbm_reset_final : in std_logic;
         i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0); -- 5 bits
         i_axi_dbg  : in std_logic_vector(127 downto 0); -- 128 bits
-        i_axi_dbg_valid : in std_logic
+        i_axi_dbg_valid : in std_logic;
+        -- 100GE input disable
+        o_lfaaDecode_reset : out std_logic;
+        i_ethDisable_done : in std_logic   --
     );
 end DSP_top_correlator;
 
@@ -329,7 +332,11 @@ begin
         -- hbm reset   
         o_hbm_reset        => o_hbm_reset(0),
         i_hbm_status       => i_hbm_status(0),
-
+        -- LFAADecode reset
+        -- Out to disable ethernet input, then when that is done, comes back in to reset the ingest pipeline
+        -- both here and in CT1
+        o_LFAADecode_reset => o_LFAADecode_reset, -- out std_logic;
+        i_ethDisable_done  => i_ethDisable_done,  -- in std_logic;
         o_reset_to_ct      => reset_to_ct_1,
         -- debug
         o_dbg              => LFAADecode_dbg
