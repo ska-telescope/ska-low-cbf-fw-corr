@@ -41,9 +41,28 @@ peripherals:
                                    Bit 15 -> 10 - lower 6 bits of the sub array instruction passed from corr output.
                                    Bit 31 -> 16 - lower 16 bits of 17 bit freq index.
 
+                                   Ram 3 contains - first 26 bits are the Addr and WREN for packetiser table rams.
+                                   Bit 13 -> 0  - args_addr;
+                                   Bit 14       - heap_size_wren_p(0);
+                                   Bit 15       - heap_size_wren_p(1);
+                                   Bit 16       - destination_ip_wren_p(0);
+                                   Bit 17       - destination_ip_wren_p(1);
+                                   Bit 18       - destination_udp_wren_p(0);
+                                   Bit 19       - destination_udp_wren_p(1);
+                                   Bit 20       - heap_counter_wren_p(0);
+                                   Bit 21       - heap_counter_wren_p(1);
+                                   Bit 22       - block_size_wren_p(0);
+                                   Bit 23       - block_size_wren_p(1);
+                                   Bit 24       - no_of_freq_chan_wren_p(0);
+                                   Bit 25       - no_of_freq_chan_wren_p(1);
+                                   Bit 26       - table_swap_in_progress - this comes from ct1
+                                   Bit 27       - table_add_remove - this comes from ct1 and is config_rw.table_select(0)
+
                                    Writes to this debug buffer are triggered by an instruction write from corr output (bit 0)
                                    OR
                                    An level change on the table select direct from CT1.
+
+                                   THIS NEEDS TO BE COMPILED IN, IF READS RETURN 0xBAD0C0DE THIS IS MISSING.
                                   "
       ######################################################################################### 
       - slave_name        : hbm_rd_debug
@@ -125,6 +144,12 @@ peripherals:
               field_description : "17 bit. subarray will stream out with this starting from 0."
          #################################
           - - field_name        : testmode_time_ref
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Placeholder for future development"
+         #################################
+          - - field_name        : testmode_time_ref_upper_bytes
               width             : 32
               access_mode       : RW
               reset_value       : 0x0
@@ -223,9 +248,28 @@ peripherals:
                                    Bit 15 -> 10 - lower 6 bits of the sub array instruction passed from corr output.
                                    Bit 31 -> 16 - lower 16 bits of 17 bit freq index.
 
+                                   Ram 3 contains - first 26 bits are the Addr and WREN for packetiser table rams.
+                                   Bit 13 -> 0  - args_addr;
+                                   Bit 14       - heap_size_wren_p(0);
+                                   Bit 15       - heap_size_wren_p(1);
+                                   Bit 16       - destination_ip_wren_p(0);
+                                   Bit 17       - destination_ip_wren_p(1);
+                                   Bit 18       - destination_udp_wren_p(0);
+                                   Bit 19       - destination_udp_wren_p(1);
+                                   Bit 20       - heap_counter_wren_p(0);
+                                   Bit 21       - heap_counter_wren_p(1);
+                                   Bit 22       - block_size_wren_p(0);
+                                   Bit 23       - block_size_wren_p(1);
+                                   Bit 24       - no_of_freq_chan_wren_p(0);
+                                   Bit 25       - no_of_freq_chan_wren_p(1);
+                                   Bit 26       - table_swap_in_progress - this comes from ct1
+                                   Bit 27       - table_add_remove - this comes from ct1 and is config_rw.table_select(0)
+
                                    Writes to this debug buffer are triggered by an instruction write from corr output (bit 0)
                                    OR
                                    An level change on the table select direct from CT1.
+
+                                   THIS NEEDS TO BE COMPILED IN, IF READS RETURN 0xBAD0C0DE THIS IS MISSING.
                                   "
       ######################################################################################### 
       - slave_name        : hbm_rd_debug
