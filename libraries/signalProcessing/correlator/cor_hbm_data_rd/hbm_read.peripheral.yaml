@@ -9,128 +9,62 @@ peripherals:
   - peripheral_name        : hbm_rd_debug
     peripheral_description : "debug and statistic registers"
     slave_ports:
-      #########################################################################################
-      - slave_name        : hbm_rd_debug
-        slave_type        : reg
+      #########################################################################################    
+      - slave_name        : hbm_debug
+        slave_type        : RAM
         number_of_slaves  : 1
-        slave_description : "debug and statistic registers"
-        dual_clock        : false
+        slave_description : "Shared memory space for multiple parameters."
         fields            :
-          - - field_name        : debug_pack_it_fsm
-              width             : 4
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "State machine current state."
-         #################################
-          - - field_name        : debug_cor_tri_fsm
-              width             : 4
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "State machine current state." 
-         #################################
-          - - field_name        : debug_hbm_reader_fsm
-              width             : 4
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "State machine current state." 
-         #################################
-          - - field_name        : debug_hbm_reader_fsm_cache
-              width             : 4
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "preceeding state of the State machine."      
-         #################################
-          - - field_name        : subarray_instruct_writes
+          - - field_name        : spead_shared_ram
               width             : 32
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "Number of meta data writes for HBM read out passed from Correlator."
-         #################################
-          - - field_name        : subarray_instruct_pending
-              width             : 8
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : "Number of correlation instructions cached in FIFO for HBM read out passed from Correlator."
-         #################################
-          - - field_name        : testmode_select
-              width             : 1
+              user_width        : 32
               access_mode       : RW
-              reset_value       : 0x0
-              field_description : "This will allow the user to generate instructions to test SPEAD Data packets.
-                                   HBM will have to filled with appropriate data and the correlator not configured.
-                                   Default - 0, 0 = Correlator instruction, 1 = Test Instruction
-                                   
-                                   Example readout of a 8x8 using subarray 1 values in the packetiser from the base of HBM is
-                                   hbm_start_addr  = 0
-                                   row             = 0
-                                   row_count       = 8
-                                   stim_freq_index = 0
-                                   stim_sub_array  = 1
-                                   time_ref        = 0
-                                   "
-         #################################
-          - - field_name        : testmode_hbm_start_addr
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Byte address in HBM of the start of a strip from the visibility matrix.
-                                   Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)"
-         #################################
-          - - field_name        : testmode_subarray
-              width             : 8
-              access_mode       : Rw
-              reset_value       : 0x0
-              field_description : "number between 0 - 127 which lines up with the parameters in the spead packet memories"
-         #################################
-          - - field_name        : testmode_freqindex
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "17 bit. subarray will stream out with this starting from 0."
-         #################################
-          - - field_name        : testmode_time_ref
-              width             : 32
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "Placeholder for future development"
-         #################################
-          - - field_name        : testmode_row
-              width             : 16
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "The index of the first row that is available, counts from zero every 256. Valid values 0,256,512"
-         #################################
-          - - field_name        : testmode_row_count
-              width             : 16
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "The number of rows available to be read out. Valid range is 1 to 256."
-         #################################
-          - - field_name        : testmode_load_instruct
-              width             : 1
-              access_mode       : RW
-              reset_value       : 0x0
-              field_description : "1 - load, toggle back to zero."
-         #################################
-          - - field_name        : debug_pageflip
-              width             : 16
-              access_mode       : RO
-              reset_value       : 0x0
-              field_description : " If bit 2 and bit 0 are different then a page flip is triggered.
-                                    Bit 1 should match Bit 0 of table_sel_status in packetiser.
-                                    Bit 0       - table select prev
-                                    Bit 1       - table select
-                                    Bit 2       - last recorded page
-                                    Bit 3       - 0
-                                    Bit 7 -> 4  - 4 bit rolling counter tracking page flips passed with instruction
-                                    Bit 15 -> 8 - 0
+              number_of_fields  : 4096
+              interface         : simple
+              reset_value       : 0
+              field_description : "Psuedo ILA capturing the instructions passed from correlator to HBM readout.
+                                   Two rams of 4 bytes x 1024 deep.
+                                   The rams share a wr_address pointer and wren in logic.
+                                   There are 8 bytes captured and this buffer will wrap around.
+
+                                   Ram 1 is read from address 0-1023
+                                   Ram 2 is read from address 1024-2047
+
+                                   Ram 1 contains a timestamp, free running 300 Mhz (3.33ns) counter with 40 bits
+                                   The top 32 bits are stored in Ram 1, giving a time resolution of ~852 ns.
+
+                                   Ram 2 contains
+                                   Bit 0        - data_valid - This is high when an instruction is written from corr output.
+                                   Bit 7 -> 1   - used words in instruction FIFO - cache of instructions from corr output. 
+                                   Bit 8        - table select direct from CT1 - either 0 or 1
+                                   Bit 9        - table select bit passed with instruction - either 0 or 1
+                                   Bit 15 -> 10 - lower 6 bits of the sub array instruction passed from corr output.
+                                   Bit 31 -> 16 - lower 16 bits of 17 bit freq index.
+
+                                   Ram 3 contains - first 26 bits are the Addr and WREN for packetiser table rams.
+                                   Bit 13 -> 0  - args_addr;
+                                   Bit 14       - heap_size_wren_p(0);
+                                   Bit 15       - heap_size_wren_p(1);
+                                   Bit 16       - destination_ip_wren_p(0);
+                                   Bit 17       - destination_ip_wren_p(1);
+                                   Bit 18       - destination_udp_wren_p(0);
+                                   Bit 19       - destination_udp_wren_p(1);
+                                   Bit 20       - heap_counter_wren_p(0);
+                                   Bit 21       - heap_counter_wren_p(1);
+                                   Bit 22       - block_size_wren_p(0);
+                                   Bit 23       - block_size_wren_p(1);
+                                   Bit 24       - no_of_freq_chan_wren_p(0);
+                                   Bit 25       - no_of_freq_chan_wren_p(1);
+                                   Bit 26       - table_swap_in_progress - this comes from ct1
+                                   Bit 27       - table_add_remove - this comes from ct1 and is config_rw.table_select(0)
+
+                                   Writes to this debug buffer are triggered by an instruction write from corr output (bit 0)
+                                   OR
+                                   An level change on the table select direct from CT1.
+
+                                   THIS NEEDS TO BE COMPILED IN, IF READS RETURN 0xBAD0C0DE THIS IS MISSING.
                                   "
-
-
-  - peripheral_name        : hbm_rd_debug_2
-    peripheral_description : "debug and statistic registers"
-    slave_ports:
-      #########################################################################################
+      ######################################################################################### 
       - slave_name        : hbm_rd_debug
         slave_type        : reg
         number_of_slaves  : 1
@@ -252,3 +186,235 @@ peripherals:
                                     Bit 7 -> 4  - 4 bit rolling counter tracking page flips passed with instruction
                                     Bit 15 -> 8 - 0
                                   "
+         #################################
+          - - field_name        : debug_packed_fifo
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " packed FIFO is 4096 x 64byte FIFO containing vis+meta ready for packetiser.
+                                    31 - 16 = writes to FIFO when already 4000 USED, 15 - 0 = current used."
+         #################################
+          - - field_name        : debug_bytes_in_heap_trkr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " bytes in current heap sent to packetiser."
+         #################################
+          - - field_name        : dbg_heap_trkr_start
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Heap size given at the start of the current transaction."
+         #################################
+          - - field_name        : dbg_dbg_ram_wr_addr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Current wr address of debug ram"
+
+
+  - peripheral_name        : hbm_rd_debug_2
+    peripheral_description : "debug and statistic registers"
+    slave_ports:
+      #########################################################################################    
+      - slave_name        : hbm_debug
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Shared memory space for multiple parameters."
+        fields            :
+          - - field_name        : spead_shared_ram
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 4096
+              interface         : simple
+              reset_value       : 0
+              field_description : "Psuedo ILA capturing the instructions passed from correlator to HBM readout.
+                                   Two rams of 4 bytes x 1024 deep.
+                                   The rams share a wr_address pointer and wren in logic.
+                                   There are 8 bytes captured and this buffer will wrap around.
+
+                                   Ram 1 is read from address 0-1023
+                                   Ram 2 is read from address 1024-2047
+
+                                   Ram 1 contains a timestamp, free running 300 Mhz (3.33ns) counter with 40 bits
+                                   The top 32 bits are stored in Ram 1, giving a time resolution of ~852 ns.
+
+                                   Ram 2 contains
+                                   Bit 0        - data_valid - This is high when an instruction is written from corr output.
+                                   Bit 7 -> 1   - used words in instruction FIFO - cache of instructions from corr output. 
+                                   Bit 8        - table select direct from CT1 - either 0 or 1
+                                   Bit 9        - table select bit passed with instruction - either 0 or 1
+                                   Bit 15 -> 10 - lower 6 bits of the sub array instruction passed from corr output.
+                                   Bit 31 -> 16 - lower 16 bits of 17 bit freq index.
+
+                                   Ram 3 contains - first 26 bits are the Addr and WREN for packetiser table rams.
+                                   Bit 13 -> 0  - args_addr;
+                                   Bit 14       - heap_size_wren_p(0);
+                                   Bit 15       - heap_size_wren_p(1);
+                                   Bit 16       - destination_ip_wren_p(0);
+                                   Bit 17       - destination_ip_wren_p(1);
+                                   Bit 18       - destination_udp_wren_p(0);
+                                   Bit 19       - destination_udp_wren_p(1);
+                                   Bit 20       - heap_counter_wren_p(0);
+                                   Bit 21       - heap_counter_wren_p(1);
+                                   Bit 22       - block_size_wren_p(0);
+                                   Bit 23       - block_size_wren_p(1);
+                                   Bit 24       - no_of_freq_chan_wren_p(0);
+                                   Bit 25       - no_of_freq_chan_wren_p(1);
+                                   Bit 26       - table_swap_in_progress - this comes from ct1
+                                   Bit 27       - table_add_remove - this comes from ct1 and is config_rw.table_select(0)
+
+                                   Writes to this debug buffer are triggered by an instruction write from corr output (bit 0)
+                                   OR
+                                   An level change on the table select direct from CT1.
+
+                                   THIS NEEDS TO BE COMPILED IN, IF READS RETURN 0xBAD0C0DE THIS IS MISSING.
+                                  "
+      ######################################################################################### 
+      - slave_name        : hbm_rd_debug
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "debug and statistic registers"
+        dual_clock        : false
+        fields            :
+          - - field_name        : debug_pack_it_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state."
+         #################################
+          - - field_name        : debug_cor_tri_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state." 
+         #################################
+          - - field_name        : debug_hbm_reader_fsm
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "State machine current state." 
+         #################################
+          - - field_name        : debug_hbm_reader_fsm_cache
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "preceeding state of the State machine."      
+         #################################
+          - - field_name        : subarray_instruct_writes
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of meta data writes for HBM read out passed from Correlator."
+         #################################
+          - - field_name        : subarray_instruct_pending
+              width             : 8
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of correlation instructions cached in FIFO for HBM read out passed from Correlator."
+         #################################
+          - - field_name        : testmode_select
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "This will allow the user to generate instructions to test SPEAD Data packets.
+                                   HBM will have to filled with appropriate data and the correlator not configured.
+                                   Default - 0, 0 = Correlator instruction, 1 = Test Instruction
+                                   
+                                   Example readout of a 8x8 using subarray 1 values in the packetiser from the base of HBM is
+                                   hbm_start_addr  = 0
+                                   row             = 0
+                                   row_count       = 8
+                                   stim_freq_index = 0
+                                   stim_sub_array  = 1
+                                   time_ref        = 0
+                                   "
+         #################################
+          - - field_name        : testmode_hbm_start_addr
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Byte address in HBM of the start of a strip from the visibility matrix.
+                                   Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)"
+         #################################
+          - - field_name        : testmode_subarray
+              width             : 8
+              access_mode       : Rw
+              reset_value       : 0x0
+              field_description : "number between 0 - 127 which lines up with the parameters in the spead packet memories"
+         #################################
+          - - field_name        : testmode_freqindex
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "17 bit. subarray will stream out with this starting from 0."
+         #################################
+          - - field_name        : testmode_time_ref
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Placeholder for future development"
+         #################################
+          - - field_name        : testmode_time_ref_upper_bytes
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Placeholder for future development"
+         #################################
+          - - field_name        : testmode_row
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "The index of the first row that is available, counts from zero every 256. Valid values 0,256,512"
+         #################################
+          - - field_name        : testmode_row_count
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "The number of rows available to be read out. Valid range is 1 to 256."
+         #################################
+          - - field_name        : testmode_load_instruct
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "1 - load, toggle back to zero."
+         #################################
+          - - field_name        : debug_pageflip
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " If bit 2 and bit 0 are different then a page flip is triggered.
+                                    Bit 1 should match Bit 0 of table_sel_status in packetiser.
+                                    Bit 0       - table select prev
+                                    Bit 1       - table select
+                                    Bit 2       - last recorded page
+                                    Bit 3       - 0
+                                    Bit 7 -> 4  - 4 bit rolling counter tracking page flips passed with instruction
+                                    Bit 15 -> 8 - 0
+                                  "
+         #################################
+          - - field_name        : debug_packed_fifo
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " packed FIFO is 4096 x 64byte FIFO containing vis+meta ready for packetiser.
+                                    31 - 16 = writes to FIFO when already 4000 USED, 15 - 0 = current used." 
+         #################################
+          - - field_name        : debug_bytes_in_heap_trkr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " bytes in current heap sent to packetiser."
+         #################################
+          - - field_name        : dbg_heap_trkr_start
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Heap size given at the start of the current transaction."
+         #################################
+          - - field_name        : dbg_dbg_ram_wr_addr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Current wr address of debug ram"

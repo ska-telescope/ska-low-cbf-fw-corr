@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.6
+    * Fix for channel leakage after several scans.
 * 0.1.5
     * Bug release
         * Visibility Flags in data packets Endian swapped

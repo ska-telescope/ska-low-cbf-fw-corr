@@ -63,6 +63,21 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "status. "
+          - - field_name        : recent_readout_gap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of 300MHz clocks between start of CT1 readout. Should be about 84900000 clks = 283 ms. Reset by lfaadecode reset bit."
+          - - field_name        : minimum_readout_gap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Running minimum number of 300MHz clocks between start of CT1 readout. Should be about 84900000 clks = 283 ms. Reset by lfaadecode reset bit."
+          - - field_name        : hbm_status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "hbm reset status. Bit 0 = rd_tracker_bad, bit 1 = wr_tracker_bad, bit 2 = in reset, bits 15:4 = rd tracker, bits 27:16 = wr tracker, bits 31:28 = fsm debug"
         ###########################################################################      
           - - field_name        : table_select
               width             : 2
@@ -152,6 +167,72 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "total number of 283ms buffers read out and sent to the filterbanks."
+
+          - - field_name        : reset_mismatch
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Reset search for mismatched data. Write high then low to reset."
+
+          - - field_name        : mismatch_set
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "One bit for each of the 4 output lanes to indicate that a mismatch with expected debug data has been found"
+
+          - - field_name        : dbgCheckData0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 0 expected data"
+
+          - - field_name        : dbgCheckData1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 1 expected data"
+
+          - - field_name        : dbgCheckData2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 2 expected data"
+
+          - - field_name        : dbgCheckData3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 3 expected data"
+
+          - - field_name        : dbgBadData0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 0 actual data"
+
+          - - field_name        : dbgBadData1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 1 actual data"
+
+          - - field_name        : dbgBadData2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 2 actual data"
+
+          - - field_name        : dbgBadData3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output lane 3 actual data"
+
+          - - field_name        : dFIFO_underflow
+              width             : 4
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Output FIFO underflow occurred. This should never happen. "
 
           - error:
             - field_name        : input_overflow

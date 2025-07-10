@@ -168,7 +168,8 @@ entity corr_ct2_dout is
         o_dataFIFO_wrCount : out std_logic_vector(9 downto 0);
         o_readout_error       : out std_logic;
         o_recent_start_gap    : out std_logic_vector(31 downto 0);
-        o_recent_readout_time : out std_logic_vector(31 downto 0)
+        o_recent_readout_time : out std_logic_vector(31 downto 0);
+        o_min_start_gap       : out std_logic_vector(31 downto 0)
     );
 end corr_ct2_dout;
 
@@ -256,6 +257,8 @@ architecture Behavioral of corr_ct2_dout is
     signal readout_error : std_logic := '0';
     signal recent_start_gap, start_gap  : std_logic_vector(31 downto 0) := x"00000000";
     signal recent_readout_time, readout_time : std_logic_vector(31 downto 0) := x"00000000";
+    signal start_Del1 : std_logic;
+    signal min_start_gap : std_logic_vector(31 downto 0) := x"ffffffff";
     
 begin
     
@@ -269,6 +272,7 @@ begin
             o_readout_error <= readout_error;
             o_recent_start_gap <= recent_start_gap;
             o_recent_readout_time <= recent_readout_time;
+            o_min_start_gap <= min_start_gap;
         end if;
     end process;
     
@@ -349,6 +353,15 @@ begin
                 recent_start_gap <= start_gap;
             elsif start_gap(31) = '0' then
                 start_gap <= std_logic_vector(unsigned(start_gap) + 1);
+            end if;
+            
+            start_del1 <= i_start;
+            if i_rst = '1' then
+                min_start_gap <= (others => '1');
+            elsif start_del1 = '1' then
+                if unsigned(recent_start_gap) < unsigned(min_start_gap) then
+                    min_start_gap <= recent_start_gap;
+                end if;
             end if;
             
             if i_start = '1' then
