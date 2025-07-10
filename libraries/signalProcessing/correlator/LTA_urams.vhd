@@ -46,10 +46,14 @@ entity LTA_urams is
         -- Read data
         -- output for each row; first has 6 cycle latency from i_cell, i_readcount, one extra cycle latency for each of the 16 outputs.
         o_AccumVisibilties : out t_slv_64_arr(15 downto 0); 
-        o_AccumCentroid : out t_slv_32_arr(15 downto 0);    -- constant for 4 clocks at a time, since the centroid data is the same for all combinations of polarisations.
+        -- time samples and time sum are constant for 4 clocks at a time, since the centroid data is the same for all combinations of polarisations.
+        o_AccumTimeSamples : out t_slv_16_arr(15 downto 0);
+        o_AccumTimeSum     : out t_slv_24_arr(15 downto 0);   
         -- Write data, must be valid 1 clock after o_AccumVisibilities, o_AccumCentroid.
         i_wrVisibilities : in t_slv_64_arr(15 downto 0); 
-        i_wrCentroid : in t_slv_32_arr(15 downto 0);      -- Should be valid for the 4 consecutive clocks where i_wrVisibilities is for the same station pair.
+        -- timeSum and timeSamples should be valid for the 4 consecutive clocks where i_wrVisibilities is for the same station pair.
+        i_wrTimeSamples  : in t_slv_16_arr(15 downto 0);
+        i_wrTimeSum      : in t_slv_24_arr(15 downto 0);
         ----------------------------------------------------------------------------------------
         -- Data output 
         -- 256 bit bus for visibilities, 32 bit bus for centroid data.
@@ -58,7 +62,7 @@ entity LTA_urams is
         i_readoutActive : in std_logic;
         i_readoutBuffer : in std_logic;
         o_readoutVisibilities : out std_logic_vector(255 downto 0);  -- 21 clock latency from i_readoutAddr to the data.
-        o_readoutCentroid     : out std_logic_vector(31 downto 0)
+        o_readoutCentroid     : out std_logic_vector(39 downto 0)  -- bits 39:16 = time sum, bit 15:0 = time samples
     );
 
         -- prevent optimisation 
@@ -78,13 +82,18 @@ architecture Behavioral of LTA_urams is
     signal accumulator_memSelect : t_slv_2_arr(21 downto 0);
     signal AccumVisibilities0, AccumVisibilities1 : t_slv_64_arr(15 downto 0);
     signal wrBufferDel : std_logic_vector(19 downto 0);
-    signal buf0_centroid, buf1_centroid : t_slv_32_arr(15 downto 0);
+    signal buf0_timeSum, buf1_timeSum : t_slv_24_arr(15 downto 0);
+    signal buf0_timeSamples, buf1_timeSamples : t_slv_16_arr(15 downto 0);
+    signal buf0_timeSum_top_byte, buf1_timeSum_top_byte : t_slv_8_arr(15 downto 0);
+    signal wrData_timeSum_top_byte : t_slv_8_arr(15 downto 0);
+    
     signal wrAddr : t_slv_12_arr(15 downto 0);
     signal wrData : t_slv_72_arr(15 downto 0);
     type t_wren is array(15 downto 0) of t_slv_1_Arr(3 downto 0);
     signal buf0_wren : t_wren;
     signal buf1_wrEn : t_wren;
-    signal dout0, dout1 : t_slv_288_arr(15 downto 0);
+    type t_slv_296_arr is array (INTEGER RANGE <>) OF STD_LOGIC_VECTOR(295 DOWNTO 0);
+    signal dout0, dout1 : t_slv_296_arr(15 downto 0);
     signal readoutRowDel : t_slv_4_Arr(18 downto 0);
     
     signal accumulator_rdAddr_del1, accumulator_rdAddr_del2, accumulator_rdAddr_del3 : std_logic_vector(11 downto 0);
@@ -97,6 +106,12 @@ architecture Behavioral of LTA_urams is
     signal readout_cell : std_logic_vector(7 downto 0);
     signal readout_column, readout_row : std_logic_vector(3 downto 0);
     signal readoutSelBuf0 : std_logic_vector(19 downto 0);
+
+    signal select_row_dout0 : std_logic_vector(15 downto 0);
+    signal select_row_dout1 : std_logic_vector(15 downto 0);
+    attribute dont_touch : string;
+    attribute dont_touch of select_row_dout0 : signal is "true";
+    attribute dont_touch of select_row_dout1 : signal is "true";
     
 begin
     
@@ -141,21 +156,27 @@ begin
                 AccumVisibilities1(row) <= buf1_dout(row)(to_integer(unsigned(accumulator_memSelect(row+3))))(63 downto 0);
                 if wrBufferDel(row+4) = '0' then
                     o_AccumVisibilties(row) <= AccumVisibilities0(row);
-                    o_AccumCentroid(row)    <= buf0_centroid(row);
+                    o_AccumTimeSamples(row) <= buf0_timeSamples(row);
+                    o_AccumTimeSum(row)     <= buf0_timeSum(row);
                 else
                     o_AccumVisibilties(row) <= AccumVisibilities1(row);
-                    o_AccumCentroid(row)    <= buf1_centroid(row);
+                    o_AccumTimeSamples(row) <= buf1_timeSamples(row);
+                    o_AccumTimeSum(row)     <= buf1_timeSum(row);
                 end if;
                 
-                buf0_centroid(row) <= buf0_dout(row)(3)(71 downto 64) & buf0_dout(row)(2)(71 downto 64) & buf0_dout(row)(1)(71 downto 64) & buf0_dout(row)(0)(71 downto 64);
-                buf1_centroid(row) <= buf1_dout(row)(3)(71 downto 64) & buf1_dout(row)(2)(71 downto 64) & buf1_dout(row)(1)(71 downto 64) & buf1_dout(row)(0)(71 downto 64);
+                buf0_timeSum(row) <= buf0_timeSum_top_byte(row) & buf0_dout(row)(3)(71 downto 64) & buf0_dout(row)(2)(71 downto 64);
+                buf0_timeSamples(row) <= buf0_dout(row)(1)(71 downto 64) & buf0_dout(row)(0)(71 downto 64);
+                
+                buf1_timeSum(row) <= buf1_timeSum_top_byte(row) & buf1_dout(row)(3)(71 downto 64) & buf1_dout(row)(2)(71 downto 64);
+                buf1_timeSamples(row) <= buf1_dout(row)(1)(71 downto 64) & buf1_dout(row)(0)(71 downto 64);
                 
                 wrData(row)(63 downto 0) <= i_wrVisibilities(row);
+                wrData_timeSum_top_byte(row) <= i_wrTimeSum(row)(23 downto 16);
                 case accumulator_memSelect(row+6) is
-                    when "00" => wrData(row)(71 downto 64) <= i_wrCentroid(row)(7 downto 0);
-                    when "01" => wrData(row)(71 downto 64) <= i_wrCentroid(row)(15 downto 8);
-                    when "10" => wrData(row)(71 downto 64) <= i_wrCentroid(row)(23 downto 16);
-                    when others => wrData(row)(71 downto 64) <= i_wrCentroid(row)(31 downto 24);
+                    when "00" => wrData(row)(71 downto 64) <= i_wrTimeSamples(row)(7 downto 0);
+                    when "01" => wrData(row)(71 downto 64) <= i_wrTimeSamples(row)(15 downto 8);
+                    when "10" => wrData(row)(71 downto 64) <= i_wrTimeSum(row)(7 downto 0);
+                    when others => wrData(row)(71 downto 64) <=  i_wrTimeSum(row)(15 downto 8);
                 end case;
                 
             end loop;
@@ -223,20 +244,22 @@ begin
             
             readoutRowDel(0) <= readout_row;
             readoutRowDel(18 downto 1) <= readoutRowDel(17 downto 0);
-            dout0(0) <= buf0_dout(0)(3) & buf0_dout(0)(2) & buf0_dout(0)(1) & buf0_dout(0)(0);
-            dout1(0) <= buf1_dout(0)(3) & buf1_dout(0)(2) & buf1_dout(0)(1) & buf1_dout(0)(0);
+            dout0(0) <= buf0_timeSum_top_byte(0) & buf0_dout(0)(3) & buf0_dout(0)(2) & buf0_dout(0)(1) & buf0_dout(0)(0);
+            dout1(0) <= buf1_timeSum_top_byte(0) & buf1_dout(0)(3) & buf1_dout(0)(2) & buf1_dout(0)(1) & buf1_dout(0)(0);
             
             if readoutSelBuf0(19) = '1' then
                 o_readoutVisibilities <= dout0(15)(279 downto 216) & dout0(15)(207 downto 144) & dout0(15)(135 downto 72) & dout0(15)(63 downto 0);
-                o_readoutCentroid <= dout0(15)(287 downto 280) & dout0(15)(215 downto 208) & dout0(15)(143 downto 136) & dout0(15)(71 downto 64);
+                o_readoutCentroid <= dout0(15)(295 downto 280) & dout0(15)(215 downto 208) & dout0(15)(143 downto 136) & dout0(15)(71 downto 64);
             else
                 o_readoutVisibilities <= dout1(15)(279 downto 216) & dout1(15)(207 downto 144) & dout1(15)(135 downto 72) & dout1(15)(63 downto 0);
-                o_readoutCentroid <= dout1(15)(287 downto 280) & dout1(15)(215 downto 208) & dout1(15)(143 downto 136) & dout1(15)(71 downto 64);
+                o_readoutCentroid <= dout1(15)(295 downto 280) & dout1(15)(215 downto 208) & dout1(15)(143 downto 136) & dout1(15)(71 downto 64);
             end if;
             
         end if;
     end process;
     
+    select_row_dout0(0) <= '0'; -- unused
+    select_row_dout1(0) <= '0'; -- unused
     
     row_mux_gen : for row in 1 to 15 generate
 
@@ -256,14 +279,25 @@ begin
         begin
             if rising_edge(i_clk) then
             
-                if (unsigned(readoutRowDel(row+3)) = row) then  -- +3 since there is a 3 cycle read latency for the memories.
-                    dout0(row) <= buf0_dout(row)(3) & buf0_dout(row)(2) & buf0_dout(row)(1) & buf0_dout(row)(0);
+                if unsigned(readoutRowDel(row+2)) = row then
+                    select_row_dout0(row) <= '1';
+                else
+                    select_row_dout0(row) <= '0';
+                end if;
+                if unsigned(readoutRowDel(row+2)) = row then
+                    select_row_dout1(row) <= '1';
+                else
+                    select_row_dout1(row) <= '0';
+                end if;
+                
+                if (select_row_dout0(row) = '1') then  -- +3 since there is a 3 cycle read latency for the memories.
+                    dout0(row) <= buf0_timeSum_top_byte(row) & buf0_dout(row)(3) & buf0_dout(row)(2) & buf0_dout(row)(1) & buf0_dout(row)(0);
                 else
                     dout0(row) <= dout0(row-1);
                 end if;
                 
-                if (unsigned(readoutRowDel(row+3)) = row) then
-                    dout1(row) <= buf1_dout(row)(3) & buf1_dout(row)(2) & buf1_dout(row)(1) & buf1_dout(row)(0);
+                if (select_row_dout1(row) = '1') then
+                    dout1(row) <= buf1_timeSum_top_byte(row) & buf1_dout(row)(3) & buf1_dout(row)(2) & buf1_dout(row)(1) & buf1_dout(row)(0);
                 else
                     dout1(row) <= dout1(row-1);
                 end if;
@@ -383,6 +417,101 @@ begin
             );
         
         end generate;
+        
+        -- TimeSamples (16 bits) and TimeSum (24 bits) together need 5 bytes of data
+        -- 4 byte are stored using the top byte of the ultraRAM blocks.
+        -- One extra block RAM here for each buffer for the final byte (bits 23:16) of timeSum
+
+        xpm_memory_sdpram_extra0_inst : xpm_memory_sdpram
+        generic map (
+            ADDR_WIDTH_A => 12,              -- DECIMAL
+            ADDR_WIDTH_B => 12,              -- DECIMAL
+            AUTO_SLEEP_TIME => 0,            -- DECIMAL
+            BYTE_WRITE_WIDTH_A => 8,         -- DECIMAL
+            CASCADE_HEIGHT => 0,             -- DECIMAL
+            CLOCKING_MODE => "common_clock", -- String
+            ECC_MODE => "no_ecc",            -- String
+            MEMORY_INIT_FILE => "none",      -- String
+            MEMORY_INIT_PARAM => "0",        -- String
+            MEMORY_OPTIMIZATION => "true",   -- String
+            MEMORY_PRIMITIVE => "auto",      -- String
+            MEMORY_SIZE => 32768,            -- DECIMAL  -- Total bits in the memory; 4096 * 8 = 32768
+            MESSAGE_CONTROL => 0,            -- DECIMAL
+            READ_DATA_WIDTH_B => 8,          -- DECIMAL
+            READ_LATENCY_B => 3,             -- DECIMAL
+            READ_RESET_VALUE_B => "0",       -- String
+            RST_MODE_A => "SYNC",            -- String
+            RST_MODE_B => "SYNC",            -- String
+            SIM_ASSERT_CHK => 0,             -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+            USE_EMBEDDED_CONSTRAINT => 0,    -- DECIMAL
+            USE_MEM_INIT => 0,               -- DECIMAL
+            WAKEUP_TIME => "disable_sleep",  -- String
+            WRITE_DATA_WIDTH_A => 8,         -- DECIMAL
+            WRITE_MODE_B => "read_first"     -- String
+        ) port map (
+            dbiterrb => open,       -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port A.
+            doutb => buf0_timeSum_top_byte(row),  -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations.
+            sbiterrb => open,       -- 1-bit output: Status signal to indicate single bit error occurrence on the data output of port B.
+            addra => WrAddr(row), -- ADDR_WIDTH_A-bit input: Address for port A write and read operations.
+            addrb => buf0_RdAddr(row), -- ADDR_WIDTH_B-bit input: Address for port B write and read operations.
+            clka => i_clk,          -- 1-bit input: Clock signal for port A. Also clocks port B when parameter CLOCKING_MODE is "common_clock".
+            clkb => i_clk,          -- Unused when parameter CLOCKING_MODE is "common_clock".
+            dina => wrData_timeSum_top_byte(row),  -- WRITE_DATA_WIDTH_A-bit input: Data input for port A write operations.
+            ena => '1',             -- 1-bit input: Memory enable signal for port A.
+            enb => '1',             -- 1-bit input: Memory enable signal for port B.
+            injectdbiterra => '0',  -- 1-bit input: Controls double bit error injection on input data
+            injectsbiterra => '0',  -- 1-bit input: Controls single bit error injection on input data
+            regceb => '1',          -- 1-bit input: Clock Enable for the last register stage on the output data path.
+            rstb => '0',            -- 1-bit input: Reset signal for the final port B output register
+            sleep => '0',           -- 1-bit input: sleep signal to enable the dynamic power saving feature.
+            wea => buf0_wrEn(row)(0) -- WRITE_DATA_WIDTH_A/BYTE_WRITE_WIDTH_A-bit input: Write enable vector for port A input data port dina. 
+        );
+        
+        xpm_memory_sdpram_extra1_inst : xpm_memory_sdpram
+        generic map (
+            ADDR_WIDTH_A => 12,              -- DECIMAL
+            ADDR_WIDTH_B => 12,              -- DECIMAL
+            AUTO_SLEEP_TIME => 0,            -- DECIMAL
+            BYTE_WRITE_WIDTH_A => 8,         -- DECIMAL
+            CASCADE_HEIGHT => 0,             -- DECIMAL
+            CLOCKING_MODE => "common_clock", -- String
+            ECC_MODE => "no_ecc",            -- String
+            MEMORY_INIT_FILE => "none",      -- String
+            MEMORY_INIT_PARAM => "0",        -- String
+            MEMORY_OPTIMIZATION => "true",   -- String
+            MEMORY_PRIMITIVE => "auto",      -- String
+            MEMORY_SIZE => 32768,            -- DECIMAL  -- Total bits in the memory; 4096 * 8 = 32768
+            MESSAGE_CONTROL => 0,            -- DECIMAL
+            READ_DATA_WIDTH_B => 8,          -- DECIMAL
+            READ_LATENCY_B => 3,             -- DECIMAL
+            READ_RESET_VALUE_B => "0",       -- String
+            RST_MODE_A => "SYNC",            -- String
+            RST_MODE_B => "SYNC",            -- String
+            SIM_ASSERT_CHK => 0,             -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+            USE_EMBEDDED_CONSTRAINT => 0,    -- DECIMAL
+            USE_MEM_INIT => 0,               -- DECIMAL
+            WAKEUP_TIME => "disable_sleep",  -- String
+            WRITE_DATA_WIDTH_A => 8,         -- DECIMAL
+            WRITE_MODE_B => "read_first"     -- String
+        ) port map (
+            dbiterrb => open,       -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port A.
+            doutb => buf1_timeSum_top_byte(row),  -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations.
+            sbiterrb => open,       -- 1-bit output: Status signal to indicate single bit error occurrence on the data output of port B.
+            addra => WrAddr(row), -- ADDR_WIDTH_A-bit input: Address for port A write and read operations.
+            addrb => buf1_RdAddr(row), -- ADDR_WIDTH_B-bit input: Address for port B write and read operations.
+            clka => i_clk,          -- 1-bit input: Clock signal for port A. Also clocks port B when parameter CLOCKING_MODE is "common_clock".
+            clkb => i_clk,          -- Unused when parameter CLOCKING_MODE is "common_clock".
+            dina => wrData_timeSum_top_byte(row),    -- WRITE_DATA_WIDTH_A-bit input: Data input for port A write operations.
+            ena => '1',             -- 1-bit input: Memory enable signal for port A.
+            enb => '1',             -- 1-bit input: Memory enable signal for port B.
+            injectdbiterra => '0',  -- 1-bit input: Controls double bit error injection on input data
+            injectsbiterra => '0',  -- 1-bit input: Controls single bit error injection on input data
+            regceb => '1',          -- 1-bit input: Clock Enable for the last register stage on the output data path.
+            rstb => '0',            -- 1-bit input: Reset signal for the final port B output register
+            sleep => '0',           -- 1-bit input: sleep signal to enable the dynamic power saving feature.
+            wea => buf1_wrEn(row)(0)  -- WRITE_DATA_WIDTH_A/BYTE_WRITE_WIDTH_A-bit input: Write enable vector for port A input data port dina. 
+        );
+        
                 
     end generate;
 

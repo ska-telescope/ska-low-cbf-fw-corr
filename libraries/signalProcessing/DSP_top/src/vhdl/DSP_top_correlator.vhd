@@ -244,7 +244,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_frameCount : t_slv_32_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_tileChannel : t_slv_24_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_tileTotalTimes : t_slv_8_arr((g_MAX_CORRELATORS-1) downto 0); -- Number of time samples to integrate for this tile.
-    signal cor_timeTotalChannels : t_slv_5_arr((g_MAX_CORRELATORS-1) downto 0);  -- Number of frequency channels to integrate for this tile.
+    signal cor_timeTotalChannels : t_slv_7_arr((g_MAX_CORRELATORS-1) downto 0);  -- Number of frequency channels to integrate for this tile.
     signal cor_rowStations, cor_colStations : t_slv_9_arr((g_MAX_CORRELATORS-1) downto 0); -- number of stations in the row memories to process; up to 256.
     signal cor_totalStations : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- Total number of stations being processing for this subarray-beam.
     signal cor_subarrayBeam : t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0);
@@ -592,7 +592,7 @@ begin
         o_cor_tileLocation      => cor_tileLocation, -- out t_slv_10_arr;   -- bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
         o_cor_tileChannel       => cor_tileChannel,       -- out t_slv_24_arr; Indicates the fine channel relative to the start of the subarray-beam buffer.
         o_cor_tileTotalTimes    => cor_tileTotalTimes,    -- out t_slv_8_arr; Number of time samples to integrate for this tile.
-        o_cor_tiletotalChannels => cor_timeTotalChannels, -- out t_slv_5_arr; Number of frequency channels to integrate for this tile.
+        o_cor_tiletotalChannels => cor_timeTotalChannels, -- out t_slv_7_arr; Number of frequency channels to integrate for this tile.
         o_cor_rowstations       => cor_rowStations,       -- out t_slv_9_arr; Number of stations in the row memories to process; up to 256.
         o_cor_colstations       => cor_colStations,       -- out t_slv_9_arr; Number of stations in the col memories to process; up to 256.   
         o_cor_totalStations     => cor_totalStations,     -- out t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); Total number of stations being processing for this subarray-beam.
@@ -669,7 +669,7 @@ begin
         -- This sets the offset within the HBM that the result is written to, relative to the base address which is extracted from registers based on i_cor0_tileCount.
         i_cor0_tileChannel       => cor_tileChannel(0),       -- in (23:0);
         i_cor0_tileTotalTimes    => cor_tileTotalTimes(0),    -- in (7:0);  Number of time samples to integrate for this tile.
-        i_cor0_tiletotalChannels => cor_timeTotalChannels(0), -- in (4:0);  Number of frequency channels to integrate for this tile.
+        i_cor0_tiletotalChannels => cor_timeTotalChannels(0), -- in (6:0);  Number of frequency channels to integrate for this tile.
         i_cor0_rowstations       => cor_rowStations(0),       -- in (8:0);  Number of stations in the row memories to process; up to 256.
         i_cor0_colstations       => cor_colStations(0),       -- in (8:0);  Number of stations in the col memories to process; up to 256.
         i_cor0_totalStations     => cor_totalStations(0),     -- in (15:0); Total number of stations being processing for this subarray-beam.
@@ -691,7 +691,7 @@ begin
         i_cor1_frameCount   => cor_frameCount(1),   -- in (31:0);
         i_cor1_tileChannel       => cor_tileChannel(1),       -- in (23:0);
         i_cor1_tileTotalTimes    => cor_tileTotalTimes(1),    -- in (7:0); Number of time samples to integrate for this tile.
-        i_cor1_tiletotalChannels => cor_timeTotalChannels(1), -- in (4:0); Number of frequency channels to integrate for this tile.
+        i_cor1_tiletotalChannels => cor_timeTotalChannels(1), -- in (6:0); Number of frequency channels to integrate for this tile.
         i_cor1_rowstations       => cor_rowStations(1),       -- in (8:0); Number of stations in the row memories to process; up to 256.
         i_cor1_colstations       => cor_colStations(1),       -- in (8:0); Number of stations in the col memories to process; up to 256.           
         i_cor1_totalStations     => cor_totalStations(1),     -- in (15:0); Total number of stations being processing for this subarray-beam.

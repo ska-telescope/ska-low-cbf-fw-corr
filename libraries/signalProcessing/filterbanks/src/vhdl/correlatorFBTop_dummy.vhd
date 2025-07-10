@@ -130,8 +130,8 @@ architecture Behavioral of correlatorFBTop_dummy is
     signal validOutDel1 : std_logic := '0';
     signal bufSelectRdDel1, bufSelectRdDel2 : std_logic := '0';
     
-    signal metaDel0, metaDel1, metaDel2 : std_logic_vector(METABITS+16-1 downto 0);
-    signal metaOut : std_logic_vector((METABITS-1) downto 0);
+    signal metaDel0, metaDel1, metaDel2 : std_logic_vector(METABITS+16-1 downto 0) := (others => '0');
+    signal metaOut : std_logic_vector((METABITS-1) downto 0) := (others => '0');
     signal outputCountOut : std_logic_vector(15 downto 0);
     signal outputCount : std_logic_vector(15 downto 0);
     signal metaDel1Count, metaDel2Count, metaDel3Count : std_logic_vector(11 downto 0);

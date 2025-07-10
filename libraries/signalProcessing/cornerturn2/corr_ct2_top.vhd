@@ -141,7 +141,7 @@ entity corr_ct2_top is
         o_cor_tileLocation : out t_slv_10_arr(g_MAX_CORRELATORS-1 downto 0); -- bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
         o_cor_tileChannel : out t_slv_24_arr(g_MAX_CORRELATORS-1 downto 0);
         o_cor_tileTotalTimes    : out t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0); -- Number of time samples to integrate for this tile.
-        o_cor_tiletotalChannels : out t_slv_5_arr(g_MAX_CORRELATORS-1 downto 0); -- Number of frequency channels to integrate for this tile.
+        o_cor_tiletotalChannels : out t_slv_7_arr(g_MAX_CORRELATORS-1 downto 0); -- Number of frequency channels to integrate for this tile.
         o_cor_rowstations       : out t_slv_9_arr(g_MAX_CORRELATORS-1 downto 0); -- number of stations in the row memories to process; up to 256.
         o_cor_colstations       : out t_slv_9_arr(g_MAX_CORRELATORS-1 downto 0); -- number of stations in the col memories to process; up to 256.
         o_cor_totalStations     : out t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- Total number of stations being processing for this subarray-beam.
@@ -203,10 +203,11 @@ architecture Behavioral of corr_ct2_top is
     signal dout_SB_valid    : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal dout_SB_stations : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);    -- The number of (sub)stations in this subarray-beam
     signal dout_SB_coarseStart : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- The first coarse channel in this subarray-beam
+    signal dout_SB_outputDisable : std_logic_vector(g_MAX_CORRELATORS-1 downto 0); -- Don't generate any output to the correlator for this entry in the subarray beam table
     signal dout_SB_fineStart : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);   -- The first fine channel in this subarray-beam
     signal dout_SB_n_fine : t_slv_24_arr(g_MAX_CORRELATORS-1 downto 0);      -- The number of fine channels in this subarray-beam
-    signal dout_SB_fineIntegrations : t_slv_6_arr(g_MAX_CORRELATORS-1 downto 0);  -- Number of fine channels to integrate
-    signal dout_SB_timeIntegrations : t_slv_2_arr(g_MAX_CORRELATORS-1 downto 0);  -- in (1:0);  Number of time samples per integration.
+    signal dout_SB_fineIntegrations : t_slv_7_arr(g_MAX_CORRELATORS-1 downto 0);  -- Number of fine channels to integrate
+    signal dout_SB_timeIntegrations : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);  -- in (1:0);  Number of time samples per integration.
     signal dout_SB_HBM_base_addr : t_slv_32_arr(g_MAX_CORRELATORS-1 downto 0);    -- in (31:0)  Base address in HBM for this subarray-beam.
     signal cur_readout_SB : t_slv_7_arr(g_MAX_CORRELATORS-1 downto 0);
     signal dout_SB_bad_poly : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
@@ -327,6 +328,9 @@ architecture Behavioral of corr_ct2_top is
     signal cor_bp_rd_addr : std_logic_vector(7 downto 0);
     signal cor_bp_rd_data : std_logic_vector(1 downto 0);
     signal dout_HBM_buffer : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
+    signal dout_readout_error : std_logic_vector(1 downto 0);
+    signal dout_recent_start_gap :  std_logic_vector(31 downto 0);
+    signal dout_recent_readout_time : std_logic_vector(31 downto 0);
     
     signal noc_wren                 : STD_LOGIC;
     signal noc_rden                 : STD_LOGIC;
@@ -606,10 +610,11 @@ begin
         i_SB_done  => dout_SB_done(0),   -- Indicates that all the subarray beams for this correlator core has been processed.
         i_stations => dout_SB_stations(0),                 -- in (15:0); The number of (sub)stations in this subarray-beam
         i_coarseStart => dout_SB_coarseStart(0),           -- in (15:0); The first coarse channel in this subarray-beam
+        i_outputDisable => dout_SB_outputDisable(0),      -- in std_logic;
         i_fineStart => dout_SB_fineStart(0),               -- in (15:0); The first fine channel in this subarray-beam
         i_n_fine => dout_SB_n_fine(0),                     -- in (23:0); The number of fine channels in this subarray-beam
-        i_fineIntegrations => dout_SB_fineIntegrations(0), -- in (5:0);  Number of fine channels to integrate
-        i_timeIntegrations => dout_SB_timeIntegrations(0), -- in (1:0);  Number of time samples per integration.
+        i_fineIntegrations => dout_SB_fineIntegrations(0), -- in (6:0);  Number of fine channels to integrate
+        i_timeIntegrations => dout_SB_timeIntegrations(0), -- in std_logic;  Number of time samples per integration.
         i_HBM_base_addr    => dout_SB_HBM_base_addr(0),    -- in (31:0)  Base address in HBM for this subarray-beam.
         i_bad_poly => dout_SB_bad_poly(0),  -- in std_logic;
         ---------------------------------------------------------------
@@ -634,7 +639,7 @@ begin
         o_cor_tile_location => o_cor_tileLocation(0), -- out (9:0);
         o_cor_tileChannel => o_cor_tileChannel_int(0),    -- out (23:0);
         o_cor_tileTotalTimes => o_cor_tileTotalTimes(0), -- out (7:0);  Number of time samples to integrate for this tile.
-        o_cor_tiletotalChannels => o_cor_tileTotalChannels(0), -- out (4:0); Number of frequency channels to integrate for this tile.
+        o_cor_tiletotalChannels => o_cor_tileTotalChannels(0), -- out (6:0); Number of frequency channels to integrate for this tile.
         o_cor_rowstations       => o_cor_rowStations(0), -- out (8:0); Number of stations in the row memories to process; up to 256.
         o_cor_colstations       => o_cor_colStations(0), -- out (8:0); Number of stations in the col memories to process; up to 256.
         o_cor_subarray_beam     => o_cor_subarrayBeam(0), -- out (7:0); Which entry is this in the subarray-beam table ? 
@@ -652,7 +657,10 @@ begin
         o_ar_fsm_dbg      => dout_ar_fsm_dbg,  -- : out std_logic_vector(3 downto 0);
         o_readout_fsm_dbg => dout_readout_fsm_dbg, --: out std_logic_vector(3 downto 0);
         o_arFIFO_wr_count => dout_arFIFO_wr_count, -- out std_logic_vector(6 downto 0);
-        o_dataFIFO_wrCount => dout_dataFIFO_wrCount -- out std_logic_vector(9 downto 0)
+        o_dataFIFO_wrCount => dout_dataFIFO_wrCount, -- out std_logic_vector(9 downto 0);
+        o_readout_error       => dout_readout_error(0), --  out std_logic;
+        o_recent_start_gap    => dout_recent_start_gap,   -- out std_logic_vector(31 downto 0);
+        o_recent_readout_time => dout_recent_readout_time -- out std_logic_vector(31 downto 0)
     );
     o_cor_tableSelect(0) <= readout_tableSelect;
     o_cor_valid <= cor_valid_int;
@@ -676,10 +684,11 @@ begin
             i_SB_done  => dout_SB_done(i),   -- Indicates that all the subarray beams for this correlator core has been processed.
             i_stations => dout_SB_stations(i),                 -- in (15:0); The number of (sub)stations in this subarray-beam
             i_coarseStart => dout_SB_coarseStart(i),           -- in (15:0); The first coarse channel in this subarray-beam
+            i_outputDisable => dout_SB_outputDisable(i),      -- in std_logic;
             i_fineStart => dout_SB_fineStart(i),               -- in (15:0); The first fine channel in this subarray-beam
             i_n_fine => dout_SB_n_fine(i),                     -- in (23:0); The number of fine channels in this subarray-beam
-            i_fineIntegrations => dout_SB_fineIntegrations(i), -- in (5:0);  Number of fine channels to integrate
-            i_timeIntegrations => dout_SB_timeIntegrations(i), -- in (1:0);  Number of time samples per integration.
+            i_fineIntegrations => dout_SB_fineIntegrations(i), -- in (6:0);  Number of fine channels to integrate
+            i_timeIntegrations => dout_SB_timeIntegrations(i), -- in std_logic;  Number of time samples per integration.
             i_HBM_base_addr    => dout_SB_HBM_base_addr(i),    -- in (31:0)  Base address in HBM for this subarray-beam.
             i_bad_poly => dout_SB_bad_poly(i),  -- in std_logic;
             ---------------------------------------------------------------
@@ -704,7 +713,7 @@ begin
             o_cor_tile_location => o_cor_tileLocation(i), -- out (9:0);
             o_cor_tileChannel => o_cor_tileChannel_int(i),    -- out (23:0);
             o_cor_tileTotalTimes => o_cor_tileTotalTimes(i), -- out (7:0);  Number of time samples to integrate for this tile.
-            o_cor_tiletotalChannels => o_cor_tileTotalChannels(i), -- out (4:0); Number of frequency channels to integrate for this tile.
+            o_cor_tiletotalChannels => o_cor_tileTotalChannels(i), -- out (6:0); Number of frequency channels to integrate for this tile.
             o_cor_rowstations       => o_cor_rowStations(i), -- out (8:0); Number of stations in the row memories to process; up to 256.
             o_cor_colstations       => o_cor_colStations(i), -- out (8:0); Number of stations in the col memories to process; up to 256.
             o_cor_subarray_beam     => o_cor_subarrayBeam(i), -- out (7:0); Which entry is this in the subarray-beam table ? 
@@ -715,7 +724,9 @@ begin
             o_HBM_axi_ar      => HBM_axi_ar(i),      -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
             i_HBM_axi_arready => i_HBM_axi_arready(i), -- in  std_logic;
             i_HBM_axi_r       => i_HBM_axi_r(i),       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-            o_HBM_axi_rready  => HBM_axi_rready(i)   -- out std_logic
+            o_HBM_axi_rready  => HBM_axi_rready(i),   -- out std_logic
+            -- status
+            o_readout_error       => dout_readout_error(i)  --  out std_logic;
         );
         o_cor_tableSelect(i) <= readout_tableSelect;
         
@@ -743,6 +754,7 @@ begin
         HBM_axi_ar(1).len <= (others => '0');
         HBM_axi_rready(1) <= '1';
         dout_SB_req(1) <= '0';
+        dout_readout_error(1) <= '0';
         
     end generate;
     
@@ -812,7 +824,9 @@ gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
 END GENERATE;
 
     statctrl_ro.bufferoverflowerror <= '0';
-    statctrl_ro.readouterror <= '0';
+    statctrl_ro.readouterror <= dout_readout_error;
+    statctrl_ro.readoutGap <= dout_recent_start_gap;
+    statctrl_ro.readoutTime <= dout_recent_readout_time;
     statctrl_ro.hbmbuf0packetcount <= (others => '0');
     statctrl_ro.hbmbuf1packetcount <= (others => '0');
     
@@ -1030,7 +1044,9 @@ END GENERATE;
             -- Assign din and dout data read from the subarray-beam table
             if (SB_rd_fsm_del3 = get_din_rd1) then
                 din_SB_stations <= SB_rd_data(15 downto 0);
-                din_SB_coarseStart <= SB_rd_data(31 downto 16);
+                -- bit 31 of the first word is "output_disable".
+                -- It is not used by the data input side, so it is masked off here.
+                din_SB_coarseStart <= '0' & SB_rd_data(30 downto 16);
             end if;
             if (SB_rd_fsm_del3 = get_din_rd2) then
                 din_SB_fineStart <= SB_rd_data(15 downto 0);
@@ -1047,7 +1063,8 @@ END GENERATE;
             
             if (SB_rd_fsm_del3 = get_dout_rd1) then
                 dout_SB_stations(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(15 downto 0);
-                dout_SB_coarseStart(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(31 downto 16);
+                dout_SB_coarseStart(to_integer(unsigned(dout_SB_sel_del3))) <= '0' & SB_rd_data(30 downto 16);
+                dout_SB_outputDisable(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(31);
                 dout_SB_bad_poly(to_integer(unsigned(dout_SB_sel_del3))) <= cor_bp_rd_data(to_integer(unsigned(dout_SB_sel_del3)));
             end if;
             if (SB_rd_fsm_del3 = get_dout_rd2) then
@@ -1055,8 +1072,8 @@ END GENERATE;
             end if;
             if (SB_rd_fsm_del3 = get_dout_rd3) then
                 dout_SB_n_fine(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(23 downto 0);
-                dout_SB_fineIntegrations(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(29 downto 24);
-                dout_SB_timeIntegrations(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(31 downto 30);
+                dout_SB_fineIntegrations(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(30 downto 24);
+                dout_SB_timeIntegrations(to_integer(unsigned(dout_SB_sel_del3))) <= SB_rd_data(31);
             end if;
             dout_SB_valid <= (others => '0');
             if (SB_rd_fsm_del3 = get_dout_rd4) then

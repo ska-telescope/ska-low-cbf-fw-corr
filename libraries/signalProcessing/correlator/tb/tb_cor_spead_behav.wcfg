@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="7,310.650 ns"></ZoomStartTime>
-      <ZoomEndTime time="13,730.651 ns"></ZoomEndTime>
-      <Cursor1Time time="11,065.650 ns"></Cursor1Time>
+      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
+      <ZoomEndTime time="1,288.000001 us"></ZoomEndTime>
+      <Cursor1Time time="1.000000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="263"></NameColumnWidth>
-      <ValueColumnWidth column_width="92"></ValueColumnWidth>
+      <ValueColumnWidth column_width="88"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="516" />
+   <WVObjectSize size="521" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -452,8 +452,8 @@
       <obj_property name="ObjectShortName">scratchpad_updated</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_sm_fsm_debug">
-      <obj_property name="ElementShortName">spead_sm_fsm_debug[7:0]</obj_property>
-      <obj_property name="ObjectShortName">spead_sm_fsm_debug[7:0]</obj_property>
+      <obj_property name="ElementShortName">spead_sm_fsm_debug[3:0]</obj_property>
+      <obj_property name="ObjectShortName">spead_sm_fsm_debug[3:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/init_packet_data">
       <obj_property name="ElementShortName">init_packet_data[511:0]</obj_property>
@@ -1664,6 +1664,26 @@
       <obj_property name="ObjectShortName">heap_size_addr[6:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/current_subarray">
+      <obj_property name="ElementShortName">current_subarray[7:0]</obj_property>
+      <obj_property name="ObjectShortName">current_subarray[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/last_subarray_beam_thru">
+      <obj_property name="ElementShortName">last_subarray_beam_thru[7:0]</obj_property>
+      <obj_property name="ObjectShortName">last_subarray_beam_thru[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/integration_id">
+      <obj_property name="ElementShortName">integration_id[15:0]</obj_property>
+      <obj_property name="ObjectShortName">integration_id[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/integration_id_short">
+      <obj_property name="ElementShortName">integration_id_short[15:0]</obj_property>
+      <obj_property name="ObjectShortName">integration_id_short[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/integration_id_base">
+      <obj_property name="ElementShortName">integration_id_base[15:0]</obj_property>
+      <obj_property name="ObjectShortName">integration_id_base[15:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/heap_counter_chanel_id">
       <obj_property name="ElementShortName">heap_counter_chanel_id[16:0]</obj_property>
       <obj_property name="ObjectShortName">heap_counter_chanel_id[16:0]</obj_property>
@@ -2210,8 +2230,8 @@
       <obj_property name="ObjectShortName">spead_sm</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_sm_fsm_debug">
-      <obj_property name="ElementShortName">spead_sm_fsm_debug[7:0]</obj_property>
-      <obj_property name="ObjectShortName">spead_sm_fsm_debug[7:0]</obj_property>
+      <obj_property name="ElementShortName">spead_sm_fsm_debug[3:0]</obj_property>
+      <obj_property name="ObjectShortName">spead_sm_fsm_debug[3:0]</obj_property>
    </wvobject>
    <wvobject fp_name="divider511" type="divider">
       <obj_property name="label">INIT- instance 0</obj_property>
