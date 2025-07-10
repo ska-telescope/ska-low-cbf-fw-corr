@@ -380,7 +380,6 @@ ARCHITECTURE structure OF correlator_core IS
     signal hbm_reset                : std_logic_vector(5 downto 0);
     signal hbm_status               : t_slv_8_arr(5 downto 0);
     signal hbm_rst_dbg              : t_slv_32_arr(5 downto 0);
-    signal hbm_reset_combined       : std_logic_vector(5 downto 0);
     
     signal m01_axi_r, m01_axi_w   : t_axi4_full_data;
 
@@ -489,21 +488,15 @@ ARCHITECTURE structure OF correlator_core IS
         m_axi_rready : OUT STD_LOGIC);
     END COMPONENT;
     
-    signal hbm_reset_final      : std_logic;
-    signal i_axis_tdata_gated   : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-    signal i_axis_tkeep_gated   : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-    signal i_axis_tlast_gated   : std_logic;
-    signal i_axis_tuser_gated   : std_logic_vector(79 downto 0); -- Timestamp for the packet.
-    signal i_axis_tvalid_gated  : std_logic;
-    signal eth_disable_fsm_dbg  : std_logic_vector(4 downto 0);
-    signal hbm_reset_actual     : std_logic_vector(5 downto 0);
-    
-    signal bytes_to_transmit    : STD_LOGIC_VECTOR(13 downto 0);
-    signal data_to_player       : STD_LOGIC_VECTOR(511 downto 0);
-    signal data_to_player_wr    : STD_LOGIC;
-    signal data_to_player_rdy   : STD_LOGIC;
-    
-    signal eth100G_rst          : std_logic;
+    signal eth_disable, eth_disable_done : std_logic;
+    signal i_axis_tdata_gated : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal i_axis_tkeep_gated : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal i_axis_tlast_gated : std_logic;
+    signal i_axis_tuser_gated : std_logic_vector(79 downto 0); -- Timestamp for the packet.
+    signal i_axis_tvalid_gated : std_logic;
+    signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
+    signal hbm_reset_actual : std_logic_vector(5 downto 0);
+    signal lfaaDecode_reset : std_logic;
     
 begin
     
@@ -931,6 +924,12 @@ begin
         
         o_spead_hbm_rd_lite_axi_miso(0) => mc_lite_miso(c_hbm_rd_debug_lite_index),
         o_spead_hbm_rd_lite_axi_miso(1) => mc_lite_miso(c_hbm_rd_debug_2_lite_index),
+        
+        i_spead_hbm_rd_full_axi_mosi(0) => mc_full_mosi(c_hbm_rd_debug_full_index),
+        i_spead_hbm_rd_full_axi_mosi(1) => mc_full_mosi(c_hbm_rd_debug_2_full_index),
+        
+        o_spead_hbm_rd_full_axi_miso(0) => mc_full_miso(c_hbm_rd_debug_full_index),
+        o_spead_hbm_rd_full_axi_miso(1) => mc_full_miso(c_hbm_rd_debug_2_full_index),
 
         -- SDP SPEAD
         i_spead_lite_axi_mosi(0)    => mc_lite_mosi(c_spead_sdp_lite_index),
@@ -984,67 +983,31 @@ begin
         o_hbm_reset    => hbm_reset,
         i_hbm_status   => hbm_status,
         i_hbm_rst_dbg  => hbm_rst_dbg,
-        i_hbm_reset_final => hbm_reset_final,   -- 1 bit
+        i_hbm_reset_final => eth_disable_done,   -- 1 bit
         i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
         i_axi_dbg => axi_dbg, -- 128 bits
-        i_axi_dbg_valid => axi_dbg_valid
+        i_axi_dbg_valid => axi_dbg_valid,
+        -- 100GE input disable
+        o_lfaaDecode_reset => lfaaDecode_reset,
+        i_ethDisable_done => eth_disable_done
     );
     
-    hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
-    hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
+    -- i_input_HBM_reset is only used in the testbench, it is tied to '0' for 
+    eth_disable <= lfaaDecode_reset OR i_input_HBM_reset;
     
-    -----------------------------------------------------------------------------------------------------------
-    CMAC_100G_reset_proc : process(i_eth100G_clk)
-    begin
-        if rising_edge(i_eth100G_clk) then
-            eth100G_rst     <= NOT i_eth100G_locked;
-        end if;
-    end process;
     
-    -- S_AXI packet player config    
-    cmac_cdc : entity spead_lib.packet_player generic map (
-            g_DEBUG_ILA             => g_DEBUG_ILA,
-            LBUS_TO_CMAC_INUSE      => FALSE,
-            PLAYER_CDC_FIFO_DEPTH   => 512   
-        )
-        port map ( 
-            i_clk                   => ap_clk,
-            i_clk_reset             => ap_rst,
-        
-            i_cmac_clk              => i_eth100G_clk,
-            i_cmac_clk_rst          => eth100G_rst,
-            
-            i_bytes_to_transmit     => bytes_to_transmit,
-            i_data_to_player        => data_to_player,
-            i_data_to_player_wr     => data_to_player_wr,
-            o_data_to_player_rdy    => data_to_player_rdy,
-            
-            -- streaming AXI to CMAC
-            o_tx_axis_tdata         => o_axis_tdata,
-            o_tx_axis_tkeep         => o_axis_tkeep,
-            o_tx_axis_tvalid        => o_axis_tvalid,
-            o_tx_axis_tlast         => o_axis_tlast,
-            o_tx_axis_tuser         => o_axis_tuser,
-            i_tx_axis_tready        => i_axis_tready,
-            
-            -- LBUS to CMAC
-            -- o_data_to_transmit      : out t_lbus_sosi;
-            i_data_to_transmit_ctl  => c_lbus_siso_rst
-        );
-    
-    -----------------------------------------------------------------------------------------------------------
     eth_block : entity correlator_lib.eth_disable
     generic map (
         -- Number of i_ap_clk clocks to wait after blocking ethernet traffic before driving o_reset
         -- This allows us to wait a while for e.g. SPS input writes to HBM to complete properly
-        g_HOLDOFF => 1024, -- : integer := 1024;
+        g_HOLDOFF => 2048, -- : integer := 1024;
         -- Number of i_eth_clk clocks to wait before unblocking ethernet traffic after de-asserting o_reset
         g_RESTART_HOLDOFF => 2048 -- : integer := 4096
     ) port map (
         -- Reset signal is on i_ap_clk
-        i_ap_clk  => ap_clk,  --  in std_logic;
-        i_reset   => hbm_reset_combined(0), --  in std_logic;  
-        o_reset   => hbm_reset_final,       --  out std_logic; -- Goes high following i_reset after the 100G ethernet has been blocked
+        i_ap_clk  => ap_clk,      --  in std_logic;
+        i_reset   => eth_disable, --  in std_logic;  
+        o_reset   => eth_disable_done,     --  out std_logic; -- Goes high following i_reset after the 100G ethernet has been blocked
         o_fsm_dbg => eth_disable_fsm_dbg, --  out std_logic_vector(4 downto 0); -- fsm state 
         -----------------------------------------------------
         -- Everything else is on i_eth_clk
@@ -1065,12 +1028,11 @@ begin
         -----------------------------------------------------
     );    
     
-    
-    hbm_reset_actual(0) <= hbm_reset_final;
-    hbm_reset_actual(1) <= hbm_reset_final;
-    hbm_reset_actual(2) <= hbm_reset_final;
-    hbm_reset_actual(3) <= hbm_reset_final;
-    hbm_reset_actual(4) <= hbm_reset_final;
+    hbm_reset_actual(0) <= hbm_reset(0);
+    hbm_reset_actual(1) <= hbm_reset(1);
+    hbm_reset_actual(2) <= hbm_reset(2);
+    hbm_reset_actual(3) <= hbm_reset(3);
+    hbm_reset_actual(4) <= hbm_reset(4);
     hbm_reset_actual(5) <= '0'; -- don't reset the HBM for the ILA, want to be able to see what is happening.
     
     ---------------------------------------------------------------------

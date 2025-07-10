@@ -106,6 +106,12 @@ peripherals:
               field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse. \
                                    See also the description above for total_channels_table0 "
           #################################
+          - - field_name        : use_dbg_data
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Replace incoming SPS data with meta data for easier tracking through to the filterbanks for debugging."
+          #################################
           - - field_name        : total_packet_count
               width             : 32
               access_mode       : RO
@@ -168,7 +174,13 @@ peripherals:
               width             : 1
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Set this to 1 to return all statemachines to IDLE"
+              field_description : "Set this to 1 to return all statemachines to IDLE and block input packets on the 100GE interface"
+          #################################
+          - - field_name        : status_lfaa_decode_reset
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "decode reset is asserted internally. There will be a small (few us) delay between setting lfaa_decode_reset and this bit going high while the 100GE data is being stopped."
           #################################
           - - field_name        : lfaa_tx_fsm_debug
               width             : 4

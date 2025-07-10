@@ -844,7 +844,7 @@ begin
         i_input_HBM_reset       => '0'
     );
     
-        
+    
     ---------------------------------------------------------------------------------------
     -- vector mapping for HBM axi interfaces
     -- since vitis needs to have individual port names.

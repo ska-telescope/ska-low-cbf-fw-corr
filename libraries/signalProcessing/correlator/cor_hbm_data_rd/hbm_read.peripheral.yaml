@@ -9,7 +9,62 @@ peripherals:
   - peripheral_name        : hbm_rd_debug
     peripheral_description : "debug and statistic registers"
     slave_ports:
-      #########################################################################################
+      #########################################################################################    
+      - slave_name        : hbm_debug
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Shared memory space for multiple parameters."
+        fields            :
+          - - field_name        : spead_shared_ram
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 4096
+              interface         : simple
+              reset_value       : 0
+              field_description : "Psuedo ILA capturing the instructions passed from correlator to HBM readout.
+                                   Two rams of 4 bytes x 1024 deep.
+                                   The rams share a wr_address pointer and wren in logic.
+                                   There are 8 bytes captured and this buffer will wrap around.
+
+                                   Ram 1 is read from address 0-1023
+                                   Ram 2 is read from address 1024-2047
+
+                                   Ram 1 contains a timestamp, free running 300 Mhz (3.33ns) counter with 40 bits
+                                   The top 32 bits are stored in Ram 1, giving a time resolution of ~852 ns.
+
+                                   Ram 2 contains
+                                   Bit 0        - data_valid - This is high when an instruction is written from corr output.
+                                   Bit 7 -> 1   - used words in instruction FIFO - cache of instructions from corr output. 
+                                   Bit 8        - table select direct from CT1 - either 0 or 1
+                                   Bit 9        - table select bit passed with instruction - either 0 or 1
+                                   Bit 15 -> 10 - lower 6 bits of the sub array instruction passed from corr output.
+                                   Bit 31 -> 16 - lower 16 bits of 17 bit freq index.
+
+                                   Ram 3 contains - first 26 bits are the Addr and WREN for packetiser table rams.
+                                   Bit 13 -> 0  - args_addr;
+                                   Bit 14       - heap_size_wren_p(0);
+                                   Bit 15       - heap_size_wren_p(1);
+                                   Bit 16       - destination_ip_wren_p(0);
+                                   Bit 17       - destination_ip_wren_p(1);
+                                   Bit 18       - destination_udp_wren_p(0);
+                                   Bit 19       - destination_udp_wren_p(1);
+                                   Bit 20       - heap_counter_wren_p(0);
+                                   Bit 21       - heap_counter_wren_p(1);
+                                   Bit 22       - block_size_wren_p(0);
+                                   Bit 23       - block_size_wren_p(1);
+                                   Bit 24       - no_of_freq_chan_wren_p(0);
+                                   Bit 25       - no_of_freq_chan_wren_p(1);
+                                   Bit 26       - table_swap_in_progress - this comes from ct1
+                                   Bit 27       - table_add_remove - this comes from ct1 and is config_rw.table_select(0)
+
+                                   Writes to this debug buffer are triggered by an instruction write from corr output (bit 0)
+                                   OR
+                                   An level change on the table select direct from CT1.
+
+                                   THIS NEEDS TO BE COMPILED IN, IF READS RETURN 0xBAD0C0DE THIS IS MISSING.
+                                  "
+      ######################################################################################### 
       - slave_name        : hbm_rd_debug
         slave_type        : reg
         number_of_slaves  : 1
@@ -94,6 +149,12 @@ peripherals:
               reset_value       : 0x0
               field_description : "Placeholder for future development"
          #################################
+          - - field_name        : testmode_time_ref_upper_bytes
+              width             : 32
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Placeholder for future development"
+         #################################
           - - field_name        : testmode_row
               width             : 16
               access_mode       : RW
@@ -131,12 +192,86 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : " packed FIFO is 4096 x 64byte FIFO containing vis+meta ready for packetiser.
-                                    31 - 16 = writes to FIFO when already 4000 USED, 15 - 0 = current used." 
+                                    31 - 16 = writes to FIFO when already 4000 USED, 15 - 0 = current used."
+         #################################
+          - - field_name        : debug_bytes_in_heap_trkr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " bytes in current heap sent to packetiser."
+         #################################
+          - - field_name        : dbg_heap_trkr_start
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Heap size given at the start of the current transaction."
+         #################################
+          - - field_name        : dbg_dbg_ram_wr_addr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Current wr address of debug ram"
+
 
   - peripheral_name        : hbm_rd_debug_2
     peripheral_description : "debug and statistic registers"
     slave_ports:
-      #########################################################################################
+      #########################################################################################    
+      - slave_name        : hbm_debug
+        slave_type        : RAM
+        number_of_slaves  : 1
+        slave_description : "Shared memory space for multiple parameters."
+        fields            :
+          - - field_name        : spead_shared_ram
+              width             : 32
+              user_width        : 32
+              access_mode       : RW
+              number_of_fields  : 4096
+              interface         : simple
+              reset_value       : 0
+              field_description : "Psuedo ILA capturing the instructions passed from correlator to HBM readout.
+                                   Two rams of 4 bytes x 1024 deep.
+                                   The rams share a wr_address pointer and wren in logic.
+                                   There are 8 bytes captured and this buffer will wrap around.
+
+                                   Ram 1 is read from address 0-1023
+                                   Ram 2 is read from address 1024-2047
+
+                                   Ram 1 contains a timestamp, free running 300 Mhz (3.33ns) counter with 40 bits
+                                   The top 32 bits are stored in Ram 1, giving a time resolution of ~852 ns.
+
+                                   Ram 2 contains
+                                   Bit 0        - data_valid - This is high when an instruction is written from corr output.
+                                   Bit 7 -> 1   - used words in instruction FIFO - cache of instructions from corr output. 
+                                   Bit 8        - table select direct from CT1 - either 0 or 1
+                                   Bit 9        - table select bit passed with instruction - either 0 or 1
+                                   Bit 15 -> 10 - lower 6 bits of the sub array instruction passed from corr output.
+                                   Bit 31 -> 16 - lower 16 bits of 17 bit freq index.
+
+                                   Ram 3 contains - first 26 bits are the Addr and WREN for packetiser table rams.
+                                   Bit 13 -> 0  - args_addr;
+                                   Bit 14       - heap_size_wren_p(0);
+                                   Bit 15       - heap_size_wren_p(1);
+                                   Bit 16       - destination_ip_wren_p(0);
+                                   Bit 17       - destination_ip_wren_p(1);
+                                   Bit 18       - destination_udp_wren_p(0);
+                                   Bit 19       - destination_udp_wren_p(1);
+                                   Bit 20       - heap_counter_wren_p(0);
+                                   Bit 21       - heap_counter_wren_p(1);
+                                   Bit 22       - block_size_wren_p(0);
+                                   Bit 23       - block_size_wren_p(1);
+                                   Bit 24       - no_of_freq_chan_wren_p(0);
+                                   Bit 25       - no_of_freq_chan_wren_p(1);
+                                   Bit 26       - table_swap_in_progress - this comes from ct1
+                                   Bit 27       - table_add_remove - this comes from ct1 and is config_rw.table_select(0)
+
+                                   Writes to this debug buffer are triggered by an instruction write from corr output (bit 0)
+                                   OR
+                                   An level change on the table select direct from CT1.
+
+                                   THIS NEEDS TO BE COMPILED IN, IF READS RETURN 0xBAD0C0DE THIS IS MISSING.
+                                  "
+      ######################################################################################### 
       - slave_name        : hbm_rd_debug
         slave_type        : reg
         number_of_slaves  : 1
@@ -265,3 +400,21 @@ peripherals:
               reset_value       : 0x0
               field_description : " packed FIFO is 4096 x 64byte FIFO containing vis+meta ready for packetiser.
                                     31 - 16 = writes to FIFO when already 4000 USED, 15 - 0 = current used." 
+         #################################
+          - - field_name        : debug_bytes_in_heap_trkr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " bytes in current heap sent to packetiser."
+         #################################
+          - - field_name        : dbg_heap_trkr_start
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Heap size given at the start of the current transaction."
+         #################################
+          - - field_name        : dbg_dbg_ram_wr_addr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : " Current wr address of debug ram"

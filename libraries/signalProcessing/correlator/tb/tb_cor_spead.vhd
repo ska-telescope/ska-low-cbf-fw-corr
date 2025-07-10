@@ -37,7 +37,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := FALSE;
+constant USE_TEST_CASE      : BOOLEAN := TRUE;
 constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
@@ -100,6 +100,8 @@ signal time_of_int              : std_logic;
 signal data_valid               : std_logic := '0';
 
 signal stim_count               : integer := 0;
+
+signal interrupt_hbm_rd         : std_logic := '0';
 
 constant DEBUG_VEC_SIZE         : integer := 11;
 signal tb_debug                 : std_logic_vector((DEBUG_VEC_SIZE-1) downto 0);
@@ -285,7 +287,7 @@ begin
             meta_data_sel   <= '0';
             test_meta_done  <= '0';
             init_mem        <= '0';
-            cmac_ready      <= '0';
+            
             tb_debug        <= (others => '0');
             
             ints_since_epoch<= 32D"0";
@@ -402,6 +404,12 @@ begin
                     stim_sub_array  <= 8D"71";
                     hbm_start_addr  <= x"00000000";
                 end if;
+                
+                if (testCount_300 >= 401420) AND (testCount_300 < 401830) then
+                    interrupt_hbm_rd    <= '1';
+                else
+                    interrupt_hbm_rd    <= '0';
+                end if; 
             end if;
 
             if USE_TEST_CASE = FALSE AND (GEN_DATA_END = TRUE) then
@@ -525,7 +533,7 @@ begin
             
             i <= 0;
             meta_data_sel <= '0';
-            cmac_ready  <= '1';
+            
         
             HBM_axi_r.resp  <= "00";
 
@@ -534,17 +542,38 @@ begin
     end if;
 end process;
 
+cmac_test_proc : process (clock_322)
+begin
+    if rising_edge(clock_322) then
+        if clock_322_rst = '1' then
+            cmac_ready      <= '0';
+        else
+            if (testcount_322 > 575000) AND (testcount_322 < 586000) then 
+                cmac_ready  <= '0';
+            else
+                cmac_ready  <= '1';
+            end if;
+        end if;
+    end if;
+end process;
 
 
 DUT : entity correlator_lib.correlator_data_reader generic map ( 
         DEBUG_ILA           => FALSE
     )
     Port map ( 
+        -- debug_vector 
+        --i_debug(0)          => interrupt_hbm_rd,
         -- clock used for all data input and output from this module (300 MHz)
         i_axi_clk           => clock_300,
         i_axi_rst           => clock_300_rst,
 
         i_local_reset       => NOT packetiser_enable(0),
+        
+        i_packetiser_table_select       => '0',
+        
+        i_spead_hbm_rd_full_axi_mosi    => c_axi4_full_mosi_null,
+        o_spead_hbm_rd_full_axi_miso    => open,
 
         -- ARGs Debug
         i_spead_hbm_rd_lite_axi_mosi => c_axi4_lite_mosi_rst,

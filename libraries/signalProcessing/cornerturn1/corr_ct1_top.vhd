@@ -152,7 +152,8 @@ entity corr_ct1_top is
         -- The packetiser should hold its switch active bit high from when it sees a rising edge on 
         -- o_table_swap_in_progress through to when it gets notification of a packet to be sent using o_packetiser_table_select 
         o_table_swap_in_progress : out std_logic;
-        o_packetiser_table_select : out std_logic;  
+        o_packetiser_table_select : out std_logic;
+        o_table_add_remove          : out std_logic;
         -- 
         ------------------------------------------------------------------------------------
         -- Data output, to go to the filterbanks.
@@ -195,6 +196,7 @@ entity corr_ct1_top is
         -- r bus - read data
         i_m01_axi_r       : in  t_axi4_full_data;
         o_m01_axi_rready  : out std_logic;
+        i_m01_axi_rst_dbg : in std_logic_vector(31 downto 0); -- in (31:0)
         -------------------------------------------------------------
         -- debug data dump to HBM
         o_m06_axi_aw      : out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -210,7 +212,7 @@ entity corr_ct1_top is
         i_m06_axi_r       : in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
         o_m06_axi_rready  : out std_logic;
         --
-        i_hbm_rst_dbg  : in t_slv_32_arr(5 downto 0)
+        i_m06_axi_rst_dbg : in std_logic_vector(31 downto 0) -- in (31:0)
     );
     
     -- prevent optimisation across module boundaries.
@@ -365,6 +367,8 @@ architecture Behavioral of corr_ct1_top is
     signal vct_table_in_use, ct2_tables_in_use : std_logic;
     signal readoutData : t_slv_32_arr(3 downto 0);
     signal validOut_final : std_logic;
+    signal m01_axi_rst_dbg : std_logic_vector(31 downto 0);
+    signal clks_between_readouts, recent_clks_between_readouts, min_clks_between_readouts : std_logic_vector(31 downto 0) := (others => '1');
     
     ----------------------------------------------------------------------
     -- ARGs mappings.
@@ -635,6 +639,33 @@ END GENERATE;
             end if;
             o_packetiser_table_select <= config_rw.table_select(1);
             
+            o_table_add_remove        <= config_rw.table_select(0); 
+            
+            --------------------------------------------------------------
+            if trigger_readout = '1' then
+                clks_between_readouts <= (others => '0');
+            elsif clks_between_readouts(31) = '0' then
+                clks_between_readouts <= std_logic_vector(unsigned(clks_between_readouts) + 1);
+            end if;
+            
+            if data_rst = '1' then
+                recent_clks_between_readouts <= (others => '1');
+                min_clks_between_readouts <= (others => '1');
+            elsif trigger_readout = '1' then
+                recent_clks_between_readouts <= clks_between_readouts;
+                if unsigned(clks_between_readouts) < unsigned(min_clks_between_readouts) then
+                    min_clks_between_readouts <= clks_between_readouts;
+                end if;
+            end if;
+            
+            m01_axi_rst_dbg <= i_m01_axi_rst_dbg;
+            
+            config_ro.recent_readout_gap <= recent_clks_between_readouts;
+            config_ro.minimum_readout_gap <= min_clks_between_readouts;
+            config_ro.hbm_status <= m01_axi_rst_dbg;
+            
+            --------------------------------------------------------------
+            
             if data_rst = '1' then
                 input_fsm <= idle;
                 -- After coming out of reset, always start writing in buffer 2,
@@ -866,10 +897,10 @@ END GENERATE;
                                     -- This is where we switch over the ct2 tables, so that the new tables are used for 
                                     -- an entire integration interval (849 ms).
                                     if config_rw.table_select(0) = '0' then
-                                        -- table_select(0) = '0' => switch to add a subarray, so ct2_tables_in_use has to switch first
+                                        -- table_select(0) = '0' => switch to remove a subarray, so ct2_tables_in_use has to switch first
                                         ct2_tables_in_use <= config_rw.table_select(1);
                                     else
-                                        -- table_select(0) = '1' => switch to remove a subarray, so vct_table_in_use has to switch first
+                                        -- table_select(0) = '1' => switch to add a subarray, so vct_table_in_use has to switch first
                                         if vct_table_in_use = config_rw.table_select(1) then
                                             ct2_tables_in_use <= config_rw.table_select(1);
                                         end if;
@@ -1127,7 +1158,19 @@ END GENERATE;
         o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
         o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
         o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
-        o_dbg_valid => dbg_vec_valid  -- out std_logic
+        o_dbg_valid => dbg_vec_valid,  -- out std_logic
+        o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
+        -- mismatch between output and expected when sending debug data inserted in lfaaIngest
+        o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
+        o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
+        o_dbgCheckData2 => config_ro.dbgCheckData2, -- out std_logic_vector(31 downto 0);
+        o_dbgCheckData3 => config_ro.dbgCheckData3, -- out std_logic_vector(31 downto 0);
+        o_dbgBadData0 => config_ro.dbgBadData0, --  out std_logic_vector(31 downto 0);
+        o_dbgBadData1 => config_ro.dbgBadData1, -- out std_logic_vector(31 downto 0);
+        o_dbgBadData2 => config_ro.dbgBadData2, -- out std_logic_vector(31 downto 0);
+        o_dbgBadData3 => config_ro.dbgBadData3, -- out std_logic_vector(31 downto 0);
+        o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
+        i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
     );
     
     
@@ -1574,12 +1617,12 @@ END GENERATE;
             dbg_hbm_ar_valid <= m01_axi_ar.valid;
             dbg_hbm_ar_ready <= i_m01_axi_arready;
             
-            dbg_rd_tracker_bad <= i_hbm_rst_dbg(1)(0);
-            dbg_wr_tracker_bad <= i_hbm_rst_dbg(1)(1);
-            dbg_wr_tracker <= i_hbm_rst_dbg(1)(27 downto 16);
+            dbg_rd_tracker_bad <= i_m01_axi_rst_dbg(0);
+            dbg_wr_tracker_bad <= i_m01_axi_rst_dbg(1);
+            dbg_wr_tracker <= i_m01_axi_rst_dbg(27 downto 16);
             
-            dbg_hbm_reset <= i_hbm_rst_dbg(1)(2);
-            dbg_hbm_reset_fsm <= i_hbm_rst_dbg(1)(31 downto 28);
+            dbg_hbm_reset <= i_m01_axi_rst_dbg(2);
+            dbg_hbm_reset_fsm <= i_m01_axi_rst_dbg(31 downto 28);
             
         end if;
     end process;

@@ -98,6 +98,9 @@ entity DSP_top_correlator is
         -- Output HBM
         i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi_arr(1 downto 0);
         o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso_arr(1 downto 0);
+
+        i_spead_hbm_rd_full_axi_mosi : in t_axi4_full_mosi_arr(1 downto 0);
+        o_spead_hbm_rd_full_axi_miso : out t_axi4_full_miso_arr(1 downto 0);
         -- Output packetiser
         i_spead_lite_axi_mosi   : in t_axi4_lite_mosi_arr(1 downto 0); 
         o_spead_lite_axi_miso   : out t_axi4_lite_miso_arr(1 downto 0);
@@ -142,7 +145,10 @@ entity DSP_top_correlator is
         i_hbm_reset_final : in std_logic;
         i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0); -- 5 bits
         i_axi_dbg  : in std_logic_vector(127 downto 0); -- 128 bits
-        i_axi_dbg_valid : in std_logic
+        i_axi_dbg_valid : in std_logic;
+        -- 100GE input disable
+        o_lfaaDecode_reset : out std_logic;
+        i_ethDisable_done : in std_logic   --
     );
 end DSP_top_correlator;
 
@@ -265,7 +271,9 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal FD_lastChannel, FD_demap_table_select : std_logic;
     signal cor_tableSelect : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal table_swap_in_progress : std_logic;
-    signal packetiser_table_select : std_logic; 
+    signal packetiser_table_select : std_logic;
+    signal table_add_remove : std_logic;
+    
     
 begin
     
@@ -322,7 +330,11 @@ begin
         -- hbm reset   
         o_hbm_reset        => o_hbm_reset(0),
         i_hbm_status       => i_hbm_status(0),
-
+        -- LFAADecode reset
+        -- Out to disable ethernet input, then when that is done, comes back in to reset the ingest pipeline
+        -- both here and in CT1
+        o_LFAADecode_reset => o_LFAADecode_reset, -- out std_logic;
+        i_ethDisable_done  => i_ethDisable_done,  -- in std_logic;
         o_reset_to_ct      => reset_to_ct_1,
         -- debug
         o_dbg              => LFAADecode_dbg
@@ -362,6 +374,7 @@ begin
         --
         o_table_swap_in_progress => table_swap_in_progress, --  out std_logic;
         o_packetiser_table_select => packetiser_table_select, --  out std_logic; 
+        o_table_add_remove        => table_add_remove,
         -- Data bus output to the Filterbanks
         -- 8 Outputs, each complex data, 8 bit real, 8 bit imaginary.
         o_sof   => FB_sof,     -- out std_logic; start of data for a set of 4 virtual channels.
@@ -400,6 +413,7 @@ begin
         -- r bus - read data
         i_m01_axi_r      => i_HBM_axi_r(0),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
         o_m01_axi_rready => o_HBM_axi_rready(0),   -- out std_logic;
+        i_m01_axi_rst_dbg => i_hbm_rst_dbg(0),     -- in (31:0)
         -------------------------------------------------------------
         -- HBM ILA
         o_m06_axi_aw      => o_HBM_axi_aw(5),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -415,7 +429,7 @@ begin
         i_m06_axi_r      => i_HBM_axi_r(5),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
         o_m06_axi_rready => o_HBM_axi_rready(5),   -- out std_logic;
         --
-        i_hbm_rst_dbg  => i_hbm_rst_dbg
+        i_m06_axi_rst_dbg => i_hbm_rst_dbg(5)      -- in (31:0)
     );
 
     -- Correlator filterbank and fine delay.
@@ -621,7 +635,8 @@ begin
         i_hbm_status   => i_hbm_status, -- : in t_slv_8_arr(5 downto 0);
         i_hbm_reset_final => i_hbm_reset_final, -- : in std_logic;
         i_eth_disable_fsm_dbg => i_eth_disable_fsm_dbg, -- : in std_logic_vector(4 downto 0)
-        i_hbm_rst_dbg  => i_hbm_rst_dbg   -- in t_slv_32_arr(5 downto 0);
+        i_hbm0_rst_dbg  => i_hbm_rst_dbg(1), -- in (31:0);
+        i_hbm1_rst_dbg  => i_hbm_rst_dbg(2)
     );
    
     -- Correlator
@@ -729,9 +744,15 @@ begin
 
         i_packetiser_enable     => packetiser_enable,
         
+        i_packetiser_table_select   => packetiser_table_select, --  in std_logic;
+        i_table_swap_in_progress    => table_swap_in_progress,
+        i_table_add_remove          => table_add_remove,
+        
         -- ARGs Debug
         i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
         o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,
+        i_spead_hbm_rd_full_axi_mosi => i_spead_hbm_rd_full_axi_mosi,
+        o_spead_hbm_rd_full_axi_miso => o_spead_hbm_rd_full_axi_miso,
         ------------------------------------------------------------------
         -- Registers AXI Lite Interface (uses i_axi_clk)
         i_axi_mosi => i_cor_axi_mosi, -- in t_axi4_lite_mosi;
