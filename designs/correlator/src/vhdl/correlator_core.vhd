@@ -497,6 +497,12 @@ ARCHITECTURE structure OF correlator_core IS
     signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
     signal hbm_reset_actual : std_logic_vector(5 downto 0);
     signal lfaaDecode_reset : std_logic;
+
+    signal bytes_to_transmit    : STD_LOGIC_VECTOR(13 downto 0);
+    signal data_to_player       : STD_LOGIC_VECTOR(511 downto 0);
+    signal data_to_player_wr    : STD_LOGIC;
+    signal data_to_player_rdy   : STD_LOGIC;
+
     
 begin
     
