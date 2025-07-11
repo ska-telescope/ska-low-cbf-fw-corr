@@ -384,6 +384,9 @@ constant C_SIM      : boolean := FALSE;
     
     signal HBM_ila_counter      : unsigned(31 downto 0);
     
+    signal eth_disable, eth_disable_done : std_logic;
+    signal lfaaDecode_reset : std_logic;
+    
 begin
     
     ---------------------------------------------------------------------------
@@ -582,6 +585,11 @@ begin
         
        o_spead_hbm_rd_lite_axi_miso(0) => o_null,
        o_spead_hbm_rd_lite_axi_miso(1) => o_null,
+       
+       i_spead_hbm_rd_full_axi_mosi(0) => c_axi4_full_mosi_null,
+       i_spead_hbm_rd_full_axi_mosi(1) => c_axi4_full_mosi_null,
+
+       o_spead_hbm_rd_full_axi_miso    => open,
 
        -- SDP SPEAD
        i_spead_lite_axi_mosi(0)        => c_axi4_lite_mosi_rst,
@@ -637,7 +645,10 @@ begin
        i_hbm_reset_final => hbm_reset_final,   -- 1 bit
        i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
        i_axi_dbg => axi_dbg, -- 128 bits
-       i_axi_dbg_valid => axi_dbg_valid
+       i_axi_dbg_valid => axi_dbg_valid,
+       -- 100GE input disable
+       o_lfaaDecode_reset => lfaaDecode_reset,
+       i_ethDisable_done => eth_disable_done
    );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
@@ -824,33 +835,33 @@ i_axis_tvalid_gated <= i_axis_tvalid;
     
 axi_HBM_gen : for i in 0 to 5 generate
 
-    hbm_gasket : entity signal_processing_common.axi512_to_256
+    hbm_gasket : entity common_lib.axi512_to_256
         Port Map (
             -- 256 wide connects to NOC MASTER UNIT.
             ---------------------------------------------------------
             -- 512 bit wide slave interface
             -- w bus
-            i_clk_s         => clk_300,
-            i_clk_reset_s   => clk_300_rst,
+            i_clks          => clk_300,
+            i_clks_reset    => clk_300_rst,
 
-            i_axi_w_s       => slave_wr_data_bus(i),  -- write data (.valid, .data(511:0), .last, .resp(1:0))   
-            o_axi_wready_s  => slave_wr_data_bus_rdy(i),
+            i_axi_w         => slave_wr_data_bus(i),  -- write data (.valid, .data(511:0), .last, .resp(1:0))   
+            o_axi_wready    => slave_wr_data_bus_rdy(i),
             -- aw bus - write address
-            i_axi_aw_s      => slave_wr_addr_bus(i),
-            o_axi_awready_s => slave_wr_addr_bus_rdy(i),
+            i_axi_aw        => slave_wr_addr_bus(i),
+            o_axi_awready   => slave_wr_addr_bus_rdy(i),
             -- b bus - write response; not used; o_axi_b.valid is tied to '0'
-            o_axi_b_s       => open, -- we don't use this.
+            o_axi_b         => open, -- we don't use this.
             -- ar bus - read address
-            i_axi_ar_s      => slave_rd_addr_bus(i),
-            o_axi_arready_s => slave_rd_addr_bus_rdy(i),
+            i_axi_ar        => slave_rd_addr_bus(i),
+            o_axi_arready   => slave_rd_addr_bus_rdy(i),
             -- r bus - read data
-            o_axi_r_s       => slave_rd_data_bus(i),
-            i_axi_rready_s  => slave_rd_data_bus_rdy(i),
+            o_axi_r         => slave_rd_data_bus(i),
+            i_axi_rready    => slave_rd_data_bus_rdy(i),
             ---------------------------------------------------------
             -- 256 bit wide master interface
             -- w bus
-            i_clk_m         => clk_450,
-            i_clk_reset_m   => clk_450_rst,
+            i_clkm          => clk_450,
+            i_clkm_reset    => clk_450_rst,
 
             o_axi_w         => master_wr_data_bus(i),
             i_axi_wready    => master_wr_data_bus_rdy(i),

@@ -835,13 +835,6 @@ gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
 
 END GENERATE;
 
-    statctrl_ro.bufferoverflowerror <= '0';
-    statctrl_ro.readouterror <= dout_readout_error;
-    statctrl_ro.readoutGap <= dout_recent_start_gap;
-    statctrl_ro.readoutTime <= dout_recent_readout_time;
-    statctrl_ro.hbmbuf0packetcount <= (others => '0');
-    statctrl_ro.hbmbuf1packetcount <= (others => '0');
-    
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then

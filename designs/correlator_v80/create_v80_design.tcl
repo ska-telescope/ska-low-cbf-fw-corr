@@ -187,6 +187,7 @@ proc do_aved_create_design { } {
   $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
   ]
+
   set_property library signal_processing_common [get_files {\
   */common/src/vhdl/sync.vhd \
   */common/src/vhdl/sync_vector.vhd \
@@ -194,6 +195,9 @@ proc do_aved_create_design { } {
   */common/src/vhdl/xpm_fifo_wrapper.vhd \
   */common/src/vhdl/memory_tdp_wrapper.vhd \
   */common/src/vhdl/args_axi_terminus.vhd \
+  }]
+
+  set_property library common_lib [get_files {\
   */common/src/vhdl/axi512_to_256.vhd \
   */common/src/vhdl/axi512_to_256_addr.vhd \
   */common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
@@ -630,10 +634,6 @@ set_property library signal_processing_common [get_files {\
   */common/src/vhdl/xpm_fifo_wrapper.vhd \
   */common/src/vhdl/memory_tdp_wrapper.vhd \
   */common/src/vhdl/args_axi_terminus.vhd \
-  */common/src/vhdl/axi512_to_256.vhd \
-  */common/src/vhdl/axi512_to_256_addr.vhd \
-  */common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
-  */common/src/vhdl/rdy_valid_reg_slice.vhd \
  }]
 
 set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/tb/tb_axi512_to_256.vhd]

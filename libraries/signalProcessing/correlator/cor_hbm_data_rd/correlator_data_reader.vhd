@@ -370,9 +370,6 @@ signal bram_rddata              : STD_LOGIC_VECTOR(31 DOWNTO 0);
 
 signal args_addr                : STD_LOGIC_VECTOR(13 DOWNTO 0);
 
-signal bram_addr_d1             : std_logic_vector(13 downto 0);
-signal bram_addr_d2             : std_logic_vector(13 downto 0);
-
 signal debug_vec_from_packet    : std_logic_vector(31 downto 0);
 
 --------------------------------------------------------------------------------
