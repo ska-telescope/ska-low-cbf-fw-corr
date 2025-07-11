@@ -205,4 +205,178 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "In the V80 min of 2 for production."
-              
+          #################################
+          - - field_name        : hbm_1_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_1_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_1_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_1_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_1_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_2_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_2_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_2_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_2_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_2_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_3_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_3_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_3_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_3_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_3_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_4_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_4_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_4_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_4_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_4_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_5_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_5_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_5_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_5_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_5_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "

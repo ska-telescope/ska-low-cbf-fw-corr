@@ -317,6 +317,9 @@ constant C_SIM      : boolean := FALSE;
 
     signal HBM_axi_araddr256Mbyte, HBM_axi_awaddr256Mbyte : t_slv_8_arr(g_HBM_INTERFACES-1 downto 0);
     
+    constant HBM_GASKET_NO_OF_STATUS    : INTEGER := 5;
+    signal HBM_gasket_stat  : t_slv_32_matrix((g_HBM_INTERFACES-1) downto 0, (HBM_GASKET_NO_OF_STATUS-1) downto 0);
+    
     -- V80 contains 32GB of HBM
     -- Base address for this is 0x40_0000_0000
     -- Biggest HBM block in Correlator is 4GB
@@ -502,6 +505,36 @@ begin
             system_fields_ro.eth100g_ptp_nano_seconds       <= x"BADBAD00";
             system_fields_ro.eth100g_ptp_lower_seconds      <= x"BADBAD00";
             system_fields_ro.eth100g_ptp_upper_seconds      <= x"BADBAD00";
+
+            system_fields_ro.hbm_1_status_0                 <= HBM_gasket_stat(0,0);
+            system_fields_ro.hbm_1_status_1                 <= HBM_gasket_stat(0,1);
+            system_fields_ro.hbm_1_status_2                 <= HBM_gasket_stat(0,2);
+            system_fields_ro.hbm_1_status_3                 <= HBM_gasket_stat(0,3);
+            system_fields_ro.hbm_1_status_4                 <= HBM_gasket_stat(0,4);
+
+            system_fields_ro.hbm_2_status_0                 <= HBM_gasket_stat(1,0);
+            system_fields_ro.hbm_2_status_1                 <= HBM_gasket_stat(1,1);
+            system_fields_ro.hbm_2_status_2                 <= HBM_gasket_stat(1,2);
+            system_fields_ro.hbm_2_status_3                 <= HBM_gasket_stat(1,3);
+            system_fields_ro.hbm_2_status_4                 <= HBM_gasket_stat(1,4);
+
+            system_fields_ro.hbm_3_status_0                 <= HBM_gasket_stat(2,0);
+            system_fields_ro.hbm_3_status_1                 <= HBM_gasket_stat(2,1);
+            system_fields_ro.hbm_3_status_2                 <= HBM_gasket_stat(2,2);
+            system_fields_ro.hbm_3_status_3                 <= HBM_gasket_stat(2,3);
+            system_fields_ro.hbm_3_status_4                 <= HBM_gasket_stat(2,4);
+
+            system_fields_ro.hbm_4_status_0                 <= HBM_gasket_stat(3,0);
+            system_fields_ro.hbm_4_status_1                 <= HBM_gasket_stat(3,1);
+            system_fields_ro.hbm_4_status_2                 <= HBM_gasket_stat(3,2);
+            system_fields_ro.hbm_4_status_3                 <= HBM_gasket_stat(3,3);
+            system_fields_ro.hbm_4_status_4                 <= HBM_gasket_stat(3,4);
+
+            system_fields_ro.hbm_5_status_0                 <= HBM_gasket_stat(4,0);
+            system_fields_ro.hbm_5_status_1                 <= HBM_gasket_stat(4,1);
+            system_fields_ro.hbm_5_status_2                 <= HBM_gasket_stat(4,2);
+            system_fields_ro.hbm_5_status_3                 <= HBM_gasket_stat(4,3);
+            system_fields_ro.hbm_5_status_4                 <= HBM_gasket_stat(4,4);
             
         end if;
     end process;
@@ -836,6 +869,9 @@ i_axis_tvalid_gated <= i_axis_tvalid;
 axi_HBM_gen : for i in 0 to 5 generate
 
     hbm_gasket : entity common_lib.axi512_to_256
+        Generic Map (
+            NO_OF_STATUS    => HBM_GASKET_NO_OF_STATUS
+        )
         Port Map (
             -- 256 wide connects to NOC MASTER UNIT.
             ---------------------------------------------------------
@@ -879,7 +915,11 @@ axi_HBM_gen : for i in 0 to 5 generate
             o_axi_rready    => master_rd_data_bus_rdy(i),      -- we are always ready
             ----------------------------------------------------------
             -- Status
-            o_status        => open
+            o_status(0)     => HBM_gasket_stat(i,0),
+            o_status(1)     => HBM_gasket_stat(i,1),
+            o_status(2)     => HBM_gasket_stat(i,2),
+            o_status(3)     => HBM_gasket_stat(i,3),
+            o_status(4)     => HBM_gasket_stat(i,4)
         );
 
     slave_wr_data_bus(i)        <= HBM_axi_w(i);
