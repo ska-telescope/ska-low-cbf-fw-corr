@@ -37,7 +37,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := TRUE;
+constant USE_TEST_CASE      : BOOLEAN := FALSE;
 constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
@@ -437,30 +437,32 @@ begin
 -- 70	    255	        1109768	    0x10EF08
 -- 71	    256	        1118472	    0x111108
 
-            if stim_count = 35000 then
-                stim_count <= 100;
-            elsif clock_300_rst = '0' then
-                stim_count  <= stim_count + 1;
-            end if;
+                hbm_start_addr  <= x"00000000";
+
+                if stim_count = 35000 then
+                    stim_count <= 100;
+                elsif clock_300_rst = '0' then
+                    stim_count  <= stim_count + 1;
+                end if;
 
                 -- some stimulus for initial triangle testing.
                 if stim_count = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"6";
+                    row_count       <= 9D"2";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"0";
+                    stim_sub_array  <= x"0D"; --8D"0";
     
                 elsif stim_count = 4000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"6";
+                    row_count       <= 9D"1";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"0";
+                    stim_sub_array  <= x"0C"; --8D"0";
                     
                 elsif stim_count = 7000 then
                     -- META DATA FROM CORRELATOR SIM
@@ -571,6 +573,8 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_local_reset       => NOT packetiser_enable(0),
         
         i_packetiser_table_select       => '0',
+        i_table_swap_in_progress        => '0',
+        i_table_add_remove              => '0',
         
         i_spead_hbm_rd_full_axi_mosi    => c_axi4_full_mosi_null,
         o_spead_hbm_rd_full_axi_miso    => open,
