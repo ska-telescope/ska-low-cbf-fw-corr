@@ -242,6 +242,8 @@ signal hbm_rd_debug_rw          : t_hbm_rd_debug_rw;
 type pack_it_fsm_type is   (IDLE, LOOPS, CALC, MATH, PROCESSING, RD_DRAIN, WAIT_RETURN, COMPLETE);
 signal pack_it_fsm : pack_it_fsm_type;
 
+signal pack_it_count            : unsigned(3 downto 0);
+
 signal meta_data_cache          : std_logic_vector(15 downto 0);
 signal hbm_data_cache           : std_logic_vector(255 downto 0);
 signal hbm_data_cache_le        : std_logic_vector(255 downto 0);
@@ -715,6 +717,7 @@ begin
                 reset_cache_fifos   <= '0';
                 matrix_packed       <= "00";
                 packed_fifo_wr_pipe <= x"00";
+                pack_it_count       <= x"0";
             else
 
                 case pack_it_fsm is
@@ -733,6 +736,7 @@ begin
                         hbm_data_rd_en      <= '0';
                         matrix_packed(0)    <= '0';
                         hbm_data_cache_level <= 13D"128";
+                        pack_it_count       <= x"0";
 
                     when LOOPS =>
                         pack_it_fsm_debug   <= x"1";
@@ -851,8 +855,13 @@ begin
                         pack_it_fsm_debug   <= x"5";
                         reset_cache_fifos   <= '0';
                         
-                        if (cache_fifos_in_reset = '0') AND (reset_cache_fifos = '0') AND (packed_fifo_empty = '1')then
-                            pack_it_fsm         <= IDLE;
+                        -- delay for pipeline processing after last vis for isntruction written.
+                        if pack_it_count = 8 then
+                            if (cache_fifos_in_reset = '0') AND (reset_cache_fifos = '0') AND (packed_fifo_empty = '1')then
+                                pack_it_fsm         <= IDLE;
+                            end if;
+                        else
+                            pack_it_count   <= pack_it_count + 1;
                         end if;
 
                     when OTHERS =>

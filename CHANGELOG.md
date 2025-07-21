@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.7
+    * Enable single station correlation.
 * 0.1.6
     * Fix for channel leakage after several scans.
 * 0.1.5
