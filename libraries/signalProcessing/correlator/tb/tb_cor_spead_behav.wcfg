@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="1,986.666666 us"></ZoomStartTime>
-      <ZoomEndTime time="4,402.666667 us"></ZoomEndTime>
-      <Cursor1Time time="4,000.000000 us"></Cursor1Time>
+      <ZoomStartTime time="4.253340 us"></ZoomStartTime>
+      <ZoomEndTime time="17.453341 us"></ZoomEndTime>
+      <Cursor1Time time="21.000000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="257"></NameColumnWidth>
+      <NameColumnWidth column_width="253"></NameColumnWidth>
       <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="555" />
+   <WVObjectSize size="549" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -78,14 +78,6 @@
       <obj_property name="ElementShortName">timestamp[39:0]</obj_property>
       <obj_property name="ObjectShortName">timestamp[39:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_data_1">
-      <obj_property name="ElementShortName">debug_data_1[31:0]</obj_property>
-      <obj_property name="ObjectShortName">debug_data_1[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_data_2">
-      <obj_property name="ElementShortName">debug_data_2[31:0]</obj_property>
-      <obj_property name="ObjectShortName">debug_data_2[31:0]</obj_property>
-   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_i_bad_poly">
       <obj_property name="ElementShortName">debug_i_bad_poly</obj_property>
       <obj_property name="ObjectShortName">debug_i_bad_poly</obj_property>
@@ -118,25 +110,9 @@
       <obj_property name="ElementShortName">debug_rd_addr</obj_property>
       <obj_property name="ObjectShortName">debug_rd_addr</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_rd_data_1">
-      <obj_property name="ElementShortName">debug_rd_data_1[31:0]</obj_property>
-      <obj_property name="ObjectShortName">debug_rd_data_1[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_rd_data_2">
-      <obj_property name="ElementShortName">debug_rd_data_2[31:0]</obj_property>
-      <obj_property name="ObjectShortName">debug_rd_data_2[31:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_1_mem/xpm_memory_tdpram_inst/xpm_memory_base_inst/mem">
-      <obj_property name="ElementShortName">mem[0:1023][31:0]</obj_property>
-      <obj_property name="ObjectShortName">mem[0:1023][31:0]</obj_property>
-   </wvobject>
    <wvobject fp_name="divider6963" type="divider">
       <obj_property name="label">memory 2 contents</obj_property>
       <obj_property name="DisplayName">label</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/debug_2_mem/xpm_memory_tdpram_inst/xpm_memory_base_inst/mem">
-      <obj_property name="ElementShortName">mem[0:1023][31:0]</obj_property>
-      <obj_property name="ObjectShortName">mem[0:1023][31:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/debug_table_select">
       <obj_property name="ElementShortName">debug_table_select</obj_property>
@@ -216,7 +192,6 @@
    <wvobject type="array" fp_name="/tb_cor_spead/HBM_axi_r">
       <obj_property name="ElementShortName">HBM_axi_r</obj_property>
       <obj_property name="ObjectShortName">HBM_axi_r</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/received_64b">
       <obj_property name="ElementShortName">received_64b</obj_property>
@@ -1172,7 +1147,7 @@
    <wvobject type="vbus" fp_name="vbus3715">
       <obj_property name="label">spead_data_heap 13 to 6</obj_property>
       <obj_property name="DisplayName">label</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
       <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_from_spead_pack.spead_data_heap_size[13]">
          <obj_property name="ElementShortName">[13]</obj_property>
          <obj_property name="ObjectShortName">[13]</obj_property>
