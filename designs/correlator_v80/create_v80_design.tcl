@@ -269,6 +269,8 @@ proc do_aved_create_design { } {
     $DESIGN_PATH/src_v80/vhdl/correlator_core.vhd \
     $DESIGN_PATH/src_v80/vhdl/version_pkg.vhd \
     $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
+    $COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
+    $COMMON_PATH/hbm_axi_reset_handler/eth_disable.vhd \
     $BUILD_PATH/build_details_pkg.vhd \
   ]
 
@@ -278,6 +280,8 @@ proc do_aved_create_design { } {
     */correlator_core.vhd \
     */version_pkg.vhd \
     */target_fpga_pkg.vhd \
+    *hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
+    *hbm_axi_reset_handler/eth_disable.vhd \
     */build_details_pkg.vhd \
   }]
 
