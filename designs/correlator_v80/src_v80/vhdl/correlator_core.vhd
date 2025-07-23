@@ -122,7 +122,7 @@ END correlator_core;
 
 -------------------------------------------------------------------------------
 ARCHITECTURE structure OF correlator_core IS
-constant C_SIM      : boolean := FALSE;
+
     component ila_0 is
     Port ( 
         clk : in STD_LOGIC;
@@ -539,25 +539,7 @@ begin
         end if;
     end process;
 
-    
-    --------------------------------------------------------------------------------------------------
-    -- debug
-    
-    debug_correlator_core : ila_0 
-    Port map ( 
-        clk                     => clk_300,
-        probe0(31 downto 0)     => ap_clk_count,
-        probe0(63 downto 32)    => i_eth100G_rx_total_packets,
-        probe0(95 downto 64)    => i_eth100G_rx_bad_fcs,
-        probe0(127 downto 96)   => i_eth100G_rx_bad_code,
-        probe0(159 downto 128)  => i_eth100G_tx_total_packets,
-        probe0(160)             => i_dcmac_locked_300m,
-        
-        probe0(191 downto 161)  => uptime(30 downto 0)
-    );
-    
-   
-    
+
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
@@ -698,7 +680,7 @@ begin
     
     i_packet_player : entity versal_dcmac_lib.dcmac_packet_player
     Generic Map (
-        g_DEBUG_ILA             => TRUE,
+        g_DEBUG_ILA             => g_DEBUG_ILA,
         PLAYER_CDC_FIFO_DEPTH   => 1024        -- FIFO is 512 Wide, 9KB packets = 73728 bits, 512 * 256 = 131072, 256 depth allows ~1.88 9K packets, we are target packets sizes smaller than this.
     )
     Port Map ( 
@@ -764,102 +746,54 @@ begin
         -----------------------------------------------------
     );     
     
---   hbm_LFAAin_ila: ila_twoby256_4k
---    PORT MAP (
---        clk                     => clk_450,
---        probe0(0)               => HBM_axi_wid(0)(0),
---        probe0(1)               => HBM_axi_wuser(0)(0),
---        probe0(2)               => HBM_axi_ruser(0)(0),
---        probe0(3)               => master_wr_addr_bus_rdy(0),
---        probe0(19 downto 4)     => HBM_axi_buser(0),
---        probe0(35 downto 20)    => HBM_axi_aruser(0),
 
---        probe0(36)              => master_wr_addr_bus(0).valid,
---        probe0(39 downto 37)    => HBM_axi_awsize(0),
---        probe0(103 downto 40)   => HBM_axi_awaddr(0),
-
---        probe0(111 downto 104)  => master_wr_addr_bus(0).len,
     
---        probe0(113 downto 112)  => HBM_axi_awburst(0),
---        probe0(114)             => HBM_axi_awlock(0)(0),
---        probe0(118 downto 115)  => HBM_axi_awcache(0),
---        probe0(121 downto 119)  => HBM_axi_awprot(0),
---        probe0(125 downto 122)  => HBM_axi_awqos(0),
---        probe0(129 downto 126)  => HBM_axi_awregion(0),
+    --------------------------------------------------------------------------------------------------
+    -- debug
+    debug_gen : IF g_DEBUG_ILA GENERATE
+        debug_correlator_core : ila_0 
+        Port map ( 
+            clk                     => clk_300,
+            probe0(31 downto 0)     => ap_clk_count,
+            probe0(63 downto 32)    => i_eth100G_rx_total_packets,
+            probe0(95 downto 64)    => i_eth100G_rx_bad_fcs,
+            probe0(127 downto 96)   => i_eth100G_rx_bad_code,
+            probe0(159 downto 128)  => i_eth100G_tx_total_packets,
+            probe0(160)             => i_dcmac_locked_300m,
+            
+            probe0(191 downto 161)  => uptime(30 downto 0)
+        );
+
+        hbm_LFAAin_ila: ila_0
+        PORT MAP (
+            clk                     => clk_450,
+        
+            probe0(63 downto 0)     => HBM_axi_awaddr(0),
+            probe0(127 downto 64)   => HBM_axi_araddr(0),
+            probe0(135 downto 128)  => master_rd_addr_bus(0).len,
+            probe0(143 downto 136)  => master_wr_addr_bus(0).len,
+            probe0(144)             => master_wr_addr_bus_rdy(0),
+            probe0(145)             => master_wr_addr_bus(0).valid,
+        
+            probe0(146)             => master_rd_data_bus(0).valid,
+            probe0(147)             => master_rd_data_bus_rdy(0),
+            probe0(148)             => master_rd_data_bus(0).last,
+        
+            probe0(149)             => master_wr_data_bus(0).valid,
+            probe0(150)             => master_wr_data_bus_rdy(0),
+            probe0(151)             => master_wr_data_bus(0).last,
+            
+            probe0(152)             => master_rd_addr_bus(0).valid,
+            probe0(153)             => master_rd_addr_bus_rdy(0),
+            
+            probe0(169 downto 154)  => HBM_axi_buser(0),
+            probe0(185 downto 170)  => HBM_axi_aruser(0),       
+        
+            probe0(191 downto 186)  => ( others => '0' )
+        );
+
+    END GENERATE;
     
---        probe0(130)             => master_wr_data_bus(0).valid,
---        probe0(131)             => master_wr_data_bus_rdy(0),
---        probe0(132)             => master_wr_data_bus(0).last,
---        probe0(133)             => HBM_axi_bvalid(0),
---        probe0(134)             => HBM_axi_bready(0),
---        probe0(136 downto 135)  => HBM_axi_bresp(0),
---        probe0(137)             => HBM_axi_bid(0)(0),
-
---        probe0(159 downto 138)  => (others => '0'),
-
---        probe0(191 downto 160)  => master_wr_data_bus(0).data(31 downto 0),
---        probe0(255 downto 192)  => HBM_axi_wstrb(0),
-
-
---        probe1(63 downto 0)     => HBM_axi_araddr(0),
---        probe1(71 downto 64)    => master_rd_addr_bus(0).len,
---        probe1(75 downto 72)    => HBM_axi_arcache(0),
---        probe1(79 downto 76)    => HBM_axi_arqos(0),
-
---        probe1(95 downto 80)    => HBM_axi_awuser(0),
---        probe1(99 downto 96)    => HBM_axi_arregion(0),
-
---        probe1(102 downto 100)  => HBM_axi_arsize(0),
---        probe1(105 downto 103)  => HBM_axi_arprot(0),
---        probe1(107 downto 106)  => HBM_axi_arburst(0),
---        probe1(109 downto 108)  => master_wr_data_bus(0).resp,
-
---        probe1(110)             => HBM_axi_arid(0)(0),
---        probe1(111)             => HBM_axi_arlock(0)(0),
---        probe1(112)             => master_rd_data_bus(0).valid,
---        probe1(113)             => master_rd_data_bus_rdy(0),
---        probe1(114)             => master_rd_data_bus(0).last,
---        probe1(116 downto 115)  => master_rd_data_bus(0).resp,
---        probe1(117)             => HBM_axi_rid(0)(0),
-
---        probe1(118)             => master_rd_addr_bus(0).valid,
---        probe1(119)             => master_rd_addr_bus_rdy(0),
-
---        probe1(127 downto 120)  => ( others => '0' ),
---        probe1(159 downto 128)  => std_logic_vector(HBM_ila_counter),
---        probe1(255 downto 160)  => master_rd_data_bus(0).data(95 downto 0)
-
---    );
-
-
-   hbm_LFAAin_ila: ila_0
-    PORT MAP (
-        clk                     => clk_450,
-
-        probe0(63 downto 0)     => HBM_axi_awaddr(0),
-        probe0(127 downto 64)   => HBM_axi_araddr(0),
-        probe0(135 downto 128)  => master_rd_addr_bus(0).len,
-        probe0(143 downto 136)  => master_wr_addr_bus(0).len,
-        probe0(144)             => master_wr_addr_bus_rdy(0),
-        probe0(145)             => master_wr_addr_bus(0).valid,
-
-        probe0(146)             => master_rd_data_bus(0).valid,
-        probe0(147)             => master_rd_data_bus_rdy(0),
-        probe0(148)             => master_rd_data_bus(0).last,
-
-        probe0(149)             => master_wr_data_bus(0).valid,
-        probe0(150)             => master_wr_data_bus_rdy(0),
-        probe0(151)             => master_wr_data_bus(0).last,
-        
-        probe0(152)             => master_rd_addr_bus(0).valid,
-        probe0(153)             => master_rd_addr_bus_rdy(0),
-        
-        probe0(169 downto 154)  => HBM_axi_buser(0),
-        probe0(185 downto 170)  => HBM_axi_aruser(0),       
-
-        probe0(191 downto 186)  => ( others => '0' )
-    );
-
     -----------------------------------------------------------------------------------------------------------
     hbm_ila_debug_chk : process(clk_450)
     begin

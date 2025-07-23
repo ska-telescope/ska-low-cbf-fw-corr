@@ -237,6 +237,9 @@ begin
     
 ----------------------------------------------------------------
     i_dcmac_wrapper : entity versal_dcmac_lib.dcmac_wrapper
+    Generic map (
+        G_DEBUG_ILA             => FALSE
+    )
     Port map ( 
         i_clk                   => Clock_100_GTY_buf,
         i_reset                 => Clock_100_resetn,
