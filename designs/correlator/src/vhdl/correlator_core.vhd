@@ -502,6 +502,8 @@ ARCHITECTURE structure OF correlator_core IS
     signal data_to_player       : STD_LOGIC_VECTOR(511 downto 0);
     signal data_to_player_wr    : STD_LOGIC;
     signal data_to_player_rdy   : STD_LOGIC;
+    
+    signal eth100G_rst          : STD_LOGIC;
 
     
 begin
@@ -870,6 +872,45 @@ begin
         end if;
     end process;
 
+    --------------------------------------------------------------------------
+    -- Packet Player (moved outside DSP to accomodate US and VERSAL MACs)
+    -- S_AXI packet player config    
+    cmac_saxi_and_cdc : entity spead_lib.packet_player generic map (
+            g_DEBUG_ILA             => g_DEBUG_ILA,
+            LBUS_TO_CMAC_INUSE      => FALSE,
+            PLAYER_CDC_FIFO_DEPTH   => 512   
+        )
+        port map ( 
+            i_clk                   => ap_clk,
+            i_clk_reset             => ap_rst,
+        
+            i_cmac_clk              => i_eth100G_clk,
+            i_cmac_clk_rst          => eth100G_rst,
+            
+            i_bytes_to_transmit     => bytes_to_transmit,
+            i_data_to_player        => data_to_player,
+            i_data_to_player_wr     => data_to_player_wr,
+            o_data_to_player_rdy    => data_to_player_rdy,
+            
+            -- streaming AXI to CMAC
+            o_tx_axis_tdata         => o_axis_tdata,
+            o_tx_axis_tkeep         => o_axis_tkeep,
+            o_tx_axis_tvalid        => o_axis_tvalid,
+            o_tx_axis_tlast         => o_axis_tlast,
+            o_tx_axis_tuser         => o_axis_tuser,
+            i_tx_axis_tready        => i_axis_tready,
+            
+            -- LBUS to CMAC
+            -- o_data_to_transmit      : out t_lbus_sosi;
+            i_data_to_transmit_ctl  => c_lbus_siso_rst
+        );
+
+    CMAC_100G_reset_proc : process(i_eth100G_clk)
+    begin
+        if rising_edge(i_eth100G_clk) then
+            eth100G_rst     <= NOT i_eth100G_locked;
+        end if;
+    end process;
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
