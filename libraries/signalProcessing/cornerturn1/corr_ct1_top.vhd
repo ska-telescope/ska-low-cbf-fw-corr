@@ -1108,6 +1108,7 @@ END GENERATE;
     
     readout : entity ct_lib.corr_ct1_readout
     generic map (
+        g_GENERATE_ILA          => g_GENERATE_ILA,
         g_SPS_PACKETS_PER_FRAME => 128,
         -- 24 preload + 24 postload for the 49 tap ripple filter
         g_RIPPLE_PRELOAD  => 24, -- integer := 15;
