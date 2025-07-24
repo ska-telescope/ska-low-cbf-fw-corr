@@ -1075,12 +1075,18 @@ begin
         -----------------------------------------------------
     );    
     
-    hbm_reset_actual(0) <= hbm_reset(0);
-    hbm_reset_actual(1) <= hbm_reset(1);
-    hbm_reset_actual(2) <= hbm_reset(2);
-    hbm_reset_actual(3) <= hbm_reset(3);
-    hbm_reset_actual(4) <= hbm_reset(4);
-    hbm_reset_actual(5) <= '0'; -- don't reset the HBM for the ILA, want to be able to see what is happening.
+    -- register for SLR crossing
+    process(ap_clk)
+    begin
+        if rising_edge(ap_clk) then
+            hbm_reset_actual(0) <= hbm_reset(0);
+            hbm_reset_actual(1) <= hbm_reset(1);
+            hbm_reset_actual(2) <= hbm_reset(2);
+            hbm_reset_actual(3) <= hbm_reset(3);
+            hbm_reset_actual(4) <= hbm_reset(4);
+            hbm_reset_actual(5) <= '0'; -- don't reset the HBM for the ILA, want to be able to see what is happening.
+        end if;
+    end process;
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
