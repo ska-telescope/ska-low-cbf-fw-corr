@@ -231,4 +231,9 @@ build v80:
     - *vitis_settings
     - *self_test
   script:
-    - pwd
+    - pwd   # this should report the dir of the cloned repo in the runner
+    # copy protected ip repos into structure for building
+    - cd common/v80_infra
+    - ls
+    - cp -R /fpga/iprepo /
+    - ls
