@@ -209,7 +209,8 @@ fpga lint v80:
     - common/scripts/lint_step_v80.sh
 
 build v80:
-  stage: build
+  #when: manual
+  stage: .pre #build
   #rules:
   #  - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
