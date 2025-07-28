@@ -217,6 +217,7 @@ build v80:
   interruptible: true
   # needs:
   #   - create project v80
+  timeout: 6 hours
   variables:
     TARGET_ALVEO: "v80"
     VITIS_VERSION: "2024.2"
