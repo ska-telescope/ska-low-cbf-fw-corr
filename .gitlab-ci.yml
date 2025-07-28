@@ -214,8 +214,8 @@ build v80:
   #  - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
   interruptible: true
-  needs:
-    - create project v80
+  # needs:
+  #   - create project v80
   variables:
     TARGET_ALVEO: "v80"
     VITIS_VERSION: "2024.2"
