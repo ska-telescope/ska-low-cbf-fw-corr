@@ -244,5 +244,5 @@ build v80:
     - ./run_v80.sh
   artifacts:
     paths:
-      - build/
+      #- build/
       - output/
