@@ -237,3 +237,10 @@ build v80:
     - ls
     - cp -R /fpga/iprepo .
     - ls
+    - cd ../..
+    # back at repo root, execute build script.
+    - run_v80.sh
+  artifacts:
+    paths:
+      - build/
+      - output/
