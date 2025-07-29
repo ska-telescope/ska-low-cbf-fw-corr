@@ -70,15 +70,17 @@
 --        Data is packed into HBM first by station, then by fine channel, then by time block (1 time block = 32 time samples)
 ----------------------------------------------------------------------------------
 library IEEE, ct_lib, DSP_top_lib, common_lib, axi4_lib;
+Library xpm, correlator_lib, noc_lib;
+
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use DSP_top_lib.DSP_top_pkg.all;
-USE common_lib.common_pkg.ALL;
+use common_lib.common_pkg.ALL;
 use axi4_lib.axi4_lite_pkg.ALL;
-USE axi4_lib.axi4_full_pkg.ALL;
+use axi4_lib.axi4_full_pkg.ALL;
 use ct_lib.corr_ct2_reg_pkg.all;
-Library xpm;
 use xpm.vcomponents.all;
+use correlator_lib.target_fpga_pkg.ALL;
 
 entity corr_ct2_top is
     generic (
@@ -297,6 +299,8 @@ architecture Behavioral of corr_ct2_top is
     signal dbg_freq_index0_repeat : std_logic;
     signal dbg_axi_aw_valid, dbg_axi_aw_ready, dbg_axi_w_valid, dbg_axi_w_last, dbg_axi_w_ready, dbg_axi_ar_valid, dbg_axi_ar_ready, dbg_axi_r_valid, dbg_axi_r_ready : std_logic;
     
+    signal o_cor_tileChannel_int    : t_slv_24_arr(g_MAX_CORRELATORS-1 downto 0);
+    
     component ila_120_16k
     port (
         clk : in std_logic;
@@ -330,6 +334,15 @@ architecture Behavioral of corr_ct2_top is
     signal dout_recent_start_gap :  std_logic_vector(31 downto 0);
     signal dout_recent_readout_time : std_logic_vector(31 downto 0);
     
+    signal noc_wren                 : STD_LOGIC;
+    signal noc_rden                 : STD_LOGIC;
+    signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_dat_mux           : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal bram_addr_d1             : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
     signal max_copyAW_time : std_logic_vector(31 downto 0); -- time required to put out all the addresses
     signal max_copyData_time : std_logic_vector(31 downto 0); -- time required to put out all the data
     signal min_trigger_interval : std_logic_Vector(31 downto 0); -- minimum time available
@@ -635,7 +648,7 @@ begin
         o_cor_tileType => o_cor_tileType(0), -- out std_logic;
         o_cor_first    => o_cor_first(0),    -- out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
         o_cor_tile_location => o_cor_tileLocation(0), -- out (9:0);
-        o_cor_tileChannel => o_cor_tileChannel(0),    -- out (23:0);
+        o_cor_tileChannel => o_cor_tileChannel_int(0),    -- out (23:0);
         o_cor_tileTotalTimes => o_cor_tileTotalTimes(0), -- out (7:0);  Number of time samples to integrate for this tile.
         o_cor_tiletotalChannels => o_cor_tileTotalChannels(0), -- out (6:0); Number of frequency channels to integrate for this tile.
         o_cor_rowstations       => o_cor_rowStations(0), -- out (8:0); Number of stations in the row memories to process; up to 256.
@@ -710,7 +723,7 @@ begin
             o_cor_tileType => o_cor_tileType(i), -- out std_logic;
             o_cor_first    => o_cor_first(i),    -- out std_logic;  -- This is the first block of data for an integration - i.e. first fine channel, first block of 64 time samples, for this tile
             o_cor_tile_location => o_cor_tileLocation(i), -- out (9:0);
-            o_cor_tileChannel => o_cor_tileChannel(i),    -- out (23:0);
+            o_cor_tileChannel => o_cor_tileChannel_int(i),    -- out (23:0);
             o_cor_tileTotalTimes => o_cor_tileTotalTimes(i), -- out (7:0);  Number of time samples to integrate for this tile.
             o_cor_tiletotalChannels => o_cor_tileTotalChannels(i), -- out (6:0); Number of frequency channels to integrate for this tile.
             o_cor_rowstations       => o_cor_rowStations(i), -- out (8:0); Number of stations in the row memories to process; up to 256.
@@ -742,7 +755,7 @@ begin
         o_cor_tileType(1) <= '0';
         o_cor_first(1) <= '0';
         o_cor_tileLocation(1) <= (others => '0');
-        o_cor_tileChannel(1) <= (others => '0');
+        o_cor_tileChannel_int(1) <= (others => '0');
         o_cor_tileTotalTimes(1) <= (others => '0');
         o_cor_tileTotalChannels(1) <= (others => '0');
         o_cor_rowStations(1) <= (others => '0');
@@ -762,6 +775,8 @@ begin
     
     ------------------------------------------------------------------------------
     -- Registers
+-- ARGS U55
+gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE
     reginst : entity ct_lib.corr_ct2_reg
     PORT map (
         MM_CLK              => i_axi_clk,   -- in  std_logic;
@@ -775,7 +790,51 @@ begin
         STATCTRL_SUBARRAY_BEAM_IN  => subarray_beam_in, -- in  t_statctrl_subarray_beam_ram_in;
         STATCTRL_SUBARRAY_BEAM_OUT => subarray_beam_out -- out t_statctrl_subarray_beam_ram_out
     );
+
+END GENERATE;
+
+
+-- ARGS Gaskets for V80
+gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+    i_ct2_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => FALSE
+    )
+    port map ( 
+        i_clk       => i_axi_clk,
+        i_rst       => i_axi_rst,
     
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat_mux
+    );
+
+    reginst : entity ct_lib.corr_ct2_versal
+    PORT map (
+        MM_CLK              => i_axi_clk,   -- in  std_logic;
+        MM_RST              => i_axi_rst,   -- in  std_logic;
+
+        noc_wren            => noc_wren,
+        noc_rden            => noc_rden,
+        noc_wr_adr          => noc_wr_adr,
+        noc_wr_dat          => noc_wr_dat,
+        noc_rd_adr          => noc_rd_adr,
+        noc_rd_dat          => noc_rd_dat_mux,
+        
+        STATCTRL_FIELDS_RW	=> statctrl_rw, -- out t_statctrl_rw; single field .buf0_subarray_beams_table0, .buf0_subarray_beams_table1, .buf1_subarray_beams_table0, .buf1_subarray_beams_table1
+        STATCTRL_FIELDS_RO	=> statctrl_ro, -- in  t_statctrl_ro
+        STATCTRL_VC_DEMAP_IN       => vc_demap_in,      -- in  t_statctrl_vc_demap_ram_in;
+        STATCTRL_VC_DEMAP_OUT      => vc_demap_out,     -- out t_statctrl_vc_demap_ram_out;
+        STATCTRL_SUBARRAY_BEAM_IN  => subarray_beam_in, -- in  t_statctrl_subarray_beam_ram_in;
+        STATCTRL_SUBARRAY_BEAM_OUT => subarray_beam_out -- out t_statctrl_subarray_beam_ram_out
+    );
+
+
+END GENERATE;
+
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
@@ -1076,7 +1135,8 @@ begin
     
     ----------------------------------------------------------------------------------------
     --
-
+    o_cor_tileChannel   <= o_cor_tileChannel_int;
+    
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
@@ -1124,7 +1184,7 @@ begin
             
             -- 9 bits
             dbg_cor_valid <= cor_valid_int(0);
-            dbg_cor_tileChannel <= o_cor_tileChannel(0)(7 downto 0);
+            dbg_cor_tileChannel <= o_cor_tileChannel_int(0)(7 downto 0);
             
             -- 1 bit
             dbg_freq_index0_repeat <= i_freq_index0_repeat; -- (export from single_correlator.vhd)

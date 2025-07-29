@@ -44,6 +44,15 @@ create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila
 set_property -dict [list CONFIG.C_PROBE0_WIDTH {192} CONFIG.C_DATA_DEPTH {8192}] [get_ips ila_8k]
 create_ip_run [get_ips ila_8k]
 
+create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_twoby256_16k
+set_property -dict [list \
+  CONFIG.C_DATA_DEPTH {16384} \
+  CONFIG.C_NUM_OF_PROBES {2} \
+  CONFIG.C_PROBE0_WIDTH {256} \
+  CONFIG.C_PROBE1_WIDTH {256} \
+] [get_ips ila_twoby256_16k]
+create_ip_run [get_ips ila_twoby256_16k]
+
 #create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_1
 #set_property -dict [list CONFIG.C_PROBE0_WIDTH {576} CONFIG.C_DATA_DEPTH {1024}] [get_ips ila_1]
 #create_ip_run [get_ips ila_1]

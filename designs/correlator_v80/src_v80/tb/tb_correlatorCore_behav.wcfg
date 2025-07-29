@@ -1,0 +1,879 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="tb_correlatorCore_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="axi4_full_pkg" />
+            <top_module name="axi4_lite_pkg" />
+            <top_module name="axi4_stream_pkg" />
+            <top_module name="axi_bram_ctrl_funcs" />
+            <top_module name="build_details_pkg" />
+            <top_module name="common_mem_pkg" />
+            <top_module name="common_pkg" />
+            <top_module name="correlator_system_reg_pkg" />
+            <top_module name="dsp_top_pkg" />
+            <top_module name="ethernet_pkg" />
+            <top_module name="glbl" />
+            <top_module name="lfaadecode100g_lfaadecode100g_reg_pkg" />
+            <top_module name="spead_packet_pkg" />
+            <top_module name="spead_sps_pkg" />
+            <top_module name="target_fpga_pkg" />
+            <top_module name="tb_correlatorCore" />
+            <top_module name="technology_pkg" />
+            <top_module name="technology_select_pkg" />
+            <top_module name="vcomponents" />
+            <top_module name="versal_dcmac_pkg" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
+      <ZoomEndTime time="6.776592 us"></ZoomEndTime>
+      <Cursor1Time time="4.000000 us"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="289"></NameColumnWidth>
+      <ValueColumnWidth column_width="129"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="209" />
+   <wvobject type="logic" fp_name="/tb_correlatorCore/clk_100">
+      <obj_property name="ElementShortName">clk_100</obj_property>
+      <obj_property name="ObjectShortName">clk_100</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/clk_300">
+      <obj_property name="ElementShortName">clk_300</obj_property>
+      <obj_property name="ObjectShortName">clk_300</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dcmac_clk">
+      <obj_property name="ElementShortName">dcmac_clk</obj_property>
+      <obj_property name="ObjectShortName">dcmac_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/clk_100_rst">
+      <obj_property name="ElementShortName">clk_100_rst</obj_property>
+      <obj_property name="ObjectShortName">clk_100_rst</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/clk_300_rst">
+      <obj_property name="ElementShortName">clk_300_rst</obj_property>
+      <obj_property name="ObjectShortName">clk_300_rst</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/ap_rst_n">
+      <obj_property name="ElementShortName">ap_rst_n</obj_property>
+      <obj_property name="ObjectShortName">ap_rst_n</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/word_0_data_0">
+      <obj_property name="ElementShortName">word_0_data_0[127:0]</obj_property>
+      <obj_property name="ObjectShortName">word_0_data_0[127:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/packet_pos">
+      <obj_property name="ElementShortName">packet_pos</obj_property>
+      <obj_property name="ObjectShortName">packet_pos</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/packet_vec_cnt">
+      <obj_property name="ElementShortName">packet_vec_cnt</obj_property>
+      <obj_property name="ObjectShortName">packet_vec_cnt</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dcmac_locked">
+      <obj_property name="ElementShortName">dcmac_locked</obj_property>
+      <obj_property name="ObjectShortName">dcmac_locked</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dcmac_locked_300m">
+      <obj_property name="ElementShortName">dcmac_locked_300m</obj_property>
+      <obj_property name="ObjectShortName">dcmac_locked_300m</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dcmac_rx_data_0">
+      <obj_property name="ElementShortName">dcmac_rx_data_0</obj_property>
+      <obj_property name="ObjectShortName">dcmac_rx_data_0</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dcmac_rx_data_1">
+      <obj_property name="ElementShortName">dcmac_rx_data_1</obj_property>
+      <obj_property name="ObjectShortName">dcmac_rx_data_1</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dcmac_tx_data_0">
+      <obj_property name="ElementShortName">dcmac_tx_data_0</obj_property>
+      <obj_property name="ObjectShortName">dcmac_tx_data_0</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dcmac_tx_data_1">
+      <obj_property name="ElementShortName">dcmac_tx_data_1</obj_property>
+      <obj_property name="ObjectShortName">dcmac_tx_data_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider744" type="divider">
+      <obj_property name="label">saxi gasket</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/i_MAC_clk">
+      <obj_property name="ElementShortName">i_MAC_clk</obj_property>
+      <obj_property name="ObjectShortName">i_MAC_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/i_MAC_rst">
+      <obj_property name="ElementShortName">i_MAC_rst</obj_property>
+      <obj_property name="ObjectShortName">i_MAC_rst</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/i_clk_300">
+      <obj_property name="ElementShortName">i_clk_300</obj_property>
+      <obj_property name="ObjectShortName">i_clk_300</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/i_clk_300_rst">
+      <obj_property name="ElementShortName">i_clk_300_rst</obj_property>
+      <obj_property name="ObjectShortName">i_clk_300_rst</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/o_rx_axis_tdata">
+      <obj_property name="ElementShortName">o_rx_axis_tdata[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tdata[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/o_rx_axis_tkeep">
+      <obj_property name="ElementShortName">o_rx_axis_tkeep[63:0]</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tkeep[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/o_rx_axis_tlast">
+      <obj_property name="ElementShortName">o_rx_axis_tlast</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tlast</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/i_rx_axis_tready">
+      <obj_property name="ElementShortName">i_rx_axis_tready</obj_property>
+      <obj_property name="ObjectShortName">i_rx_axis_tready</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/o_rx_axis_tuser">
+      <obj_property name="ElementShortName">o_rx_axis_tuser[79:0]</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tuser[79:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/o_rx_axis_tvalid">
+      <obj_property name="ElementShortName">o_rx_axis_tvalid</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tvalid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/o_dcmac_locked">
+      <obj_property name="ElementShortName">o_dcmac_locked</obj_property>
+      <obj_property name="ObjectShortName">o_dcmac_locked</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_1_dcmac_to_cmac/i_data_to_receive">
+      <obj_property name="ElementShortName">i_data_to_receive</obj_property>
+      <obj_property name="ObjectShortName">i_data_to_receive</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider303" type="divider">
+      <obj_property name="label">LFAA_decoder</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/spead_v1_packet_found">
+      <obj_property name="ElementShortName">spead_v1_packet_found</obj_property>
+      <obj_property name="ObjectShortName">spead_v1_packet_found</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/spead_v2_packet_found">
+      <obj_property name="ElementShortName">spead_v2_packet_found</obj_property>
+      <obj_property name="ObjectShortName">spead_v2_packet_found</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/spead_v3_packet_found">
+      <obj_property name="ElementShortName">spead_v3_packet_found</obj_property>
+      <obj_property name="ObjectShortName">spead_v3_packet_found</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/non_spead_packet_found">
+      <obj_property name="ElementShortName">non_spead_packet_found</obj_property>
+      <obj_property name="ObjectShortName">non_spead_packet_found</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/bufDinEOP">
+      <obj_property name="ElementShortName">bufDinEOP</obj_property>
+      <obj_property name="ObjectShortName">bufDinEOP</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/bufDinGoodLength">
+      <obj_property name="ElementShortName">bufDinGoodLength</obj_property>
+      <obj_property name="ObjectShortName">bufDinGoodLength</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/searchDone">
+      <obj_property name="ElementShortName">searchDone</obj_property>
+      <obj_property name="ObjectShortName">searchDone</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/NoMatch">
+      <obj_property name="ElementShortName">NoMatch</obj_property>
+      <obj_property name="ObjectShortName">NoMatch</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/nonSPEADPacket">
+      <obj_property name="ElementShortName">nonSPEADPacket</obj_property>
+      <obj_property name="ObjectShortName">nonSPEADPacket</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/goodPacket">
+      <obj_property name="ElementShortName">goodPacket</obj_property>
+      <obj_property name="ObjectShortName">goodPacket</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_2/dsp_topi/LFAAin/LFAAProcessInst/noVirtualChannel">
+      <obj_property name="ElementShortName">noVirtualChannel</obj_property>
+      <obj_property name="ObjectShortName">noVirtualChannel</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider858" type="divider">
+      <obj_property name="label">Stim for packet_player</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/i_MAC_clk">
+      <obj_property name="ElementShortName">i_MAC_clk</obj_property>
+      <obj_property name="ObjectShortName">i_MAC_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/i_MAC_rst">
+      <obj_property name="ElementShortName">i_MAC_rst</obj_property>
+      <obj_property name="ObjectShortName">i_MAC_rst</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/i_clk_300">
+      <obj_property name="ElementShortName">i_clk_300</obj_property>
+      <obj_property name="ObjectShortName">i_clk_300</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/i_clk_300_rst">
+      <obj_property name="ElementShortName">i_clk_300_rst</obj_property>
+      <obj_property name="ObjectShortName">i_clk_300_rst</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/o_rx_axis_tdata">
+      <obj_property name="ElementShortName">o_rx_axis_tdata[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tdata[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/o_rx_axis_tkeep">
+      <obj_property name="ElementShortName">o_rx_axis_tkeep[63:0]</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tkeep[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/o_rx_axis_tlast">
+      <obj_property name="ElementShortName">o_rx_axis_tlast</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tlast</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/i_rx_axis_tready">
+      <obj_property name="ElementShortName">i_rx_axis_tready</obj_property>
+      <obj_property name="ObjectShortName">i_rx_axis_tready</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/o_rx_axis_tuser">
+      <obj_property name="ElementShortName">o_rx_axis_tuser[79:0]</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tuser[79:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/o_rx_axis_tvalid">
+      <obj_property name="ElementShortName">o_rx_axis_tvalid</obj_property>
+      <obj_property name="ObjectShortName">o_rx_axis_tvalid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/o_dcmac_locked">
+      <obj_property name="ElementShortName">o_dcmac_locked</obj_property>
+      <obj_property name="ObjectShortName">o_dcmac_locked</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_dcmac_to_cmac_same_freq/i_data_to_receive">
+      <obj_property name="ElementShortName">i_data_to_receive</obj_property>
+      <obj_property name="ObjectShortName">i_data_to_receive</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider859" type="divider">
+      <obj_property name="label">packet_player</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/i_clk">
+      <obj_property name="ElementShortName">i_clk</obj_property>
+      <obj_property name="ObjectShortName">i_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/i_clk_reset">
+      <obj_property name="ElementShortName">i_clk_reset</obj_property>
+      <obj_property name="ObjectShortName">i_clk_reset</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_3_packet_player/i_bytes_to_transmit">
+      <obj_property name="ElementShortName">i_bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="ObjectShortName">i_bytes_to_transmit[13:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_3_packet_player/i_data_to_player">
+      <obj_property name="ElementShortName">i_data_to_player[511:0]</obj_property>
+      <obj_property name="ObjectShortName">i_data_to_player[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/i_data_to_player_wr">
+      <obj_property name="ElementShortName">i_data_to_player_wr</obj_property>
+      <obj_property name="ObjectShortName">i_data_to_player_wr</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/o_data_to_player_rdy">
+      <obj_property name="ElementShortName">o_data_to_player_rdy</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_player_rdy</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/o_dcmac_ready">
+      <obj_property name="ElementShortName">o_dcmac_ready</obj_property>
+      <obj_property name="ObjectShortName">o_dcmac_ready</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/i_dcmac_clk">
+      <obj_property name="ElementShortName">i_dcmac_clk</obj_property>
+      <obj_property name="ObjectShortName">i_dcmac_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/i_dcmac_clk_rst">
+      <obj_property name="ElementShortName">i_dcmac_clk_rst</obj_property>
+      <obj_property name="ObjectShortName">i_dcmac_clk_rst</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/dut_3_packet_player/o_data_to_transmit">
+      <obj_property name="ElementShortName">o_data_to_transmit</obj_property>
+      <obj_property name="ObjectShortName">o_data_to_transmit</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/dut_3_packet_player/i_dcmac_ready">
+      <obj_property name="ElementShortName">i_dcmac_ready</obj_property>
+      <obj_property name="ObjectShortName">i_dcmac_ready</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider346" type="divider">
+      <obj_property name="label">DSP</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/LFAADone">
+      <obj_property name="ElementShortName">LFAADone</obj_property>
+      <obj_property name="ObjectShortName">LFAADone</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awvalid">
+      <obj_property name="ElementShortName">HBM_axi_awvalid[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awvalid[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awready">
+      <obj_property name="ElementShortName">HBM_axi_awready[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awready[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awaddr">
+      <obj_property name="ElementShortName">HBM_axi_awaddr[5:0][63:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awaddr[5:0][63:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awid">
+      <obj_property name="ElementShortName">HBM_axi_awid[5:0][0:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awid[5:0][0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awlen">
+      <obj_property name="ElementShortName">HBM_axi_awlen[5:0][7:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awlen[5:0][7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awsize">
+      <obj_property name="ElementShortName">HBM_axi_awsize[5:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awsize[5:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awburst">
+      <obj_property name="ElementShortName">HBM_axi_awburst[5:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awburst[5:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awlock">
+      <obj_property name="ElementShortName">HBM_axi_awlock[5:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awlock[5:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awcache">
+      <obj_property name="ElementShortName">HBM_axi_awcache[5:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awcache[5:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awprot">
+      <obj_property name="ElementShortName">HBM_axi_awprot[5:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awprot[5:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awqos">
+      <obj_property name="ElementShortName">HBM_axi_awqos[5:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awqos[5:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_awregion">
+      <obj_property name="ElementShortName">HBM_axi_awregion[5:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awregion[5:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_wvalid">
+      <obj_property name="ElementShortName">HBM_axi_wvalid[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_wvalid[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_wready">
+      <obj_property name="ElementShortName">HBM_axi_wready[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_wready[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_wdata">
+      <obj_property name="ElementShortName">HBM_axi_wdata[5:0][511:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_wdata[5:0][511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_wstrb">
+      <obj_property name="ElementShortName">HBM_axi_wstrb[5:0][63:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_wstrb[5:0][63:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_wlast">
+      <obj_property name="ElementShortName">HBM_axi_wlast[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_wlast[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_bvalid">
+      <obj_property name="ElementShortName">HBM_axi_bvalid[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_bvalid[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_bready">
+      <obj_property name="ElementShortName">HBM_axi_bready[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_bready[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_bresp">
+      <obj_property name="ElementShortName">HBM_axi_bresp[5:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_bresp[5:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_bid">
+      <obj_property name="ElementShortName">HBM_axi_bid[5:0][0:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_bid[5:0][0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arvalid">
+      <obj_property name="ElementShortName">HBM_axi_arvalid[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arvalid[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arready">
+      <obj_property name="ElementShortName">HBM_axi_arready[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arready[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_araddr">
+      <obj_property name="ElementShortName">HBM_axi_araddr[5:0][63:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_araddr[5:0][63:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arid">
+      <obj_property name="ElementShortName">HBM_axi_arid[5:0][0:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arid[5:0][0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arlen">
+      <obj_property name="ElementShortName">HBM_axi_arlen[5:0][7:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arlen[5:0][7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arsize">
+      <obj_property name="ElementShortName">HBM_axi_arsize[5:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arsize[5:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arburst">
+      <obj_property name="ElementShortName">HBM_axi_arburst[5:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arburst[5:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arlock">
+      <obj_property name="ElementShortName">HBM_axi_arlock[5:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arlock[5:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arcache">
+      <obj_property name="ElementShortName">HBM_axi_arcache[5:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arcache[5:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arprot">
+      <obj_property name="ElementShortName">HBM_axi_arprot[5:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arprot[5:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arqos">
+      <obj_property name="ElementShortName">HBM_axi_arqos[5:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arqos[5:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_arregion">
+      <obj_property name="ElementShortName">HBM_axi_arregion[5:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arregion[5:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_rvalid">
+      <obj_property name="ElementShortName">HBM_axi_rvalid[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_rvalid[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_rready">
+      <obj_property name="ElementShortName">HBM_axi_rready[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_rready[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_rdata">
+      <obj_property name="ElementShortName">HBM_axi_rdata[5:0][511:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_rdata[5:0][511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_rlast">
+      <obj_property name="ElementShortName">HBM_axi_rlast[5:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_rlast[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_rid">
+      <obj_property name="ElementShortName">HBM_axi_rid[5:0][0:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_rid[5:0][0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/HBM_axi_rresp">
+      <obj_property name="ElementShortName">HBM_axi_rresp[5:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_rresp[5:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/setupDone">
+      <obj_property name="ElementShortName">setupDone</obj_property>
+      <obj_property name="ObjectShortName">setupDone</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/eth100G_clk">
+      <obj_property name="ElementShortName">eth100G_clk</obj_property>
+      <obj_property name="ObjectShortName">eth100G_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/eth100G_locked">
+      <obj_property name="ElementShortName">eth100G_locked</obj_property>
+      <obj_property name="ObjectShortName">eth100G_locked</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/power_up_rst_eth100G_clk">
+      <obj_property name="ElementShortName">power_up_rst_eth100G_clk[31:0]</obj_property>
+      <obj_property name="ObjectShortName">power_up_rst_eth100G_clk[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m00_bram_we">
+      <obj_property name="ElementShortName">m00_bram_we[3:0]</obj_property>
+      <obj_property name="ObjectShortName">m00_bram_we[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/m00_bram_en">
+      <obj_property name="ElementShortName">m00_bram_en</obj_property>
+      <obj_property name="ObjectShortName">m00_bram_en</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m00_bram_addr">
+      <obj_property name="ElementShortName">m00_bram_addr[16:0]</obj_property>
+      <obj_property name="ObjectShortName">m00_bram_addr[16:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m00_bram_addr_word">
+      <obj_property name="ElementShortName">m00_bram_addr_word[14:0]</obj_property>
+      <obj_property name="ObjectShortName">m00_bram_addr_word[14:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m00_bram_wrData">
+      <obj_property name="ElementShortName">m00_bram_wrData[31:0]</obj_property>
+      <obj_property name="ObjectShortName">m00_bram_wrData[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m00_bram_rdData">
+      <obj_property name="ElementShortName">m00_bram_rdData[31:0]</obj_property>
+      <obj_property name="ObjectShortName">m00_bram_rdData[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/m00_bram_clk">
+      <obj_property name="ElementShortName">m00_bram_clk</obj_property>
+      <obj_property name="ObjectShortName">m00_bram_clk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/validMemRstActive">
+      <obj_property name="ElementShortName">validMemRstActive</obj_property>
+      <obj_property name="ObjectShortName">validMemRstActive</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arFIFO_dout">
+      <obj_property name="ElementShortName">m02_arFIFO_dout[63:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arFIFO_dout[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arFIFO_din">
+      <obj_property name="ElementShortName">m02_arFIFO_din[63:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arFIFO_din[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/m02_arFIFO_empty">
+      <obj_property name="ElementShortName">m02_arFIFO_empty</obj_property>
+      <obj_property name="ObjectShortName">m02_arFIFO_empty</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/m02_arFIFO_rdEn">
+      <obj_property name="ElementShortName">m02_arFIFO_rdEn</obj_property>
+      <obj_property name="ObjectShortName">m02_arFIFO_rdEn</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/m02_arFIFO_wrEn">
+      <obj_property name="ElementShortName">m02_arFIFO_wrEn</obj_property>
+      <obj_property name="ObjectShortName">m02_arFIFO_wrEn</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arFIFO_wrDataCount">
+      <obj_property name="ElementShortName">m02_arFIFO_wrDataCount[5:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arFIFO_wrDataCount[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/M02_READ_QUEUE_SIZE">
+      <obj_property name="ElementShortName">M02_READ_QUEUE_SIZE</obj_property>
+      <obj_property name="ObjectShortName">M02_READ_QUEUE_SIZE</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/MIN_LAG">
+      <obj_property name="ElementShortName">MIN_LAG</obj_property>
+      <obj_property name="ObjectShortName">MIN_LAG</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arlen_delayed">
+      <obj_property name="ElementShortName">m02_arlen_delayed[7:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arlen_delayed[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arsize_delayed">
+      <obj_property name="ElementShortName">m02_arsize_delayed[2:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arsize_delayed[2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arburst_delayed">
+      <obj_property name="ElementShortName">m02_arburst_delayed[1:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arburst_delayed[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arcache_delayed">
+      <obj_property name="ElementShortName">m02_arcache_delayed[3:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arcache_delayed[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arprot_delayed">
+      <obj_property name="ElementShortName">m02_arprot_delayed[2:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arprot_delayed[2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arqos_delayed">
+      <obj_property name="ElementShortName">m02_arqos_delayed[3:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arqos_delayed[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_arregion_delayed">
+      <obj_property name="ElementShortName">m02_arregion_delayed[3:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_arregion_delayed[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_araddr_delayed">
+      <obj_property name="ElementShortName">m02_araddr_delayed[19:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_araddr_delayed[19:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/m02_reqTime">
+      <obj_property name="ElementShortName">m02_reqTime[31:0]</obj_property>
+      <obj_property name="ObjectShortName">m02_reqTime[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/m02_arvalid_delayed">
+      <obj_property name="ElementShortName">m02_arvalid_delayed</obj_property>
+      <obj_property name="ObjectShortName">m02_arvalid_delayed</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/m02_arready_delayed">
+      <obj_property name="ElementShortName">m02_arready_delayed</obj_property>
+      <obj_property name="ObjectShortName">m02_arready_delayed</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/wr_addr_x410E0">
+      <obj_property name="ElementShortName">wr_addr_x410E0</obj_property>
+      <obj_property name="ObjectShortName">wr_addr_x410E0</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/rd_addr_x410E0">
+      <obj_property name="ElementShortName">rd_addr_x410E0</obj_property>
+      <obj_property name="ObjectShortName">rd_addr_x410E0</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/wrdata_x410E0">
+      <obj_property name="ElementShortName">wrdata_x410E0</obj_property>
+      <obj_property name="ObjectShortName">wrdata_x410E0</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/rddata_x410E0">
+      <obj_property name="ElementShortName">rddata_x410E0</obj_property>
+      <obj_property name="ObjectShortName">rddata_x410E0</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/rx_axi_tdata">
+      <obj_property name="ElementShortName">rx_axi_tdata[511:0]</obj_property>
+      <obj_property name="ObjectShortName">rx_axi_tdata[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/rx_axi_tkeep">
+      <obj_property name="ElementShortName">rx_axi_tkeep[63:0]</obj_property>
+      <obj_property name="ObjectShortName">rx_axi_tkeep[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/rx_axi_tlast">
+      <obj_property name="ElementShortName">rx_axi_tlast</obj_property>
+      <obj_property name="ObjectShortName">rx_axi_tlast</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/rx_axi_tuser">
+      <obj_property name="ElementShortName">rx_axi_tuser[79:0]</obj_property>
+      <obj_property name="ObjectShortName">rx_axi_tuser[79:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/rx_axi_tvalid">
+      <obj_property name="ElementShortName">rx_axi_tvalid</obj_property>
+      <obj_property name="ObjectShortName">rx_axi_tvalid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/eth100_tx_axi_tdata">
+      <obj_property name="ElementShortName">eth100_tx_axi_tdata[511:0]</obj_property>
+      <obj_property name="ObjectShortName">eth100_tx_axi_tdata[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/eth100_tx_axi_tkeep">
+      <obj_property name="ElementShortName">eth100_tx_axi_tkeep[63:0]</obj_property>
+      <obj_property name="ObjectShortName">eth100_tx_axi_tkeep[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/eth100_tx_axi_tlast">
+      <obj_property name="ElementShortName">eth100_tx_axi_tlast</obj_property>
+      <obj_property name="ObjectShortName">eth100_tx_axi_tlast</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/eth100_tx_axi_tuser">
+      <obj_property name="ElementShortName">eth100_tx_axi_tuser</obj_property>
+      <obj_property name="ObjectShortName">eth100_tx_axi_tuser</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/eth100_tx_axi_tvalid">
+      <obj_property name="ElementShortName">eth100_tx_axi_tvalid</obj_property>
+      <obj_property name="ObjectShortName">eth100_tx_axi_tvalid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/tvalid_ext">
+      <obj_property name="ElementShortName">tvalid_ext[3:0]</obj_property>
+      <obj_property name="ObjectShortName">tvalid_ext[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/tlast_ext">
+      <obj_property name="ElementShortName">tlast_ext[3:0]</obj_property>
+      <obj_property name="ObjectShortName">tlast_ext[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/tuser_ext">
+      <obj_property name="ElementShortName">tuser_ext[3:0]</obj_property>
+      <obj_property name="ObjectShortName">tuser_ext[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/sim_register_input_file_counter">
+      <obj_property name="ElementShortName">sim_register_input_file_counter</obj_property>
+      <obj_property name="ObjectShortName">sim_register_input_file_counter</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/load_ct1_HBM">
+      <obj_property name="ElementShortName">load_ct1_HBM</obj_property>
+      <obj_property name="ObjectShortName">load_ct1_HBM</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/load_ct2_HBM_corr1">
+      <obj_property name="ElementShortName">load_ct2_HBM_corr1</obj_property>
+      <obj_property name="ObjectShortName">load_ct2_HBM_corr1</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/load_ct2_HBM_corr2">
+      <obj_property name="ElementShortName">load_ct2_HBM_corr2</obj_property>
+      <obj_property name="ObjectShortName">load_ct2_HBM_corr2</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/axi4_lite_miso_dummy">
+      <obj_property name="ElementShortName">axi4_lite_miso_dummy</obj_property>
+      <obj_property name="ObjectShortName">axi4_lite_miso_dummy</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/axi4_full_miso_dummy">
+      <obj_property name="ElementShortName">axi4_full_miso_dummy</obj_property>
+      <obj_property name="ObjectShortName">axi4_full_miso_dummy</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/ct2_readout_start">
+      <obj_property name="ElementShortName">ct2_readout_start</obj_property>
+      <obj_property name="ObjectShortName">ct2_readout_start</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/ct2_readout_buffer">
+      <obj_property name="ElementShortName">ct2_readout_buffer</obj_property>
+      <obj_property name="ObjectShortName">ct2_readout_buffer</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/ct2_readout_frameCount">
+      <obj_property name="ElementShortName">ct2_readout_frameCount[31:0]</obj_property>
+      <obj_property name="ObjectShortName">ct2_readout_frameCount[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/cor0_tb_data">
+      <obj_property name="ElementShortName">cor0_tb_data[255:0]</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_data[255:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/cor0_tb_data_check">
+      <obj_property name="ElementShortName">cor0_tb_data_check[7:0][31:0]</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_data_check[7:0][31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/cor0_tb_visValid">
+      <obj_property name="ElementShortName">cor0_tb_visValid</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_visValid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/cor0_tb_TCIvalid">
+      <obj_property name="ElementShortName">cor0_tb_TCIvalid</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_TCIvalid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/cor0_tb_dcount">
+      <obj_property name="ElementShortName">cor0_tb_dcount[7:0]</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_dcount[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/cor0_tb_cell">
+      <obj_property name="ElementShortName">cor0_tb_cell[7:0]</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_cell[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/cor0_tb_tile">
+      <obj_property name="ElementShortName">cor0_tb_tile[9:0]</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_tile[9:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/cor0_tb_channel">
+      <obj_property name="ElementShortName">cor0_tb_channel[23:0]</obj_property>
+      <obj_property name="ObjectShortName">cor0_tb_channel[23:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/visCheckDone">
+      <obj_property name="ElementShortName">visCheckDone</obj_property>
+      <obj_property name="ObjectShortName">visCheckDone</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/visMetaCheckDone">
+      <obj_property name="ElementShortName">visMetaCheckDone</obj_property>
+      <obj_property name="ObjectShortName">visMetaCheckDone</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/visCheckData">
+      <obj_property name="ElementShortName">visCheckData[7:0][31:0]</obj_property>
+      <obj_property name="ObjectShortName">visCheckData[7:0][31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/visMetaCheckData">
+      <obj_property name="ElementShortName">visMetaCheckData[7:0][31:0]</obj_property>
+      <obj_property name="ObjectShortName">visMetaCheckData[7:0][31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/ct2_HBM_dump_trigger">
+      <obj_property name="ElementShortName">ct2_HBM_dump_trigger</obj_property>
+      <obj_property name="ObjectShortName">ct2_HBM_dump_trigger</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/dump_trigger_count">
+      <obj_property name="ElementShortName">dump_trigger_count</obj_property>
+      <obj_property name="ObjectShortName">dump_trigger_count</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/sof_count">
+      <obj_property name="ElementShortName">sof_count</obj_property>
+      <obj_property name="ObjectShortName">sof_count</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/FB_out_sof">
+      <obj_property name="ElementShortName">FB_out_sof</obj_property>
+      <obj_property name="ObjectShortName">FB_out_sof</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/Dump_packet_hbm">
+      <obj_property name="ElementShortName">Dump_packet_hbm</obj_property>
+      <obj_property name="ObjectShortName">Dump_packet_hbm</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/load_packet_buffer">
+      <obj_property name="ElementShortName">load_packet_buffer</obj_property>
+      <obj_property name="ObjectShortName">load_packet_buffer</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_correlatorCore/input_HBM_reset">
+      <obj_property name="ElementShortName">input_HBM_reset</obj_property>
+      <obj_property name="ObjectShortName">input_HBM_reset</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_SPS_PACKETS_PER_FRAME">
+      <obj_property name="ElementShortName">g_SPS_PACKETS_PER_FRAME</obj_property>
+      <obj_property name="ObjectShortName">g_SPS_PACKETS_PER_FRAME</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_CORRELATORS">
+      <obj_property name="ElementShortName">g_CORRELATORS</obj_property>
+      <obj_property name="ObjectShortName">g_CORRELATORS</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_USE_DUMMY_FB">
+      <obj_property name="ElementShortName">g_USE_DUMMY_FB</obj_property>
+      <obj_property name="ObjectShortName">g_USE_DUMMY_FB</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_TEST_CASE">
+      <obj_property name="ElementShortName">g_TEST_CASE[1:68]</obj_property>
+      <obj_property name="ObjectShortName">g_TEST_CASE[1:68]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_SPS_DATA_FILENAME">
+      <obj_property name="ElementShortName">g_SPS_DATA_FILENAME[1:20]</obj_property>
+      <obj_property name="ObjectShortName">g_SPS_DATA_FILENAME[1:20]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_REGISTER_INIT_FILENAME">
+      <obj_property name="ElementShortName">g_REGISTER_INIT_FILENAME[1:16]</obj_property>
+      <obj_property name="ObjectShortName">g_REGISTER_INIT_FILENAME[1:16]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_SDP_FILENAME">
+      <obj_property name="ElementShortName">g_SDP_FILENAME[1:19]</obj_property>
+      <obj_property name="ObjectShortName">g_SDP_FILENAME[1:19]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_LOAD_CT1_HBM">
+      <obj_property name="ElementShortName">g_LOAD_CT1_HBM</obj_property>
+      <obj_property name="ObjectShortName">g_LOAD_CT1_HBM</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_CT1_INIT_FILENAME">
+      <obj_property name="ElementShortName">g_CT1_INIT_FILENAME[1:0]</obj_property>
+      <obj_property name="ObjectShortName">g_CT1_INIT_FILENAME[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_LOAD_CT2_HBM_CORR1">
+      <obj_property name="ElementShortName">g_LOAD_CT2_HBM_CORR1</obj_property>
+      <obj_property name="ObjectShortName">g_LOAD_CT2_HBM_CORR1</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_CT2_HBM_CORR1_FILENAME">
+      <obj_property name="ElementShortName">g_CT2_HBM_CORR1_FILENAME[1:12]</obj_property>
+      <obj_property name="ObjectShortName">g_CT2_HBM_CORR1_FILENAME[1:12]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_LOAD_CT2_HBM_CORR2">
+      <obj_property name="ElementShortName">g_LOAD_CT2_HBM_CORR2</obj_property>
+      <obj_property name="ObjectShortName">g_LOAD_CT2_HBM_CORR2</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_CT2_HBM_CORR2_FILENAME">
+      <obj_property name="ElementShortName">g_CT2_HBM_CORR2_FILENAME[1:0]</obj_property>
+      <obj_property name="ObjectShortName">g_CT2_HBM_CORR2_FILENAME[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_LOAD_VIS_CHECK_FILE">
+      <obj_property name="ElementShortName">g_LOAD_VIS_CHECK_FILE</obj_property>
+      <obj_property name="ObjectShortName">g_LOAD_VIS_CHECK_FILE</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_VIS_CHECK_FILE">
+      <obj_property name="ElementShortName">g_VIS_CHECK_FILE[1:17]</obj_property>
+      <obj_property name="ObjectShortName">g_VIS_CHECK_FILE[1:17]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_META_CHECK_FILE">
+      <obj_property name="ElementShortName">g_META_CHECK_FILE[1:20]</obj_property>
+      <obj_property name="ObjectShortName">g_META_CHECK_FILE[1:20]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_CT2_HBM_DUMP_SIZE">
+      <obj_property name="ElementShortName">g_CT2_HBM_DUMP_SIZE</obj_property>
+      <obj_property name="ObjectShortName">g_CT2_HBM_DUMP_SIZE</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_CT2_HBM_DUMP_ADDR">
+      <obj_property name="ElementShortName">g_CT2_HBM_DUMP_ADDR</obj_property>
+      <obj_property name="ObjectShortName">g_CT2_HBM_DUMP_ADDR</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_CT2_HBM_DUMP_FNAME">
+      <obj_property name="ElementShortName">g_CT2_HBM_DUMP_FNAME[1:16]</obj_property>
+      <obj_property name="ObjectShortName">g_CT2_HBM_DUMP_FNAME[1:16]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_RDOUT_HBM_DUMP_SIZE">
+      <obj_property name="ElementShortName">g_RDOUT_HBM_DUMP_SIZE</obj_property>
+      <obj_property name="ObjectShortName">g_RDOUT_HBM_DUMP_SIZE</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_RDOUT_HBM_DUMP_ADDR">
+      <obj_property name="ElementShortName">g_RDOUT_HBM_DUMP_ADDR</obj_property>
+      <obj_property name="ObjectShortName">g_RDOUT_HBM_DUMP_ADDR</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/g_RDOUT_HBM_DUMP_FNAME">
+      <obj_property name="ElementShortName">g_RDOUT_HBM_DUMP_FNAME[1:18]</obj_property>
+      <obj_property name="ObjectShortName">g_RDOUT_HBM_DUMP_FNAME[1:18]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_correlatorCore/g_HBM_INTERFACES">
+      <obj_property name="ElementShortName">g_HBM_INTERFACES</obj_property>
+      <obj_property name="ObjectShortName">g_HBM_INTERFACES</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/one0">
+      <obj_property name="ElementShortName">one0[3:0]</obj_property>
+      <obj_property name="ObjectShortName">one0[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/FOUR0">
+      <obj_property name="ElementShortName">FOUR0[15:0]</obj_property>
+      <obj_property name="ObjectShortName">FOUR0[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/FOUR1">
+      <obj_property name="ElementShortName">FOUR1[3:0]</obj_property>
+      <obj_property name="ObjectShortName">FOUR1[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_correlatorCore/T0">
+      <obj_property name="ElementShortName">T0[511:0]</obj_property>
+      <obj_property name="ObjectShortName">T0[511:0]</obj_property>
+   </wvobject>
+</wave_config>

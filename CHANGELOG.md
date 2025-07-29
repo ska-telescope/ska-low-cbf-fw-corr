@@ -1,5 +1,8 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.8
+    * V80 support added.
+    * Current codebase supports both V80 and U55.
 * 0.1.7
     * Enable single station correlation.
 * 0.1.6

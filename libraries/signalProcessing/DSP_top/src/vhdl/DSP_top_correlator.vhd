@@ -25,9 +25,8 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 USE axi4_lib.axi4_stream_pkg.ALL;
 USE axi4_lib.axi4_full_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
+use correlator_lib.target_fpga_pkg.ALL;
 
-library technology_lib;
-USE technology_lib.tech_mac_100g_pkg.ALL;
 
 library xpm;
 use xpm.vcomponents.all;
@@ -58,12 +57,10 @@ entity DSP_top_correlator is
         i_axis_tuser   : in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
         i_axis_tvalid  : in std_logic;
         -- Data to be transmitted on 100GE
-        o_axis_tdata   : out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        o_axis_tkeep   : out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-        o_axis_tlast   : out std_logic;                      
-        o_axis_tuser   : out std_logic;
-        o_axis_tvalid  : out std_logic;
-        i_axis_tready  : in std_logic;
+        o_bytes_to_transmit     : OUT STD_LOGIC_VECTOR(13 downto 0);
+        o_data_to_player        : OUT STD_LOGIC_VECTOR(511 downto 0);
+        o_data_to_player_wr     : OUT STD_LOGIC;
+        i_data_to_player_rdy    : IN STD_LOGIC;
         --
         i_clk_100GE         : in std_logic;
         i_eth100G_locked    : in std_logic;
@@ -261,7 +258,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal cor_packet_data : t_slv_256_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_packet_valid : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
     signal LFAAingest_totalChannels : std_logic_vector(11 downto 0);
-    signal data_tx_siso : t_lbus_siso;
+
     signal FB_out_sof : std_logic;
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
     signal reset_to_ct_1 : std_logic;
@@ -294,7 +291,8 @@ begin
     --  - Notifies the corner turn, which generates the write address part of the AXI memory interface.
     --  - Outputs the data part of the packet on the wdata part of the AXI memory interface.
     LFAAingest_packetCount(47 downto 40)    <= x"00";
-    
+
+
     LFAAin : entity LFAADecode100G_lib.LFAADecodeTop100G
     port map(
         -- Data in from the 100GE MAC
@@ -341,6 +339,8 @@ begin
         -- debug
         o_dbg              => LFAADecode_dbg
     );
+
+
     
     LFAA_FB_CT : entity CT_lib.corr_ct1_top
     -- generic map (
@@ -431,7 +431,7 @@ begin
         --
         i_m06_axi_rst_dbg => i_hbm_rst_dbg(5)      -- in (31:0)
     );
-    
+
     -- Correlator filterbank and fine delay.
     FBreali : if (not g_USE_DUMMY_FB) generate
 
@@ -559,7 +559,7 @@ begin
             ct_rst_del2 <= ct_rst_del1;
         end if;
     end process;
-    
+        
     -- Corner turn between filterbanks and correlator
     ct_cor_out_inst : entity CT_lib.corr_ct2_top
     generic map (
@@ -638,7 +638,7 @@ begin
         i_hbm0_rst_dbg  => i_hbm_rst_dbg(1), -- in (31:0);
         i_hbm1_rst_dbg  => i_hbm_rst_dbg(2)
     );
-    
+   
     -- Correlator
     correlator_inst : entity correlator_lib.correlator_top
     generic map (
@@ -783,7 +783,7 @@ begin
         o_freq_index0_repeat => freq_index0_repeat
     );
     
-    
+   
     -----------------------------------------------------------------------------------------------
     -- 100GE output 
     
@@ -804,12 +804,10 @@ begin
         i_cmac_clk          => i_clk_100GE,
         i_cmac_clk_rst      => eth100G_rst,
 
-        o_tx_axis_tdata     => o_axis_tdata,
-        o_tx_axis_tkeep     => o_axis_tkeep,
-        o_tx_axis_tvalid    => o_axis_tvalid,
-        o_tx_axis_tlast     => o_axis_tlast,
-        o_tx_axis_tuser     => o_axis_tuser,
-        i_tx_axis_tready    => i_axis_tready,
+        o_bytes_to_transmit     => o_bytes_to_transmit,
+        o_data_to_player        => o_data_to_player,
+        o_data_to_player_wr     => o_data_to_player_wr,
+        i_data_to_player_rdy    => i_data_to_player_rdy,
 
         -- Packed up Correlator Data.
         o_from_spead_pack   => from_spead_pack,
@@ -825,6 +823,8 @@ begin
         i_spead_full_axi_mosi   => i_spead_full_axi_mosi,
         o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
+
+
 
     CMAC_100G_reset_proc : process(i_clk_100GE)
     begin

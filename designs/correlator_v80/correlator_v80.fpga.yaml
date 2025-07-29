@@ -2,17 +2,16 @@ schema_name   : args
 schema_version: 2.0
 schema_type   : fpga
 
-hdl_library_name  : correlator
-fpga_name         : correlator
-fpga_description  : "Acceleration core for use with Vitis and Alveo"
+hdl_library_name  : correlator_v80
+fpga_name         : correlator_v80
+fpga_description  : "V80 edition of Correlator"
 
 alignment:
-  peripheral: 4096
-  sub_peripheral: 4096
+  peripheral: 0x10_0000
+  sub_peripheral: 0x4_0000
 
 peripherals:
-  - peripheral_name        : correlator/system
-  - peripheral_name        : correlator/vitis_shared
+  - peripheral_name        : correlator_v80/system
   - peripheral_name        : LFAADecode100G/LFAADecode100G
   - peripheral_name        : corr_ct1/corr_ct1
   - peripheral_name        : cor_filterbanks/filterbanks
@@ -21,6 +20,5 @@ peripherals:
   - peripheral_name        : spead/spead_sdp
   - peripheral_name        : spead/spead_sdp_2
   - peripheral_name        : hbm_read/hbm_rd_debug
-  - peripheral_name        : hbm_read/hbm_rd_debug_2  
-  - peripheral_name        : CMAC/CMAC
-  - peripheral_name        : Timeslave/Timeslave  
+  - peripheral_name        : hbm_read/hbm_rd_debug_2
+  - peripheral_name        : DCMAC/DCMAC

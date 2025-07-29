@@ -184,13 +184,12 @@ class Slave(object):
                 lines.extend(addlines)
         self.write_file(lines, file_name)
 
-    def gen_vho(self, slaveSettings, slave_type):
+    def gen_vho(self):
         lines = []
-        tmplFile = os.path.join(self.rootDir, "templates/template_reg_axi4.vho")
+        template_path = os.path.join(self.rootDir, "templates/template_reg_axi4.vho")
         # fields_dict = slaveSettings.fields
-        with open(tmplFile, 'r') as infile:
+        with open(template_path, 'r') as infile:
             for line in infile:
-                addlines = []
                 if '<lib_name>' in line:
                     line = line.replace('<lib_name>', self.periph_lib if self.periph_lib == self.periph_name else self.periph_lib + '_' + self.periph_name)
                 if '<lib>' in line:
@@ -207,7 +206,7 @@ class Slave(object):
                             if field.access_mode() == 'RO':
                                 sublines.append('    '*2 + slave.name().upper() + '_FIELDS_RO.'+ field.name() + '<tabs>=>\n')
                                 # sublines.extend(' ,\t\t -- '+ 'STD_LOGIC' + vector_len(field.width()) +'\n')
-                            if ((field.access_mode() == 'CS') or (field.access_mode() == 'CW')):
+                            if (field.access_mode() == 'CS') or (field.access_mode() == 'CW'):
                                 sublines.append('    '*2 + slave.name().upper() + '_FIELDS_COUNT.'+ field.name() + '<tabs>=>\n')
                         sublines.extend(self.ram_records(slave, False))
                     # lines.extend(tab_aligned(sublines))
@@ -216,16 +215,16 @@ class Slave(object):
 
                 lines.append(line)
             lines.append(');')
-        return(tab_aligned(lines))
+        return tab_aligned(lines)
 
 
-    def gen_vhdl(self, slaveSettings, slave_type):
+    def gen_vhdl(self, slaveSettings, slave_type, interface: str="axi4"):
         lines = []
         slave_type = slave_type.lower()
         if (slave_type == 'ram') and (slaveSettings.interface() == 'simple'):
-            tmplFile = os.path.join(self.rootDir, "templates/template_ramsimple_axi4.vhd")
+            tmplFile = os.path.join(self.rootDir, f"templates/template_ramsimple_{interface}.vhd")
         else:
-            tmplFile = os.path.join(self.rootDir, "templates/template_" + slave_type + "_axi4.vhd")
+            tmplFile = os.path.join(self.rootDir, f"templates/template_{slave_type}_{interface}.vhd")
         
         removePort = {}
         replace_dicts = {}
@@ -423,18 +422,23 @@ class Slave(object):
         return(lines)
 
     def gen_file(self, settings, slave_type, file_type):
-        lines = []
-        if file_type == 'tcl':
-            lines = self.gen_tcl(settings, slave_type)
-        elif file_type == 'vho':
-            lines = self.gen_vho(settings, slave_type)
-        else :
-            lines = self.gen_vhdl(settings, slave_type)
-        # outDir = os.path.join(self.rootDir, 'outputs')
+        set_name = "_" + settings.name() if slave_type != "reg" else ""
+        out_file = f"{self.prefix}{set_name}_{slave_type}.{file_type}"
 
-        out_file = ('ip_' if file_type == 'tcl' else '') + (self.prefix + '_' + settings.name() if slave_type != 'reg' else self.prefix) + '_' + slave_type  + '.' + file_type
-        # outFile = os.path.join(outDir, prefix + settings.lib + '_' + (self.periph_name if slave_type == 'reg' else settings.name) + '_' + slave_type + '_axi4.' + file_type)
-        self.write_file(lines, out_file)
+        if file_type == 'tcl':
+            out_file = "ip_" + out_file
+            self.write_file(self.gen_tcl(settings, slave_type), out_file)
+        elif file_type == 'vho':
+            self.write_file(self.gen_vho(), out_file)
+        elif file_type == 'vhd':
+            # AXI4 interface
+            self.write_file(self.gen_vhdl(settings, slave_type), out_file)
+            # NOC interface
+            filename, extension = os.path.splitext(out_file)
+            out_file = f"{filename}_versal{extension}"
+            self.write_file(self.gen_vhdl(settings, slave_type, "noc"), out_file)
+        else:
+            raise NotImplementedError(f"gen_file doesn't know {file_type=}")
 
     def set_init_string(self, regGroup):
         field_list = regGroup.fields

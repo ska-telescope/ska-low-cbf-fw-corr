@@ -9,6 +9,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib;
+LIBRARY xpm, spead_lib;
 
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -24,7 +25,7 @@ use correlator_lib.build_details_pkg.all;
 USE work.correlator_bus_pkg.ALL;
 USE work.correlator_system_reg_pkg.ALL;
 USE UNISIM.vcomponents.all;
-Library xpm;
+
 use xpm.vcomponents.all;
 
 -------------------------------------------------------------------------------
@@ -496,6 +497,14 @@ ARCHITECTURE structure OF correlator_core IS
     signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
     signal hbm_reset_actual : std_logic_vector(5 downto 0);
     signal lfaaDecode_reset : std_logic;
+
+    signal bytes_to_transmit    : STD_LOGIC_VECTOR(13 downto 0);
+    signal data_to_player       : STD_LOGIC_VECTOR(511 downto 0);
+    signal data_to_player_wr    : STD_LOGIC;
+    signal data_to_player_rdy   : STD_LOGIC;
+    
+    signal eth100G_rst          : STD_LOGIC;
+
     
 begin
     
@@ -864,6 +873,45 @@ begin
     end process;
 
     --------------------------------------------------------------------------
+    -- Packet Player (moved outside DSP to accomodate US and VERSAL MACs)
+    -- S_AXI packet player config    
+    cmac_saxi_and_cdc : entity spead_lib.packet_player generic map (
+            g_DEBUG_ILA             => g_DEBUG_ILA,
+            LBUS_TO_CMAC_INUSE      => FALSE,
+            PLAYER_CDC_FIFO_DEPTH   => 512   
+        )
+        port map ( 
+            i_clk                   => ap_clk,
+            i_clk_reset             => ap_rst,
+        
+            i_cmac_clk              => i_eth100G_clk,
+            i_cmac_clk_rst          => eth100G_rst,
+            
+            i_bytes_to_transmit     => bytes_to_transmit,
+            i_data_to_player        => data_to_player,
+            i_data_to_player_wr     => data_to_player_wr,
+            o_data_to_player_rdy    => data_to_player_rdy,
+            
+            -- streaming AXI to CMAC
+            o_tx_axis_tdata         => o_axis_tdata,
+            o_tx_axis_tkeep         => o_axis_tkeep,
+            o_tx_axis_tvalid        => o_axis_tvalid,
+            o_tx_axis_tlast         => o_axis_tlast,
+            o_tx_axis_tuser         => o_axis_tuser,
+            i_tx_axis_tready        => i_axis_tready,
+            
+            -- LBUS to CMAC
+            -- o_data_to_transmit      : out t_lbus_sosi;
+            i_data_to_transmit_ctl  => c_lbus_siso_rst
+        );
+
+    CMAC_100G_reset_proc : process(i_eth100G_clk)
+    begin
+        if rising_edge(i_eth100G_clk) then
+            eth100G_rst     <= NOT i_eth100G_locked;
+        end if;
+    end process;
+    --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
     dsp_topi : entity dsp_top_lib.DSP_top_correlator
@@ -881,12 +929,10 @@ begin
         i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
         i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
         -- Data to be transmitted on 100GE
-        o_axis_tdata   => o_axis_tdata,  -- out (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        o_axis_tkeep   => o_axis_tkeep,  -- out (63:0);  one bit per byte in o_axis_tdata
-        o_axis_tlast   => o_axis_tlast,  -- out std_logic;                      
-        o_axis_tuser   => o_axis_tuser,  -- out std_logic;
-        o_axis_tvalid  => o_axis_tvalid, -- out std_logic;
-        i_axis_tready  => i_axis_tready, -- in std_logic;
+        o_bytes_to_transmit     => bytes_to_transmit,
+        o_data_to_player        => data_to_player,
+        o_data_to_player_wr     => data_to_player_wr,
+        i_data_to_player_rdy    => data_to_player_rdy,
         
         i_clk_100GE      => i_eth100G_clk,      -- in std_logic;
         i_eth100G_locked => i_eth100G_locked,
@@ -1029,12 +1075,18 @@ begin
         -----------------------------------------------------
     );    
     
-    hbm_reset_actual(0) <= hbm_reset(0);
-    hbm_reset_actual(1) <= hbm_reset(1);
-    hbm_reset_actual(2) <= hbm_reset(2);
-    hbm_reset_actual(3) <= hbm_reset(3);
-    hbm_reset_actual(4) <= hbm_reset(4);
-    hbm_reset_actual(5) <= '0'; -- don't reset the HBM for the ILA, want to be able to see what is happening.
+    -- register for SLR crossing
+    process(ap_clk)
+    begin
+        if rising_edge(ap_clk) then
+            hbm_reset_actual(0) <= hbm_reset(0);
+            hbm_reset_actual(1) <= hbm_reset(1);
+            hbm_reset_actual(2) <= hbm_reset(2);
+            hbm_reset_actual(3) <= hbm_reset(3);
+            hbm_reset_actual(4) <= hbm_reset(4);
+            hbm_reset_actual(5) <= '0'; -- don't reset the HBM for the ILA, want to be able to see what is happening.
+        end if;
+    end process;
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    

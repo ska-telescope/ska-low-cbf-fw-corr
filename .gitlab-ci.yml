@@ -78,6 +78,17 @@ raw-build:
   - when: manual
     allow_failure: true
 
+################################################################################
+.vitis_settings: &vitis_settings
+  - source common/scripts/vitis_settings.sh
+
+.args_settings: &args_settings
+  - source common/scripts/args_settings.sh
+
+.self_test: &self_test
+  - common/scripts/self_test.sh
+################################################################################
+
 psi-low-test:
   stage: integration
   tags:
@@ -129,53 +140,134 @@ ska-low-cbf-fw-testing:
     CORR_FW_SOURCE: "gitlab"
 
 ####################################################################################################################
-### Example of how to add jobs to build for a different platform/card.
-### Update & un-comment to enable the next generation card for testing.
-# create project u55_base_2:
-#   extends: create project
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
+### V80 Build rules
+# When to do a full build
+.v80_build_rules: &v80_build_rules
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # merge request
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  # main branch
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # tag (so raw-publish has something to publish)
+  - if: $CI_COMMIT_TAG
+  # 'build' keyword in commit title
+  - if: $CI_COMMIT_TITLE =~ /build/
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
 
-# fpga lint u55_base_2:
-#   extends: fpga lint
-#   needs:
-#     - create project u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
+# When to push firmware to package registry
+.package_rules_v80: &package_rules_v80
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # merge request - 
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    when: manual
+    allow_failure: true
+  # main branch
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # tag (so raw-publish has something to publish)
+  - if: $CI_COMMIT_TAG
+  # 'build' keyword in commit title
+  - if: $CI_COMMIT_TITLE =~ /build/
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
 
-# package kernel u55_base_2:
-#   extends: package kernel
-#   needs:
-#     - job: create project u55_base_2
-#       artifacts: true
-#     - job: fpga lint u55_base_2
-#       artifacts: false
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
+### V80 CI jobs
+create project v80:
+  stage: .pre
+  needs:
+    - ARGS
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+    - $EXTRA_CREATE_PROJECT_TAG
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2024.2"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "correlator_v80" # used to choose design
+    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
+  before_script:
+    - *vitis_settings
+    - *args_settings
+    - *self_test
+  script:
+    - common/scripts/create_project_v80.sh
+  artifacts:
+    paths:
+      - build/
 
-# generate xo u55_base_2:
-#   extends: generate xo
-#   needs:
-#     - package kernel u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
+fpga lint v80:
+  stage: lint
+  # allow this job to be cancelled if new pipeline comes along
+  interruptible: true
+  needs:
+    - create project v80
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2024.2"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "v80_top"    # project name based on general approach
+    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
+    VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+  before_script:
+    - *vitis_settings
+    - *self_test
+  script:
+    - common/scripts/lint_step_v80.sh
 
-# v++ u55_base_2:
-#   extends: v++
-#   needs:
-#     - generate xo u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
+build v80:
+  stage: build
+  rules:
+   - *v80_build_rules
+  # allow this job to be cancelled if new pipeline comes along
+  interruptible: true
+  needs:
+    - fpga lint v80
+  timeout: 6 hours
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2024.2"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "v80_top"    # project name based on general approach
+    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
+    VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+  before_script:
+    - *vitis_settings
+    - *self_test
+  script:
+    - pwd   # this should report the dir of the cloned repo in the runner
+    # copy protected ip repos into structure for building
+    - cd common/v80_infra
+    - cp -R /home/gitlab-runner/iprepo .
+    - cd ../..
+    # back at repo root, execute build script.
+    - ./run_v80.sh
+  artifacts:
+    paths:
+      #- build/
+      - output/
 
-# publish dev package u55_base_2:
-#   extends: publish dev package
-#   needs:
-#     - v++ u55_base_2
-#   variables:
-#     XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_2_202110_1/xilinx_u55c_gen3x16_xdma_2_202110_1.xpfm"
-#     VITIS_VERSION: "2022.2"
+publish v80 package:
+  stage: publish
+  rules:
+    - *package_rules_v80
+  needs:
+    - job: build v80
+  tags:
+    - shell 
+  variables:
+    BUILD_STRING: "CI development build. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
+  script:
+    - common/scripts/package_firmware_v80.sh

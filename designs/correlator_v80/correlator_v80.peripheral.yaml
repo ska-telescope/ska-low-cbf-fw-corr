@@ -1,0 +1,382 @@
+﻿schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : correlator_v80
+hdl_library_description: "Monitor & Control Registers for vitis acceleration core"
+
+peripherals:
+
+  - peripheral_name        : system
+    peripheral_description : "General control registers for the vcu128 Gemini dsp firmware"
+
+    slave_ports:
+      - slave_name        : system
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "General control registers for the Vitis Acceleration Core firmware"
+        fields:
+          #################################
+          - - field_name        : args_magic_number
+              width             : 32
+              access_mode       : SP
+              reset_value       : 0xF96a7001
+              field_description : "args magic number for address 0"
+          #################################
+          - - field_name        : args_map_build
+              width             : 32
+              access_mode       : SP
+              reset_value       : 0x0 # args will replace this value
+              field_description : "args map build date & hour"
+          #################################
+          - status:
+            - field_name        : clocks_locked
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "All clocks locked"
+          #################################
+          - qsfpGTY:
+            - field_name        : resets
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Reset 100G ethernet interface"
+          #################################
+          - - field_name        : build_date
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Build Date of firmware, Day/Month/Year, readable in HEX, hand coded and not tied to autogeneration currently"
+          #################################
+          - - field_name        : Firmware_Major_Version
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Major version number"
+          #################################
+          - - field_name        : Firmware_Minor_Version
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x1
+              field_description : "Minor version number"
+          #################################
+          - - field_name        : Firmware_Patch_Version
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x8
+              field_description : "Patch version number"
+          #################################
+          - - field_name        : Firmware_Label
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Firmware Label"
+          #################################
+          - - field_name        : Firmware_Personality
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Firmware function - PST/PSS/ZOOM/CORR"
+          #################################
+          - - field_name        : commit_short_hash
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "GIT 8 char short hash from which this build came from."
+          #################################
+          - - field_name        : build_type
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Build type that is linked to the pipeline flow, dev, main, etc.."              
+          #################################
+          - time:
+            - field_name        : uptime
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of seconds since programming"
+          #################################
+          - - field_name        : eth100G_ptp_nano_seconds
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "nanoseconds value range o to 999,999,999"
+          #################################
+          - - field_name        : eth100G_ptp_lower_seconds
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "lower 32-bits of 48 bit second time vector"
+          #################################
+          - - field_name        : eth100G_ptp_upper_seconds
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "upper 16-bits of 48 bit second time vector"
+          #################################
+          - - field_name        : dead_space_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_5
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_6
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_7
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : dead_space_8
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0xDEADDEAD
+              field_description : "Not use, setup to work around the locked address space in AVED"
+          #################################
+          - - field_name        : eth100G_locked
+              width             : 1
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "100G ethernet is up"
+          #################################
+          - - field_name        : eth100G_rx_total_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets received on the 100G ethernet since it was reset. Reset is triggered with lock on interface or via DCMAC peripheral"
+          #################################
+          - - field_name        : eth100G_rx_bad_fcs
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets received on the 100G ethernet with bad FCS since it was reset. Reset is triggered with lock on interface or via DCMAC peripheral"
+          #################################
+          - - field_name        : eth100G_rx_bad_code
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets received on the 100G ethernet with 64B/66B code violations. Reset is triggered with lock on interface or via DCMAC peripheral"
+          #################################
+          - - field_name        : eth100G_tx_total_packets
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets sent on the 100G ethernet since it was reset. Reset is triggered with lock on interface or via DCMAC peripheral"
+          #################################
+          - - field_name        : eth100G_FEC_enable
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Set to 1 to enable FEC, 0 to disable (not enabled in V80)"
+          #################################
+          - - field_name        : no_of_correlator_instances
+              width             : 4 
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "In the V80 min of 2 for production."
+          #################################
+          - - field_name        : hbm_1_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_1_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_1_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_1_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_1_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_2_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_2_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_2_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_2_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_2_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_3_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_3_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_3_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_3_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_3_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_4_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_4_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_4_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_4_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_4_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
+          #################################
+          - - field_name        : hbm_5_status_0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Requests to HBM interface"
+          #################################
+          - - field_name        : hbm_5_status_1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Read Returns from HBM interface"
+          #################################
+          - - field_name        : hbm_5_status_2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Address instructions to HBM interface"
+          #################################
+          - - field_name        : hbm_5_status_3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Write Data bursts to HBM interface. Valid + Last"
+          #################################
+          - - field_name        : hbm_5_status_4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Current levels of CDC FIFOs
+                                   5 -> 0   = Read path rd count
+                                   13 -> 8  = Write path wr count
+
+                                   Other bits currently zeroed out.
+                                   "
