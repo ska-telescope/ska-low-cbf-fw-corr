@@ -158,6 +158,24 @@ ska-low-cbf-fw-testing:
   - when: manual
     allow_failure: true
 
+# When to push firmware to package registry
+.package_rules_v80: &package_rules_v80
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # merge request - 
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    when: manual
+    allow_failure: true
+  # main branch
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # tag (so raw-publish has something to publish)
+  - if: $CI_COMMIT_TAG
+  # 'build' keyword in commit title
+  - if: $CI_COMMIT_TITLE =~ /build/
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
 
 ### V80 CI jobs
 create project v80:
@@ -186,8 +204,6 @@ create project v80:
 
 fpga lint v80:
   stage: lint
-  rules:
-    - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
   interruptible: true
   needs:
@@ -209,13 +225,13 @@ fpga lint v80:
     - common/scripts/lint_step_v80.sh
 
 build v80:
-  stage: .pre
-  #rules:
-  #  - *v80_build_rules
+  stage: build
+  rules:
+   - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
   interruptible: true
-  # needs:
-  #   - create project v80
+  needs:
+    - fpga lint v80
   timeout: 6 hours
   variables:
     TARGET_ALVEO: "v80"
@@ -234,12 +250,9 @@ build v80:
     - pwd   # this should report the dir of the cloned repo in the runner
     # copy protected ip repos into structure for building
     - cd common/v80_infra
-    - ls
     - cp -R /fpga/iprepo .
-    - ls
     - cd ../..
     # back at repo root, execute build script.
-    - ls
     - ./run_v80.sh
   artifacts:
     paths:
@@ -248,8 +261,8 @@ build v80:
 
 publish v80 package:
   stage: publish
-  # rules:
-  #   - *package_rules
+  rules:
+    - *package_rules_v80
   needs:
     - job: build v80
   tags:
