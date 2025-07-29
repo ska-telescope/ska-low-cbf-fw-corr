@@ -246,3 +246,16 @@ build v80:
     paths:
       #- build/
       - output/
+
+publish dev package:
+  stage: publish
+  # rules:
+  #   - *package_rules
+  needs:
+    - job: build v80
+  tags:
+    - shell 
+  variables:
+    BUILD_STRING: "CI development build. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
+  script:
+    - common/scripts/package_firmware_v80.sh

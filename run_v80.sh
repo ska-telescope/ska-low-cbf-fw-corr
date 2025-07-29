@@ -28,8 +28,28 @@ echo -e "*********************************************************"
 echo -e "**********            PDI complete              *********"
 echo -e "*********************************************************"
 
-# bundle up
-./gather_v80.sh
+# bundle up files needed for archive to be sent to package register
+
+# Delete existing contents
+if [ -z "$( ls -A 'output' )" ]; then
+   echo "Empty"
+else
+   rm -r output/*
+fi
+
+# run HBM address collation script.
+./common/scripts/hbm_addr_extract.sh designs/correlator_v80/src_v80/vhdl/correlator_core.vhd
+
+cp addresses.hbm output/
+
+# bitstream file
+cp build/v80/v80_top.pdi output/
+
+# find and copy ltx file
+find . -name 'v80_top.ltx' | xargs cp -t output/
+
+# Get ARGs map
+cp build/ARGS/py/correlator_v80/fpgamap_*.py output/
 
 echo -e "*********************************************************"
 echo -e "**********        Files in Output Dir           *********"
