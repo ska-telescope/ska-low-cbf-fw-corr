@@ -111,17 +111,18 @@
 --      - Packetiser (reads from HBM and generates SPEAD packets).
 ----------------------------------------------------------------------------------
 library IEEE, correlator_lib, common_lib, xpm, spead_lib;
+library axi4_lib, DSP_top_lib, noc_lib;
+
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-library DSP_top_lib;
-USE correlator_lib.cor_config_reg_pkg.ALL;
-USE common_lib.common_pkg.ALL;
+use correlator_lib.cor_config_reg_pkg.ALL;
+use common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
-
-Library axi4_lib;
-USE axi4_lib.axi4_lite_pkg.ALL;
+use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 use spead_lib.spead_packet_pkg.ALL;
+use correlator_lib.target_fpga_pkg.ALL;
+
 
 entity correlator_top is
     generic (
@@ -285,6 +286,15 @@ architecture Behavioral of correlator_top is
 
     signal cor0_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
     signal cor1_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
+    
+    signal noc_wren                 : STD_LOGIC;
+    signal noc_rden                 : STD_LOGIC;
+    signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_dat_mux           : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal dummy                    : STD_LOGIC;
 
 begin
     
@@ -522,10 +532,11 @@ begin
         o_cor1_ready <= '1';
     end generate;
     
-    ----------------------------------------------------------------
-    -- Registers
-    --
-    
+--    ----------------------------------------------------------------
+--    -- Registers
+--    --
+-- ARGS U55
+gen_u55_arg : IF (C_TARGET_DEVICE = "U55") GENERATE    
     i_correlator_reg : entity correlator_lib.cor_config_reg
     port map (
         MM_CLK          => i_axi_clk,  -- in std_logic;
@@ -535,6 +546,45 @@ begin
         SETUP_FIELDS_RW => config_rw,  -- out t_setup_rw;
         SETUP_FIELDS_RO => config_ro   -- in  t_setup_ro
     );
+
+END GENERATE;
+
+
+-- ARGS Gaskets for V80
+gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+    i_cor_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => FALSE
+    )
+    port map ( 
+        i_clk       => i_axi_clk,
+        i_rst       => i_axi_rst,
+    
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat_mux
+    );
+
+    i_cor_args : entity correlator_lib.cor_config_versal
+    port map (
+        MM_CLK          => i_axi_clk,  -- in std_logic;
+        MM_RST          => i_axi_rst,  -- in std_logic;
+        
+        noc_wren        => noc_wren,
+        noc_rden        => noc_rden,
+        noc_wr_adr      => noc_wr_adr,
+        noc_wr_dat      => noc_wr_dat,
+        noc_rd_adr      => noc_rd_adr,
+        noc_rd_dat      => noc_rd_dat_mux,
+        
+        SETUP_FIELDS_RW => config_rw,  -- out t_setup_rw;
+        SETUP_FIELDS_RO => config_ro   -- in  t_setup_ro
+    );
+    
+END GENERATE;
     
     config_ro.cor0_HBM_start <= cor0_HBM_curr_rd_base; --(others => '0'); -- TODO - should come from the SPEAD packet readout module
     config_ro.cor0_HBM_end <= cor0_HBM_end;
@@ -543,5 +593,7 @@ begin
     config_ro.cor1_HBM_start <= cor1_HBM_curr_rd_base; --(others => '0'); -- TODO - should come from the SPEAD packet readout module
     config_ro.cor1_HBM_end <= cor1_HBM_end;
     config_ro.cor1_HBM_size <= (others => '0'); -- TODO - calculate from cor0_HBM_end and cor0_HBM_start
+    
+    dummy <= config_rw.full_reset;
     
 end Behavioral;

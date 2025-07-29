@@ -115,7 +115,9 @@ entity corr_ct1_readout is
         g_FILTER_CENTER : integer := 23598;
         --
         g_RIPPLE_PRELOAD : integer := 15;
-        g_RIPPLE_POSTLOAD : integer := 15
+        g_RIPPLE_POSTLOAD : integer := 15;
+
+        g_GENERATE_ILA      : BOOLEAN := TRUE
     );
     Port(
         shared_clk : in std_logic; -- Shared memory clock
@@ -204,8 +206,8 @@ architecture Behavioral of corr_ct1_readout is
     signal ARFIFO_validOut : std_logic;
     signal ARFIFO_empty : std_logic;
     signal ARFIFO_full : std_logic;
-    signal ARFIFO_RdDataCount : std_logic_vector(5 downto 0);
-    signal ARFIFO_WrDataCount : std_logic_vector(5 downto 0);
+    signal ARFIFO_RdDataCount : std_logic_vector(7 downto 0);
+    signal ARFIFO_WrDataCount : std_logic_vector(7 downto 0);
     signal ARFIFO_din : std_logic_vector(12 downto 0);
     signal ARFIFO_rdEn : std_logic;
     signal ARFIFO_rst : std_logic;
@@ -324,6 +326,15 @@ architecture Behavioral of corr_ct1_readout is
         probe0 : in std_logic_vector(63 downto 0)); 
     end component;
     
+    -- VERSAL
+    COMPONENT ila_twoby256_16k
+    PORT (
+        clk : IN STD_LOGIC;
+        probe0 : IN STD_LOGIC_VECTOR(255 DOWNTO 0);
+        probe1 : IN STD_LOGIC_VECTOR(255 DOWNTO 0) 
+    );
+    END COMPONENT;
+    
     signal delay_vc, delay_packet : std_logic_vector(15 downto 0);
     signal delay_Hpol_deltaP, delay_Hpol_phase, delay_Vpol_deltaP, delay_Vpol_phase : std_logic_vector(31 downto 0);
     signal delay_valid : std_logic;
@@ -389,6 +400,9 @@ architecture Behavioral of corr_ct1_readout is
     signal mismatch_set : std_logic_vector(3 downto 0) := "0000";
     signal readoutCheckData_reg, readoutData_reg : t_slv_32_arr(3 downto 0);
     signal dFIFO_underflow : std_logic_vector(3 downto 0) := "0000";
+    
+    signal int_axi_ar       : t_axi4_full_addr;
+    signal int_axi_r        : t_axi4_full_data;
 
 begin
     
@@ -650,7 +664,7 @@ begin
                     
                     when waitAllDone =>
                         -- Wait until the ar_fifo is empty, since we should flag an error is we start up again without draining the fifo.
-                        if ARFIFO_WrDataCount = "000000" then 
+                        if ARFIFO_WrDataCount = x"00" then 
                             ar_fsm <= done;
                         end if;
                         
@@ -885,13 +899,13 @@ begin
     generic map (
         DOUT_RESET_VALUE => "0",    -- String
         ECC_MODE => "no_ecc",       -- String
-        FIFO_MEMORY_TYPE => "distributed", -- String
+        FIFO_MEMORY_TYPE => "block", -- String
         FIFO_READ_LATENCY => 1,     -- DECIMAL
-        FIFO_WRITE_DEPTH => 32,     -- DECIMAL; Allow up to 32 outstanding read requests.
+        FIFO_WRITE_DEPTH => 128,     -- DECIMAL; Allow up to 32 outstanding read requests.
         FULL_RESET_VALUE => 0,      -- DECIMAL
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
+        RD_DATA_COUNT_WIDTH => 8,   -- DECIMAL
         READ_DATA_WIDTH => 16,     -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
@@ -899,7 +913,7 @@ begin
                                                -- bit 12 enables the data_valid output.
         WAKEUP_TIME => 0,           -- DECIMAL
         WRITE_DATA_WIDTH => 16,    -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 6    -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 8    -- DECIMAL
     )
     port map (
         almost_empty => open,     -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -2167,4 +2181,70 @@ begin
     
     o_mismatch_set <= mismatch_set;
     
+    
+    --------------------
+    -- Debug
+    
+gen_debug : IF g_GENERATE_ILA GENERATE
+
+    -- register for ila capture
+    process(shared_clk)
+    begin
+        if rising_edge(shared_clk) then    
+            int_axi_ar.len(7 downto 3) <= "00000";  -- Never ask for more than 8 x 64 byte words.
+            int_axi_ar.len(2 downto 0) <= axi_arlen(2 downto 0);
+
+            int_axi_ar.valid    <= axi_arvalid;
+            int_axi_ar.addr     <= x"00" & axi_araddr;
+            
+            int_axi_r           <= i_axi_r;
+    
+        end if;
+    end process;
+    
+    debug_ila : ila_twoby256_16k
+    PORT MAP (
+        clk                     => shared_clk,
+        probe0(31 downto 0)     => int_axi_ar.addr(31 downto 0),
+        probe0(39 downto 32)    => int_axi_ar.len,
+        probe0(40)              => int_axi_ar.valid,
+        probe0(41)              => i_axi_arready,
+        probe0(42)              => int_axi_r.valid,
+        probe0(43)              => int_axi_r.last,
+
+        probe0(44)              => ARFIFO_rdEn,
+        probe0(45)              => ARFIFO_wrEn,
+        probe0(51 downto 46)    => (others => '0'),
+        
+        probe0(55 downto 52)    => bufFIFO_din,
+        probe0(59 downto 56)    => bufFIFO_empty,
+        probe0(63 downto 60)    => bufFIFO_rdEn,
+        probe0(74 downto 64)    => bufFIFO_rdDataCount(0),
+        probe0(85 downto 75)    => bufFIFO_rdDataCount(1),
+        probe0(96 downto 86)    => bufFIFO_rdDataCount(2),
+        probe0(107 downto 97)   => bufFIFO_rdDataCount(3),
+        
+        probe0(111 downto 108)  => bufFIFO_dout(0),
+        probe0(115 downto 112)  => bufFIFO_dout(1),
+        probe0(119 downto 116)  => bufFIFO_dout(2),
+        probe0(123 downto 120)  => bufFIFO_dout(3),
+        
+        probe0(124)             => dFIFO_underflow(0),
+        probe0(125)             => dFIFO_underflow(1),
+        probe0(126)             => dFIFO_underflow(2),
+        probe0(127)             => dFIFO_underflow(3),
+
+        probe0(135 downto 128)  => ARFIFO_RdDataCount,
+        probe0(139 downto 136)  => bufFIFO_wrEn,
+
+        probe0(255 downto 140)  => (others => '0'),
+
+        probe1(255 downto 0)    => int_axi_r.data(255 downto 0)
+    );
+    
+
+END GENERATE;
+
+            
+            
 end Behavioral;

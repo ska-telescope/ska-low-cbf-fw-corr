@@ -104,17 +104,17 @@
 --
 ----------------------------------------------------------------------------------
 
-library IEEE, ct_lib, common_lib, xpm;
+library IEEE, ct_lib, common_lib, xpm, correlator_lib;
+library DSP_top_lib, axi4_lib, noc_lib;
+
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-library DSP_top_lib;
 use DSP_top_lib.DSP_top_pkg.all;
-USE ct_lib.corr_ct1_reg_pkg.ALL;
-USE common_lib.common_pkg.ALL;
+use ct_lib.corr_ct1_reg_pkg.ALL;
+use common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
-
-Library axi4_lib;
-USE axi4_lib.axi4_lite_pkg.ALL;
+use correlator_lib.target_fpga_pkg.ALL;
+use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 
 entity corr_ct1_top is
@@ -370,32 +370,105 @@ architecture Behavioral of corr_ct1_top is
     signal m01_axi_rst_dbg : std_logic_vector(31 downto 0);
     signal clks_between_readouts, recent_clks_between_readouts, min_clks_between_readouts : std_logic_vector(31 downto 0) := (others => '1');
     
+    ----------------------------------------------------------------------
+    -- ARGs mappings.
+    signal args_reg_wren            : STD_LOGIC;
+    signal args_rd_data             : STD_LOGIC_VECTOR(31 downto 0);
+
+    signal args_poly_wren           : STD_LOGIC;
+    signal args_poly_rd_data        : STD_LOGIC_VECTOR(31 downto 0);
+    
+    signal noc_wren                 : STD_LOGIC;
+    signal noc_rden                 : STD_LOGIC;
+    signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_dat_mux           : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal bram_addr_d1             : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
+
 begin
     
     ------------------------------------------------------------------------------------
     -- CONFIG (TO/FROM MACE)
     ------------------------------------------------------------------------------------
-
+-- ARGS U55
+gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE
     E_TOP_CONFIG : entity ct_lib.corr_ct1_reg
     port map (
         MM_CLK  => i_shared_clk, -- in std_logic;
         MM_RST  => i_shared_rst, -- in std_logic;
+
         SLA_IN  => i_saxi_mosi,  -- IN    t_axi4_lite_mosi;
         SLA_OUT => o_saxi_miso,  -- OUT   t_axi4_lite_miso;
 
         CONFIG_FIELDS_RW   => config_rw, -- OUT t_config_rw;
         CONFIG_FIELDS_RO   => config_ro, -- IN  t_config_ro;
         
-        --CONFIG_TABLE_0_IN  => config_table0_in, -- IN  t_config_table_0_ram_in;
-		--CONFIG_TABLE_0_OUT => config_table0_out, -- OUT t_config_table_0_ram_out;
-		--CONFIG_TABLE_1_IN  => config_table1_in, -- IN  t_config_table_1_ram_in;
-		--CONFIG_TABLE_1_OUT => config_table1_out, -- OUT t_config_table_1_ram_out;
+        CONFIG_CORRELATOR_OUTPUT_COUNT_IN => output_count_in,   -- IN  t_config_psspst_output_count_ram_in;
+		CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
+    );
+END GENERATE;
+
+
+-- ARGS Gaskets for V80
+gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+
+    i_ct1_noc : entity noc_lib.args_noc
+    generic map (
+        G_DEBUG => FALSE
+    )
+    port map ( 
+        i_clk       => i_shared_clk,
+        i_rst       => i_shared_rst,
+    
+        noc_wren    => noc_wren,
+        noc_rden    => noc_rden,
+        noc_wr_adr  => noc_wr_adr,
+        noc_wr_dat  => noc_wr_dat,
+        noc_rd_adr  => noc_rd_adr,
+        noc_rd_dat  => noc_rd_dat_mux
+    );
+
+
+    E_TOP_CONFIG : entity ct_lib.corr_ct1_versal
+    port map (
+        MM_CLK              => i_shared_clk,
+        MM_RST              => i_shared_rst, 
+
+        noc_wren           => args_reg_wren,
+        noc_rden           => noc_rden,
+        noc_wr_adr         => noc_wr_adr,
+        noc_wr_dat         => noc_wr_dat,
+        noc_rd_adr         => noc_rd_adr,
+        noc_rd_dat         => args_rd_data,
+
+        CONFIG_FIELDS_RW   => config_rw, -- OUT t_config_rw;
+        CONFIG_FIELDS_RO   => config_ro, -- IN  t_config_ro;
         
         CONFIG_CORRELATOR_OUTPUT_COUNT_IN => output_count_in,   -- IN  t_config_psspst_output_count_ram_in;
 		CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
     );
     
+    args_reg_wren   <= noc_wren when noc_wr_adr(17 downto 16) = "01" else '0';
     
+    args_poly_wren  <= noc_wren when noc_wr_adr(17 downto 16) = "00" else '0';
+    
+    noc_rd_dat_mux  <=  args_rd_data        when bram_addr_d2(17 downto 16) = "01"  else    -- 64k split
+                        args_poly_rd_data;
+
+    bram_return_data_proc : process(i_shared_clk)
+    begin
+        if rising_edge(i_shared_clk) then
+            bram_addr_d1    <= noc_wr_adr;
+            bram_addr_d2    <= bram_addr_d1;
+        end if;
+    end process;
+                        
+END GENERATE;
+
+
     -----------------------------------------------------------------------
     -- Full AXI interface - write to the ultraRAM 
     -- Full axi to bram
@@ -410,7 +483,12 @@ begin
         -- read latency 3 clocks
         i_bram_addr    => poly_addr, -- in std_logic_vector(14 downto 0); 
         o_bram_rddata  => poly_rddata, --  out std_logic_vector(63 downto 0);
-        -------------------------------------------------------
+        ------------------------------------------------------
+        noc_wren            => args_poly_wren,
+        noc_wr_adr          => noc_wr_adr,
+        noc_wr_dat          => noc_wr_dat,
+        noc_rd_dat          => args_poly_rd_data,
+        ------------------------------------------------------
         -- ARGs axi interface
         i_vd_full_axi_mosi => i_poly_full_axi_mosi, -- in  t_axi4_full_mosi
         o_vd_full_axi_miso => o_poly_full_axi_miso, -- out t_axi4_full_miso
@@ -1030,6 +1108,7 @@ begin
     
     readout : entity ct_lib.corr_ct1_readout
     generic map (
+        g_GENERATE_ILA          => g_GENERATE_ILA,
         g_SPS_PACKETS_PER_FRAME => 128,
         -- 24 preload + 24 postload for the 49 tap ripple filter
         g_RIPPLE_PRELOAD  => 24, -- integer := 15;

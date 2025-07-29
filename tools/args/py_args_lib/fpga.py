@@ -21,6 +21,7 @@
 #   HJ    jan 2017  Original
 #   EK    feb 2017
 #   PD    feb 2017
+#   AB    may 2025  Add 'peripheral_alignment' option to fpga.yaml
 #
 ###############################################################################
 
@@ -42,6 +43,8 @@ class FPGA(object):
     """ A System consist of a set of one or more Peripherals.
     """
     def __init__(self, file_path_name=None, periph_lib=None):
+        """
+        """
         self.file_path_name  = file_path_name
         self.root_dir        = os.environ['RADIOHDL']
         if periph_lib is None:
@@ -57,16 +60,28 @@ class FPGA(object):
         self.nof_lite = 0
         self.nof_full = 0
         self.address_map = collections.OrderedDict()
+        self.peripheral_alignment = 4096  # default to the pre-V80 alignment value
+        """Align peripherals to this boundary (Bytes)."""
+        self.sub_peripheral_alignment = 4096
+        """Align sub-sections of peripherals [slaves] to this boundary (Bytes)."""
+
         logger.debug("***FPGA object instantiation: creating for {}".format(file_path_name))
 
         if file_path_name is None:
-            logger.debug("No system configuration file specified")
-            self.system_config = None
-            self.system        = None
-        else:
-            # list of peripheral configurations that are read from the available peripheral files
-            self.system_config = self.read_system_file(file_path_name)
-            self.create_system()
+            raise RuntimeError("No system configuration file specified")
+
+        # list of peripheral configurations that are read from the available peripheral files
+        self.system_config = self.read_system_file(file_path_name)
+        print(f"{self.system_config=}")
+        if 'alignment' in self.system_config:
+            alignment = self.system_config['alignment']
+            print(f"{alignment=}")
+            self.peripheral_alignment = alignment.get('peripheral', self.peripheral_alignment)
+            self.sub_peripheral_alignment = alignment.get('sub_peripheral', self.sub_peripheral_alignment)
+        logger.info("Using %d byte peripheral alignment", self.peripheral_alignment)
+        logger.info("Using %d byte sub-peripheral alignment", self.sub_peripheral_alignment)
+
+        self.create_system()
 
     def is_valid(self):
         """ return False or True if the given file is a valid system file """
@@ -211,11 +226,13 @@ class FPGA(object):
         print("[fpga.py] create_address_map('{:s}')".format(self.system_name))
 
         # Largest peripheral will determine spacing between peripheral base addresses
-        largest_addr_range = 4096 # minimal allowed address-decode spacing with Xilinx interconnect
+        largest_addr_range = self.peripheral_alignment
+        print(f"{largest_addr_range=}")
         for peripheral in self.peripherals.values():
             if peripheral.reg_len > largest_addr_range:
                 largest_addr_range = peripheral.reg_len
         peripheral_spacing = cm.ceil_pow2(largest_addr_range)
+        print("Peripheral spacing: 0x{:x}".format(peripheral_spacing))
 
         lowest_free_addr = 0
         for peripheral in self.peripherals.values():
@@ -235,7 +252,7 @@ class FPGA(object):
                 for slave in peripheral.slaves:
                     if isinstance(slave, Register) and not getattr(slave, 'isIP', False):
                         if assigned_reg == False: #calc for entire register slave port
-                            reg_span = cm.ceil_pow2(max(peripheral.reg_len, 4096))
+                            reg_span = cm.ceil_pow2(max(peripheral.reg_len, self.sub_peripheral_alignment))
                             lowest_free_addr = int(np.ceil(lowest_free_addr/reg_span)*reg_span)
                             register_base = lowest_free_addr
                         else :
@@ -251,7 +268,7 @@ class FPGA(object):
                         assigned_reg = True
 
                     elif isinstance(slave, Register) and getattr(slave, 'isIP', False):
-                        slave_span = cm.ceil_pow2(max(slave.address_length()*slave.number_of_slaves(), 4096)) #slave.address_length()*slave.number_of_slaves()#
+                        slave_span = cm.ceil_pow2(max(slave.address_length() * slave.number_of_slaves(), self.sub_peripheral_alignment))
                         lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
                         slave_port_name = peripheral.name() + '_' +  slave.name() #+ '_reg_ip'
                         self.address_map[slave_port_name] =  {'base':lowest_free_addr, 'span':slave_span, 'type':slave.protocol, 'port_index':eval("self.nof_{}".format(slave.protocol.lower())),'peripheral':peripheral,'periph_num':periph_num,'slave':slave}
@@ -264,7 +281,7 @@ class FPGA(object):
                     elif isinstance(slave, RAM):
                         slave_type = 'ram'
                         size_in_bytes =  np.ceil(slave.width()/8)*slave.address_length()*cm.ceil_pow2(slave.number_of_slaves())
-                        slave_span = cm.ceil_pow2(max(size_in_bytes, 4096))
+                        slave_span = cm.ceil_pow2(max(size_in_bytes, self.sub_peripheral_alignment))
                         logger.info("Slave %s has span 0x%x", peripheral.name() + '_' + slave.name() , slave_span)
                         # slave_name = slave.name() + ('_{}'.format(slave_no) if slave.number_of_slaves() >1 else '')
                         lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
@@ -276,7 +293,7 @@ class FPGA(object):
                     elif isinstance(slave, FIFO):
                         slave_type = 'fifo'
                         size_in_bytes =  np.ceil(slave.width()/8)*slave.address_length()
-                        slave_span = cm.ceil_pow2(max(size_in_bytes, 4096))
+                        slave_span = cm.ceil_pow2(max(size_in_bytes, self.sub_peripheral_alignment))
                         for i in range(slave.number_of_slaves()):
                             lowest_free_addr = int(np.ceil(lowest_free_addr/slave_span)*slave_span)
                             slave_port_name = peripheral.name() + '_' + slave.name() + '_' + slave_type+ (('_' + str(periph_num)) if peripheral.number_of_peripherals() > 1 else '') + ('_{}'.format(i) if slave.number_of_slaves() > 1 else '')

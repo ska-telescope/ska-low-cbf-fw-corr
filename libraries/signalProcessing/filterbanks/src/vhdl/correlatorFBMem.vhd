@@ -12,14 +12,13 @@
 --
 ----------------------------------------------------------------------------------
 
-library IEEE, common_lib, filterbanks_lib;
+library IEEE, common_lib, filterbanks_lib, correlator_lib;
 use common_lib.common_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-Library xpm;
+library xpm;
 use xpm.vcomponents.all;
---library UNISIM;
---use UNISIM.VComponents.all;
+use correlator_lib.target_fpga_pkg.ALL;
 
 entity correlatorFBMem is
     generic (
@@ -365,7 +364,8 @@ begin
     
     dummy0SLV(0) <= '0';
     dummy0_18 <= (others => '0');
-    
+
+usplus_gen : IF (C_TARGET_DEVICE = "U55") GENERATE
     -- Every memory has a different name so they can have different default contents.
     -- Beware this assumes the generic "TAPS" is 12.
     FIRTaps1 : CFB_ROM12
@@ -559,7 +559,203 @@ begin
         dinb  => dummy0_18,
         doutb => coef_o(11)
     );
-    
-    
+END GENERATE;
+
+versal_gen : IF (C_TARGET_DEVICE = "V80") GENERATE
+
+    FIRTaps1 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps12.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(0),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(0),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(0),
+        doutb => coef_o(0)
+    );
+
+    FIRTaps2 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps11.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(1),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(1),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(1),
+        doutb => coef_o(1)
+    );
+
+    FIRTaps3 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps10.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(2),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(2),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(2),
+        doutb => coef_o(2)
+    );
+
+    FIRTaps4 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps9.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(3),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(3),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(3),
+        doutb => coef_o(3)
+    );
+
+    FIRTaps5 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps8.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(4),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(4),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(4),
+        doutb => coef_o(4)
+    );
+
+    FIRTaps6 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps7.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(5),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(5),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(5),
+        doutb => coef_o(5)
+    );
+
+    FIRTaps7 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps6.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(6),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(6),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(6),
+        doutb => coef_o(6)
+    );
+
+    FIRTaps8 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps5.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(7),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(7),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(7),
+        doutb => coef_o(7)
+    );
+
+    FIRTaps9 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps4.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(8),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(8),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(8),
+        doutb => coef_o(8)
+    );
+
+    FIRTaps10 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps3.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(9),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(9),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(9),
+        doutb => coef_o(9)
+    );
+
+    FIRTaps11 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps2.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(10),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(10),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(10),
+        doutb => coef_o(10)
+    );
+
+    FIRTaps12 : entity filterbanks_lib.BRAMWrapper
+    generic map (
+        g_INIT_FILE => "correlatorFIRTaps1.mem"
+    ) port map (
+        -- Port A, register reads and writes 
+        clka => FIRTapClk,
+        wea  => FIRTapsWE(11),
+        addra => FIRTapRegAddr,
+        dina  => FIRTapRegWrData,
+        douta => FIRTapRegRdData(11),
+        -- Port B, read by the filterbank. 
+        clkb  => clk,
+        addrb => romAddrDel(11),
+        doutb => coef_o(11)
+    );
+
+END GENERATE;
+
 end Behavioral;
 

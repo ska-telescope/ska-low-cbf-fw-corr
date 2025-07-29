@@ -23,6 +23,12 @@ logger = logging.getLogger('main.gen_bus')
 def get_cmd(raw_line):
     return raw_line.split('}>')[-1]
 
+def write_lines(filename, lines):
+    """Write lines to a file."""
+    with open(filename, 'w') as f:
+        f.writelines(lines)
+    logger.info('Generated ARGS output %s', filename)
+
 class Bus(object):
     """
         A bus is generated based on a FPGA object which is a collection of peripherals from different peripheral libraries
@@ -49,7 +55,11 @@ class Bus(object):
         self.indexes = self.calc_indexes()
         self.tcl_replace_dict = {'<fpga_name>':self.fpga.system_name, '<nof_slaves>' : str(self.nof_slaves)}
 
-    def gen_tcl(self):
+    def gen_tcl(self, alignment: int=4096):
+        """
+        :param alignment: The address space for peripherals will be aligned to a
+          multiple of this.
+        """
 
         lines = []
         with open(self.tmpl_tcl, 'r') as infile:
@@ -119,13 +129,14 @@ class Bus(object):
                         i = i+1
                         last_port = slave_attr['port_index']
                         last_prot = slave_attr['type']
-                        if isinstance(slave_attr['slave'], Register):
-                            if not getattr(slave_attr['slave'], 'isIP', False):
-                                span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
-                            else :
-                                span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), 4096))
-                        else :
-                            span = slave_attr['span']
+                        # Commented out AB 2025-04-11 - span set but never used!?
+                        # if isinstance(slave_attr['slave'], Register):
+                        #     if not getattr(slave_attr['slave'], 'isIP', False):
+                        #         span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
+                        #     else :
+                        #         span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), 4096))
+                        # else :
+                        #     span = slave_attr['span']
                         _line = get_cmd(line).replace('<range>', '4') # 4k is minimum settable size for vivado
                         lines.append(_line.replace('<i>',str(i).zfill(2)))
                 if 'set_address_map' in line:
@@ -152,9 +163,9 @@ class Bus(object):
                         last_prot = slave_attr['type']
                         if isinstance(slave_attr['slave'], Register):
                             if not getattr(slave_attr['slave'], 'isIP', False):
-                                span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, 4096))
+                                span = cm.ceil_pow2(max(slave_attr['peripheral'].reg_len, alignment))
                             else :
-                                span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), 4096))
+                                span = cm.ceil_pow2(max(slave_attr['slave'].address_length(), alignment))
                         else :
                             span = slave_attr['span']
                         lines.append('# interconnect[{}]  <{}>   base: 0x{:08x} span: 0x{:06x}\n'.format(i, slave_attr['peripheral'].name(), slave_attr['base'], span))
@@ -265,26 +276,17 @@ class Bus(object):
         return lines
 
     def gen_file(self, file_type):
-        lines = []
+        os.makedirs(self.out_dir, exist_ok=True)
+        file_prefix = os.path.join(self.out_dir, self.fpga.system_name)
         if file_type == 'vhd':
-            lines = self.gen_vhdl()
-            out_file = self.fpga.system_name + '_bus_top.vhd'
+            write_lines(f"{file_prefix}_bus_top.vhd", self.gen_vhdl())
         if file_type == 'tcl':
-            lines = self.gen_tcl()
-            out_file = self.fpga.system_name + '_bd.tcl'
+            write_lines(f"{file_prefix}_bd.tcl", self.gen_tcl())
+            # 64k aligned variant for use with NOC
+            write_lines(f"{file_prefix}_bd_64k.tcl", self.gen_tcl(alignment=65536))
         if file_type == 'pkg':
-            lines = self.gen_pkg()
-            out_file = self.fpga.system_name + '_bus_pkg.vhd'
-        try:
-            os.stat(self.out_dir)
-        except:
-            os.mkdir(self.out_dir)
-        file_name = os.path.join(self.out_dir, out_file)
-        with open(file_name, 'w') as out_file:
-            for line in lines:
-                out_file.write(line)
-        logger.info('Generated ARGS output %s', file_name)
-        self.output_files.append(file_name)
+            write_lines(f"{file_prefix}_bus_pkg.vhd", self.gen_pkg())
+        self.output_files.append(file_prefix)
 
     def gen_firmware(self):
         self.gen_file('pkg')

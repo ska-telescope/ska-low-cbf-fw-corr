@@ -116,6 +116,7 @@ $DESIGN_PATH/src/vhdl/correlator_core.vhd \
 $DESIGN_PATH/src/vhdl/cdma_wrapper.vhd \
 $DESIGN_PATH/src/vhdl/krnl_control_axi.vhd \
 $DESIGN_PATH/src/vhdl/version_pkg.vhd \
+$DESIGN_PATH/src/vhdl/target_fpga_pkg.vhd \
 $COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 $COMMON_PATH/hbm_axi_reset_handler/eth_disable.vhd \
 $BUILD_PATH/build_details_pkg.vhd \
@@ -135,6 +136,7 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/lbus_packet_receive.vhd \
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
 *correlator/src/vhdl/version_pkg.vhd \
+*/target_fpga_pkg.vhd \
 *hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 *hbm_axi_reset_handler/eth_disable.vhd \
 */build_details_pkg.vhd \
@@ -328,6 +330,16 @@ add_files -fileset sources_1 [glob \
 ]
 set_property library spead_sps_lib [get_files {\
  *libraries/spead_sps/src/spead_sps_packet_pkg.vhd \
+}]
+
+#############################################################
+## NOC
+
+add_files -fileset sources_1 [glob \
+  $COMMON_PATH/NOC/args_noc.vhd \
+]
+set_property library noc_lib [get_files {\
+  */NOC/args_noc.vhd \
 }]
 
 #############################################################

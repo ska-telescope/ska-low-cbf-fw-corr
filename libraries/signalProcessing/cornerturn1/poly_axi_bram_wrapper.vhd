@@ -12,13 +12,14 @@
 -- 
 --  Input is 18-bit byte address = 262,144 byte address space, of which the low 160 kbyte = 163840 bytes is used.
 ----------------------------------------------------------------------------------
-library IEEE, common_lib;
+library IEEE, common_lib, correlator_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 use common_lib.common_pkg.ALL;
+use correlator_lib.target_fpga_pkg.ALL;
 Library xpm;
 use xpm.vcomponents.all;
 -- Uncomment the following library declaration if instantiating
@@ -34,12 +35,17 @@ entity poly_axi_bram_wrapper is
         -- Block ram interface for access by the rest of the module
         -- Memory is 20480 x 8 byte words
         -- read latency 3 clocks
-        i_bram_addr    : in std_logic_vector(14 downto 0); -- 15 bit address = 8-byte word address (=18 bit byte address)
-        o_bram_rddata  : out std_logic_vector(63 downto 0);
+        i_bram_addr         : in std_logic_vector(14 downto 0); -- 15 bit address = 8-byte word address (=18 bit byte address)
+        o_bram_rddata       : out std_logic_vector(63 downto 0);
+        ------------------------------------------------------
+        noc_wren            : IN STD_LOGIC;
+        noc_wr_adr          : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
+        noc_wr_dat          : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        noc_rd_dat          : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
         ------------------------------------------------------
         -- AXI full interface
-        i_vd_full_axi_mosi : in  t_axi4_full_mosi;
-        o_vd_full_axi_miso : out t_axi4_full_miso;
+        i_vd_full_axi_mosi  : in  t_axi4_full_mosi;
+        o_vd_full_axi_miso  : out t_axi4_full_miso;
         ------------------------------------------------------
         -- debug
         o_dbg_wrEn : out std_logic;
@@ -99,6 +105,8 @@ architecture Behavioral of poly_axi_bram_wrapper is
     signal axi_bram_wrdata  : std_logic_vector(31 downto 0);
     signal axi_bram_rddata  : std_logic_vector(31 downto 0);
 
+    signal axi_addr         : std_logic_vector(17 downto 0);
+    
     signal axi_bram_wrdata_64bit : std_logic_vector(63 downto 0);
     
     signal reset_n : std_logic;
@@ -118,6 +126,8 @@ architecture Behavioral of poly_axi_bram_wrapper is
  
 begin
 
+-- ARGS U55
+gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE
     reset_n <= not i_rst;
 
     datagen_memspace : axi_bram_ctrl_ct1_poly
@@ -164,10 +174,35 @@ begin
         bram_wrdata_a   => axi_bram_wrdata,  -- out (31:0);
         bram_rddata_a   => axi_bram_rddata   -- in (31:0);
     );
-
+    
     -- Transactions are always 32 bits wide, so only need to check 1 bit of the byte enable.
-    axi_bram_wrEn_low <= axi_bram_en and axi_bram_we_byte(0) and (not axi_bram_addr(2));
-    axi_bram_wrEn_high <= axi_bram_en and axi_bram_we_byte(0) and (axi_bram_addr(2));
+    axi_bram_wrEn_low       <= axi_bram_en and axi_bram_we_byte(0) and (not axi_bram_addr(2));
+    axi_bram_wrEn_high      <= axi_bram_en and axi_bram_we_byte(0) and (axi_bram_addr(2));
+    
+    axi_addr(15 downto 0)   <= axi_bram_addr(17 downto 2);
+    
+END GENERATE;
+
+-- ARGS Gaskets for V80
+gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+    reg_proc : process(i_clk)
+    begin
+        if rising_edge(i_clk) then
+            -- Address is already dropped byte bits by the time it is here.
+            axi_bram_wrEn_low   <= noc_wren and (not noc_wr_adr(0));
+            axi_bram_wrEn_high  <= noc_wren and (noc_wr_adr(0));
+        
+            axi_addr            <= noc_wr_adr;--          : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
+            axi_bram_wrdata     <= noc_wr_dat;
+        end if;
+    end process;        
+
+    noc_rd_dat          <= axi_bram_rddata;--          : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+
+END GENERATE;
+
+
+
     
     axi_bram_wren <= axi_bram_wrEn_high & axi_bram_wren_high & axi_bram_wren_high & axi_bram_wren_high &
                      axi_bram_wren_low & axi_bram_wren_low & axi_bram_wren_low & axi_bram_wren_low;
@@ -177,13 +212,13 @@ begin
     process(i_clk)
     begin
         if rising_edge(i_clk) then
-            axi_addr_del1 <= axi_bram_addr(2 downto 0);
+            axi_addr_del1 <= axi_addr(2 downto 0);
             axi_addr_del2 <= axi_addr_del1;
             axi_addr_del3 <= axi_addr_del2;
         end if;
     end process;
     
-    axi_bram_rddata <= data_a_q(31 downto 0) when axi_addr_del3(2) = '0' else data_a_q(63 downto 32);
+    axi_bram_rddata <= data_a_q(31 downto 0) when axi_addr_del2(0) = '0' else data_a_q(63 downto 32);
     
     
     uram_1 : xpm_memory_tdpram
@@ -213,7 +248,7 @@ begin
 
         -- Port A module generics ... ARGs side
         READ_DATA_WIDTH_A       => 64,    
-        READ_LATENCY_A          => 3,              
+        READ_LATENCY_A          => C_ARGS_RD_LATENCY,              
         READ_RESET_VALUE_A      => "0",            
 
         WRITE_DATA_WIDTH_A      => 64,
@@ -238,7 +273,7 @@ begin
         regcea                  => '1',
 
         wea                     => axi_bram_wren,  -- 7:0
-        addra                   => axi_bram_addr(17 downto 3), -- axi bram controller generates byte addresses
+        addra                   => axi_addr(15 downto 1), -- axi bram controller generates byte addresses
         dina                    => axi_bram_wrdata_64bit,
         douta                   => data_a_q,
 
