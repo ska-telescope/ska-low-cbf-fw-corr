@@ -38,7 +38,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
 constant USE_TEST_CASE      : BOOLEAN := FALSE;
-constant GEN_DATA_END       : BOOLEAN := TRUE;
+constant GEN_DATA_END       : BOOLEAN := FALSE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -296,7 +296,7 @@ begin
             stim_time_ref   <= (others => '0');
         else
             stim_table_select   <= '0';
-            tb_debug(4)        <= '0';  -- END target sub array dummy value
+            tb_debug(4)        <= '1';  -- END target sub array dummy value
             
             if testCount_300 = 1 then
                 init_mem    <= '1';
@@ -323,7 +323,7 @@ begin
 
             -- using defaul values send end packets.
             if testCount_300 = 1500 then
-                tb_debug(3)        <= '0';  -- trigger END
+                tb_debug(3)        <= '1';  -- trigger END
             end if;
 
             if testCount_300 = 26500 then
@@ -331,7 +331,13 @@ begin
             end if;
 
             if testCount_300 = 30000 then
+                tb_debug(2)        <= '1';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+            
+            if testCount_300 = 60000 then
                 tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
             end if;
             
             if HBM_axi_r.valid = '1' then
@@ -699,12 +705,10 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_cmac_clk          => clock_322,
         i_cmac_clk_rst      => clock_322_rst,
 
-        o_tx_axis_tdata     => open,
-        o_tx_axis_tkeep     => open,
-        o_tx_axis_tvalid    => open,
-        o_tx_axis_tlast     => open,
-        o_tx_axis_tuser     => open,
-        i_tx_axis_tready    => cmac_ready,
+        o_bytes_to_transmit     => open,
+        o_data_to_player        => open,
+        o_data_to_player_wr     => open,
+        i_data_to_player_rdy    => cmac_ready,
 
         -- Packed up Correlator Data.
         o_from_spead_pack   => from_spead_pack,

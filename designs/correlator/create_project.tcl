@@ -136,7 +136,6 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/lbus_packet_receive.vhd \
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
 *correlator/src/vhdl/version_pkg.vhd \
-*/target_fpga_pkg.vhd \
 *hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
 *hbm_axi_reset_handler/eth_disable.vhd \
 */build_details_pkg.vhd \
@@ -336,10 +335,10 @@ set_property library spead_sps_lib [get_files {\
 ## NOC
 
 add_files -fileset sources_1 [glob \
-  $COMMON_PATH/NOC/args_noc.vhd \
+  $COMMON_PATH/NOC/args_noc_dummy.vhd \
 ]
 set_property library noc_lib [get_files {\
-  */NOC/args_noc.vhd \
+  */NOC/args_noc_dummy.vhd \
 }]
 
 #############################################################
@@ -361,6 +360,7 @@ set_property library signal_processing_common [get_files {\
  */common/src/vhdl/xpm_fifo_wrapper.vhd \
  */common/src/vhdl/memory_tdp_wrapper.vhd \
  */common/src/vhdl/args_axi_terminus.vhd \
+ */target_fpga_pkg.vhd \
 }]
 
 set_property library ethernet_lib [get_files {\
@@ -601,8 +601,10 @@ $RLIBRARIES_PATH/signalProcessing/correlator/tb/tb_cor_spead_behav.wcfg \
 add_files -fileset sim_cor_read_spead [glob \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
  $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
+ $ARGS_PATH/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_versal.vhd \
  $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
  $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg.vhd \
+ $ARGS_PATH/spead/spead_sdp/spead_spead_sdp_reg_versal.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  $COMMON_PATH/Packetiser100G/src/vhdl/packet_player.vhd \
  $COMMON_PATH/spead/src/spead_packet_pkg.vhd \
@@ -615,8 +617,10 @@ add_files -fileset sim_cor_read_spead [glob \
 set_property library spead_lib [get_files {\
  *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg_pkg.vhd \
  *build/ARGS/correlator/spead/spead_sdp/spead_spead_sdp_reg.vhd \
+ *spead/spead_sdp/spead_spead_sdp_reg_versal.vhd \
  *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_pkg.vhd \
  *build/ARGS/correlator/hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg.vhd \
+ *hbm_read/hbm_rd_debug/hbm_read_hbm_rd_debug_reg_versal.vhd \
  *libraries/Packetiser100G/src/vhdl/cbfpsrheader_pkg.vhd \
  *libraries/Packetiser100G/src/vhdl/packet_player.vhd \
  *libraries/spead/src/spead_packet_pkg.vhd \

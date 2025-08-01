@@ -13,7 +13,7 @@
 --
 ----------------------------------------------------------------------------------------------------------
 library IEEE, axi4_lib, common_lib, filterbanks_lib, dsp_top_lib;
-library xpm, correlator_lib, noc_lib;
+library xpm, correlator_lib, noc_lib, signal_processing_common;
 
 use dsp_top_lib.dsp_top_pkg.all;
 use common_lib.common_pkg.all;
@@ -23,7 +23,7 @@ use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.ALL;
 use xpm.vcomponents.all;
 use filterbanks_lib.cor_filterbanks_filterbanks_reg_pkg.ALL;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity FB_Top_correlator is
     port(

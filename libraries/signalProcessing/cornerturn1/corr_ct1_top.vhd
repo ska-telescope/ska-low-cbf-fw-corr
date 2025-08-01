@@ -105,7 +105,7 @@
 ----------------------------------------------------------------------------------
 
 library IEEE, ct_lib, common_lib, xpm, correlator_lib;
-library DSP_top_lib, axi4_lib, noc_lib;
+library DSP_top_lib, axi4_lib, noc_lib, signal_processing_common;
 
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
@@ -113,7 +113,7 @@ use DSP_top_lib.DSP_top_pkg.all;
 use ct_lib.corr_ct1_reg_pkg.ALL;
 use common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 

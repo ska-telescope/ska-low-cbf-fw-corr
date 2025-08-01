@@ -111,7 +111,7 @@
 --      - Packetiser (reads from HBM and generates SPEAD packets).
 ----------------------------------------------------------------------------------
 library IEEE, correlator_lib, common_lib, xpm, spead_lib;
-library axi4_lib, DSP_top_lib, noc_lib;
+library axi4_lib, DSP_top_lib, noc_lib, signal_processing_common;
 
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
@@ -121,7 +121,7 @@ use xpm.vcomponents.all;
 use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 use spead_lib.spead_packet_pkg.ALL;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 
 entity correlator_top is
