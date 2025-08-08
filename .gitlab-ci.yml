@@ -269,5 +269,6 @@ publish v80 package:
     - shell 
   variables:
     BUILD_STRING: "CI development build. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
+    VITIS_VERSION: "2024.2"
   script:
     - common/scripts/package_firmware_v80.sh

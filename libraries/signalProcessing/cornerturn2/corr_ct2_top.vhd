@@ -70,7 +70,7 @@
 --        Data is packed into HBM first by station, then by fine channel, then by time block (1 time block = 32 time samples)
 ----------------------------------------------------------------------------------
 library IEEE, ct_lib, DSP_top_lib, common_lib, axi4_lib;
-Library xpm, correlator_lib, noc_lib;
+Library xpm, correlator_lib, noc_lib, signal_processing_common;
 
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
@@ -80,7 +80,7 @@ use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.ALL;
 use ct_lib.corr_ct2_reg_pkg.all;
 use xpm.vcomponents.all;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity corr_ct2_top is
     generic (

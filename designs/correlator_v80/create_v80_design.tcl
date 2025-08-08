@@ -186,6 +186,7 @@ proc do_aved_create_design { } {
   $COMMON_PATH/common/src/vhdl/rdy_valid_reg_slice.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
+  $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
   ]
 
   set_property library signal_processing_common [get_files {\
@@ -195,6 +196,7 @@ proc do_aved_create_design { } {
   */common/src/vhdl/xpm_fifo_wrapper.vhd \
   */common/src/vhdl/memory_tdp_wrapper.vhd \
   */common/src/vhdl/args_axi_terminus.vhd \
+  */target_fpga_pkg.vhd \
   }]
 
   set_property library common_lib [get_files {\
@@ -268,7 +270,6 @@ proc do_aved_create_design { } {
     $ARGS_PATH/correlator_v80/system/correlator_v80_system_reg_versal.vhd \
     $DESIGN_PATH/src_v80/vhdl/correlator_core.vhd \
     $DESIGN_PATH/src_v80/vhdl/version_pkg.vhd \
-    $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
     $COMMON_PATH/hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
     $COMMON_PATH/hbm_axi_reset_handler/eth_disable.vhd \
     $BUILD_PATH/build_details_pkg.vhd \
@@ -279,7 +280,6 @@ proc do_aved_create_design { } {
     */correlator_v80_system_reg_versal.vhd \
     */correlator_core.vhd \
     */version_pkg.vhd \
-    */target_fpga_pkg.vhd \
     *hbm_axi_reset_handler/hbm_axi_reset_handler.vhd \
     *hbm_axi_reset_handler/eth_disable.vhd \
     */build_details_pkg.vhd \

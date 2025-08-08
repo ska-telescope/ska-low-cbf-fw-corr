@@ -12,13 +12,13 @@
 --
 ----------------------------------------------------------------------------------
 
-library IEEE, common_lib, filterbanks_lib, correlator_lib;
+library IEEE, common_lib, filterbanks_lib, correlator_lib, signal_processing_common;
 use common_lib.common_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 library xpm;
 use xpm.vcomponents.all;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity correlatorFBMem is
     generic (

@@ -12,14 +12,14 @@
 -- 
 --  Input is 18-bit byte address = 262,144 byte address space, of which the low 160 kbyte = 163840 bytes is used.
 ----------------------------------------------------------------------------------
-library IEEE, common_lib, correlator_lib;
+library IEEE, common_lib, correlator_lib, signal_processing_common;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 use common_lib.common_pkg.ALL;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 Library xpm;
 use xpm.vcomponents.all;
 -- Uncomment the following library declaration if instantiating

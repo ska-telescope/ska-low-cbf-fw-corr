@@ -3,6 +3,7 @@
 * 0.1.8
     * V80 support added.
     * Current codebase supports both V80 and U55.
+    * Add multiple IPv4 destinations with UDP port ranges for each subarray-beam entry.
 * 0.1.7
     * Enable single station correlation.
 * 0.1.6

@@ -17,11 +17,11 @@
 --
 -- Latency is 3 clocks from the last data sample (or TAPS + 3 clocks from the first data sample).
 ----------------------------------------------------------------------------------
-library IEEE, common_lib, filterbanks_lib, correlator_lib;
+library IEEE, common_lib, filterbanks_lib, correlator_lib, signal_processing_common;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use common_lib.common_pkg.all;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity fb_DSP25 is
     generic (

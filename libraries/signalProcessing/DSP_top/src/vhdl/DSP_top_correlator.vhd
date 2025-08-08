@@ -12,7 +12,7 @@
 --
 -------------------------------------------------------------------------------
 
-LIBRARY IEEE, common_lib, axi4_lib, ct_lib, DSP_top_lib;
+LIBRARY IEEE, common_lib, axi4_lib, ct_lib, DSP_top_lib, signal_processing_common;
 library LFAADecode100G_lib, DSP_top_lib, filterbanks_lib, spead_lib, correlator_lib;
 use ct_lib.all;
 use DSP_top_lib.DSP_top_pkg.all;
@@ -25,7 +25,7 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 USE axi4_lib.axi4_stream_pkg.ALL;
 USE axi4_lib.axi4_full_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
-use correlator_lib.target_fpga_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 
 library xpm;
