@@ -1,9 +1,10 @@
 ### Changelog
 ## Correlator Personality
 * 0.1.8
-    * V80 support added.
+    * V80 support added, no firmware release.
     * Current codebase supports both V80 and U55.
     * Add multiple IPv4 destinations with UDP port ranges for each subarray-beam entry.
+    * Use with software version 0.18.0
 * 0.1.7
     * Enable single station correlation.
 * 0.1.6
