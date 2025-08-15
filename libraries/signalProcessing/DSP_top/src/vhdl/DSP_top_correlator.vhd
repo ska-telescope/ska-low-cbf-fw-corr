@@ -790,7 +790,7 @@ begin
     spead_packetiser_top : entity spead_lib.spead_top 
     generic map ( 
         g_CORRELATORS       => g_CORRELATORS,
-        g_DEBUG_ILA         => FALSE
+        g_DEBUG_ILA         => TRUE
     )
     port map ( 
         -- clock used for all data input and output from this module (300 MHz)

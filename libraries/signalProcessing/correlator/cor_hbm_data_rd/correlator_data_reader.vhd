@@ -1263,7 +1263,7 @@ END GENERATE;
 
     ---------------------------------------------------------------------------
     
-    hbm_rd_axi : entity spead_lib.spead_axi_bram_wrapper 
+    hbm_rd_axi : entity correlator_lib.hbm_read_axi_bram_wrapper 
     PORT MAP (
         i_clk                   => i_axi_clk,
         i_rst                   => i_axi_rst,
@@ -1275,7 +1275,7 @@ END GENERATE;
         bram_clk                => bram_clk,
         bram_en                 => bram_en,     --: OUT STD_LOGIC;
         bram_we_byte            => bram_we,     --: OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
-        bram_addr               => bram_addr,   --: OUT STD_LOGIC_VECTOR(14 DOWNTO 0);
+        bram_addr(15 downto 0)  => bram_addr,   --: OUT STD_LOGIC_VECTOR(14 DOWNTO 0);
         bram_wrdata             => bram_wrdata, --: OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
         bram_rddata             => bram_rddata  --: IN STD_LOGIC_VECTOR(31 DOWNTO 0)
     ); 
