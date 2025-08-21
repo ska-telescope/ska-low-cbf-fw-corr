@@ -508,6 +508,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/hbm_read_axi_bram_wrapper.vhd \
 ]
 
 set_property library correlator_lib [get_files {\
@@ -543,6 +544,7 @@ set_property library correlator_lib [get_files {\
   *libraries/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
   *libraries/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
   *signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
+  *signalProcessing/correlator/cor_hbm_data_rd/hbm_read_axi_bram_wrapper.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
@@ -550,6 +552,7 @@ set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing
 set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/spead/src/spead_registers.vhd]
 
 source $RLIBRARIES_PATH/signalProcessing/correlator/LTA.tcl
+source $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/hbm_read.tcl
 
 #############################################################
 # signal processing Top level
