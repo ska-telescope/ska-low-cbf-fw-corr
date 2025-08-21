@@ -37,8 +37,8 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := FALSE;
-constant GEN_DATA_END       : BOOLEAN := FALSE;
+constant USE_TEST_CASE      : BOOLEAN := TRUE;
+constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -322,20 +322,20 @@ begin
             stim_time_ref   <= (others => '0');
 
             -- using defaul values send end packets.
-            if testCount_300 = 1500 then
-                tb_debug(3)        <= '1';  -- trigger END
-            end if;
-
-            if testCount_300 = 26500 then
+            if testCount_300 = 51500 then
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
 
-            if testCount_300 = 30000 then
-                tb_debug(2)        <= '1';  -- trigger INIT
+            if testCount_300 = 56500 then
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+
+            if testCount_300 = 81000 then
+                tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             
-            if testCount_300 = 60000 then
+            if testCount_300 = 118000 then
                 tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
@@ -446,7 +446,7 @@ begin
                 hbm_start_addr  <= x"00000000";
 
                 if stim_count = 35000 then
-                    stim_count <= 100;
+                    --stim_count <= 100;
                 elsif clock_300_rst = '0' then
                     stim_count  <= stim_count + 1;
                 end if;
@@ -531,6 +531,8 @@ begin
     
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"11";
+                    
+                    stim_table_select  <= '1';
     
                     stim_time_ref(31 downto 0)  <= 32D"3";
                     stim_time_ref(33 downto 32) <= "00";

@@ -1,5 +1,9 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.9
+    * V80 partition table update to four entries.
+    * SPEAD packetiser fixes for INIT and END with multi destination update.
+        * To be used with software version 0.18.1
 * 0.1.8
     * V80 support added, no firmware release.
     * Current codebase supports both V80 and U55.
