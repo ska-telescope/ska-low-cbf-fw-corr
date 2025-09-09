@@ -46,10 +46,17 @@ peripherals:
                                      - bits 31:0 = buf_integration : Integration period at which the polynomial becomes valid. Integration period
                                                    is in units of 0.84934656 seconds, i.e. units of (384 SPS packets) 
                                      - bit 32 = Entry is valid.
-                                     
-                                   4 Kbytes of space starting at byte address 196608 = x30000 (or 4-byte word address 0x3000)
+                                   
+                                   4 Kbytes of space starting at byte address 196608 = x30000 (or 4-byte word address 0xC000)
                                    Holds RFI threshold for each virtual channel.
-                                   Each RFI threshold is a 4-byte integer. 
+                                   Each RFI threshold is a 4-byte unsigned integer.
+                                   The maximum possible value of xffffffff is a special value which means never mark the 
+                                   filterbank output as RFI.
+                                   For all other values, the threshold is the fraction of power that is allowed to be RFI before the filterbank
+                                   output sample is flagged, as a fraction of 2^32. To flag filterbank output where RFI power is more than F dB 
+                                   relative the signal power, set this value to 2^32 * 10^(-F/10).
+                                   e.g. For flagging when RFI power is -3dB or more use 0.5 = 0x80000000. 
+                                   For -60dB or more, use 2^32 * 10^(-60/10) = 4295 = x10C7
                                   "
       
       - slave_name        : config

@@ -20,7 +20,7 @@ filt = correlatorFilterbankTaps;  % load appropriate filter, adjust values L to 
 L=length(filt); % length of filter
 P=12;   % length of polyphase filter
 FF=L/P; % length of FFT
-step = 1024; % step along filter for calculation
+step = 512; % step along filter for calculation
 OS = 1;  % oversampling ratio
 alias = zeros(1,49152);
 alias2 = zeros(1,49152);
@@ -94,11 +94,11 @@ xlabel('RFI sample offset / 1024');
 % Write out a ROM that contains alias2_av
 
 if write_ROM == 1
-    disp('            case rom_addr is');
-    for ra = 0:47
-        disp( ['                when "' dec2binX(ra,6) '" => o_RFI_weight <= "' dec2binX(ceil(2^32 * alias2_av(ra+1)),24) '",']);
+    disp('            case i_addr is');
+    for ra = 0:95
+        disp( ['                when "' dec2binX(ra,7) '" => o_RFI_weight <= "' dec2binX(ceil(2^32 * alias2_av(ra+1)),22) '";']);
     end
-    disp(['                when others => o_RFI_weight <= "000000000000000000000000",']);
+    disp(['                when others => o_RFI_weight <= "000000000000000000000000";']);
     disp('            end case;');
 end
 
