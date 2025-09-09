@@ -31,6 +31,7 @@ entity correlatorFBMem is
         wrEn_i   : in std_logic; -- should be a burst of 4096 clocks.
         -- Read data, comes out 2 clocks after the first write.
         rd_data_o  : out t_slv_128_arr(TAPS-1 downto 0);  -- 128 bits wide, 12 taps simultaneously; First sample is wr_data_i delayed by 1 clock. 
+        rd_data_addr_o : out t_slv_12_arr(TAPS-1 downto 0); -- the address (0 to 4095) that the corresponding data in rd_data_o comes from
         coef_o     : out t_slv_18_arr(TAPS-1 downto 0);   -- 18 bits per filter tap.
         -- Writing FIR Taps
         FIRTapData_i : in std_logic_vector(17 downto 0);  -- For register writes of the filtertaps.
@@ -272,7 +273,7 @@ architecture Behavioral of correlatorFBMem is
     signal romRdAddr : t_slv_12_arr((TAPS-1) downto 0);
     
     signal rdAddr : std_logic_vector(11 downto 0);
-    signal rdAddrDel : t_slv_12_arr((TAPS) downto 0) := (others => (others => '0'));
+    signal rdAddrDel : t_slv_12_arr((TAPS+3) downto 0) := (others => (others => '0'));
     signal wrDataDel1 : std_logic_vector(127 downto 0);
     signal wrEnDel1 : std_logic := '0';
     
@@ -299,7 +300,7 @@ begin
                 rdAddr <= std_logic_vector(unsigned(rdAddr) + 1);
             end if;
             
-            rdAddrDel(TAPS downto 1) <= rdAddrDel(TAPS-1 downto 0);
+            rdAddrDel(TAPS+3 downto 1) <= rdAddrDel(TAPS+3-1 downto 0);
             romAddrDel((TAPS-1) downto 1) <= romAddrDel((TAPS-2) downto 0);
             wrEnDel(TAPS downto 2) <= wrEnDel(TAPS-1 downto 1);
         end if;
@@ -323,9 +324,10 @@ begin
         );
         
         rd_data_o(i) <= rdDataDel(i);
-        
+        rd_data_addr_o(i) <= rdAddrDel(i+2);
     end generate;
     
+    rd_data_addr_o(0) <= rdAddrDel(2);
     rd_data_o(0) <= rdDataDel(0);
     
     --------------------------------------------------------------------------------------

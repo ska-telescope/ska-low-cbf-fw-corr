@@ -23,7 +23,8 @@ peripherals:
               number_of_fields  : 65536
               interface         : simple
               reset_value       : 0
-              field_description : "65536 fields x 4 bytes = 262144 Bytes of space, of which 163840 bytes is used.
+              field_description : "65536 fields x 4 bytes = 262144 Bytes of space
+                                   First 163840 bytes is used for polynomial configuration
                                     Bytes 0 to 79 : Config for virtual channel 0, buffer 0 (see below for specification of contents)
                                     Bytes 80 to 159 : Config for virtual channel 1, buffer 0
                                     ...
@@ -45,6 +46,10 @@ peripherals:
                                      - bits 31:0 = buf_integration : Integration period at which the polynomial becomes valid. Integration period
                                                    is in units of 0.84934656 seconds, i.e. units of (384 SPS packets) 
                                      - bit 32 = Entry is valid.
+                                     
+                                   4 Kbytes of space starting at byte address 196608 = x30000 (or 4-byte word address 0x3000)
+                                   Holds RFI threshold for each virtual channel.
+                                   Each RFI threshold is a 4-byte integer. 
                                   "
       
       - slave_name        : config

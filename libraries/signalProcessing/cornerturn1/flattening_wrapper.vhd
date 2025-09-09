@@ -92,6 +92,7 @@ architecture Behavioral of flattening_wrapper is
     -- Max range for a 16 bit value is +/- 32767, so with 128 at the input mapping to 16384, we will use a range of +/- 1.78 * 16384 = +/- 29164
     --
     constant c_FIR_TAPS : integer := 49; -- Number of FIR taps used in the filter
+    constant c_FIR_LATENCY : integer := 35; -- Latency of the FIR filter, used to replace RFI marked samples with 0x8000 at the filter output.
     
     component sps_flatten
     port (
@@ -115,6 +116,7 @@ architecture Behavioral of flattening_wrapper is
     signal data_zeroed  : t_slv_32_arr(3 downto 0);
     signal config_tdata : std_logic_vector(7 downto 0);
     signal sof_del, sofFull_del : std_logic_vector(c_FIR_TAPS-4 downto 0) := (others => '0');
+    signal flagged_del : t_slv_4_arr(39 downto 0);
     
 begin
     
@@ -144,6 +146,18 @@ begin
             
             sof_del((c_FIR_TAPS-4) downto 1) <= sof_del((c_FIR_TAPS-5) downto 0);
             sofFull_del((c_FIR_TAPS-4) downto 1) <= sofFull_del((c_FIR_TAPS-5) downto 0);
+            
+            -- Detect RFI flagged samples (0x80), and replace the output with the RFI flag value (0x8000)
+            for i in 0 to 3 loop
+                if i_valid = '1' then
+                    if i_data(i)(7 downto 0) = "10000000" or i_data(i)(15 downto 8) = "10000000" or i_data(i)(23 downto 16) = "10000000" or i_data(i)(31 downto 24) = "10000000" then
+                        flagged_del(0)(i) <= '1';
+                    else
+                        flagged_del(0)(i) <= '0';
+                    end if;
+                    flagged_del(39 downto 1)(i) <= flagged_del(38 downto 0)(i);
+                end if;
+            end loop;
             
         end if;
     end process;
@@ -177,21 +191,21 @@ begin
     end generate;
     
     o_valid <= '1' when valid_out(0) = '1' and drop_samples = '0' else '0';
-    o_HPol0(0) <= readoutData(0)(15 downto 0);  -- 8 bit real part
-    o_HPol0(1) <= readoutData(0)(31 downto 16); -- 8 bit imaginary part
-    o_VPol0(0) <= readoutData(0)(47 downto 32); -- 8 bit real part
-    o_VPol0(1) <= readoutData(0)(63 downto 48); -- 8 bit imaginary part
-    o_HPol1(0) <= readoutData(1)(15 downto 0);  -- 8 bit real part
-    o_HPol1(1) <= readoutData(1)(31 downto 16); -- 8 bit imaginary part
-    o_VPol1(0) <= readoutData(1)(47 downto 32); -- 8 bit real part
-    o_VPol1(1) <= readoutData(1)(63 downto 48); -- 8 bit imaginary part
-    o_HPol2(0) <= readoutData(2)(15 downto 0);  -- 8 bit real part
-    o_HPol2(1) <= readoutData(2)(31 downto 16); -- 8 bit imaginary part
-    o_VPol2(0) <= readoutData(2)(47 downto 32); -- 8 bit real part
-    o_VPol2(1) <= readoutData(2)(63 downto 48); -- 8 bit imaginary part
-    o_HPol3(0) <= readoutData(3)(15 downto 0);  -- 8 bit real part
-    o_HPol3(1) <= readoutData(3)(31 downto 16); -- 8 bit imaginary part
-    o_VPol3(0) <= readoutData(3)(47 downto 32); -- 8 bit real part
-    o_VPol3(1) <= readoutData(3)(63 downto 48); -- 8 bit imaginary part    
+    o_HPol0(0) <= readoutData(0)(15 downto 0)  when flagged_del(c_FIR_LATENCY)(0) = '0' else x"8000";  -- 16 bit real part
+    o_HPol0(1) <= readoutData(0)(31 downto 16) when flagged_del(c_FIR_LATENCY)(0) = '0' else x"8000"; -- 16 bit imaginary part
+    o_VPol0(0) <= readoutData(0)(47 downto 32) when flagged_del(c_FIR_LATENCY)(0) = '0' else x"8000"; -- 16 bit real part
+    o_VPol0(1) <= readoutData(0)(63 downto 48) when flagged_del(c_FIR_LATENCY)(0) = '0' else x"8000"; -- 16 bit imaginary part
+    o_HPol1(0) <= readoutData(1)(15 downto 0)  when flagged_del(c_FIR_LATENCY)(1) = '0' else x"8000";  -- 16 bit real part
+    o_HPol1(1) <= readoutData(1)(31 downto 16) when flagged_del(c_FIR_LATENCY)(1) = '0' else x"8000"; -- 16 bit imaginary part
+    o_VPol1(0) <= readoutData(1)(47 downto 32) when flagged_del(c_FIR_LATENCY)(1) = '0' else x"8000"; -- 16 bit real part
+    o_VPol1(1) <= readoutData(1)(63 downto 48) when flagged_del(c_FIR_LATENCY)(1) = '0' else x"8000"; -- 16 bit imaginary part
+    o_HPol2(0) <= readoutData(2)(15 downto 0)  when flagged_del(c_FIR_LATENCY)(2) = '0' else x"8000";  -- 16 bit real part
+    o_HPol2(1) <= readoutData(2)(31 downto 16) when flagged_del(c_FIR_LATENCY)(2) = '0' else x"8000"; -- 16 bit imaginary part
+    o_VPol2(0) <= readoutData(2)(47 downto 32) when flagged_del(c_FIR_LATENCY)(2) = '0' else x"8000"; -- 16 bit real part
+    o_VPol2(1) <= readoutData(2)(63 downto 48) when flagged_del(c_FIR_LATENCY)(2) = '0' else x"8000"; -- 16 bit imaginary part
+    o_HPol3(0) <= readoutData(3)(15 downto 0)  when flagged_del(c_FIR_LATENCY)(3) = '0' else x"8000";  -- 16 bit real part
+    o_HPol3(1) <= readoutData(3)(31 downto 16) when flagged_del(c_FIR_LATENCY)(3) = '0' else x"8000"; -- 16 bit imaginary part
+    o_VPol3(0) <= readoutData(3)(47 downto 32) when flagged_del(c_FIR_LATENCY)(3) = '0' else x"8000"; -- 16 bit real part
+    o_VPol3(1) <= readoutData(3)(63 downto 48) when flagged_del(c_FIR_LATENCY)(3) = '0' else x"8000"; -- 16 bit imaginary part    
     
 end Behavioral;

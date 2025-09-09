@@ -96,6 +96,8 @@ entity correlatorFBTop25 is
         data1_i : in t_slv_16_arr(1 downto 0);
         data2_i : in t_slv_16_arr(1 downto 0);
         data3_i : in t_slv_16_arr(1 downto 0);
+        RFI_threshold01_i : in std_logic_vector(31 downto 0);
+        RFI_threshold23_i : in std_logic_vector(31 downto 0);
         meta_i  : in std_logic_vector((METABITS-1) downto 0);
         valid_i : in std_logic;
         -- Data out; bursts of 3456 clocks for each channel.
@@ -104,6 +106,8 @@ entity correlatorFBTop25 is
         data2_o : out t_slv_16_arr(1 downto 0);
         data3_o : out t_slv_16_arr(1 downto 0);
         meta_o  : out std_logic_vector((METABITS-1) downto 0);
+        mark_RFI01_o : out std_logic;
+        mark_RFI23_o : out std_logic;
         valid_o : out std_logic;
         -- Writing FIR Taps
         FIRTapData_i : in std_logic_vector(17 downto 0);  -- For register writes of the filtertaps.
@@ -149,6 +153,26 @@ architecture Behavioral of correlatorFBTop25 is
     signal outputCountOut : std_logic_vector(15 downto 0);
     signal outputCount : std_logic_vector(15 downto 0);
     signal metaDel1Count, metaDel2Count, metaDel3Count : std_logic_vector(11 downto 0);
+    signal FBmemRdAddr : t_slv_12_arr(11 downto 0);
+    
+    signal RFI_flagged : t_slv_12_arr(1 downto 0);
+    signal RFI_count_start, RFI_count_last, RFI_count_last_del1 : std_logic_vector(11 downto 0) := "000000000000";
+    type RFI_sum_type is array(1 downto 0) of t_slv_12_arr(11 downto 0);
+    signal RFI_sum, RFI_sum_store : RFI_sum_type;
+    signal RFI_count_1024block_del1, RFI_count_1024block : std_logic_vector(1 downto 0);
+    signal RFI_weight_addr, RFI_weight_addr_del1, RFI_weight_addr_del2 : std_logic_vector(5 downto 0);
+    signal RFI_weight_addr_low : std_logic_vector(1 downto 0);
+    signal RFI_weight_FIR_tap : std_logic_vector(3 downto 0);
+    signal mark_as_RFI23_del2, mark_as_RFI23_del1, mark_as_RFI01_del2, mark_as_RFI01_del1 : std_logic := '0';
+    type RFI_fsm_type is  (run, check_threshold, idle);
+    signal RFI_fsm, RFI_fsm_del1, RFI_fsm_del2 : RFI_fsm_type := idle;
+    signal RFI_sum_station0, RFI_sum_station1 : std_logic_vector(13 downto 0);
+    signal RFI_weight_ext : std_logic_vector(17 downto 0);
+    signal RFI_weighted_sum0, RFI_weighted_sum1 : signed(31 downto 0);
+    signal final_RFI_sum0, final_RFI_sum1 : std_logic_vector(31 downto 0);
+    signal mark_as_RFI01, mark_as_RFI23 : std_logic := '0';
+    signal mark_as_RFI_valid : std_logic := '0';
+    signal RFI_weight : std_logic_vector(15 downto 0);
     
 begin
     
@@ -168,6 +192,7 @@ begin
         wrEn_i   => valid_i,          -- in std_logic; should be a burst of 4096 clocks.
         -- Read data, comes out 2 clocks after the first write.
         rd_data_o  => FBmemRdData,    -- out t_slv_128_arr(TAPS-1 downto 0); 64 bits wide, 12 taps simultaneously; First sample is wr_data_i delayed by 1 clock. 
+        rd_data_addr_o => FBmemRdAddr, -- out t_slv_12_arr(TAPS-1 downto 0); The address (0 to 4095) that the corresponding data in rd_data_o comes from
         coef_o     => FBmemFIRTaps,   -- out t_slv_18_arr(TAPS-1 downto 0);  18 bits per filter tap.
         -- Writing FIR Taps
         FIRTapData_i => FIRTapData_i, -- in(17:0);  -- For register writes of the filtertaps.
@@ -193,13 +218,154 @@ begin
     
     -- Extra pipeline stage so that BRAMs and URAMs can be placed further from the DSP.
     -- (without this pipeline stage, the output register in the URAM connects to the input register in the DSP).
+    -- Also calculate the RFI metrics
     process(clk)
     begin
         if rising_edge(clk) then
             FBmemFIRTapsDel <= FBmemFIRTaps;
-            FBRdDataDel <= FBRdData;
+            
+            -- Accumulate the number of RFI flagged samples in each 1024 sample block
+            for j in 0 to 1 loop
+                -- j indexes the station; 4 streams per station (2 pol x (re+im)), if any of the 4 samples are flagged then all are flagged.
+                for k in 0 to 11 loop
+                    -- pipeline stage to identify flagged samples
+                    if FBRdData(j*4 + 0)(k) = x"8000" or FBRdData(j*4 + 1)(k) = x"8000" or FBRdData(j*4 + 2)(k) = x"8000" or FBRdData(j*4 + 3)(k) = x"8000" then
+                        RFI_flagged(j)(k) <= '1';
+                    else
+                        RFI_flagged(j)(k) <= '0';
+                    end if;
+                    -- Accumulate the number of flagged samples across every 1024 samples
+                    if RFI_count_start(k) = '1' then
+                        -- This is the first sample in a block of 1024 samples
+                        if RFI_flagged(j)(k) = '1' then
+                            RFI_sum(j)(k) <= "000000000001";
+                        else
+                            RFI_sum(j)(k) <= "000000000000";
+                        end if;
+                    elsif RFI_flagged(j)(k) = '1' then
+                        RFI_sum(j)(k) <= std_logic_vector(unsigned(RFI_sum(j)(k)) + 1);
+                    end if;
+                    -- Store RFI counts for processing
+                    if RFI_count_last_del1(k) = '1' then
+                        RFI_sum_store(j)(k) <= RFI_sum(j)(k);
+                    end if;
+                end loop;
+            end loop;
+
+            for k in 0 to 11 loop
+                if unsigned(FBmemRdAddr(k)) = 0 then
+                    RFI_count_start(k) <= '1';
+                else
+                    RFI_count_start(k) <= '0';
+                end if;
+                if FBmemRdAddr(k)(9 downto 0) = "1111111111" then 
+                    RFI_count_last(k) <= '1';
+                else
+                    RFI_count_last(k) <= '0';
+                end if;
+            end loop;
+            RFI_count_last_del1 <= RFI_count_last;        
+
+            if FBmemRdAddr(11)(9 downto 0) = "1111111111" then
+                RFI_count_1024block <= FBmemRdAddr(11)(11 downto 10);
+            end if;
+            RFI_count_1024block_del1 <= RFI_count_1024block;
+            
+            -- 
+            if RFI_count_last_del1(11) = '1' then
+                RFI_fsm <= run;
+                RFI_weight_addr_low <= RFI_count_1024block_del1;
+                RFI_weight_FIR_tap <= "0000";
+            else
+                case RFI_fsm is
+                    when run =>
+                        -- Go through all 12 counts in RFI_sum_store, weight them and sum 
+                        -- to get an estimate of the total error in the output 
+                        if unsigned(RFI_weight_FIR_tap) = 11 then
+                            if RFI_weight_addr_low = "11" then
+                                -- final sum complete, compare with the allowed threshold
+                                RFI_fsm <= check_threshold;
+                            else
+                                RFI_fsm <= idle;
+                            end if;
+                        end if;
+                        RFI_weight_FIR_tap <= std_logic_vector(unsigned(RFI_weight_FIR_tap) + 1);
+                    
+                    when check_threshold =>
+                        RFI_fsm <= idle;
+                    
+                    when idle =>
+                        RFI_fsm <= idle;
+                    
+                    when others =>
+                        RFI_fsm <= idle;
+                end case;
+            end if;
+            
+            RFI_sum_station0 <= "00" & RFI_sum_store(0)(to_integer(unsigned(RFI_weight_FIR_tap))); -- 14 bit value, but maximum possible is 1024
+            RFI_sum_station1 <= "00" & RFI_sum_store(0)(to_integer(unsigned(RFI_weight_FIR_tap))); -- 
+            RFI_weight_addr_del1 <= RFI_weight_addr;
+            RFI_fsm_del1 <= RFI_fsm;
+            
+            RFI_weighted_sum0 <= signed(RFI_sum_station0) * signed(RFI_weight_ext); -- 14 bit x 18 bit = 32 bit result
+            RFI_weighted_sum1 <= signed(RFI_sum_station1) * signed(RFI_weight_ext);
+            RFI_weight_addr_del2 <= RFI_weight_addr_del1;
+            RFI_fsm_del2 <= RFI_fsm_del1;
+            
+            if RFI_weight_addr_del2 = "000000" and (RFI_fsm_del2 = run) then
+                -- First RFI sum to accumulate
+                final_RFI_sum0 <= std_logic_vector(RFI_weighted_sum0);
+                final_RFI_sum1 <= std_logic_vector(RFI_weighted_sum1);
+            elsif RFI_fsm_del2 = run then
+                -- Accumulate
+                final_RFI_sum0 <= std_logic_vector(signed(final_RFI_sum0) + RFI_weighted_sum0);
+                final_RFI_sum1 <= std_logic_vector(signed(final_RFI_sum1) + RFI_weighted_sum0);
+            end if;
+            
+            if RFI_fsm_del2 = check_threshold then
+                if unsigned(final_RFI_sum0) > unsigned(RFI_threshold01_i) then
+                    mark_as_RFI01 <= '1';
+                else
+                    mark_as_RFI01 <= '0';
+                end if;
+                if unsigned(final_RFI_sum1) > unsigned(RFI_threshold23_i) then
+                    mark_as_RFI23 <= '1';
+                else
+                    mark_as_RFI23 <= '0';
+                end if;
+                mark_as_RFI_valid <= '1';
+            else
+                mark_as_RFI_valid <= '0';
+            end if;
+            
+            -- Replace RFI marked samples with zeros for processing through the filterbank
+            for j in 0 to 7 loop
+                for k in 0 to 11 loop
+                    if FBRdData(j)(k) = x"8000" then
+                        FBRdDataDel(j)(k) <= x"0000";
+                    else
+                        FBRdDataDel(j)(k) <= FBRdData(j)(k);
+                    end if;
+                end loop;
+            end loop;
+            
         end if;
     end process;
+    
+    RFI_weight_addr(1 downto 0) <= RFI_weight_addr_low;
+    RFI_weight_addr(5 downto 2) <= RFI_weight_FIR_tap;
+    
+    RFI_weights_romi : entity filterbanks_lib.RFI_weights
+    port map (
+        clk    => clk,
+        -- 6 bit address
+        -- low 2 bits selects the block of 1024 within each block of 4096
+        -- High 4 bits selects the FIR tap, valid range 0 to 11
+        i_addr => RFI_weight_addr, -- in (5:0)
+        -- 1 cycle read latency from i_addr
+        o_RFI_weight => RFI_weight  -- out (15:0); 16 bit weight for this block of 1024 FIR samples
+    );
+    RFI_weight_ext <= "00" & RFI_weight;
     
     sampleGen : for j in 0 to 7 generate
             
@@ -208,8 +374,8 @@ begin
             TAPS => 12)  -- The module instantiates this number of DSPs
         port map (
             clk    => clk,
-            data_i => FBRdDataDel(j),  -- in array8bit_type(11 downto 0);
-            coef_i => FBmemFIRTapsDel, -- in array18bit_type(11 downto 0);
+            data_i => FBRdDataDel(j),  -- in t_slv_16_arr(11 downto 0);
+            coef_i => FBmemFIRTapsDel, -- in t_slv_18_arr(11 downto 0);
             data_o => FIRDout(j)    -- out(24:0)
         );
     
@@ -252,8 +418,15 @@ begin
                 metaDel1Count <= std_logic_vector(unsigned(metaDel1Count) - 1);
             end if;
             
+            if mark_as_RFI_valid = '1' then -- occurs about 8 clocks after falling edge of valid_i
+                mark_as_RFI01_del1 <= mark_as_RFI01;
+                mark_as_RFI23_del1 <= mark_as_RFI23;
+            end if;
+            
             if metaDel1Count = "000000000001" then
                 metaDel2 <= metaDel1;
+                mark_as_RFI01_del2 <= mark_as_RFI01_del1;
+                mark_as_RFI23_del2 <= mark_as_RFI23_del1;
                 metaDel2Count <= "111111111111";
             elsif metaDel2Count /= "000000000000" then
                 metaDel2Count <= std_logic_vector(unsigned(metaDel2Count) - 1);
@@ -394,6 +567,8 @@ begin
         if rising_edge(clk) then
             if rdRunningDel1 = '1' and rdRunningDel2 = '0' then -- Rising edge of rdRunning, two clocks prior to valid_o
                 metaOut <= metaDel2((METABITS-1) downto 0);
+                mark_RFI01_o <= mark_as_RFI01_del2;
+                mark_RFI23_o <= mark_as_RFI23_del2;
                 outputCountOut <= metaDel2((METABITS+15) downto METABITS);
             end if;
             
