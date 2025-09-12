@@ -444,7 +444,6 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
   $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
   $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_versal.vhd \
-  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/cor_filterbanks_filterbanks_dummy_versal.vhd
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
@@ -462,7 +461,7 @@ add_files -fileset sources_1 [glob \
 set_property library filterbanks_lib [get_files {\
   *build/ARGS/correlator/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
   *build/ARGS/correlator/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
-  *libraries/signalProcessing/filterbanks/src/vhdl/cor_filterbanks_filterbanks_dummy_versal.vhd
+  *build/ARGS/correlator/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_versal.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
