@@ -14,6 +14,10 @@ clf;
 hold on;
 grid on;
 plot(correlatorFilterbankTaps,'r.-');
+for f4096 = 1:11
+    plot(4096 * [f4096, f4096],[-10000, 50000],'g-');
+end
+title('Correlator FIR filter');
 
 %%
 filt = correlatorFilterbankTaps;  % load appropriate filter, adjust values L to OS to match
@@ -74,22 +78,22 @@ ylabel('dB');
 figure(3 + fbase)
 clf;
 hold on;
-plot(db(alias)/2,'r.-'); % already power, so divide "db" function output by 2
+%plot(db(alias)/2,'r.-'); % already power, so divide "db" function output by 2
 plot(db(alias2)/2,'g.-');
 grid on;
-title('Alias Power relative to Channel power');
+title('RFI power relative to Channel power');
 ylabel('dB');
 xlabel('RFI sample offset');
 
 figure(4 + fbase);
 clf;
 hold on;
-plot(db(alias_av)/2);
+%plot(db(alias_av)/2);
 plot(db(alias2_av)/2);
 grid on;
-title('Subsampled Alias power relative to channel power');
+title('Subsampled RFI power relative to channel power');
 ylabel('dB');
-xlabel('RFI sample offset / 1024');
+xlabel('RFI sample offset / 512');
 
 % Write out a ROM that contains alias2_av
 

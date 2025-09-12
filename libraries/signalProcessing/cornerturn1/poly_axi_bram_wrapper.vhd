@@ -139,6 +139,7 @@ architecture Behavioral of poly_axi_bram_wrapper is
     signal RFI_axi_bram_wrEn : std_logic_vector(0 downto 0);
     signal RFI_data_a_q : std_logic_vector(31 downto 0);
     signal axi_memsel_del2, axi_memsel_del1 : std_logic_vector(1 downto 0);
+    signal RFI_web : std_logic_vector(0 downto 0);
     
 begin
     
@@ -409,9 +410,9 @@ begin
         enb                     => '1',
         regceb                  => '1',
 
-        web                     => "00000000",
+        web                     => RFI_web,
         addrb                   => i_RFI_bram_addr,
-        dinb                    => x"0000000000000000",
+        dinb                    => x"00000000",
         doutb                   => o_RFI_bram_rddata,
 
         -- other features
@@ -424,6 +425,8 @@ begin
         sbiterrb                => open,
         dbiterrb                => open
     );    
+    
+    RFI_web(0) <= '0';
     
     process(i_clk)
     begin

@@ -25,10 +25,10 @@ use DSP_top_lib.DSP_top_pkg.all;
 entity ct1_tb is
     generic(
         -- Number of virtual channels to generate input data for
-        g_VIRTUAL_CHANNELS : integer := 8;
+        g_VIRTUAL_CHANNELS : integer := 4; -- 8
         -- Number of virtual channels configured in the ingest module for each set of tables.
-        g_CT1_VIRTUAL_CHANNELS0 : integer := 8;
-        g_CT1_VIRTUAL_CHANNELS1 : integer := 8;
+        g_CT1_VIRTUAL_CHANNELS0 : integer := 4; -- 8
+        g_CT1_VIRTUAL_CHANNELS1 : integer := 4; -- 8
         g_PACKET_GAP : integer := 1000;
 
         -- 
@@ -36,8 +36,8 @@ entity ct1_tb is
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
         g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_fb_out.txt";
-        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000001"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
-        g_USE_FILTERBANK : std_logic := '0'
+        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
+        g_USE_FILTERBANK : std_logic := '1'
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";

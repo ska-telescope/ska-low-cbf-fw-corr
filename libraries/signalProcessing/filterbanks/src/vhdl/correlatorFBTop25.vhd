@@ -172,7 +172,7 @@ architecture Behavioral of correlatorFBTop25 is
     signal final_RFI_sum0, final_RFI_sum1 : std_logic_vector(39 downto 0);
     signal mark_as_RFI01, mark_as_RFI23 : std_logic := '0';
     signal mark_as_RFI_valid : std_logic := '0';
-    signal RFI_weight : std_logic_vector(15 downto 0);
+    signal RFI_weight : std_logic_vector(21 downto 0);
     signal RFI_threshold01_max, RFI_threshold23_max : std_logic := '0';
     
 begin
@@ -304,8 +304,47 @@ begin
                 end case;
             end if;
             
-            RFI_sum_station0 <= RFI_sum_store(0)(to_integer(unsigned(RFI_weight_FIR_tap))); -- 10 bit value, maximum possible is 512
-            RFI_sum_station1 <= RFI_sum_store(1)(to_integer(unsigned(RFI_weight_FIR_tap))); -- 
+            -- case statement since it only runs to 11, and simulation falls over when 
+            -- the index (RFI_weight_FIR_tap) is 12.
+            case RFI_weight_FIR_tap is
+                when "0000" => 
+                    RFI_sum_station0 <= RFI_sum_store(0)(0); -- 10 bit value, maximum possible is 512
+                    RFI_sum_station1 <= RFI_sum_store(1)(0);
+                when "0001" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(1);
+                    RFI_sum_station1 <= RFI_sum_store(1)(1);
+                when "0010" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(2);
+                    RFI_sum_station1 <= RFI_sum_store(1)(2);
+                when "0011" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(3);
+                    RFI_sum_station1 <= RFI_sum_store(1)(3);
+                when "0100" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(4);
+                    RFI_sum_station1 <= RFI_sum_store(1)(4);
+                when "0101" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(5);
+                    RFI_sum_station1 <= RFI_sum_store(1)(5);
+                when "0110" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(6);
+                    RFI_sum_station1 <= RFI_sum_store(1)(6);
+                when "0111" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(7);
+                    RFI_sum_station1 <= RFI_sum_store(1)(7);
+                when "1000" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(8);
+                    RFI_sum_station1 <= RFI_sum_store(1)(8);
+                when "1001" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(9);
+                    RFI_sum_station1 <= RFI_sum_store(1)(9);
+                when "1010" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(10);
+                    RFI_sum_station1 <= RFI_sum_store(1)(10);
+                when others =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(11);
+                    RFI_sum_station1 <= RFI_sum_store(1)(11);
+            end case;
+                
             RFI_weight_addr_del1 <= RFI_weight_addr;
             RFI_fsm_del1 <= RFI_fsm;
             

@@ -372,10 +372,12 @@ source $COMMON_PATH/common/src/args_axi_terminus.tcl
 
 #############################################################
 # 1st corner turn, between LFAA ingest and filterbanks
+# Note the versal version of the register block is needed to prevent the simulator failing
 
 add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
   $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+  $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_eval.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/flattening_wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
@@ -389,6 +391,7 @@ add_files -fileset sources_1 [glob \
 set_property library ct_lib [get_files {\
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_pkg.vhd \
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg.vhd \
+ *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_versal.vhd \
  *libraries/signalProcessing/cornerturn1/poly_eval.vhd \
  *libraries/signalProcessing/cornerturn1/flattening_wrapper.vhd \
  *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
@@ -433,12 +436,15 @@ set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd]
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd]
 
+
 #############################################################
 ## Correlator filterbank and fine delay
 
 add_files -fileset sources_1 [glob \
   $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
   $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
+  $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_versal.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/cor_filterbanks_filterbanks_dummy_versal.vhd
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
@@ -456,6 +462,7 @@ add_files -fileset sources_1 [glob \
 set_property library filterbanks_lib [get_files {\
   *build/ARGS/correlator/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_pkg.vhd \
   *build/ARGS/correlator/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/cor_filterbanks_filterbanks_dummy_versal.vhd
   *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \

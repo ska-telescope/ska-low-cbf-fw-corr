@@ -491,7 +491,7 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => HpolMultOut(34 downto 0),  -- in(34:0);
-        i_markRFI => mark_RFI_del(16),  -- in std_logic;
+        i_markRFI => markRFI_del(16),  -- in std_logic;
         o_data16 => open,               -- out(15:0);  -- 3 cycle latency
         o_data8  => HpolRealRounded,    -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8
@@ -509,7 +509,7 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => HpolMultOut(74 downto 40), -- in(34:0);
-        i_markRFI => mark_RFI_del(16),
+        i_markRFI => markRFI_del(16),
         o_data16 => open,                     -- out(15:0);  -- 3 cycle latency
         o_data8  => HpolImagRounded,          -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8
@@ -525,7 +525,7 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => VpolMultOut(34 downto 0),  -- in(34:0);
-        i_markRFI => mark_RFI_del(16),
+        i_markRFI => markRFI_del(16),
         o_data16 => open,                     -- out(15:0);  -- 3 cycle latency
         o_data8  => VpolRealRounded,          -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8
@@ -541,7 +541,7 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => VpolMultOut(74 downto 40),  -- in(34:0);
-        i_markRFI => mark_RFI_del(16),
+        i_markRFI => markRFI_del(16),
         o_data16 => open,                     -- out(15:0);  -- 3 cycle latency
         o_data8  => VpolImagRounded,           -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8

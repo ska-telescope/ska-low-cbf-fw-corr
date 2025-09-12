@@ -357,7 +357,7 @@ architecture Behavioral of corr_ct1_readout is
     signal poly_vc : t_slv_16_arr(3 downto 0);
     signal delayFIFO_wrDataCount : t_slv_11_arr(3 downto 0);
     signal delayFIFO_rdDataCount : t_slv_11_arr(3 downto 0);
-    signal coarseFIFO_din : std_logic_vector(63 downto 0);
+    signal coarseFIFO_din : std_logic_vector(31 downto 0);
     signal coarseFIFO_wrEn : std_logic_vector(3 downto 0);
     signal coarseFIFO_wrDataCount : t_slv_6_arr(3 downto 0);
     signal coarseFIFO_empty : std_logic_vector(3 downto 0);
@@ -1190,13 +1190,13 @@ begin
             PROG_EMPTY_THRESH => 10,     -- DECIMAL
             PROG_FULL_THRESH => 10,      -- DECIMAL
             RD_DATA_COUNT_WIDTH => 6,   -- DECIMAL
-            READ_DATA_WIDTH => 64,       -- DECIMAL
+            READ_DATA_WIDTH => 32,       -- DECIMAL
             READ_MODE => "fwft",         -- String
             RELATED_CLOCKS => 0,         -- DECIMAL
             SIM_ASSERT_CHK => 0,         -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "0404",  -- String "404" includes read and write data counts.
             WAKEUP_TIME => 0,            -- DECIMAL
-            WRITE_DATA_WIDTH => 64,      -- DECIMAL
+            WRITE_DATA_WIDTH => 32,      -- DECIMAL
             WR_DATA_COUNT_WIDTH => 6     -- DECIMAL
         ) port map (
             almost_empty => open,     -- 1-bit output: Almost Empty
