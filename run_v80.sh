@@ -15,14 +15,14 @@ echo -e "**********             HW complete              *********"
 echo -e "*********************************************************"
 
 # compile fw
-./common/v80_infra/create_fw_project.sh
+./common/v80_infra/create_fw_project.sh 2024.2
 
 echo -e "*********************************************************"
 echo -e "**********             FW complete              *********"
 echo -e "*********************************************************"
 
 # combine to make PDI
-./common/v80_infra/create_pdi.sh
+./common/v80_infra/create_pdi.sh 2024.2
 
 echo -e "*********************************************************"
 echo -e "**********            PDI complete              *********"
