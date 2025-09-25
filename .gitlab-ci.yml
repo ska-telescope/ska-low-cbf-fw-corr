@@ -174,6 +174,7 @@ ska-low-cbf-fw-testing:
   - if: $CI_COMMIT_TAG
   # 'build' keyword in commit title
   - if: $CI_COMMIT_TITLE =~ /build/
+  - if: $CI_COMMIT_TITLE =~ /v80_b/
   # default - allow manual trigger but don't require it for pipeline success
   - when: manual
     allow_failure: true
@@ -189,14 +190,15 @@ create project v80:
     - $EXTRA_CREATE_PROJECT_TAG
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2024.2"
+    VITIS_VERSION: "2025.1"
+    VIVADO_VERSION_IN_USE: "2025.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "correlator_v80" # used to choose design
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
   before_script:
-    - *vitis_settings
     - *args_settings
     - *self_test
+    - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
   script:
     - common/scripts/create_project_v80.sh
   artifacts:
@@ -211,7 +213,7 @@ fpga lint v80:
     - create project v80
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2024.2"
+    VITIS_VERSION: "2025.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
@@ -220,8 +222,8 @@ fpga lint v80:
     - v80
     - $EXTRA_DEVELOPER_TAG
   before_script:
-    - *vitis_settings
     - *self_test
+    - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
   script:
     - common/scripts/lint_step_v80.sh
 
@@ -236,7 +238,8 @@ build v80:
   timeout: 6 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2024.2"
+    VITIS_VERSION: "2025.1"
+    VIVADO_VERSION_IN_USE: "2025.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
@@ -245,8 +248,8 @@ build v80:
     - v80
     - $EXTRA_DEVELOPER_TAG
   before_script:
-    - *vitis_settings
     - *self_test
+    - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
   script:
     - pwd   # this should report the dir of the cloned repo in the runner
     # copy protected ip repos into structure for building
@@ -270,6 +273,6 @@ publish v80 package:
     - shell 
   variables:
     BUILD_STRING: "CI development build. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
-    VITIS_VERSION: "2024.2"
+    VITIS_VERSION: "2025.1"
   script:
     - common/scripts/package_firmware_v80.sh

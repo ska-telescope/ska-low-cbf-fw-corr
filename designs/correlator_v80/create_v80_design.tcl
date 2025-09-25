@@ -6,11 +6,14 @@ set src_dir        [file dirname [file normalize [info script]]]
 set design_name     "v80_top"
 set bd_name         "top"
 
-proc do_aved_create_design { } { 
+
+
   global bd_name
   global src_dir
   global design_name
   global date_string
+
+  puts $env(VIVADO_VERSION_IN_USE)
 
   # # create_project script puts us at GITREPO/build/v80
   # set proj_dir "build_$date_string"
@@ -86,7 +89,19 @@ proc do_aved_create_design { } {
   current_bd_design ${bd_name}
 
   # Add base to block diagram
-  source "$COMMON/v80_infra/src/top_bd/create_bd_design.tcl"
+
+  if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
+    source $COMMON/v80_infra/src/top_bd/create_bd_design.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
+    source $COMMON/v80_infra/src/top_bd/create_bd_design_2025_1.tcl
+  } else {
+    puts "###################################################"
+    puts "        UNSUPPORTED VERSION OF VIVADO"
+    puts VIVADO_VERSION_IN_USE
+    puts "###################################################"
+    exit
+  }
+
   create_root_design ""
 
   # Write the block diagram wrapper and set it as design top
@@ -94,7 +109,17 @@ proc do_aved_create_design { } {
 
   # ----------------------------------------
   # Add DCMAC BD
-  source $COMMON_PATH/DCMAC/dcmac_two_100g_bd.tcl
+    if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2025_1.tcl
+  } else {
+    puts "###################################################"
+    puts "        UNSUPPORTED VERSION OF VIVADO"
+    puts "###################################################"
+    exit
+  }
+  
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
   add_files -fileset sources_1 [glob \
@@ -699,8 +724,19 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
   add_files -fileset constrs_1 -norecurse "$COMMON/v80_infra/constraints/impl.xdc"
   add_files -fileset constrs_1 -norecurse "$COMMON/v80_infra/constraints/impl.pins.xdc"
   add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/opt.post.tcl"
-  add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/place.pre.tcl"
   add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/write_device_image.pre.tcl"
+
+  # 2025.1 added dont-touch to CIPS in BD
+  if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
+    add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/place.pre.tcl"
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
+    add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/2025.1/place.pre.tcl"
+  } else {
+    puts "###################################################"
+    puts "        UNSUPPORTED VERSION OF VIVADO"
+    puts "###################################################"
+    exit
+  }
 
   set_property -dict { used_in_synthesis false    processing_order NORMAL } [get_files *impl.xdc]
   set_property -dict { used_in_synthesis false    processing_order NORMAL } [get_files *impl.pins.xdc]
@@ -716,6 +752,3 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
   puts "--------------------------------------------------------"
   puts "Project Creation script completed, XPR ready to open"
   puts "--------------------------------------------------------"
-}
-
-do_aved_create_design
