@@ -174,6 +174,7 @@ architecture Behavioral of correlatorFBTop25 is
     signal mark_as_RFI_valid : std_logic := '0';
     signal RFI_weight : std_logic_vector(21 downto 0);
     signal RFI_threshold01_max, RFI_threshold23_max : std_logic := '0';
+    signal RFI_threshold01_hold, RFI_threshold23_hold, RFI_threshold23_del1, RFI_threshold01_del1 : std_logic_vector(31 downto 0) := (others => '0');
     
 begin
     
@@ -225,7 +226,7 @@ begin
         if rising_edge(clk) then
             FBmemFIRTapsDel <= FBmemFIRTaps;
             
-            -- Accumulate the number of RFI flagged samples in each 1024 sample block
+            -- Accumulate the number of RFI flagged samples in each 512 sample block
             for j in 0 to 1 loop
                 -- j indexes the station; 4 streams per station (2 pol x (re+im)), if any of the 4 samples are flagged then all are flagged.
                 for k in 0 to 11 loop
@@ -363,25 +364,33 @@ begin
                 final_RFI_sum1 <= std_logic_vector(unsigned(final_RFI_sum1) + unsigned(RFI_weighted_sum1_ext));
             end if;
             
-            if RFI_threshold01_i = x"ffffffff" then 
+            RFI_threshold01_del1 <= RFI_threshold01_i;
+            RFI_threshold23_del1 <= RFI_threshold23_i;
+            if valid_i = '0' and validDel1 = '1' then 
+                -- On the falling edge of valid, hold the RFI threshold for use a short time later 
+                RFI_threshold01_hold <= RFI_threshold01_del1;
+                RFI_threshold23_hold <= RFI_threshold23_del1;
+            end if;
+            
+            if RFI_threshold01_hold = x"ffffffff" then 
                 RFI_threshold01_max <= '1';
             else
                 RFI_threshold01_max <= '0';
             end if;
             
-            if RFI_threshold23_i = x"ffffffff" then 
+            if RFI_threshold23_hold = x"ffffffff" then 
                 RFI_threshold23_max <= '1';
             else
                 RFI_threshold23_max <= '0';
             end if;
             
             if RFI_fsm_del2 = check_threshold then
-                if ((unsigned(final_RFI_sum0) > unsigned(RFI_threshold01_i)) and RFI_threshold01_max = '0') then
+                if ((unsigned(final_RFI_sum0) > unsigned(RFI_threshold01_hold)) and RFI_threshold01_max = '0') then
                     mark_as_RFI01 <= '1';
                 else
                     mark_as_RFI01 <= '0';
                 end if;
-                if ((unsigned(final_RFI_sum1) > unsigned(RFI_threshold23_i)) and RFI_threshold23_max = '0') then
+                if ((unsigned(final_RFI_sum1) > unsigned(RFI_threshold23_hold)) and RFI_threshold23_max = '0') then
                     mark_as_RFI23 <= '1';
                 else
                     mark_as_RFI23 <= '0';

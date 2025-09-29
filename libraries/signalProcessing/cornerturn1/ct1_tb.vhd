@@ -25,10 +25,10 @@ use DSP_top_lib.DSP_top_pkg.all;
 entity ct1_tb is
     generic(
         -- Number of virtual channels to generate input data for
-        g_VIRTUAL_CHANNELS : integer := 4; -- 8
+        g_VIRTUAL_CHANNELS : integer := 8; -- 8
         -- Number of virtual channels configured in the ingest module for each set of tables.
-        g_CT1_VIRTUAL_CHANNELS0 : integer := 4; -- 8
-        g_CT1_VIRTUAL_CHANNELS1 : integer := 4; -- 8
+        g_CT1_VIRTUAL_CHANNELS0 : integer := 8; -- 8
+        g_CT1_VIRTUAL_CHANNELS1 : integer := 8; -- 8
         g_PACKET_GAP : integer := 1000;
 
         -- 
@@ -732,7 +732,7 @@ begin
     m01_arqos    <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     m01_arregion <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     
-    -- m02 HBM interface : 2nd stage corner turn between filterbanks and beamformer, 2x256 MBytes.
+    -- m01 HBM interface : Corner turn 1 data store - store SPS packets before sending to the filterbank
     HBM3G_1 : entity correlator_lib.HBM_axi_tbModel
     generic map (
         AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
@@ -834,7 +834,7 @@ begin
     m06_arqos    <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     m06_arregion <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     
-    -- m02 HBM interface : 2nd stage corner turn between filterbanks and beamformer, 2x256 MBytes.
+    -- m06 HBM interface : debug data capture
     HBM_ila_i : entity correlator_lib.HBM_axi_tbModel
     generic map (
         AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.

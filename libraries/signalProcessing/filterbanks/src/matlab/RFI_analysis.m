@@ -15,7 +15,7 @@ hold on;
 grid on;
 plot(correlatorFilterbankTaps,'r.-');
 for f4096 = 1:11
-    plot(4096 * [f4096, f4096],[-10000, 50000],'g-');
+    plot(4096 * [f4096, f4096],[-10000, 80000],'g-');
 end
 title('Correlator FIR filter');
 
@@ -97,15 +97,19 @@ xlabel('RFI sample offset / 512');
 
 % Write out a ROM that contains alias2_av
 
+alias2_av_int = ceil(2^32 * alias2_av);
+
 if write_ROM == 1
     disp('            case i_addr is');
     for ra = 0:95
-        disp( ['                when "' dec2binX(ra,7) '" => o_RFI_weight <= "' dec2binX(ceil(2^32 * alias2_av(ra+1)),22) '";']);
+        disp( ['                when "' dec2binX(ra,7) '" => o_RFI_weight <= "' dec2binX(alias2_av_int(ra+1),22) '";']);
     end
     disp(['                when others => o_RFI_weight <= "000000000000000000000000";']);
     disp('            end case;');
 end
 
-
+% Write a text file with alias2_av 
+alias2_av_int2 = alias2_av_int.';
+save("alias_power.txt","alias2_av_int2",'-ascii');
 
 

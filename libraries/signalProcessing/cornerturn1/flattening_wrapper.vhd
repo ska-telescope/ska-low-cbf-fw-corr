@@ -153,7 +153,9 @@ begin
             
             -- Detect RFI flagged samples (0x80), and replace the output with the RFI flag value (0x8000)
             -- The tuser field propagates through the filter, but needs an extra of c_FIR_TAPS / 2 to get to the middle of the filter.
-            flagged_del(31 downto 1) <= flagged_del(30 downto 0);
+            if valid_out(0) = '1' then
+                flagged_del(31 downto 1) <= flagged_del(30 downto 0);
+            end if;
             
         end if;
     end process;
