@@ -167,7 +167,8 @@ architecture Behavioral of correlatorFBTop25 is
     type RFI_fsm_type is  (run, check_threshold, idle);
     signal RFI_fsm, RFI_fsm_del1, RFI_fsm_del2 : RFI_fsm_type := idle;
     signal RFI_sum_station0, RFI_sum_station1 : std_logic_vector(9 downto 0);
-    signal RFI_weighted_sum0, RFI_weighted_sum1 : signed(31 downto 0);
+    signal RFI_sum_station0_ext, RFI_sum_station1_ext : std_logic_vector(10 downto 0);
+    signal RFI_weighted_sum0, RFI_weighted_sum1 : signed(32 downto 0);
     signal RFI_weighted_sum0_ext, RFI_weighted_sum1_ext : std_logic_vector(39 downto 0);
     signal final_RFI_sum0, final_RFI_sum1 : std_logic_vector(39 downto 0);
     signal mark_as_RFI01, mark_as_RFI23 : std_logic := '0';
@@ -349,15 +350,15 @@ begin
             RFI_weight_addr_del1 <= RFI_weight_addr;
             RFI_fsm_del1 <= RFI_fsm;
             
-            RFI_weighted_sum0 <= signed(RFI_sum_station0) * signed(RFI_weight); -- 10 bit x 22 bit = 32 bit result
-            RFI_weighted_sum1 <= signed(RFI_sum_station1) * signed(RFI_weight);
+            RFI_weighted_sum0 <= signed(RFI_sum_station0_ext) * signed(RFI_weight); -- 11 bit x 22 bit = 33 bit result
+            RFI_weighted_sum1 <= signed(RFI_sum_station1_ext) * signed(RFI_weight);
             RFI_weight_addr_del2 <= RFI_weight_addr_del1;
             RFI_fsm_del2 <= RFI_fsm_del1;
             
             if RFI_weight_addr_del2 = "0000000" and (RFI_fsm_del2 = run) then
                 -- First RFI sum to accumulate
-                final_RFI_sum0 <= "00000000" & std_logic_vector(RFI_weighted_sum0);
-                final_RFI_sum1 <= "00000000" & std_logic_vector(RFI_weighted_sum1);
+                final_RFI_sum0 <= "0000000" & std_logic_vector(RFI_weighted_sum0);
+                final_RFI_sum1 <= "0000000" & std_logic_vector(RFI_weighted_sum1);
             elsif RFI_fsm_del2 = run then
                 -- Accumulate
                 final_RFI_sum0 <= std_logic_vector(unsigned(final_RFI_sum0) + unsigned(RFI_weighted_sum0_ext));
@@ -414,8 +415,11 @@ begin
         end if;
     end process;
     
-    RFI_weighted_sum0_ext <= x"00" & std_logic_vector(RFI_weighted_sum0);
-    RFI_weighted_sum1_ext <= x"00" & std_logic_vector(RFI_weighted_sum1);
+    RFI_sum_station0_ext <= '0' & RFI_sum_station0; -- sign extend so it can be treated as a signed value in the multiply
+    RFI_sum_station1_ext <= '0' & RFI_sum_station1;
+    
+    RFI_weighted_sum0_ext <= "0000000" & std_logic_vector(RFI_weighted_sum0);
+    RFI_weighted_sum1_ext <= "0000000" & std_logic_vector(RFI_weighted_sum1);
     
     RFI_weight_addr(2 downto 0) <= RFI_weight_addr_low;
     RFI_weight_addr(6 downto 3) <= RFI_weight_FIR_tap;
