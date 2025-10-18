@@ -3,5 +3,13 @@ set_property -dict [list CONFIG.Component_Name {GenSinCos} CONFIG.PartsPresent {
 create_ip_run [get_ips GenSinCos]
 
 create_ip -name cmpy -vendor xilinx.com -library ip -version 6.0 -module_name FineDelayComplexMult
-set_property -dict [list CONFIG.Component_Name {FineDelayComplexMult} CONFIG.BPortWidth {18} CONFIG.OptimizeGoal {Performance} CONFIG.RoundMode {Truncate} CONFIG.OutputWidth {35} CONFIG.MinimumLatency {4}] [get_ips FineDelayComplexMult]
+set_property -dict [list \
+    CONFIG.Component_Name {FineDelayComplexMult} \
+    CONFIG.BPortWidth {18} \
+    CONFIG.OptimizeGoal {Performance} \
+    CONFIG.RoundMode {Truncate} \
+    CONFIG.OutputWidth {35} \
+    CONFIG.LatencyConfig {Manual} \
+    CONFIG.MinimumLatency {4} \
+] [get_ips FineDelayComplexMult]
 create_ip_run [get_ips FineDelayComplexMult]
