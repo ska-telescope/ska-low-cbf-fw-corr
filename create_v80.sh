@@ -7,28 +7,20 @@
 ## It synthesizes and produces an output bitfile to be programmed
 ## to an Alveo from the source in this git repository
 
-TARGET_ALVEO=(v80) 
+######################################################################
+## CLI support
 
-XILINX_PATH=/tools/Xilinx
-VIVADO_VERSION_IN_USE=2024.2
-kernel="correlator_v80"
-
-if [ -z "`which ccze`" ]; then
-    echo -e "Note: ccze not found, running in monochrome mode, install via apt"
-    COLOUR="cat"
-else
-    COLOUR="ccze -A"
-fi
-
+SUPPORTED_VERSIONS=(2024.2 2025.1)
 ShowHelp()
 {
-    echo "Usage: ${0##*/} [-h] [build]"
+    echo "####################################################"
+    echo "Usage: ${0##*/} [-h] <vitis version> "
     echo ""
-    echo "e.g. ${0##*/} build"
+    echo "e.g. ${0##*/} 2024.2 "
     echo ""
     echo "-h    Print this help then exit"
-    echo "Default behaviour is to delete the build directory and recreate the project"
-    echo "build: (optional) build the generated project"
+    echo "Supported Vivado Version: ${SUPPORTED_VERSIONS[*]}"    
+    echo "####################################################"
 }
 
 while getopts ":h" option; do
@@ -43,6 +35,40 @@ while getopts ":h" option; do
     esac
 done
 
+if [ "$#" -lt 1 ]; then
+    echo "Not enough parameters"
+    ShowHelp
+    exit 1
+fi
+
+#####################################################################
+## Handle CLI Args
+SPECIFIED_VIVADO_VERSION=$(echo $1 | tr "[:upper:]" "[:lower:]")
+
+if [[ " ${SUPPORTED_VERSIONS[*]} " =~ " $SPECIFIED_VIVADO_VERSION " ]]; then
+    echo -e "Vivado_Version: $SPECIFIED_VIVADO_VERSION"
+else
+    echo -e "Invalid Vivado_Version: $SPECIFIED_VIVADO_VERSION"
+    echo -e "Valid Vivado_Versions: ${SUPPORTED_VERSIONS[*]}"
+    exit 3
+fi
+
+#####################################################################
+
+TARGET_ALVEO=(v80) 
+XILINX_PATH=/tools/Xilinx
+VIVADO_VERSION_IN_USE=$SPECIFIED_VIVADO_VERSION
+kernel="correlator_v80"
+
+## Add version to Env
+export VIVADO_VERSION_IN_USE=$SPECIFIED_VIVADO_VERSION
+
+if [ -z "`which ccze`" ]; then
+    echo -e "Note: ccze not found, running in monochrome mode, install via apt"
+    COLOUR="cat"
+else
+    COLOUR="ccze -A"
+fi
 
 
 export GITREPO=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
@@ -96,12 +122,17 @@ echo "$GITREPO/build"
 cd $GITREPO/build/$TARGET_ALVEO
 
 # ............ Source VIVADO ............
-echo "Sourcing ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh"
-source ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh
+if [ "$VIVADO_VERSION_IN_USE" = "2024.2" ]; then
+    echo "Sourcing ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh"
+    source ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh
+else
+    echo "Sourcing ${XILINX_PATH}/$VIVADO_VERSION_IN_USE/Vitis/settings64.sh"
+    source ${XILINX_PATH}/$VIVADO_VERSION_IN_USE/Vitis/settings64.sh
+fi
 
 sleep 5s
 
-if [ "$1" = "build" ]; then
+if [ "$2" = "build" ]; then
     echo -e "Creating and building project"
     sleep 5s
     echo 
