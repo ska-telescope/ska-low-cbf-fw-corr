@@ -132,6 +132,9 @@ entity corr_ct1_readout is
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
         o_delayTableAddr : out std_logic_vector(14 downto 0);  -- 2 buffers, 10 words per buffer, 1024 virtual channels = 20480 words
         i_delayTableData : in std_logic_vector(63 downto 0);   -- Data from the delay table with 3 cycle latency. 
+        -- RFI threshold for this channel.
+        o_RFI_rd_addr : out std_logic_vector(9 downto 0);
+        i_RFI_rd_data : in std_logic_vector(31 downto 0);
         -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
         o_validMemReadAddr : out std_logic_vector(18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
         i_validMemReadData : in std_logic;  -- read data returned 3 clocks later.
@@ -403,6 +406,7 @@ architecture Behavioral of corr_ct1_readout is
     
     signal int_axi_ar       : t_axi4_full_addr;
     signal int_axi_r        : t_axi4_full_data;
+    signal RFI_threshold : t_slv_32_arr(3 downto 0) := (others => (others => '0'));
 
 begin
     
@@ -1194,8 +1198,7 @@ begin
             WAKEUP_TIME => 0,            -- DECIMAL
             WRITE_DATA_WIDTH => 32,      -- DECIMAL
             WR_DATA_COUNT_WIDTH => 6     -- DECIMAL
-        )
-        port map (
+        ) port map (
             almost_empty => open,     -- 1-bit output: Almost Empty
             almost_full => open,      -- 1-bit output: Almost Full
             data_valid => open,       -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
@@ -1608,7 +1611,6 @@ begin
                 bufReadAddr2 <= (others => '0');
                 bufReadAddr3 <= (others => '0');
                 channelCount <= (others => '0');
-                --rd_fsm <= rd_start;
                 rd_fsm <= reset_output_fifos_start;
                 buf0RdEnable <= '0';
                 buf1RdEnable <= '0';
@@ -1669,32 +1671,6 @@ begin
                             else -- Not a whole number of 64-byte words, need to round up for the ceiling operation.
                                 buf3WordsRemaining <= std_logic_vector(unsigned(rdBufSamplesRemaining(3)(19 downto 4)) + 1);
                             end if;
-                            
-                            -- Pre ripple correction :
-                             -- The number of 64-byte (=512 bit) words that we have to read from the buffer for each channel is 
-                             --      g_LFAA_BLOCKS_PER_FRAME*128 + 11*256       (for the case where the first sample is aligned to a 64 byte boundary)
-                             --   or g_LFAA_BLOCKS_PER_FRAME*128 + 11*256 + 1   (for the case where the first sample is not aligned to a 64 byte boundary)  
---                            if bufFIFO_dout(0)(3 downto 0) = "0000" then
---                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
---                            else
---                                buf0WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
---                            end if;
---                            if bufFIFO_dout(1)(3 downto 0) = "0000" then
---                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
---                            else
---                                buf1WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
---                            end if;
---                            if bufFIFO_dout(2)(3 downto 0) = "0000" then
---                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
---                            else
---                                buf2WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
---                            end if;
-                            
---                            if bufFIFO_dout(3)(3 downto 0) = "0000" then
---                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2816,16));
---                            else
---                                buf3WordsRemaining <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME*128 + 2817,16));
---                            end if;
                             
                             rd_fsm <= rd_buf0;
                         else
@@ -1915,6 +1891,31 @@ begin
                 readoutStart <= '0';
             end if;
             
+            
+            if readoutStartDel(0) = '1' then
+                o_RFI_rd_addr <= channelCount(9 downto 2) & "00";
+            elsif readoutStartDel(1) = '1' then
+                o_RFI_rd_Addr <= channelCount(9 downto 2) & "01";
+            elsif readoutStartDel(2) = '1' then
+                o_RFI_rd_Addr <= channelCount(9 downto 2) & "10";
+            else
+                o_RFI_rd_Addr <= channelCount(9 downto 2) & "11";
+            end if;
+            
+            -- del(1) : o_RFI_rd_addr is valid, 3 cycle latency to del(4) when data is returned.
+            if readoutStartDel(4) = '1' then
+                RFI_threshold(0) <= i_RFI_rd_data;
+            end if;
+            if readoutStartDel(5) = '1' then
+                RFI_threshold(1) <= i_RFI_rd_data;
+            end if;
+            if readoutStartDel(6) = '1' then
+                RFI_threshold(2) <= i_RFI_rd_data;
+            end if;
+            if readoutStartDel(7) = '1' then
+                RFI_threshold(3) <= i_RFI_rd_data;
+            end if;
+            
             readoutStartDel(0) <= readoutStart;
             readoutStartDel(27 downto 1) <= readoutStartDel(26 downto 0);
             
@@ -1930,7 +1931,6 @@ begin
             else
                 firstPacketclockCountIncrement <= '0';
             end if;
-            
             
             -- 16 clocks to copy data into the FIFO in corr_ct1_readout_32bit
             -- plus some extra delay for read latency of the buffer in this module 
@@ -1954,24 +1954,28 @@ begin
                 o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
                 o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
                 o_meta0.bad_poly <= delayFIFO_dout(0)(128);
+                o_meta0.RFI_threshold <= RFI_threshold(0);  -- Only assign this here (on readoutStartDel(27)), so it is stable for the full frame for a particular virtual channel.
                     
                 o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
                 o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
                 o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
                 o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
                 o_meta1.bad_poly <= delayFIFO_dout(1)(128);
+                o_meta1.RFI_threshold <= RFI_threshold(1);
                     
                 o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
                 o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
                 o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
                 o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
                 o_meta2.bad_poly <= delayFIFO_dout(2)(128);
+                o_meta2.RFI_threshold <= RFI_threshold(2);
                   
                 o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
                 o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
                 o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
                 o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);  
                 o_meta3.bad_poly <= delayFIFO_dout(3)(128);
+                o_meta3.RFI_threshold <= RFI_threshold(3);
                 
             elsif (unsigned(packetsRemaining) > 0) then
                 -- Changed to improve timing, was : if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusOne))) then

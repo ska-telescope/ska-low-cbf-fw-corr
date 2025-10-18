@@ -155,8 +155,7 @@ entity poly_eval is
         -- read latency 3 clocks
         o_rd_addr  : out std_logic_vector(14 downto 0);
         i_rd_data  : in std_logic_vector(63 downto 0);  -- 3 clock latency.
-        
-        
+
         -----------------------------------------------------------------------
         -- Output delay parameters 
         -- For each pulse on i_start, this module generates 64*4 = 256 outputs

@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.10
+    * Correlator now handles SPS RFI flagged data and missing packets.
 * 0.1.9
     * V80 partition table update to four entries.
     * SPEAD packetiser fixes for INIT and END with multi destination update.

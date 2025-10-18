@@ -18,6 +18,7 @@ entity ShiftandRound is
         i_clk   : in std_logic;
         i_shift : in std_logic_vector(4 downto 0);
         i_data  : in std_logic_vector(34 downto 0);
+        i_markRFI : in std_logic;
         o_data16 : out std_logic_vector(15 downto 0);  -- 3 cycle latency
         o_data8  : out std_logic_vector(7 downto 0);   -- 4 cycle latency
         -- statistics on the amplitude of o_data8
@@ -39,6 +40,7 @@ architecture Behavioral of ShiftandRound is
     signal rounded : std_logic_vector(15 downto 0);
     signal data8 : std_logic_vector(7 downto 0);
     signal signbitDel1, signbitDel2, saturatedDel2, saturatedDel3 : std_logic;
+    signal markRFIDel1, markRFIDel2, markRFIDel3 : std_logic := '0';
 
 begin
 
@@ -99,7 +101,7 @@ begin
                 
             end if;
             signbitDel1 <= i_data(34);
-            
+            markRFIDel1 <= i_markRFI;
             ----------------------------------------------
             -- Scale by i_shift(2:0), and calculate the convergent rounding.
             if i_shift(2 downto 0) = "000" then
@@ -162,6 +164,7 @@ begin
             
             signbitDel2 <= signbitDel1;
             saturatedDel2 <= saturated;
+            markRFIDel2 <= markRFIDel1;
             
             ----------------------------------------------------
             -- Apply convergent rounding
@@ -181,10 +184,11 @@ begin
                 end if;
                 saturatedDel3 <= '0';
             end if;
+            markRFIDel3 <= markRFIDel2;
             
             ------------------------------------------------------
             -- take the result back to 8 bits, marking any overflows as 0x80
-            if ((signed(rounded) > 127) or (signed(rounded) < -127) or saturatedDel3 = '1') then
+            if ((signed(rounded) > 127) or (signed(rounded) < -127) or saturatedDel3 = '1' or markRFIDel3 = '1') then
                 data8 <= "10000000";
                 o_overflow <= '1';
                 o_64_127 <= '0';

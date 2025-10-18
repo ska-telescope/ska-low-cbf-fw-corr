@@ -135,6 +135,7 @@ package DSP_top_pkg is
         integration    : std_logic_vector(31 downto 0); --  which integration is this for; units of 849ms since epoch
         ctFrame        : std_logic_vector(1 downto 0);  --  which corner turn frame is this; 0, 1, or 2; units of 283ms; relative to integration.
         virtualChannel : std_logic_vector(15 downto 0); --  Virtual channels are processed in order, so this just counts.
+        RFI_threshold  : std_logic_vector(31 downto 0);
         bad_poly       : std_logic;
         lastChannel    : std_logic;
         demap_table_select : std_logic;
