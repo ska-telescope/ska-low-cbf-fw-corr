@@ -146,6 +146,7 @@ set_property -dict [list \
   CONFIG.Filter_Architecture {Systolic_Multiply_Accumulate} \
   CONFIG.Output_Rounding_Mode {Convergent_Rounding_to_Even} \
   CONFIG.Output_Width {16} \
+  CONFIG.M_DATA_Has_TUSER {User_Field} \
+  CONFIG.S_DATA_Has_TUSER {User_Field} \
 ] [get_ips sps_flatten]
 create_ip_run [get_ips sps_flatten]
-

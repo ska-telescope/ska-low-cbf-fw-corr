@@ -54,6 +54,7 @@ entity fineDelay is
         i_clk         : in std_logic;
         -- data and header in
         i_data        : in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
+        i_markRFI     : in std_logic;
         i_dataValid   : in std_logic;
         i_header      : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .HOffsetP(31:0), .VOffsetP(31:0), integration(31:0), ctFrame(1:0), virtualChannel(15:0); 
         i_headerValid : in std_logic;  -- Must be a 1 clock pulse on the first clock of the packet.
@@ -169,6 +170,7 @@ architecture Behavioral of fineDelay is
     
     signal HpolPhase_int, HpolPhaseRounded, VpolPhase_int, VpolPhaseRounded : std_logic_vector(23 downto 0);
     signal HpolPhase_frac, VpolPhase_frac : std_logic_vector(4 downto 0);
+    signal markRFI_del : std_logic_vector(23 downto 0);
     
 begin
     
@@ -201,12 +203,15 @@ begin
     hpol_phase_x24 <= hpol_phase_x3(40 downto 0) & "000";
     vpol_phase_x24 <= vpol_phase_x3(40 downto 0) & "000";
     
+    markRFI_del(0) <= i_markRFI;
+    
     process(i_clk)
     begin
         if rising_edge(i_clk) then
             
             fineDelayDisable <= i_disable;
             RFIScale <= i_RFIScale;
+            markRFI_del(23 downto 1) <= markRFI_del(22 downto 0);
             
             -- First pipeline stage; capture header and data.
             if i_headerValid = '1' then
@@ -486,8 +491,9 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => HpolMultOut(34 downto 0),  -- in(34:0);
-        o_data16 => open,                     -- out(15:0);  -- 3 cycle latency
-        o_data8  => HpolRealRounded,          -- out(7:0)    -- 4 cycle latency
+        i_markRFI => markRFI_del(16),  -- in std_logic;
+        o_data16 => open,               -- out(15:0);  -- 3 cycle latency
+        o_data8  => HpolRealRounded,    -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8
         o_overflow => soverflow(0), -- out std_logic; 4 cycle latency, aligns with o_data8
         o_64_127   => s64_127(0),  -- out std_logic; output is in the range 64 to 127
@@ -503,6 +509,7 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => HpolMultOut(74 downto 40), -- in(34:0);
+        i_markRFI => markRFI_del(16),
         o_data16 => open,                     -- out(15:0);  -- 3 cycle latency
         o_data8  => HpolImagRounded,          -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8
@@ -518,6 +525,7 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => VpolMultOut(34 downto 0),  -- in(34:0);
+        i_markRFI => markRFI_del(16),
         o_data16 => open,                     -- out(15:0);  -- 3 cycle latency
         o_data8  => VpolRealRounded,          -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8
@@ -533,6 +541,7 @@ begin
         i_clk   => i_clk,
         i_shift => RFIScale, --  in(4:0);
         i_data  => VpolMultOut(74 downto 40),  -- in(34:0);
+        i_markRFI => markRFI_del(16),
         o_data16 => open,                     -- out(15:0);  -- 3 cycle latency
         o_data8  => VpolImagRounded,           -- out(7:0)    -- 4 cycle latency
         -- statistics on the amplitude of o_data8

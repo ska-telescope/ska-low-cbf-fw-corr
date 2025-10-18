@@ -25,10 +25,10 @@ use DSP_top_lib.DSP_top_pkg.all;
 entity ct1_tb is
     generic(
         -- Number of virtual channels to generate input data for
-        g_VIRTUAL_CHANNELS : integer := 8;
+        g_VIRTUAL_CHANNELS : integer := 8; -- 8
         -- Number of virtual channels configured in the ingest module for each set of tables.
-        g_CT1_VIRTUAL_CHANNELS0 : integer := 8;
-        g_CT1_VIRTUAL_CHANNELS1 : integer := 8;
+        g_CT1_VIRTUAL_CHANNELS0 : integer := 8; -- 8
+        g_CT1_VIRTUAL_CHANNELS1 : integer := 8; -- 8
         g_PACKET_GAP : integer := 1000;
 
         -- 
@@ -36,8 +36,9 @@ entity ct1_tb is
         g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out.txt";
         g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_fb_out.txt";
-        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000001"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
-        g_USE_FILTERBANK : std_logic := '0'
+        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
+        g_USE_FILTERBANK : std_logic := '1';
+        g_DATA_RFI : std_logic := '1'  -- '1' to put bursty RFI flags in the SPS data 
         
         --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
         --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
@@ -259,7 +260,7 @@ architecture Behavioral of ct1_tb is
     signal fb3_lastChannel, fb3_demap_table_select : std_logic;
     signal fb4_lastChannel, fb4_demap_table_select : std_logic;
     signal fb5_lastChannel, fb5_demap_table_select : std_logic;
-    
+    signal flag_rfi : std_logic;
     signal FD_bad_poly, FD_lastChannel, FD_demap_table_select : std_logic_vector(3 downto 0) := "0000";
     
 begin
@@ -516,11 +517,20 @@ begin
     -- 2048 samples per packet, 1024 samples per burst (of 4096 bytes), 16 samples per word (of 64 bytes)
     absolute_sample <= std_logic_vector(unsigned(wdata_packet_count) * 2048 + unsigned(wdata_burst_count) * 1024 + unsigned(wdata_word_count) * 16); --to_unsigned(16,48));
     
+    -- if enabled, flag every sample as RFI in a block of 16*4096 = 65536 samples, then have an equal number of unflagged samples
+    flag_rfi <= '1' when absolute_sample(16) = '1' else '0';
     -- need pn sequence option
     
     dgen1 : for i in 0 to 15 generate
-        m01_axi_w.data(i*32+23 downto i*32+0) <= absolute_sample(23 downto 4) & std_logic_vector(to_unsigned(i,4)); 
-        m01_axi_w.data(i*32+31 downto i*32+24) <= wdata_virtual_channel(7 downto 0);
+        m01_axi_w.data(i*32+23 downto i*32+0) <= 
+            x"808080"  when g_DATA_RFI = '1' and flag_rfi = '1' else
+            x"000000"  when g_DATA_RFI = '1' and flag_rfi = '0' else
+            absolute_sample(23 downto 4) & std_logic_vector(to_unsigned(i,4)); 
+        m01_axi_w.data(i*32+31 downto i*32+24) <= 
+            x"80"  when g_DATA_RFI = '1' and flag_rfi = '1' else
+            x"00"  when g_DATA_RFI = '1' and flag_rfi = '0' else
+            wdata_virtual_channel(7 downto 0);
+        
     end generate;
     
 --    m01_axi_w.data(3 downto 0) <= wdata_word_count(3 downto 0);
@@ -732,7 +742,7 @@ begin
     m01_arqos    <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     m01_arregion <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     
-    -- m02 HBM interface : 2nd stage corner turn between filterbanks and beamformer, 2x256 MBytes.
+    -- m01 HBM interface : Corner turn 1 data store - store SPS packets before sending to the filterbank
     HBM3G_1 : entity correlator_lib.HBM_axi_tbModel
     generic map (
         AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.
@@ -834,7 +844,7 @@ begin
     m06_arqos    <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     m06_arregion <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
     
-    -- m02 HBM interface : 2nd stage corner turn between filterbanks and beamformer, 2x256 MBytes.
+    -- m06 HBM interface : debug data capture
     HBM_ila_i : entity correlator_lib.HBM_axi_tbModel
     generic map (
         AXI_ADDR_WIDTH => 32, -- : integer := 32;   -- Byte address width. This also defines the amount of data. Use the correct width for the HBM memory block, e.g. 28 bits for 256 MBytes.

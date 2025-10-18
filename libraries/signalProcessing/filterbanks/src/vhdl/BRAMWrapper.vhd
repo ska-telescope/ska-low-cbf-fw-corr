@@ -83,14 +83,14 @@ begin
         ECC_BIT_RANGE => "7:0",     -- String
         ECC_MODE => "no_ecc",       -- String
         ECC_TYPE => "none",         -- String
-        IGNORE_INIT_SYNTH => 0,     -- DECIMAL, 0 = use initialisation for both synth and for simulation.
+   --     IGNORE_INIT_SYNTH => 0,     -- DECIMAL, 0 = use initialisation for both synth and for simulation.
         MEMORY_INIT_FILE => g_INIT_FILE,      -- String
         MEMORY_INIT_PARAM => "",        -- empty string (="") indicates use of MEMORY_INIT_FILE generic
         MEMORY_OPTIMIZATION => "true", -- String
         MEMORY_PRIMITIVE => "block",   -- String
         MEMORY_SIZE => 73728,          -- DECIMAL, 18 * 4096 = 73728
         MESSAGE_CONTROL => 0,      -- DECIMAL
-        RAM_DECOMP => "auto",      -- String
+    --    RAM_DECOMP => "auto",      -- String
         READ_DATA_WIDTH_A => 18,   -- DECIMAL
         READ_DATA_WIDTH_B => 18,   -- DECIMAL
         READ_LATENCY_A => 2,       -- DECIMAL

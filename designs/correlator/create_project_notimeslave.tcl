@@ -397,6 +397,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
 ]
 
 set_property library filterbanks_lib [get_files {\
@@ -410,6 +411,7 @@ set_property library filterbanks_lib [get_files {\
   *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
 }]
 
 source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/dspAxB.tcl

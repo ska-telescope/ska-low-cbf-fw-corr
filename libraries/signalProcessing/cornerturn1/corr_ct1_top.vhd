@@ -370,6 +370,9 @@ architecture Behavioral of corr_ct1_top is
     signal m01_axi_rst_dbg : std_logic_vector(31 downto 0);
     signal clks_between_readouts, recent_clks_between_readouts, min_clks_between_readouts : std_logic_vector(31 downto 0) := (others => '1');
     
+    signal RFI_rd_addr : std_logic_vector(9 downto 0);
+    signal RFI_rd_data : std_logic_vector(31 downto 0);
+    
     ----------------------------------------------------------------------
     -- ARGs mappings.
     signal args_reg_wren            : STD_LOGIC;
@@ -483,6 +486,9 @@ END GENERATE;
         -- read latency 3 clocks
         i_bram_addr    => poly_addr, -- in std_logic_vector(14 downto 0); 
         o_bram_rddata  => poly_rddata, --  out std_logic_vector(63 downto 0);
+        -- 1024 x 4-byte words for the RFI threshold
+        i_RFI_bram_addr   => RFI_rd_addr, -- in  std_logic_vector(9 downto 0);
+        o_RFI_bram_rddata => RFI_rd_data, -- out std_logic_vector(31 downto 0);
         ------------------------------------------------------
         noc_wren            => args_poly_wren,
         noc_wr_adr          => noc_wr_adr,
@@ -1127,7 +1133,9 @@ END GENERATE;
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
         o_delayTableAddr => poly_addr,   -- out (14:0); -- 2 addresses per virtual channel, up to 1024 virtual channels
         i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
-        
+        -- RFI threshold for this channel.
+        o_RFI_rd_addr => RFI_rd_addr,    -- out std_logic_vector(9 downto 0);
+        i_RFI_rd_data => RFI_rd_data,    -- in std_logic_vector(31 downto 0);
         -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
         o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
         i_validMemReadData => validMemReadData, -- in std_logic;  -- read data returned 3 clocks later.

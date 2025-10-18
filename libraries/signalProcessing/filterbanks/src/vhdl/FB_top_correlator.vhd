@@ -152,6 +152,7 @@ architecture Behavioral of FB_Top_correlator is
     signal sof_out, sof_del1 : std_logic := '0';
     signal sof_out_count : std_logic_vector(13 downto 0) := (others => '0');
     signal RFIScale : std_logic_vector(4 downto 0);
+    signal RFI_threshold : t_slv_32_arr(3 downto 0);
     
     signal noc_wren         : STD_LOGIC;
     signal noc_rden         : STD_LOGIC;
@@ -160,6 +161,8 @@ architecture Behavioral of FB_Top_correlator is
     signal noc_rd_adr       : STD_LOGIC_VECTOR(17 DOWNTO 0);
     signal noc_rd_dat       : STD_LOGIC_VECTOR(31 DOWNTO 0);
     signal noc_rd_dat_mux   : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal markRFI : std_logic_vector(3 downto 0);
+    signal mark_RFI01, mark_RFI23, mark_RFI45, mark_RFI67 : std_logic;
     
 begin
     
@@ -207,50 +210,63 @@ begin
             CorrelatorMetaIn(618) <= i_lastChannel;
             CorrelatorMetaIn(619) <= i_demap_table_select;
             
-            -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
-            for i in 0 to 1 loop
-                if i_data0(i) = x"8000" then
-                    data0(i) <= x"0000";
-                else
-                    data0(i) <= i_data0(i);
-                end if;
-                if i_data1(i) = x"8000" then
-                    data1(i) <= x"0000";
-                else
-                    data1(i) <= i_data1(i);
-                end if;
-                if i_data2(i) = x"8000" then
-                    data2(i) <= x"0000";
-                else
-                    data2(i) <= i_data2(i);
-                end if;
-                if i_data3(i) = x"8000" then
-                    data3(i) <= x"0000";
-                else
-                    data3(i) <= i_data3(i);
-                end if;
-                if i_data4(i) = x"8000" then
-                    data4(i) <= x"0000";
-                else
-                    data4(i) <= i_data4(i);
-                end if;
-                if i_data5(i) = x"8000" then
-                    data5(i) <= x"0000";
-                else
-                    data5(i) <= i_data5(i);
-                end if;
-                if i_data6(i) = x"8000" then
-                    data6(i) <= x"0000";
-                else
-                    data6(i) <= i_data6(i);
-                end if;
-                if i_data7(i) = x"8000" then
-                    data7(i) <= x"0000";
-                else
-                    data7(i) <= i_data7(i);
-                end if;
-            end loop;
+            data0 <= i_data0;
+            data1 <= i_data1;
+            data2 <= i_data2;
+            data3 <= i_data3;
+            data4 <= i_data4;
+            data5 <= i_data5;
+            data6 <= i_data6;
+            data7 <= i_data7;
             DataValid <= i_DataValid;
+            
+            RFI_threshold(0) <= i_meta01.RFI_threshold;
+            RFI_threshold(1) <= i_meta23.RFI_threshold;
+            RFI_threshold(2) <= i_meta45.RFI_threshold;
+            RFI_threshold(3) <= i_meta67.RFI_threshold;
+            -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
+--            for i in 0 to 1 loop
+--                if i_data0(i) = x"8000" then
+--                    data0(i) <= x"0000";
+--                else
+--                    data0(i) <= i_data0(i);
+--                end if;
+--                if i_data1(i) = x"8000" then
+--                    data1(i) <= x"0000";
+--                else
+--                    data1(i) <= i_data1(i);
+--                end if;
+--                if i_data2(i) = x"8000" then
+--                    data2(i) <= x"0000";
+--                else
+--                    data2(i) <= i_data2(i);
+--                end if;
+--                if i_data3(i) = x"8000" then
+--                    data3(i) <= x"0000";
+--                else
+--                    data3(i) <= i_data3(i);
+--                end if;
+--                if i_data4(i) = x"8000" then
+--                    data4(i) <= x"0000";
+--                else
+--                    data4(i) <= i_data4(i);
+--                end if;
+--                if i_data5(i) = x"8000" then
+--                    data5(i) <= x"0000";
+--                else
+--                    data5(i) <= i_data5(i);
+--                end if;
+--                if i_data6(i) = x"8000" then
+--                    data6(i) <= x"0000";
+--                else
+--                    data6(i) <= i_data6(i);
+--                end if;
+--                if i_data7(i) = x"8000" then
+--                    data7(i) <= x"0000";
+--                else
+--                    data7(i) <= i_data7(i);
+--                end if;
+--            end loop;
             
             -- Generate o_sof from i_sof, taking into account the latency of the filterbank processing.
             sof_del1 <= i_sof;
@@ -280,18 +296,21 @@ begin
         -- Data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
         -- Due to oversampling, also requires on average 86 clocks between packets - specifically, no more than 3 packets in 258 clocks. 
-        data0_i => data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+        data0_i => data0, -- in t_slv_8_arr(1 downto 0);  -- 4 Inputs, each complex data, 8 bit real, 8 bit imaginary.
         data1_i => data1, -- in t_slv_8_arr(1 downto 0);
         data2_i => data2, -- in t_slv_8_arr(1 downto 0);
         data3_i => data3, -- in t_slv_8_arr(1 downto 0);
+        RFI_threshold01_i => RFI_threshold(0),
+        RFI_threshold23_i => RFI_threshold(1),
         meta_i  => correlatorMetaIn, -- in std_logic_vector((METABITS-1) downto 0);  -- Sampled on the first cycle of every third packet of valid_i. 
         valid_i => DataValid,    -- in std_logic;
         -- Data out; bursts of 216 clocks for each channel.
-        data0_o => corFBDout0,    -- out t_slv_16_arr(1 downto 0);   -- 6 outputs, real and imaginary parts in (0) and (1) respectively;
+        data0_o => corFBDout0,    -- out t_slv_16_arr(1 downto 0);   -- 4 outputs, real and imaginary parts in (0) and (1) respectively;
         data1_o => corFBDout1,    -- out t_slv_16_arr(1 downto 0);
         data2_o => corFBDout2,    -- out t_slv_16_arr(1 downto 0);
         data3_o => corFBDout3,    -- out t_slv_16_arr(1 downto 0);
-        
+        mark_RFI01_o => mark_RFI01, -- out std_logic;
+        mark_RFI23_o => mark_RFI23, -- out std_logic;
         meta_o  => corMetaOut,  -- out std_logic_vector((METABITS-1) downto 0);
         valid_o => corValidOut, -- out std_logic;
         -- Writing FIR Taps
@@ -317,6 +336,8 @@ begin
         data1_i => data5, -- in t_slv_8_arr(1 downto 0);
         data2_i => data6, -- in t_slv_8_arr(1 downto 0);
         data3_i => data7, -- in t_slv_8_arr(1 downto 0);
+        RFI_threshold01_i => RFI_threshold(2),
+        RFI_threshold23_i => RFI_threshold(3),
         meta_i  => correlatorMetaIn, -- in std_logic_vector((METABITS-1) downto 0);  -- Sampled on the first cycle of every third packet of valid_i. 
         valid_i => DataValid,    -- in std_logic;
         -- Data out; bursts of 216 clocks for each channel.
@@ -324,7 +345,8 @@ begin
         data1_o => corFBDout5,    -- out t_slv_16_arr(1 downto 0);
         data2_o => corFBDout6,    -- out t_slv_16_arr(1 downto 0);
         data3_o => corFBDout7,    -- out t_slv_16_arr(1 downto 0);
-        
+        mark_RFI01_o => mark_RFI45, -- out std_logic;
+        mark_RFI23_o => mark_RFI67, -- out std_logic;
         meta_o  => open,  -- out std_logic_vector((METABITS-1) downto 0);
         valid_o => open,  -- out std_logic;
         -- Writing FIR Taps
@@ -365,6 +387,7 @@ begin
     corFBHeader(0).bad_poly <= corMetaOut(614);
     corFBHeader(0).lastChannel <= corMetaOut(618);
     corFBHeader(0).demap_table_select <= corMetaOut(619);
+    markRFI(0) <= mark_RFI01;
     
     corFBHeader(1).HDeltaP <= corMetaOut(31+145 downto 145+0);
     corFBHeader(1).VDeltaP <= corMetaOut(63+145 downto 32+145);
@@ -377,6 +400,7 @@ begin
     corFBHeader(1).bad_poly <= corMetaOut(615);
     corFBHeader(1).lastChannel <= corMetaOut(618);
     corFBHeader(1).demap_table_select <= corMetaOut(619);
+    markRFI(1) <= mark_RFI23;
     
     corFBHeader(2).HDeltaP <= corMetaOut(31+290 downto 0+290);
     corFBHeader(2).VDeltaP <= corMetaOut(63+290 downto 32+290);
@@ -389,6 +413,7 @@ begin
     corFBHeader(2).bad_poly <= corMetaOut(616);
     corFBHeader(2).lastChannel <= corMetaOut(618);
     corFBHeader(2).demap_table_select <= corMetaOut(619);
+    markRFI(2) <= mark_RFI45;
     
     corFBHeader(3).HDeltaP <= corMetaOut(31+435 downto 0+435);
     corFBHeader(3).VDeltaP <= corMetaOut(63+435 downto 32+435);
@@ -401,6 +426,7 @@ begin
     corFBHeader(3).bad_poly <= corMetaOut(617);
     corFBHeader(3).lastChannel <= corMetaOut(618);
     corFBHeader(3).demap_table_select <= corMetaOut(619);
+    markRFI(3) <= mark_RFI67;
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
@@ -419,7 +445,8 @@ begin
         port map (
             i_clk  => i_axi_clk,
             -- data and header in
-            i_data        => corDout_arr(i),    --  in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
+            i_data        => corDout_arr(i),    -- in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
+            i_markRFI     => markRFI(i),        -- in std_logic;
             i_dataValid   => corValidOut,       -- in std_logic;
             i_header      => corFBHeader(i),    -- .HDeltaP(31:0), .VDeltaP(31:0), .HOffsetP(31:0), .VOffsetP(31:0), integration(31:0), ctFrame(1:0), virtualChannel(15:0);
             i_headerValid => corFBHeaderValid,  -- in std_logic;
