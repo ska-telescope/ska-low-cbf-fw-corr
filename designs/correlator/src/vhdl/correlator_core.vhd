@@ -8,7 +8,7 @@
 --
 -------------------------------------------------------------------------------
 
-LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib;
+LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib, stats_lib;
 LIBRARY xpm, spead_lib;
 
 USE IEEE.STD_LOGIC_1164.ALL;
@@ -731,6 +731,51 @@ begin
     system_fields_ro.commit_short_hash      <= C_SHA_SHORT;
     system_fields_ro.build_type             <= C_BUILD_TYPE;
 
+    system_fields_ro.sps_monitor_exists     <= '1';
+    system_fields_ro.sps_monitor_time_since_write <= sps_monitor_time_since_write_clk_ap;  -- 16 bits
+    system_fields_ro.sps_monitor_wr_addr <= sps_monitor_wr_addr_clk_ap; -- 32 bits
+    
+    
+
+    sps_statsi : entity stats_lib.sps_statistics_top
+    generic map (
+        g_BUFFER_ADDR_BITS => 30,  -- integer := 30; -- number of bits in the HBM address; 30 = 2^30 bytes = 1 GByte
+        g_USE_512BIT       => '1', -- std_logic := '0';    -- use 512 bit wide axi interface (otherwise use 256 bit)
+        g_CLKS_PER_MILLISECOND => 322000 --  integer    -- Number of dsp_clk clks per 1 ms
+    ) port map (
+        -- Data in from the 100GE MAC
+        i_axis_tdata => i_axis_tdata,   -- in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep => i_axis_tkeep,   -- in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast => i_axis_tlast,   -- in std_logic;                      
+        i_axis_tuser => i_axis_tuser,   -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid => i_axis_tvalid, -- in std_logic;
+        i_data_clk    => i_eth100G_clk, -- in std_logic;     -- 322 MHz for 100GE MAC
+        i_data_rst    => '0', -- in std_logic;
+        -- PTP time, on i_data_clk, bits 31:0 = ns (counts 0 to (10^9 -1))
+        -- bits 79:32 = seconds
+        i_ptp_time     => (others => '0'), --  in std_logic_vector(79 downto 0);
+        -- milliseconds between writing summaries to the HBM
+        i_period_ms        => sps_monitor_period_eth_clk, -- system_fields_rw.sps_monitor_period, -- : in std_logic_vector(15 downto 0);
+        o_time_since_wr_ms => sps_monitor_time_since_write_eth_clk, --  out std_logic_vector(15 downto 0); 
+        ----------------------------------------------------------------------------------
+        -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
+        i_ap_clk        => ap_clk, -- in  std_logic;  -- Shared memory clock used to access the HBM.
+        i_ap_rst        => '0', --  in  std_logic;
+        o_axi_aw        => sps_mon_aw,      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_axi_awready   => sps_mon_awready, -- in std_logic;
+        o_axi_w         => sps_mon_w        -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0)) => o_m01_axi_w,    -- w data bus (.wvalid, .wdata, .wlast)
+        i_axi_wready    => sps_mon_wready,  -- in std_logic;
+        -----------------------------------------------------------------------------------
+        -- Configuration and status
+        o_status => open, -- out std_logic_vector(31 downto 0); -- ??? put something in here
+        o_wrAddr => sps_monitor_wr_addr -- out std_logic_vector(31 downto 0)  -- Most recent address written to in the HBM
+    );
+    
+    
+    
+    
+    
+
     system_fields_ro.no_of_correlator_instances <= std_logic_vector(to_unsigned(g_CORRELATORS , 4));
     
     -- Uptime counter
@@ -994,11 +1039,11 @@ begin
         -----------------------------------------------------------------------
         -- AXI interfaces to HBM memory (5 interfaces used)
         -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_aw      => logic_HBM_axi_aw,       
-        i_HBM_axi_awready => logic_HBM_axi_awreadyi, -- in std_logic_vector(5:0);
+        o_HBM_axi_aw      => logic_HBM_axi_aw_sigproc,
+        i_HBM_axi_awready => logic_HBM_axi_awreadyi_sigproc, -- in std_logic_vector(5:0);
         -- w data buses : out t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_w       => logic_HBM_axi_w,        
-        i_HBM_axi_wready  => logic_HBM_axi_wreadyi,  -- in std_logic_vector(5:0);
+        o_HBM_axi_w       => logic_HBM_axi_w_sigproc,        
+        i_HBM_axi_wready  => logic_HBM_axi_wreadyi_sigproc,  -- in std_logic_vector(5:0);
         -- write response bus : in t_axi4_full_b_arr(5:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         i_HBM_axi_b       => logic_HBM_axi_b,
         -- read address bus : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
@@ -1090,6 +1135,24 @@ begin
     
     ---------------------------------------------------------------------
     -- Fill out the missing (superfluous) bits of the axi HBM busses, and add an AXI pipeline stage.    
+    
+    -- Select either HBM ILA or the SPS monitor
+    hbm_ila_geni : if (not g_INCLUDE_SPS_MONITOR) generate
+        
+        logic_HBM_axi_aw <= logic_HBM_axi_aw_sigproc;
+        logic_HBM_axi_w <= logic_HBM_axi_w_sigproc;
+        
+    end generate;
+    
+    hbm_sps_mon_gen : if g_INCLUDE_SPS_MONITOR generate
+        logic_HBM_axi_aw(4 downto 0) <= logic_HBM_axi_aw_sigproc(4 downto 0);
+        logic_HBM_axi_aw(5) <= sps_mon_aw;
+        logic_HBM_axi_w(4 downto 0) <= logic_HBM_axi_w_sigproc(4 downto 0);
+        logic_HBM_axi_w(5) <= sps_mon_w;
+    end generate;
+    
+    
+    
     axi_HBM_gen : for i in 0 to 5 generate
 
         -- reset blocks for HBM interfaces.

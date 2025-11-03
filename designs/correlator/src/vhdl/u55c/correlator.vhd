@@ -105,7 +105,7 @@ ENTITY correlator IS
         M05_AXI_ADDR_WIDTH : integer := 64;  
         M05_AXI_DATA_WIDTH : integer := 512;
         M05_AXI_ID_WIDTH   : integer := 1;
-        -- M06, 4 Gbytes HBM; Visibilities from second correlator instance
+        -- M06, 4 Gbytes HBM; HBM ILA or SPS statistics
         M06_AXI_ADDR_WIDTH : integer := 64;  
         M06_AXI_DATA_WIDTH : integer := 512;
         M06_AXI_ID_WIDTH   : integer := 1
