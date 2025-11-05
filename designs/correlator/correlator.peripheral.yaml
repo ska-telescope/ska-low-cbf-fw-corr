@@ -187,12 +187,12 @@ peripherals:
                                    Each 32 bytes consists of \
                                    4 bytes metadata, classifying the packet by station, subarray, beam, and channel, defined as per the virtual channel table \
                                     Then, for all packets with the stated meta information, \
+                                     3 bytes first polarisations sum of RMS values across all recorded packets \
                                      1 byte first polarisation minimum RMS value \
                                      1 byte first polarisation maximum RMS value \
-                                     3 bytes first polarisations sum of RMS values across all recorded packets \
+                                     3 bytes second polarisation sum of RMS values across all recorded packets \
                                      1 byte second polarisation minimum RMS value \
                                      1 byte second polarisation maximum RMS value \
-                                     3 bytes second polarisation sum of RMS values across all recorded packets \
                                      2 bytes Number of packets recorded \
                                      4 bytes total number of samples marked as RFI \
                                      2 bytes number of packets with RMS in the range 0 to 3 \

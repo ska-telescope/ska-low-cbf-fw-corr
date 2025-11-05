@@ -256,6 +256,7 @@ set_property library LFAADecode100G_lib [get_files {\
 # SPS input packet statistics
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/sps_stats/sqr_8bit.vhd \
+ $COMMON_PATH/sps_stats/sps_sqr_sum.vhd \
  $COMMON_PATH/sps_stats/stats_ones_count16.vhd \
  $COMMON_PATH/sps_stats/stats_ones_count6.vhd \
  $COMMON_PATH/sps_stats/sps_stats_pkg.vhd \
@@ -269,6 +270,7 @@ add_files -fileset sources_1 [glob \
 ]
 set_property library stats_lib [get_files {\
  *sps_stats/sqr_8bit.vhd \
+ *sps_stats/sps_sqr_sum.vhd \
  *sps_stats/stats_ones_count16.vhd \
  *sps_stats/stats_ones_count6.vhd \
  *sps_stats/stats_hbm_write.vhd \

@@ -46,7 +46,8 @@ entity DSP_top_correlator is
         g_PACKET_SAMPLES_DIV16   : integer := 64;  -- Actual number of samples in a correlator SPEAD packet is this value x 16; each sample is 34 bytes; default value => 64*34 = 2176 bytes of data per packet.
         g_CORRELATORS            : integer := 2;
         g_MAX_CORRELATORS        : integer := 2;
-        g_USE_DUMMY_FB           : boolean := FALSE
+        g_USE_DUMMY_FB           : boolean := FALSE;
+        g_INCLUDE_SPS_MONITOR    : boolean --  If sps monitor is included, HBM ILA is removed
     );
     port (
         -----------------------------------------------------------------------
@@ -343,10 +344,9 @@ begin
 
     
     LFAA_FB_CT : entity CT_lib.corr_ct1_top
-    -- generic map (
-    --     g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME
-    -- ) 
-    port map (
+    generic map (
+         g_INCLUDE_SPS_MONITOR   => g_INCLUDE_SPS_MONITOR -- If sps monitor is included, HBM ILA is removed
+    ) port map (
         -- shared memory interface clock (300 MHz)
         i_shared_clk        => i_MACE_clk, -- in std_logic;
         i_shared_rst        => i_MACE_rst, -- in std_logic;
