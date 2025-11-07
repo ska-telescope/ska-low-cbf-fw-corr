@@ -64,7 +64,7 @@ ENTITY correlator_core IS
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
         g_CORRELATORS        : integer := 2;  -- 1 or 2
         g_USE_DUMMY_FB       : boolean := FALSE; -- Should be FALSE for normal operation.
-        g_INCLUDE_SPS_MONITOR : boolean := FALSE
+        g_INCLUDE_SPS_MONITOR : boolean := TRUE
     );
     port (
         ap_clk : in std_logic;
@@ -770,7 +770,7 @@ begin
         
         sps_statsi : entity stats_lib.sps_statistics_top
         generic map (
-            g_BUFFER_ADDR_BITS => 30,  -- integer := 30; -- number of bits in the HBM address; 30 = 2^30 bytes = 1 GByte
+            g_BUFFER_ADDR_BITS => 29,  -- integer := 30; -- number of bits in the HBM address; 30 = 2^30 bytes = 1 GByte
             g_USE_512BIT       => '1', -- std_logic := '0';    -- use 512 bit wide axi interface (otherwise use 256 bit)
             g_CLKS_PER_MILLISECOND => 322000 --  integer    -- Number of dsp_clk clks per 1 ms
         ) port map (
