@@ -206,6 +206,17 @@ peripherals:
               reset_value       : 0x0
               field_description : "In the V80 min of 2 for production."
           #################################
+          - - field_name        : v80_args_bar_address_split
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x08000000
+              field_description : "ARGs addresses above and including the figure in this register are to be accessed via BAR 4. 
+                                   Otherwise use BAR 2.
+                                   This is 128MB address space so largest value should be 0x800_0000
+                                   That value can scale down if the address ranges are smaller for the peripherals.
+                                   This essentially gives 16 periperals, 8MB of address space each.
+                                   "
+          #################################
           - - field_name        : hbm_1_status_0
               width             : 32
               access_mode       : RO
