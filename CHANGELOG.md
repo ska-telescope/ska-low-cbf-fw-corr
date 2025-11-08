@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 0.1.11
+    * V80 - Additional PCIe Bars added for greater NoC access.
 * 0.1.10
     * Correlator now handles SPS RFI flagged data and missing packets.
 * 0.1.9
