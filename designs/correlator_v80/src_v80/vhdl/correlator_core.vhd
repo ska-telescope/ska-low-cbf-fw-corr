@@ -529,7 +529,7 @@ begin
             o_time_since_wr_ms => sps_monitor_time_since_write_eth_clk, --  out std_logic_vector(15 downto 0); 
             ----------------------------------------------------------------------------------
             -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
-            i_ap_clk        => ap_clk, -- in  std_logic;  -- Shared memory clock used to access the HBM.
+            i_ap_clk        => clk_300, -- in  std_logic;  -- Shared memory clock used to access the HBM.
             i_ap_rst        => '0',    --  in  std_logic;
             o_axi_aw        => sps_mon_aw,         -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
             i_axi_awready   => HBM_axi_awready(5), -- in std_logic;
