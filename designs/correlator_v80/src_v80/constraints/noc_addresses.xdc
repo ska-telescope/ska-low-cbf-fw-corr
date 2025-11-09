@@ -4,6 +4,13 @@
 
 ################
 ## These are all heirarchy mappings, beware when updating code.
+## List the noc interfaces use any of the following - 
+## join [get_noc_interfaces ] \n
+## join [get_noc_interfaces -mode NMU] \n
+## join [get_noc_interfaces -mode NSU] \n
+
+################
+## These are all heirarchy mappings, beware when updating code.
 set nmu_0 [get_noc_interfaces "i_v80_board/top_i/axi_noc_cips/S00_AXI_nmu"]
 set system_nsu [get_noc_interfaces "i_correlator_core/i_system_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set lfaa_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/LFAAin/gen_v80_args.i_lfaa_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
@@ -253,8 +260,9 @@ set hbm_input_5 [get_noc_interfaces i_correlator_core/axi_HBM_gen[4].i_hbm_noc/S
 set hbm_conn_5 [create_noc_connection -source $hbm_input_5 -target $hbm_port_5]
 set_property -dict [list READ_BANDWIDTH 6000 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 6000 WRITE_AVERAGE_BURST 64] $hbm_conn_5
 
-# 4GB for ILA
+######################################
+# 1GB for SPS Statistics
 set hbm_port_6 [get_noc_interfaces i_v80_board/top_i/axi_noc_cips/HBM12_PORT0_hbmc]
-set hbm_input_6 [get_noc_interfaces i_correlator_core/axi_HBM_gen[5].i_hbm_noc/S_AXI_nmu]
+set hbm_input_6 [get_noc_interfaces i_correlator_core/sps_stats_gen.axi_sps_stats_gen[5].i_hbm_noc/S_AXI_nmu]
 set hbm_conn_6 [create_noc_connection -source $hbm_input_6 -target $hbm_port_6]
 set_property -dict [list READ_BANDWIDTH 400 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_6
