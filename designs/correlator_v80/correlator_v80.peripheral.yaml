@@ -58,13 +58,13 @@ peripherals:
           - - field_name        : Firmware_Minor_Version
               width             : 16
               access_mode       : RO
-              reset_value       : 0x1
+              reset_value       : 0x2
               field_description : "Minor version number"
           #################################
           - - field_name        : Firmware_Patch_Version
               width             : 16
               access_mode       : RO
-              reset_value       : 0xB
+              reset_value       : 0x0
               field_description : "Patch version number"
           #################################
           - - field_name        : Firmware_Label
@@ -391,3 +391,47 @@ peripherals:
 
                                    Other bits currently zeroed out.
                                    "
+          #################################
+          - - field_name        : sps_monitor_exists
+              width             : 1 
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Indicates the existence of the sps monitor module, which writes SPS packet analysis data to HBM"
+          #################################
+          - - field_name        : sps_monitor_period
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x2710
+              field_description : "Configured time interval for dumping SPS monitoring data to the HBM. Units are milliseconds. Default is 10000 ms = 10s"
+          #################################
+          - - field_name        : sps_monitor_time_since_write
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Number of milliseconds since last HBM write from the SPS statistics module. This will count from 0 up to sps_monitor_period"
+          #################################
+          - - field_name        : sps_monitor_wr_addr
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Most recent write address in HBM for the SPS statistics. \
+                                   Units of bytes, within the SPS statistics HBM block. \
+                                   Each SPS statistics block is 256 kBytes, so this address will step by 256k at the completion of writing the SPS statistics \
+                                   Within each 256 kByte block, there are 8192 blocks of 32 bytes. \
+                                   Each 32 bytes consists of \
+                                   4 bytes metadata, classifying the packet by station, subarray, beam, and channel, defined as per the virtual channel table \
+                                    Then, for all packets with the stated meta information, \
+                                     3 bytes first polarisations sum of RMS values across all recorded packets \
+                                     1 byte first polarisation minimum RMS value \
+                                     1 byte first polarisation maximum RMS value \
+                                     3 bytes second polarisation sum of RMS values across all recorded packets \
+                                     1 byte second polarisation minimum RMS value \
+                                     1 byte second polarisation maximum RMS value \
+                                     2 bytes Number of packets recorded \
+                                     4 bytes total number of samples marked as RFI \
+                                     2 bytes number of packets with RMS in the range 0 to 3 \
+                                     2 bytes number of packets with RMS in the range 4 to 11 \
+                                     2 bytes number of packets with RMS in the range 12 to 31 \
+                                     2 bytes number of packets with RMS in the range 32 to 63 \
+                                     2 bytes number of packets with RMS in the range 64 to 127 \
+                                     2 bytes low 16 bits of the packet count value for the first packet recorded with this meta data "

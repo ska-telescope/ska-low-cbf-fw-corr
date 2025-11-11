@@ -355,6 +355,39 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/LFAA_decode_100G/src/vhdl/vc_table_tb.mem \
 ]
 
+
+#############################################################
+# SPS input packet statistics
+add_files -fileset sources_1 [glob \
+ $COMMON_PATH/sps_stats/sqr_8bit.vhd \
+ $COMMON_PATH/sps_stats/sps_sqr_sum.vhd \
+ $COMMON_PATH/sps_stats/stats_ones_count16.vhd \
+ $COMMON_PATH/sps_stats/stats_ones_count6.vhd \
+ $COMMON_PATH/sps_stats/sps_stats_pkg.vhd \
+ $COMMON_PATH/sps_stats/stats_hbm_write.vhd \
+ $COMMON_PATH/sps_stats/stats_summary.vhd \
+ $COMMON_PATH/sps_stats/stats_isort_mem.vhd \
+ $COMMON_PATH/sps_stats/stats_msort.vhd \
+ $COMMON_PATH/sps_stats/stats_main_ref_mem.vhd \
+ $COMMON_PATH/sps_stats/stats_main_table_mem.vhd \
+ $COMMON_PATH/sps_stats/sps_statistics_top.vhd \
+]
+set_property library stats_lib [get_files {\
+ *sps_stats/sqr_8bit.vhd \
+ *sps_stats/sps_sqr_sum.vhd \
+ *sps_stats/stats_ones_count16.vhd \
+ *sps_stats/stats_ones_count6.vhd \
+ *sps_stats/stats_hbm_write.vhd \
+ *sps_stats/stats_summary.vhd \
+ *sps_stats/stats_isort_mem.vhd \
+ *sps_stats/stats_msort.vhd \
+ *sps_stats/sps_stats_pkg.vhd \
+ *sps_stats/stats_main_ref_mem.vhd \
+ *sps_stats/stats_main_table_mem.vhd \
+ *sps_stats/sps_statistics_top.vhd \
+}]
+
+
 ##############################################################
 # Add SPS SPEAD
 add_files -fileset sources_1 [glob \
