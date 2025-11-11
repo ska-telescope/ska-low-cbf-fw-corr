@@ -573,6 +573,9 @@ begin
     
     o_dcmac_reset <= system_fields_rw.qsfpgty_resets;
     
+    system_fields_ro.v80_args_bar_address_split     <= x"08000000";     -- THIS NEEDS TO MATCH THE FIRST ADDRESS 
+                                                                        -- ASSIGNED TO NMU_1
+    
     -- Uptime counter
     process(clk_300)
     begin
