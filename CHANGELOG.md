@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 0.2.0
+    * SPS monitoring and statistics added. Requires Processor 0.22.0+
 * 0.1.10
     * Correlator now handles SPS RFI flagged data and missing packets.
 * 0.1.9
