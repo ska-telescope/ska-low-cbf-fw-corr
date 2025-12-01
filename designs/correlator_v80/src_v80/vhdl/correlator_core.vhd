@@ -82,8 +82,11 @@ ENTITY correlator_core IS
         o_dcmac_tx_data_0   : out seg_streaming_axi;
         i_dcmac_tx_ready_0  : in std_logic;
         
-        i_eth100g_clk    : in std_logic;
-        i_eth100g_locked : in std_logic;
+        i_eth100g_clk       : in std_logic;
+        i_eth100g_locked    : in std_logic;
+        
+        i_vlan_stats        : in std_logic_vector(2 downto 0);
+        
         -- reset of the valid memory is in progress.
         o_validMemRstActive : out std_logic;
         -- Other signals to/from the timeslave 
@@ -390,6 +393,8 @@ ARCHITECTURE structure OF correlator_core IS
     signal eth_disable, eth_disable_done : std_logic;
     signal lfaaDecode_reset : std_logic;
     
+    signal vlan_stats           : t_slv_32_arr(2 downto 0);
+    
 begin
     
     ---------------------------------------------------------------------------
@@ -538,6 +543,23 @@ begin
             system_fields_ro.hbm_5_status_2                 <= HBM_gasket_stat(4,2);
             system_fields_ro.hbm_5_status_3                 <= HBM_gasket_stat(4,3);
             system_fields_ro.hbm_5_status_4                 <= HBM_gasket_stat(4,4);
+            
+            system_fields_ro.packets_no_vlan_tag            <= vlan_stats(0);
+            system_fields_ro.packets_one_vlan_tag           <= vlan_stats(1);
+            system_fields_ro.packets_two_vlan_tag           <= vlan_stats(2);
+            
+            -- 0 = single vlan, 1 = double vlan, 2 = no vlan
+            if i_vlan_stats(0) = '1' then
+                vlan_stats(0)  <= std_logic_vector(unsigned(vlan_stats(0)) + 1);
+            end if;
+
+            if i_vlan_stats(1) = '1' then
+                vlan_stats(1)  <= std_logic_vector(unsigned(vlan_stats(1)) + 1);
+            end if;
+            
+            if i_vlan_stats(2) = '1' then
+                vlan_stats(2)  <= std_logic_vector(unsigned(vlan_stats(2)) + 1);
+            end if;            
             
         end if;
     end process;
