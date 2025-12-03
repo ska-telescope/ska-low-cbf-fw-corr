@@ -3,6 +3,7 @@ stages:
   - build
   - test
   - publish
+  - integration
   - pages
   - integration
   - scan
@@ -276,3 +277,76 @@ publish v80 package:
     VITIS_VERSION: "2025.1"
   script:
     - common/scripts/package_firmware_v80.sh
+
+####################################################################################################################
+### Integration Tests in Low PSI
+
+.low_psi_rules: &low_psi_rules
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # merge request - could make test mandatory ?
+  #- if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  #  when: always 
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
+
+.low_psi_script: &low_psi_script
+  - source common/scripts/util.sh
+  - VERSION=$(get_version .)
+  - echo Base version $VERSION
+    # append -main, -dev, or nothing
+  - if [[ -n "$CI_COMMIT_TAG" ]]; then
+      echo "Release";
+    elif [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" && "$MAIN_BUILD_TAG" == "TRUE" ]]; then
+      echo "Main branch";
+      VERSION="${VERSION}-main.${CI_COMMIT_SHORT_SHA}";
+    else
+      echo "Dev branch";
+      VERSION=${VERSION}-dev.${CI_COMMIT_SHORT_SHA};
+    fi
+  - echo Full version $VERSION
+    # Couldn't get CI_JOB_TOKEN to work, so using a pipeline trigger token
+  - curl --fail
+    --request POST
+    --form "token=${INTEGRATION_TOKEN}"
+    --form "ref=${TRIGGER_REF}"
+    --form "variables\[CORR_FW_VERSION\]=${VERSION}"
+    --form "variables\[CORR_FW_SOURCE\]=gitlab"
+    --form "variables\[PROC_FPGA\]=${PROC_FPGA}"
+    --form "variables\[PROC_SERVER\]=${PROC_SERVER}"
+    --form "variables\[PYTEST_FILTER\]=${PYTEST_FILTER}"
+    --form "variables\[PYTEST_MARKS\]=${PYTEST_MARKS}"
+    "${CI_API_V4_URL}/projects/${TRIGGER_PROJECT}/trigger/pipeline"
+
+psi-low-u55c-test:
+  stage: integration
+  tags:
+    - shell  # doesn't really need to be shell, just need to find an appropriate docker image
+  rules:
+    - *low_psi_rules
+  needs:
+    - job: publish dev package
+      optional: true  # in case publish job doesn't exist in pipeline (e.g. docs only)
+  variables:
+    # GitLab ID for ska-telescope/low-cbf/ska-low-cbf-integration
+    TRIGGER_PROJECT: 48248401
+    TRIGGER_REF: main
+    PROC_FPGA: u55c
+    PROC_SERVER: psi-perentie1
+    # exclude PTC 26 - the only "short" test that needs more than one FPGA
+    PYTEST_FILTER: corr and not ptc26 and not test_processor_download_time
+    PYTEST_MARKS: hardware_present and not long_test and not large_capture
+  script: 
+    - *low_psi_script
+
+psi-low-v80-test:
+  extends: psi-low-u55c-test
+  needs:
+    - job: publish v80 package
+      optional: true  # in case publish job doesn't exist in pipeline (e.g. docs only)
+  variables:
+    PROC_FPGA: v80
+    PROC_SERVER: seren
+
