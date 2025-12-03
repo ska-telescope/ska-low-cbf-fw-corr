@@ -119,7 +119,8 @@ use axi4_lib.axi4_full_pkg.all;
 
 entity corr_ct1_top is
     generic (
-        g_GENERATE_ILA      : BOOLEAN := FALSE
+        g_GENERATE_ILA      : BOOLEAN := FALSE;
+        g_INCLUDE_SPS_MONITOR : boolean := TRUE -- if true, removes the HBM ILA (to avoid using an extra HBM interface)
     );
     port (
         -- shared memory interface clock (300 MHz)
@@ -1555,26 +1556,40 @@ END GENERATE;
     end process;
     
     
-    hbm_ilai : entity ct_lib.hbm_ila
-    port map (
-        dsp_clk    => i_shared_clk, -- : in std_logic;
-        -- 16 bytes of debug data, and valid.
-        i_ila_data       => dbg_vec2, -- dbg_vec_final, -- in std_logic_vector(255 downto 0);
-        i_ila_data_valid => dbg_vec2_valid, -- dbg_vec_valid, -- in std_logic;
-        o_hbm_addr       => hbm_ila_addr, -- out std_logic_vector(31 downto 0); -- Address we are up to in the HBM.
-        -- Write out to the HBM
-        -- write address buses : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
-        axi_clk  => i_shared_clk, -- in std_logic;
-        axi_rst  => i_shared_rst, -- in std_logic;
-        o_HBM_axi_aw      => m06_axi_aw,      -- out t_axi4_full_addr;
-        i_HBM_axi_awready => i_m06_axi_awready, -- in std_logic;
-        -- w data buses : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_w       => m06_axi_w, -- out t_axi4_full_data;
-        i_HBM_axi_wready  => i_m06_axi_wready  -- in std_logic  -- in std_logic;
-    );
     
-    o_m06_axi_aw <= m06_axi_aw;
-    o_m06_axi_w <= m06_axi_w;
+    hbm_ila_geni : if (not g_INCLUDE_SPS_MONITOR) generate
+        hbm_ilai : entity ct_lib.hbm_ila
+        port map (
+            dsp_clk    => i_shared_clk, -- : in std_logic;
+            -- 16 bytes of debug data, and valid.
+            i_ila_data       => dbg_vec2, -- dbg_vec_final, -- in std_logic_vector(255 downto 0);
+            i_ila_data_valid => dbg_vec2_valid, -- dbg_vec_valid, -- in std_logic;
+            o_hbm_addr       => hbm_ila_addr, -- out std_logic_vector(31 downto 0); -- Address we are up to in the HBM.
+            -- Write out to the HBM
+            -- write address buses : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+            axi_clk  => i_shared_clk, -- in std_logic;
+            axi_rst  => i_shared_rst, -- in std_logic;
+            o_HBM_axi_aw      => m06_axi_aw,      -- out t_axi4_full_addr;
+            i_HBM_axi_awready => i_m06_axi_awready, -- in std_logic;
+            -- w data buses : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+            o_HBM_axi_w       => m06_axi_w, -- out t_axi4_full_data;
+            i_HBM_axi_wready  => i_m06_axi_wready  -- in std_logic  -- in std_logic;
+        );
+        
+        o_m06_axi_aw <= m06_axi_aw;
+        o_m06_axi_w <= m06_axi_w;
+    end generate;
+    
+    hbm_no_ila_geni : if (g_INCLUDE_SPS_MONITOR) generate
+        -- If sps monitor is included, then hbm ila is not, so just tie off the HBM interface signals.
+        o_m06_axi_aw.valid <= '0';
+        o_m06_axi_aw.addr <= (others => '0');
+        o_m06_axi_aw.len <= (others => '0');
+        o_m06_axi_w.valid <= '0';
+        o_m06_axi_w.data <= (others => '0');
+        o_m06_axi_w.last <= '0';
+        o_m06_axi_w.resp <= (others => '0');
+    end generate;
     
     -- never read the debug memory
     o_m06_axi_ar.valid <= '0';
