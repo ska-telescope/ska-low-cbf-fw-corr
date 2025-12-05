@@ -318,6 +318,9 @@ publish v80 package:
     --form "variables\[PROC_SERVER\]=${PROC_SERVER}"
     --form "variables\[PYTEST_FILTER\]=${PYTEST_FILTER}"
     --form "variables\[PYTEST_MARKS\]=${PYTEST_MARKS}"
+    --form "variables\[SKA_LOW_CBF_VERSION\]=${SKA_LOW_CBF_VERSION}"
+    --form "variables\[SKA_LOW_CBF_PROC_VERSION\]=${SKA_LOW_CBF_PROC_VERSION}"
+    --form "variables\[SKA_LOW_CBF_TANGO_CNIC_VERSION\]=${SKA_LOW_CBF_TANGO_CNIC_VERSION}"
     "${CI_API_V4_URL}/projects/${TRIGGER_PROJECT}/trigger/pipeline"
 
 psi-low-u55c-test:
