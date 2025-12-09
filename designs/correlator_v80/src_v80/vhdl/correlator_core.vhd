@@ -657,7 +657,7 @@ begin
                 vlan_stats(1)  <= std_logic_vector(unsigned(vlan_stats(1)) + 1);
             end if;
             
-            if vlan_stats_del(1) = '0' AND i_vlan_stats(2) = '1' then
+            if vlan_stats_del(2) = '0' AND i_vlan_stats(2) = '1' then
                 vlan_stats(2)  <= std_logic_vector(unsigned(vlan_stats(2)) + 1);
             end if;            
             
