@@ -398,6 +398,8 @@ ARCHITECTURE structure OF correlator_core IS
     signal sps_mon_w  : t_axi4_full_data;
     signal sps_monitor_period_eth_clk, sps_monitor_time_since_write_eth_clk : std_logic_vector(15 downto 0);
     
+    signal vlan_stats_del       : std_logic_vector(2 downto 0);
+    
 begin
     
     ---------------------------------------------------------------------------
@@ -643,16 +645,19 @@ begin
             system_fields_ro.packets_one_vlan_tag           <= vlan_stats(1);
             system_fields_ro.packets_two_vlan_tag           <= vlan_stats(2);
             
+            
+            vlan_stats_del  <= i_vlan_stats;
+            
             -- 0 = single vlan, 1 = double vlan, 2 = no vlan
-            if i_vlan_stats(0) = '1' then
+            if vlan_stats_del(0) = '0' AND i_vlan_stats(0) = '1' then
                 vlan_stats(0)  <= std_logic_vector(unsigned(vlan_stats(0)) + 1);
             end if;
 
-            if i_vlan_stats(1) = '1' then
+            if vlan_stats_del(1) = '0' AND i_vlan_stats(1) = '1' then
                 vlan_stats(1)  <= std_logic_vector(unsigned(vlan_stats(1)) + 1);
             end if;
             
-            if i_vlan_stats(2) = '1' then
+            if vlan_stats_del(1) = '0' AND i_vlan_stats(2) = '1' then
                 vlan_stats(2)  <= std_logic_vector(unsigned(vlan_stats(2)) + 1);
             end if;            
             
