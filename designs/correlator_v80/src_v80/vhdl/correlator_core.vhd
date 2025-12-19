@@ -390,7 +390,7 @@ ARCHITECTURE structure OF correlator_core IS
     
     signal sps_mon_aw : t_axi4_full_addr;
     signal sps_mon_w  : t_axi4_full_data;
-    signal sps_monitor_period_eth_clk, sps_monitor_time_since_write_eth_clk : std_logic_vector(15 downto 0);
+    --signal sps_monitor_period_eth_clk, sps_monitor_time_since_write_eth_clk : std_logic_vector(15 downto 0);
     
 begin
     
@@ -514,7 +514,7 @@ begin
         generic map (
             g_BUFFER_ADDR_BITS => 29,  -- integer := 30; -- number of bits in the HBM address; 30 = 2^30 bytes = 1 GByte
             g_USE_512BIT       => '0', -- std_logic := '0';    -- use 512 bit wide axi interface (otherwise use 256 bit)
-            g_CLKS_PER_MILLISECOND => 322000 --  integer    -- Number of dsp_clk clks per 1 ms
+            g_CLKS_PER_MILLISECOND => 300000 --  integer    -- Number of dsp_clk clks per 1 ms
         ) port map (
             -- Data in from the 100GE MAC
             i_axis_tdata => i_axis_tdata,   -- in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
@@ -522,11 +522,11 @@ begin
             i_axis_tlast => i_axis_tlast,   -- in std_logic;                      
             i_axis_tuser => i_axis_tuser,   -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
             i_axis_tvalid => i_axis_tvalid, -- in std_logic;
-            i_data_clk    => i_eth100G_clk, -- in std_logic;     -- 322 MHz for 100GE MAC
+            i_data_clk    => clk_300,       -- in std_logic; clock for 100GE MAC signals
             i_data_rst    => '0', -- in std_logic;
             -- milliseconds between writing summaries to the HBM
-            i_period_ms        => sps_monitor_period_eth_clk, -- , -- : in std_logic_vector(15 downto 0);
-            o_time_since_wr_ms => sps_monitor_time_since_write_eth_clk, --  out std_logic_vector(15 downto 0); 
+            i_period_ms        => system_fields_rw.sps_monitor_period, -- , -- : in std_logic_vector(15 downto 0);
+            o_time_since_wr_ms => system_fields_ro.sps_monitor_time_since_write, --  out std_logic_vector(15 downto 0); 
             ----------------------------------------------------------------------------------
             -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
             i_ap_clk        => clk_300, -- in  std_logic;  -- Shared memory clock used to access the HBM.
@@ -541,33 +541,33 @@ begin
             o_wrAddr => system_fields_ro.sps_monitor_wr_addr -- out (31:0); Most recent address written to in the HBM, on i_ap_clk
         );
         
-        xpm_cdc_array_single_ap2ethi : xpm_cdc_array_single
-        generic map (
-            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
-            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
-            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
-            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
-            WIDTH => 16           -- DECIMAL; range: 1-1024
-        ) port map (
-            dest_out => sps_monitor_period_eth_clk,      -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
-            dest_clk => i_eth100G_clk, -- 1-bit input: Clock signal for the destination clock domain.
-            src_clk  => clk_300,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
-            src_in   => system_fields_rw.sps_monitor_period         -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
-        );
+--        xpm_cdc_array_single_ap2ethi : xpm_cdc_array_single
+--        generic map (
+--            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
+--            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
+--            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+--            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
+--            WIDTH => 16           -- DECIMAL; range: 1-1024
+--        ) port map (
+--            dest_out => sps_monitor_period_eth_clk,      -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
+--            dest_clk => i_eth100G_clk, -- 1-bit input: Clock signal for the destination clock domain.
+--            src_clk  => clk_300,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
+--            src_in   => system_fields_rw.sps_monitor_period         -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
+--        );
         
-        xpm_cdc_array_single_eth2api : xpm_cdc_array_single
-        generic map (
-            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
-            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
-            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
-            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
-            WIDTH => 16           -- DECIMAL; range: 1-1024
-        ) port map (
-            dest_out => system_fields_ro.sps_monitor_time_since_write, -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
-            dest_clk => clk_300,               -- 1-bit input: Clock signal for the destination clock domain.
-            src_clk  => i_eth100G_clk,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
-            src_in   => sps_monitor_time_since_write_eth_clk -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
-        );
+--        xpm_cdc_array_single_eth2api : xpm_cdc_array_single
+--        generic map (
+--            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
+--            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
+--            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+--            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
+--            WIDTH => 16           -- DECIMAL; range: 1-1024
+--        ) port map (
+--            dest_out => system_fields_ro.sps_monitor_time_since_write, -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
+--            dest_clk => clk_300,               -- 1-bit input: Clock signal for the destination clock domain.
+--            src_clk  => i_eth100G_clk,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
+--            src_in   => sps_monitor_time_since_write_eth_clk -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
+--        );
     
     end generate;
     
