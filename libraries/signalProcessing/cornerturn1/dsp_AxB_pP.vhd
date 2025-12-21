@@ -13,17 +13,18 @@ use IEEE.STD_LOGIC_1164.ALL;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
-entity dsp_dotproduct is
+entity dsp_AxB_pP is
     port(
         clk : in std_logic;
-        i_data8 : in std_logic_vector(23 downto 0); -- 3 x 8 bit signed values
-        i_data9 : in std_logic_vector(26 downto 0); -- 3 x 9 bit signed values
+        i_data18 : in std_logic_vector(17 downto 0); -- 18 bit signed value
+        i_data8_0 : in std_logic_vector(7 downto 0); -- 8 bit signed value
+        i_data8_1 : in std_logic_vector(7 downto 0); -- 8 bit signed value
         i_accumulate : in std_logic;  -- high to add to the previous dotproduct result, otherwise clear the previous result
-        o_dotproduct : out std_logic_vector(23 downto 0) -- Accumulated dot product
+        o_product : out std_logic_vector(27 downto 0) -- Accumulated sum of i_data18 * (i_data8_0 + i_data8_1)
     );
-end dsp_dotproduct;
+end dsp_AxB_pP;
 
-architecture Behavioral of dsp_dotproduct is
+architecture Behavioral of dsp_AxB_pP is
 
     signal P : std_logic_vector(57 downto 0);
     signal A : std_logic_vector(33 downto 0);
@@ -46,7 +47,7 @@ begin
         A_INPUT => "DIRECT",  -- Selects A input source, "DIRECT" (A port) or "CASCADE" (ACIN port)
         BMULTSEL => "B",      -- Selects B input to multiplier (AD, B)
         B_INPUT => "DIRECT",  -- Selects B input source, "DIRECT" (B port) or "CASCADE" (BCIN port)
-        DSP_MODE => "INT8",   -- INT8 for dot product. Configures DSP to a particular mode of operation. Set to INT24 for legacy mode.
+        DSP_MODE => "INT24",   -- INT8 for dot product. Configures DSP to a particular mode of operation. Set to INT24 for legacy mode.
         PREADDINSEL => "A",                -- Selects input to pre-adder (A, B)
         RND => "00" & X"00000000000000",   -- Rounding Constant
         USE_MULT => "MULTIPLY",            -- Select multiplier usage (DYNAMIC, MULTIPLY, NONE)
