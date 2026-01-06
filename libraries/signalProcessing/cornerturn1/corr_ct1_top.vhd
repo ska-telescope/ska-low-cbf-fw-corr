@@ -125,6 +125,7 @@ entity corr_ct1_top is
     port (
         -- shared memory interface clock (300 MHz)
         i_shared_clk     : in std_logic;
+        i_shared_clkx2   : in std_logic;
         i_shared_rst     : in std_logic;
         -- Registers (uses the shared memory clock)
         i_saxi_mosi       : in  t_axi4_lite_mosi; -- MACE IN
@@ -1189,6 +1190,7 @@ END GENERATE;
     flati : entity ct_lib.flattening_wrapper
     port map (
         clk => i_shared_clk,
+        clkx2 => i_shared_clkx2,
         -----------------------------------------------------------
         -- Data in
         i_sof     => sof_int,     -- in std_logic;

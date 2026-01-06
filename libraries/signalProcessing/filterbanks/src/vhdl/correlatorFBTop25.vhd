@@ -77,10 +77,11 @@
 --   Data out of the FFT is in bit reversed order. It is stored in a double buffer in order from low to high frequencies,
 --   then read out as 3456 fine channels.
 ----------------------------------------------------------------------------------
-library IEEE, common_lib, filterbanks_lib;
+library IEEE, common_lib, filterbanks_lib, signal_processing_common;
 use common_lib.common_pkg.all;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity correlatorFBTop25 is
     generic(
@@ -88,8 +89,9 @@ entity correlatorFBTop25 is
         FRAMESTODROP : integer := 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     );
     port(
-        -- clock, target is 380 MHz
+        -- clock
         clk : in std_logic;
+        clk_2x : in std_logic; -- 2x clock used for double data rate operation of the FIR filter DSPs in the versal version.
         rst : in std_logic;
         -- Data input, common valid signal, expects packets of 4096 samples. Requires at least 2 clocks idle time between packets.
         data0_i : in t_slv_16_arr(1 downto 0);  -- 4 Inputs, each complex data, 16 bit real, 16 bit imaginary.
@@ -435,18 +437,33 @@ begin
         o_RFI_weight => RFI_weight  -- out (21:0); 22 bit average RFI-induced power for samples in this block of 512 FIR samples
     );
     
-    sampleGen : for j in 0 to 7 generate
-            
-        FIR : entity filterbanks_lib.fb_DSP25
-        generic map (
-            TAPS => 12)  -- The module instantiates this number of DSPs
-        port map (
-            clk    => clk,
-            data_i => FBRdDataDel(j),  -- in t_slv_16_arr(11 downto 0);
-            coef_i => FBmemFIRTapsDel, -- in t_slv_18_arr(11 downto 0);
-            data_o => FIRDout(j)    -- out(24:0)
-        );
+    usplus_gen : IF (C_TARGET_DEVICE = "U55") GENERATE
+        sampleGen : for j in 0 to 7 generate
+            FIR : entity filterbanks_lib.fb_DSP25
+            generic map (
+                TAPS => 12)  -- The module instantiates this number of DSPs
+            port map (
+                clk    => clk,
+                data_i => FBRdDataDel(j),  -- in t_slv_16_arr(11 downto 0);
+                coef_i => FBmemFIRTapsDel, -- in t_slv_18_arr(11 downto 0);
+                data_o => FIRDout(j)    -- out(24:0)
+            );        
+        end generate;
+    end generate;
     
+    versal_gen : IF (C_TARGET_DEVICE = "V80") GENERATE
+        sampleGen : for j in 0 to 3 generate
+            FIR : entity filterbanks_lib.fb_DSP25_versal
+            port map (
+                clk     => clk,
+                clk_2x  => clk_2x,
+                i_data0 => FBRdDataDel(2*j),    -- in t_slv_16_arr(11 downto 0);
+                i_data1 => FBRdDataDel(2*j+1),  -- in t_slv_16_arr(11 downto 0);
+                i_coef  => FBmemFIRTapsDel, -- in t_slv_18_arr(11 downto 0);
+                o_data0 => FIRDout(2*j),    -- out(24:0)
+                o_data1 => FIRDout(2*j+1)
+            );
+        end generate;
     end generate;
     
     -------------------------------------------------------------------------------------

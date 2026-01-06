@@ -114,7 +114,7 @@ ARCHITECTURE structure OF v80_top IS
 COMPONENT clk_system_base
     Port ( 
         clk_in_100      : in STD_LOGIC;
-        clk_out_300     : out STD_LOGIC
+        clk_out_600     : out std_logic
     );
 END COMPONENT;
 
@@ -164,7 +164,7 @@ signal Clock_100_GTY_buf    : std_logic;
 
 signal clock_300_rst        : std_logic := '1';
 signal clock_300_rst_cnt    : unsigned(31 downto 0) := x"00001000";
-signal clock_300            : std_logic;
+signal clock_300, clock_600 : std_logic;
 
 signal dcmac_clk            : std_logic;
 signal dcmac_locked         : std_logic_vector(1 downto 0);
@@ -179,6 +179,7 @@ signal dcmac_tx_data_1      : seg_streaming_axi;
 signal dcmac_tx_ready_0     : std_logic;
 
 signal dcmac_reset_sys_peripheral   : std_logic;
+signal clock_600_no_buffer : std_logic;
 
 begin
 
@@ -220,7 +221,25 @@ begin
     i_system_clock : clk_system_base
     Port map( 
         clk_in_100      => Clock_100_GTY_buf,
-        clk_out_300     => clock_300
+        clk_out_600     => clock_600_no_buffer
+    );
+    
+    -- The mbuf clock buffer generates the divided clock at the leaf clock nodes,
+    -- to create low-skew synchronous clocks.
+    MBUFGCE_inst : MBUFGCE
+    generic map (
+        CE_TYPE => "SYNC",     -- ASYNC, HARDSYNC, SYNC
+        IS_CE_INVERTED => '0', -- Programmable inversion on CE
+        IS_I_INVERTED => '0',  -- Programmable inversion on I
+        MODE => "PERFORMANCE"  -- For PERFORMANCE MODE, the outputs are generated as follows:  O1 = I O2 = I/2 O3 = I/4 O4 = I/8 <br/>
+    ) port map (
+        O1 => clock_600,          -- 1-bit output: Buffer
+        O2 => clock_300,          -- 1-bit output: Buffer
+        O3 => open,               -- 1-bit output: Buffer
+        O4 => open,               -- 1-bit output: Buffer
+        CE => '1',                -- 1-bit input: Buffer enable
+        CLRB_LEAF => '1',         -- 1-bit input: Active low clear
+        I => clock_600_no_buffer  -- 1-bit input: Buffer
     );
     
     reset_300_proc : process(clock_300)
@@ -394,6 +413,7 @@ i_correlator_core : entity correlator_lib.correlator_core
         clk_100_rst     => '0',
         
         clk_300             => clock_300,
+        clk_600             => clock_600,
         clk_300_rst         => clock_300_rst,
         
         i_dcmac_locked_300m => dcmac_locked_300m,

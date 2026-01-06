@@ -11,15 +11,17 @@
 -- 
 ----------------------------------------------------------------------------------
 
-library IEEE, common_lib, DSP_top_lib;
+library IEEE, common_lib, DSP_top_lib, signal_processing_common, ct_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use common_lib.common_pkg.ALL;
 use DSP_top_lib.DSP_top_pkg.all;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity flattening_wrapper is
     port (
         clk : in std_logic;
+        clkx2 : in std_logic;
         -----------------------------------------------------------
         -- Data in
         i_sof     : in std_logic;
@@ -171,29 +173,55 @@ begin
     o_sof <= sof_del(c_FIR_TAPS-4);
     o_sofFull <= sofFull_del(c_FIR_TAPS-4);
     
-    fgen1 : for i in 0 to 3 generate
-    
-        fgen2 : for j in 0 to 3 generate
-        
-            data_zeroed(i)(j*8+7 downto j*8) <= x"00" when i_data(i)((j*8 + 7) downto j*8) = "10000000" else i_data(i)((j*8 + 7) downto j*8);
-            flagged_in(i*4 + j)(0) <= '1' when i_data(i)((j*8 + 7) downto j*8) = "10000000" else '0';
+    gen_u55 : if (C_TARGET_DEVICE = "U55") GENERATE
+        fgen1 : for i in 0 to 3 generate
+            fgen2 : for j in 0 to 3 generate
             
-            si : sps_flatten
-            port map (
-                aclk => clk,
-                s_axis_data_tvalid => i_valid,
-                s_axis_data_tready => open,
-                s_axis_data_tdata  => data_zeroed(i)((j*8 + 7) downto j*8),
-                s_axis_data_tuser  => flagged_in(i*4 + j),
-                --
-                s_axis_config_tvalid => '1', -- in  std_logic;
-                s_axis_config_tready => open, -- out std_logic;
-                s_axis_config_tdata  => config_tdata, -- in (7:0); 0x0 for ripple compensation filter, 0x1 for identity filter (pass-through) with the same gain.
-                --
-                m_axis_data_tvalid => valid_out(i*4 + j),
-                m_axis_data_tdata  => readoutData(i)((j*16+15) downto j*16),
-                m_axis_data_tuser  => flagged_out(i*4 + j) --  out std_logic_vector(0 downto 0)
-            );
+                data_zeroed(i)(j*8+7 downto j*8) <= x"00" when i_data(i)((j*8 + 7) downto j*8) = "10000000" else i_data(i)((j*8 + 7) downto j*8);
+                flagged_in(i*4 + j)(0) <= '1' when i_data(i)((j*8 + 7) downto j*8) = "10000000" else '0';
+                
+                si : sps_flatten
+                port map (
+                    aclk => clk,
+                    s_axis_data_tvalid => i_valid,
+                    s_axis_data_tready => open,
+                    s_axis_data_tdata  => data_zeroed(i)((j*8 + 7) downto j*8),
+                    s_axis_data_tuser  => flagged_in(i*4 + j),
+                    --
+                    s_axis_config_tvalid => '1', -- in  std_logic;
+                    s_axis_config_tready => open, -- out std_logic;
+                    s_axis_config_tdata  => config_tdata, -- in (7:0); 0x0 for ripple compensation filter, 0x1 for identity filter (pass-through) with the same gain.
+                    --
+                    m_axis_data_tvalid => valid_out(i*4 + j),
+                    m_axis_data_tdata  => readoutData(i)((j*16+15) downto j*16),
+                    m_axis_data_tuser  => flagged_out(i*4 + j) --  out std_logic_vector(0 downto 0)
+                );
+            end generate;
+        end generate;
+    end generate;
+    
+    gen_v80 : IF (C_TARGET_DEVICE = "V80") GENERATE
+        fgen1 : for i in 0 to 3 generate
+            fgen2 : for j in 0 to 3 generate
+            
+                data_zeroed(i)(j*8+7 downto j*8) <= x"00" when i_data(i)((j*8 + 7) downto j*8) = "10000000" else i_data(i)((j*8 + 7) downto j*8);
+                flagged_in(i*4 + j)(0) <= '1' when i_data(i)((j*8 + 7) downto j*8) = "10000000" else '0';
+                
+                si : entity ct_lib.sps_flatten_dclk
+                port map (
+                    aclk => clk,
+                    aclk_x2 => clkx2,
+                    s_axis_data_tvalid => i_valid,
+                    s_axis_data_tdata  => data_zeroed(i)((j*8 + 7) downto j*8),
+                    s_axis_data_tuser  => flagged_in(i*4 + j),
+                    --
+                    s_axis_config_tdata  => config_tdata, -- in (7:0); 0x0 for ripple compensation filter, 0x1 for identity filter (pass-through) with the same gain.
+                    --
+                    m_axis_data_tvalid => valid_out(i*4 + j),
+                    m_axis_data_tdata  => readoutData(i)((j*16+15) downto j*16),
+                    m_axis_data_tuser  => flagged_out(i*4 + j) --  out std_logic_vector(0 downto 0)
+                );
+            end generate;
         end generate;
     end generate;
     

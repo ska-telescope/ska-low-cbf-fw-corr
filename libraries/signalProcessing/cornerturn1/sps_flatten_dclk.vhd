@@ -49,7 +49,7 @@
 --  
 --  
 ----------------------------------------------------------------------------------
-library IEEE, common_lib;
+library IEEE, common_lib, ct_lib;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use common_lib.common_pkg.ALL;
@@ -226,7 +226,7 @@ begin
     dsp0_data9(17 downto 9) <= dsum_del1(1) when aclk_n = '0' else dsum_del1(4);
     dsp0_data9(26 downto 18) <= dsum_del1(2) when aclk_n = '0' else dsum_del1(5);
     
-    dsp0i : entity work.dsp_dotproduct
+    dsp0i : entity ct_lib.dsp_dotproduct
     port map (
         clk     => aclk_x2,     -- in std_logic;
         i_data8 => dsp0_data8,  -- in (23:0); 3 x 8 bit signed values
@@ -259,7 +259,7 @@ begin
     dsp1_data9(17 downto 9) <= dsum_del1(7);
     dsp1_data9(26 downto 18) <= dsum_del1(8);
     
-    dsp1i : entity work.dsp_dotproduct
+    dsp1i : entity ct_lib.dsp_dotproduct
     port map (
         clk => aclk,
         i_data8 => dsp1_data8, -- in (23:0); 3 x 8 bit signed values

@@ -68,6 +68,7 @@ ENTITY correlator_core IS
         clk_100_rst     : in std_logic;
         
         clk_300         : in std_logic;
+        clk_600         : in std_logic;
         clk_300_rst     : in std_logic;
         
         i_dcmac_locked_300m : in std_logic;
@@ -669,6 +670,7 @@ begin
        -----------------------------------------------------------------------
        -- AXI slave interfaces for modules
        i_MACE_clk  => clk_300, -- in std_logic;
+       i_MACE_clkx2 => clk_600, -- in std_logic;
        i_MACE_rst  => clk_300_rst, -- in std_logic;
        -- LFAADecode, lite + full slave
        i_LFAALite_axi_mosi             => c_axi4_lite_mosi_rst, 

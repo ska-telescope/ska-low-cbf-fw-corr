@@ -30,6 +30,7 @@ entity FB_Top_correlator is
         i_data_rst  : in std_logic;
         -- AXI slave interface, 64k word block of space with the fir filter coefficients.
         i_axi_clk  : in std_logic;
+        i_axi_clk_2x : in std_logic;
         i_axi_rst  : in std_logic;
         i_axi_mosi  : in  t_axi4_lite_mosi;
         o_axi_miso  : out t_axi4_lite_miso;
@@ -292,6 +293,7 @@ begin
     ) port map (
         -- processing clock
         clk     => i_axi_clk,
+        clk_2x  => i_axi_clk_2x,
         rst     => i_SOF,
         -- Data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
@@ -328,6 +330,7 @@ begin
     ) port map (
         -- processing clock
         clk     => i_axi_clk,
+        clk_2x  => i_axi_clk_2x,
         rst     => i_SOF,
         -- Data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
