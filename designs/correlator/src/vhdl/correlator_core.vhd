@@ -1048,6 +1048,7 @@ begin
         -----------------------------------------------------------------------
         -- AXI slave interfaces for modules
         i_MACE_clk  => ap_clk, -- in std_logic;
+        i_MACE_clkx2 => '0', -- in std_logic; This is only used in the versal version.  
         i_MACE_rst  => ap_rst, -- in std_logic;
         -- LFAADecode, lite + full slave
         i_LFAALite_axi_mosi => mc_lite_mosi(c_LFAADecode100g_lite_index), -- in t_axi4_lite_mosi; 
