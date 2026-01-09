@@ -180,6 +180,8 @@ signal dcmac_tx_ready_0     : std_logic;
 
 signal dcmac_reset_sys_peripheral   : std_logic;
 
+signal vlan_stats           : std_logic_vector(2 downto 0);
+
 begin
 
 ----------------------------------------------------------------
@@ -361,6 +363,8 @@ i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi
         o_rx_axis_tvalid        => rx_axis_tvalid,
         
         o_dcmac_locked          => dcmac_locked_300m,
+        
+        o_vlan_stats            => vlan_stats,
 
         -- Segmented Streaming AXI, 512
         i_data_to_receive       => dcmac_rx_data_0
@@ -411,6 +415,8 @@ i_correlator_core : entity correlator_lib.correlator_core
         
         i_eth100g_clk       => dcmac_clk,
         i_eth100g_locked    => dcmac_locked(0),
+        
+        i_vlan_stats        => vlan_stats,
         -- reset of the valid memory is in progress.
         o_validMemRstActive => open,
         
