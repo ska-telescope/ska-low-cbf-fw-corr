@@ -238,6 +238,8 @@ set bd_name         "top"
 
   source $COMMON_PATH/common/src/args_axi_terminus.tcl
 
+  set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd]
+
   #############################################################
   ## NOC
   # source $COMMON_PATH/NOC/args_fl/args_fl.tcl
