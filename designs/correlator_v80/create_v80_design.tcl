@@ -202,6 +202,7 @@ set bd_name         "top"
   $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/memory_dp_64_32_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
   $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd \
   $COMMON_PATH/common/src/vhdl/axi512_to_256_addr.vhd \
@@ -218,6 +219,7 @@ set bd_name         "top"
   */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
   */common/src/vhdl/xpm_fifo_wrapper.vhd \
   */common/src/vhdl/memory_tdp_wrapper.vhd \
+  */common/src/vhdl/memory_dp_64_32_wrapper.vhd \
   */common/src/vhdl/args_axi_terminus.vhd \
   */target_fpga_pkg.vhd \
   }]
@@ -316,15 +318,15 @@ source $DESIGN_PATH/src_v80/ip/correlator.tcl
 # signal processing Top level
 
   add_files -fileset sources_1 [glob \
-    $RLIBRARIES_PATH/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator.vhd \
+    $RLIBRARIES_PATH/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator_v80.vhd \
     $RLIBRARIES_PATH/signalProcessing/DSP_top/src/vhdl/DSP_top_pkg.vhd \
   ]
   set_property library DSP_top_lib [get_files  {\
-    *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator.vhd \
+    *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator_v80.vhd \
     *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_pkg.vhd \
   }]
 
-  set_property file_type {VHDL 2008} [get_files  *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator.vhd]
+  set_property file_type {VHDL 2008} [get_files  *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator_v80.vhd]
 
 
 #############################################################
@@ -466,7 +468,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/hbm_ila.vhd \
@@ -479,7 +481,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn1/flattening_wrapper.vhd \
  *libraries/signalProcessing/cornerturn1/sps_flatten_dclk.vhd \
  *libraries/signalProcessing/cornerturn1/dsp_dotproduct.vhd \
- *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
+ *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \

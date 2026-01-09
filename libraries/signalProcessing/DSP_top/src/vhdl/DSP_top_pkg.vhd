@@ -143,6 +143,15 @@ package DSP_top_pkg is
     end record;
     type t_CT1_META_out_arr is array (integer range <>) of t_CT1_META_out;
     
+    type t_CT1_META_delays is record
+        HDeltaP        : std_logic_vector(31 downto 0);
+        VDeltaP        : std_logic_vector(31 downto 0);
+        HOffsetP       : std_logic_vector(31 downto 0);
+        VOffsetP       : std_logic_vector(31 downto 0);
+        bad_poly       : std_logic;
+    end record;
+    type t_CT1_META_delays_arr is array (integer range <>) of t_CT1_META_delays;
+    
 --    type t_atomic_CT_pst_META_out is record
 --        HDeltaP        : std_logic_vector(15 downto 0);
 --        VDeltaP        : std_logic_vector(15 downto 0);

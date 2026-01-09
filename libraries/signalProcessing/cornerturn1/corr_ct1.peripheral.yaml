@@ -20,10 +20,18 @@ peripherals:
               width             : 32
               user_width        : 32
               access_mode       : RW
-              number_of_fields  : 65536
+              number_of_fields  : 131072
               interface         : simple
               reset_value       : 0
-              field_description : "65536 fields x 4 bytes = 262144 Bytes of space
+              field_description : "For V80 :
+                                   131072 fields x 4 bytes = 512Kbyte of space
+                                   First 491520 bytes is used for polynomial configuration
+                                    2 buffers of 245760 bytes, supporting up to 3072 virtual channels.
+                                   Then 12 KBytes of address space starting at byte address 0x78000 for 3072 RFI threshold values 
+                                   See U55C comments below for details of the memory contents.
+                                   
+                                   For U55C : 
+                                   65536 fields x 4 bytes = 262144 Bytes of space
                                    First 163840 bytes is used for polynomial configuration
                                     Bytes 0 to 79 : Config for virtual channel 0, buffer 0 (see below for specification of contents)
                                     Bytes 80 to 159 : Config for virtual channel 1, buffer 0
@@ -89,7 +97,12 @@ peripherals:
               width             : 32
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "hbm reset status. Bit 0 = rd_tracker_bad, bit 1 = wr_tracker_bad, bit 2 = in reset, bits 15:4 = rd tracker, bits 27:16 = wr tracker, bits 31:28 = fsm debug"
+              field_description : "HBM reset status. Bit 0 = rd_tracker_bad, bit 1 = wr_tracker_bad, bit 2 = in reset, bits 15:4 = rd tracker, bits 27:16 = wr tracker, bits 31:28 = fsm debug"
+          - - field_name        : hbm2_status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Only used by v80 version. HBM reset status. Bit 0 = rd_tracker_bad, bit 1 = wr_tracker_bad, bit 2 = in reset, bits 15:4 = rd tracker, bits 27:16 = wr tracker, bits 31:28 = fsm debug"
         ###########################################################################      
           - - field_name        : table_select
               width             : 2

@@ -638,7 +638,7 @@ begin
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
-   dsp_topi : entity dsp_top_lib.DSP_top_correlator
+   dsp_topi : entity dsp_top_lib.DSP_top_correlator_v80
    generic map (
        g_DEBUG_ILA             => g_DEBUG_ILA,
        g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
@@ -761,7 +761,7 @@ begin
        -- 100GE input disable
        o_lfaaDecode_reset   => lfaaDecode_reset,
        i_ethDisable_done    => eth_disable_done
-   );
+    );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
     hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
@@ -1011,7 +1011,7 @@ axi_HBM_gen : for i in 0 to 4 generate
     -- HBM Master NoC
     i_hbm_noc : xpm_nmu_mm
         generic map (
-            NOC_FABRIC    => "VNOC",			-- pl/pl_hbm
+            NOC_FABRIC    => "pl_hbm", -- "VNOC",			-- pl/pl_hbm
             DATA_WIDTH    => NOC_DATA_WIDTH,			-- 32/64/128/256/512
             ADDR_WIDTH    => NOC_ADDR_WIDTH,			-- 12 to 64
             ID_WIDTH      => NOC_ID_WIDTH,				-- 1 to 16

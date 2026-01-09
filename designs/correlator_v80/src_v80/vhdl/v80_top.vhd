@@ -110,76 +110,73 @@ ENTITY v80_top IS
 END v80_top;
 
 ARCHITECTURE structure OF v80_top IS
-
-COMPONENT clk_system_base
+    
+    COMPONENT clk_system_base
     Port ( 
         clk_in_100      : in STD_LOGIC;
-        clk_out_600     : out std_logic
-    );
-END COMPONENT;
-
-component clk_mmcm_400 is
-Port ( 
-    clk_in1 : in STD_LOGIC;
-    clk_out1 : out STD_LOGIC
-);
-end component;
-
-component ila_0 is
-Port ( 
-    clk : in STD_LOGIC;
-    probe0 : in STD_LOGIC_VECTOR ( 191 downto 0 )
-);
-end component;
-
----------------------------------------------------------------------------------------
-
-signal rx_axis_tdata : std_logic_vector(511 downto 0);
-signal rx_axis_tkeep : std_logic_vector(63 downto 0);
-signal rx_axis_tlast : std_logic;
-signal rx_axis_tready : std_logic;
-signal rx_axis_tuser : std_logic_vector(79 downto 0);
-signal rx_axis_tvalid : std_logic;
-signal PTP_time_ARGs_clk : std_logic_vector(79 downto 0);
-
-signal tx_axis_tdata : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-signal tx_axis_tkeep : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-signal tx_axis_tlast : std_logic;
-signal tx_axis_tuser : std_logic;
-signal tx_axis_tvalid : std_logic;
-signal tx_axis_tready : std_logic;
-
-signal eth100_reset_final : std_logic;
-signal fec_enable_322m : std_logic;
-signal eth100g_clk     : std_logic;
-signal eth100g_locked  : std_logic;
-
-signal system_stats_vec     : t_slv_32_arr(3 downto 0);
-
-signal Clock_100            : std_logic;
-signal Clock_100_resetn     : std_logic;
-
-signal Clock_100_GTY        : std_logic;
-signal Clock_100_GTY_buf    : std_logic;
-
-signal clock_300_rst        : std_logic := '1';
-signal clock_300_rst_cnt    : unsigned(31 downto 0) := x"00001000";
-signal clock_300, clock_600 : std_logic;
-
-signal dcmac_clk            : std_logic;
-signal dcmac_locked         : std_logic_vector(1 downto 0);
-signal dcmac_locked_300m    : std_logic;
-
-signal dcmac_rx_data_0      : seg_streaming_axi;
-signal dcmac_rx_data_1      : seg_streaming_axi;
-
-signal dcmac_tx_data_0      : seg_streaming_axi;
-signal dcmac_tx_data_1      : seg_streaming_axi;
-
-signal dcmac_tx_ready_0     : std_logic;
-
-signal dcmac_reset_sys_peripheral   : std_logic;
-signal clock_600_no_buffer : std_logic;
+        clk_out_600     : out std_logic);
+    END COMPONENT;
+    
+    component clk_mmcm_400 is
+    Port ( 
+        clk_in1 : in STD_LOGIC;
+        clk_out1 : out STD_LOGIC);
+    end component;
+    
+    component ila_0 is
+    Port ( 
+        clk : in STD_LOGIC;
+        probe0 : in STD_LOGIC_VECTOR(191 downto 0));
+    end component;
+    
+    ---------------------------------------------------------------------------------------
+    
+    signal rx_axis_tdata : std_logic_vector(511 downto 0);
+    signal rx_axis_tkeep : std_logic_vector(63 downto 0);
+    signal rx_axis_tlast : std_logic;
+    signal rx_axis_tready : std_logic;
+    signal rx_axis_tuser : std_logic_vector(79 downto 0);
+    signal rx_axis_tvalid : std_logic;
+    signal PTP_time_ARGs_clk : std_logic_vector(79 downto 0);
+    
+    signal tx_axis_tdata : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal tx_axis_tkeep : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal tx_axis_tlast : std_logic;
+    signal tx_axis_tuser : std_logic;
+    signal tx_axis_tvalid : std_logic;
+    signal tx_axis_tready : std_logic;
+    
+    signal eth100_reset_final : std_logic;
+    signal fec_enable_322m : std_logic;
+    signal eth100g_clk     : std_logic;
+    signal eth100g_locked  : std_logic;
+    
+    signal system_stats_vec     : t_slv_32_arr(3 downto 0);
+    
+    signal Clock_100            : std_logic;
+    signal Clock_100_resetn     : std_logic;
+    
+    signal Clock_100_GTY        : std_logic;
+    signal Clock_100_GTY_buf    : std_logic;
+    
+    signal clock_300_rst        : std_logic := '1';
+    signal clock_300_rst_cnt    : unsigned(31 downto 0) := x"00001000";
+    signal clock_300, clock_600 : std_logic;
+    
+    signal dcmac_clk            : std_logic;
+    signal dcmac_locked         : std_logic_vector(1 downto 0);
+    signal dcmac_locked_300m    : std_logic;
+    
+    signal dcmac_rx_data_0      : seg_streaming_axi;
+    signal dcmac_rx_data_1      : seg_streaming_axi;
+    
+    signal dcmac_tx_data_0      : seg_streaming_axi;
+    signal dcmac_tx_data_1      : seg_streaming_axi;
+    
+    signal dcmac_tx_ready_0     : std_logic;
+    
+    signal dcmac_reset_sys_peripheral   : std_logic;
+    signal clock_600_no_buffer : std_logic;
 
 begin
 

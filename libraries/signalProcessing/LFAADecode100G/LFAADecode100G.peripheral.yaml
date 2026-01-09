@@ -14,7 +14,7 @@ peripherals:
         number_of_slaves  : 1
         slave_description : " VC_STATS
                               This address space arrangement has been optimised for all 3 SPEAD formats, some fields return 0 when not used.
-                              Base Address 0, range 8192
+                              Base Address 0, range 32768
                               Status for each virtual channel. 8 words per virtual channel. Each group of 8 words has
                               (1) most recent logical channel in bits(15:0), most recent nof_contributing_antennas in bits(31:16),
                               (2) most recent SPEAD timestamp bits(31:0) for V1 and V2, 0 for v3 
@@ -26,8 +26,34 @@ peripherals:
                               (8) most recent SPEAD sync time, bits(47:32) for V1 and V2, 0 for v3.
 
                               VC_TABLE
-                              Base Address 8192, range 4096
-                              Virtual channel table. Two copies in addresses 0-2047 and 2048-4095. The one used is determined by bit 1 of the control register.
+                              Base Address 32768, range 16384
+                              Virtual channel table. Two copies in addresses 0-8191 and 8192-16383. The table used is determined by a control register in corner turn 1. \
+                              The maximum number of virtual channels supported in the correlator is 3072 \
+                                   Each entry has 2 words :\
+                                    First word : \
+                                      bits 7:0   = substation_id, \
+                                      bits 19:8  = station_id,    \
+                                      bits 31:20 = beam_id,       \
+                                    Second word : \
+                                      bits 8:0   = frequency_id   \
+                                      bits 14:9  = subarray_id    \
+                                      bit  15    = set to '1' to indicate this entry is valid \
+                                      bits 31:16 = Virtual channel \
+                                   The maximum number of valid entries in this table is defined by total_channels.\
+                                   Used virtual channels must be packed into the lower end of the addresses in the VCTable.\
+                                   For example, if there are 128 virtual channels, then they must be in entries 0 to 127 of this table.\
+                                   Virtual channels must be sorted according to the value in the low 48 bits for each entry. \
+                                   The low 48 bits are formed by concatenating the two words for each entry such that bits 7:0 = substation_id, and bits 40:32 = frequency_id \
+                                   So for example if there are 3 stations with ids (5, 10, 12) and 2 channels with ids (100, 101), \
+                                   then they would be listed in this table as \
+                                    0 - station 5, channel 100 \
+                                    1 - station 10, channel 100 \
+                                    2 - station 12, channel 100 \
+                                    3 - station 5, channel 101 \
+                                    4 - station 10, channel 101 \
+                                    5 - station 12, channel 101 \
+                                    \
+                                 Note previous version (pre PI29) : \
                                    Each entry has 2 words :\
                                     First word : \
                                       bits 2:0   = substation_id, \
@@ -38,25 +64,14 @@ peripherals:
                                       bit  31    = set to '1' to indicate this entry is valid \
                                     Second Word : \
                                       bits (9:0) =  Virtual channel.  \
-                                   The maximum number of valid entries in this table is defined by total_channels.\
-                                   Used virtual channels must be packed into the lower end of the addresses in the VCTable.\
-                                   For example, if there are 128 virtual channels, then they must be in entries 0 to 127 of this table.\
-                                   Virtual channels must be sorted according to the value in the first word in each entry. \
-                                   So for example if there are 3 stations with ids (5, 10, 12) and 2 channels with ids (100, 101), 
-                                   then they would be listed in this table as
-                                    0 - station 5, channel 100 \
-                                    1 - station 10, channel 100 \
-                                    2 - station 12, channel 100 \
-                                    3 - station 5, channel 101 \
-                                    4 - station 10, channel 101 \
-                                    5 - station 12, channel 101 \
+                                   
                               "
         fields            :
           - - field_name        : data
               width             : 32
               user_width        : 32
               access_mode       : RW
-              number_of_fields  : 16384
+              number_of_fields  : 65536
               interface         : simple
               reset_value       : 0
               field_description : "Status for each virtual channel."
