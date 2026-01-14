@@ -105,6 +105,18 @@ entity corr_ct2_top is
         o_hbm_reset_c2      : out std_logic;
         i_hbm_status_c2     : in std_logic_vector(7 downto 0);
         
+        o_hbm_reset_c3      : out std_logic;
+        i_hbm_status_c3     : in std_logic_vector(7 downto 0);
+        
+        o_hbm_reset_c4      : out std_logic;
+        i_hbm_status_c4     : in std_logic_vector(7 downto 0);
+        
+        o_hbm_reset_c5      : out std_logic;
+        i_hbm_status_c5     : in std_logic_vector(7 downto 0);
+        
+        o_hbm_reset_c6      : out std_logic;
+        i_hbm_status_c6     : in std_logic_vector(7 downto 0);
+        
         -- configuration data from registers in other modules
         --i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
@@ -173,7 +185,11 @@ entity corr_ct2_top is
         i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0);
         --
         i_hbm0_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm1_rst_dbg : in std_logic_vector(31 downto 0)
+        i_hbm1_rst_dbg : in std_logic_vector(31 downto 0);
+        i_hbm2_rst_dbg : in std_logic_vector(31 downto 0);
+        i_hbm3_rst_dbg : in std_logic_vector(31 downto 0);
+        i_hbm4_rst_dbg : in std_logic_vector(31 downto 0);
+        i_hbm5_rst_dbg : in std_logic_vector(31 downto 0)
     );
 end corr_ct2_top;
 

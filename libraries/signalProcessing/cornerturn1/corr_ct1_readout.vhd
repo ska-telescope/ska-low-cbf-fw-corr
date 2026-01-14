@@ -117,7 +117,8 @@ entity corr_ct1_readout is
         --
         g_RIPPLE_PRELOAD : integer := 15;
         g_RIPPLE_POSTLOAD : integer := 15;
-        g_GENERATE_ILA    : BOOLEAN := False
+        g_GENERATE_ILA    : BOOLEAN := False;
+        g_CORRELATOR_V80  : boolean
     );
     Port(
         shared_clk : in std_logic; -- Shared memory clock

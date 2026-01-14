@@ -706,6 +706,8 @@ set_property library signal_processing_common [get_files {\
 
 set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/tb/tb_axi512_to_256.vhd]
 
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd]
+
 set_property top tb_axi512_to_256 [get_filesets sim_hbm_axi]
 set_property top_lib xil_defaultlib [get_filesets sim_hbm_axi]
 update_compile_order -fileset sim_hbm_axi

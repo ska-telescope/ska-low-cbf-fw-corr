@@ -374,6 +374,7 @@ architecture Behavioral of corr_ct1_top is
     signal m06_axi_w : t_axi4_full_data;
     signal sof_int,  sofFull_int : std_logic;
     signal m01_axi_rready : std_logic;
+    signal m02_axi_rready : std_logic;
     
     component ila_120_16k
     port (
@@ -382,6 +383,7 @@ architecture Behavioral of corr_ct1_top is
     end component;
     
     signal m01_axi_ar :  t_axi4_full_addr;
+    signal m02_axi_ar :  t_axi4_full_addr;
     
     signal dbg_input_fsm_dbg : std_logic_vector(4 downto 0);
     signal dbg_running : std_logic;
@@ -1609,10 +1611,11 @@ END GENERATE;
     
     o_valid <= validOut_final;
     
-
-    
     o_m01_axi_rready <= m01_axi_rready;
     o_m01_axi_ar <= m01_axi_ar;
+    
+    o_m02_axi_rready <= m02_axi_rready;
+    o_m02_axi_ar <= m02_axi_ar;
     
     -- Everything on the same clock domain;
     process(i_shared_clk)
