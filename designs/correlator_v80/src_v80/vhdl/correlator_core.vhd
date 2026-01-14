@@ -6,6 +6,8 @@
 --
 -- Title: Top Level for vitis compatible acceleration core
 --
+--
+-- RX data is reclocked to 300 MHz at the top level (v80_top.vhd) in the module segment_to_saxi.vhd
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib, stats_lib;
@@ -84,8 +86,11 @@ ENTITY correlator_core IS
         o_dcmac_tx_data_0   : out seg_streaming_axi;
         i_dcmac_tx_ready_0  : in std_logic;
         
-        i_eth100g_clk    : in std_logic;
-        i_eth100g_locked : in std_logic;
+        i_eth100g_clk       : in std_logic;
+        i_eth100g_locked    : in std_logic;
+        
+        i_vlan_stats        : in std_logic_vector(2 downto 0);
+        
         -- reset of the valid memory is in progress.
         o_validMemRstActive : out std_logic;
         -- Other signals to/from the timeslave 
@@ -389,9 +394,12 @@ ARCHITECTURE structure OF correlator_core IS
     signal eth_disable, eth_disable_done : std_logic;
     signal lfaaDecode_reset : std_logic;
     
+    signal vlan_stats           : t_slv_32_arr(2 downto 0);
     signal sps_mon_aw : t_axi4_full_addr;
     signal sps_mon_w  : t_axi4_full_data;
     --signal sps_monitor_period_eth_clk, sps_monitor_time_since_write_eth_clk : std_logic_vector(15 downto 0);
+    
+    signal vlan_stats_del       : std_logic_vector(2 downto 0);
     
 begin
     
@@ -523,8 +531,10 @@ begin
             i_axis_tlast => i_axis_tlast,   -- in std_logic;                      
             i_axis_tuser => i_axis_tuser,   -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
             i_axis_tvalid => i_axis_tvalid, -- in std_logic;
-            i_data_clk    => clk_300,       -- in std_logic; clock for 100GE MAC signals
-            i_data_rst    => '0', -- in std_logic;
+
+            i_data_clk    => clk_300, -- in std_logic;     -- 322 MHz for 100GE MAC
+            i_data_rst    => '0', -- OR use i_dcmac_locked_300m
+
             -- milliseconds between writing summaries to the HBM
             i_period_ms        => system_fields_rw.sps_monitor_period, -- , -- : in std_logic_vector(15 downto 0);
             o_time_since_wr_ms => system_fields_ro.sps_monitor_time_since_write, --  out std_logic_vector(15 downto 0); 
@@ -569,7 +579,8 @@ begin
 --            src_clk  => i_eth100G_clk,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
 --            src_in   => sps_monitor_time_since_write_eth_clk -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
 --        );
-    
+        sps_monitor_period_eth_clk                      <= system_fields_rw.sps_monitor_period;
+        system_fields_ro.sps_monitor_time_since_write   <= sps_monitor_time_since_write_eth_clk;
     end generate;
     
     o_dcmac_reset <= system_fields_rw.qsfpgty_resets;
@@ -630,6 +641,26 @@ begin
             system_fields_ro.hbm_5_status_2                 <= HBM_gasket_stat(4,2);
             system_fields_ro.hbm_5_status_3                 <= HBM_gasket_stat(4,3);
             system_fields_ro.hbm_5_status_4                 <= HBM_gasket_stat(4,4);
+            
+            system_fields_ro.packets_no_vlan_tag            <= vlan_stats(0);
+            system_fields_ro.packets_one_vlan_tag           <= vlan_stats(1);
+            system_fields_ro.packets_two_vlan_tag           <= vlan_stats(2);
+            
+            
+            vlan_stats_del  <= i_vlan_stats;
+            
+            -- 0 = single vlan, 1 = double vlan, 2 = no vlan
+            if vlan_stats_del(0) = '0' AND i_vlan_stats(0) = '1' then
+                vlan_stats(0)  <= std_logic_vector(unsigned(vlan_stats(0)) + 1);
+            end if;
+
+            if vlan_stats_del(1) = '0' AND i_vlan_stats(1) = '1' then
+                vlan_stats(1)  <= std_logic_vector(unsigned(vlan_stats(1)) + 1);
+            end if;
+            
+            if vlan_stats_del(2) = '0' AND i_vlan_stats(2) = '1' then
+                vlan_stats(2)  <= std_logic_vector(unsigned(vlan_stats(2)) + 1);
+            end if;            
             
         end if;
     end process;
