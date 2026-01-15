@@ -359,14 +359,18 @@ set_property library noc_lib [get_files {\
 #############################################################
 # Signal_processing_common
 add_files -fileset sources_1 [glob \
- $COMMON_PATH/common/src/vhdl/sync.vhd \
- $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
- $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
- $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
- $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
- $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
- $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
- $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
+  $COMMON_PATH/common/src/vhdl/sync.vhd \
+  $COMMON_PATH/common/src/vhdl/sync_vector.vhd \
+  $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
+  $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd \
+  $COMMON_PATH/common/src/vhdl/axi512_to_256_addr.vhd \
+  $COMMON_PATH/common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
+  $COMMON_PATH/common/src/vhdl/rdy_valid_reg_slice.vhd \
+  $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
+  $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
@@ -376,6 +380,13 @@ set_property library signal_processing_common [get_files {\
  */common/src/vhdl/memory_tdp_wrapper.vhd \
  */common/src/vhdl/args_axi_terminus.vhd \
  */target_fpga_pkg.vhd \
+}]
+
+set_property library common_lib [get_files {\
+  */common/src/vhdl/axi512_to_256.vhd \
+  */common/src/vhdl/axi512_to_256_addr.vhd \
+  */common/src/vhdl/rdy_valid_512_to_256_reg_slice.vhd \
+  */common/src/vhdl/rdy_valid_reg_slice.vhd \
 }]
 
 set_property library ethernet_lib [get_files {\
