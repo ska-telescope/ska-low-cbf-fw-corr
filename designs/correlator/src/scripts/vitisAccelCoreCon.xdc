@@ -32,7 +32,8 @@ add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_
 # HBM ILA
 add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[5].hbm_resetter}]
 add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[5].HBM_reg_slice}]
-
+# SPS stats in the same SLR as CMAC
+add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */hbm_sps_mon_gen.sps_statsi}]
 
 ########################################################################################################################
 ## Time constraints if there is only 1 x 100G with TS on the top QSFP port.
