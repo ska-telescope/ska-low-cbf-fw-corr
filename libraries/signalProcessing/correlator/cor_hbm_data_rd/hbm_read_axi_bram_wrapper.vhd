@@ -4,7 +4,7 @@
 -- 
 -- Create Date: 20/03/2023
 -- Design Name: 
--- Module Name: spead_axi_bram_wrapper
+-- Module Name: hbm_read_axi_bram_wrapper
 --  
 -- Description: 
 --      Created to deal with verbose creation of mappings when compiling in Vitis
