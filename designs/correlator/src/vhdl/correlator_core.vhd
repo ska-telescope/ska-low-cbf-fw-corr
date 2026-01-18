@@ -64,7 +64,7 @@ ENTITY correlator_core IS
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
         g_CORRELATORS        : integer := 1;  -- 1 or 2
         g_USE_DUMMY_FB       : boolean := FALSE; -- Should be FALSE for normal operation.
-        g_INCLUDE_SPS_MONITOR : boolean := TRUE
+        g_INCLUDE_SPS_MONITOR : boolean := FALSE
     );
     port (
         ap_clk : in std_logic;
