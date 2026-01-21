@@ -64,7 +64,7 @@ ENTITY correlator_core IS
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
         g_CORRELATORS        : integer := 1;  -- 1 or 2
         g_USE_DUMMY_FB       : boolean := FALSE; -- Should be FALSE for normal operation.
-        g_INCLUDE_SPS_MONITOR : boolean := FALSE
+        g_INCLUDE_SPS_MONITOR : boolean := TRUE
     );
     port (
         ap_clk : in std_logic;
@@ -805,11 +805,11 @@ begin
             g_CLKS_PER_MILLISECOND => 322000 --  integer    -- Number of dsp_clk clks per 1 ms
         ) port map (
             -- Data in from the 100GE MAC
-            i_axis_tdata => sps_axis_tdata,   -- in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-            i_axis_tkeep => sps_axis_tkeep,   -- in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-            i_axis_tlast => sps_axis_tlast,   -- in std_logic;                      
-            i_axis_tuser => sps_axis_tuser,   -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
-            i_axis_tvalid => sps_axis_tvalid, -- in std_logic;
+            i_axis_tdata => i_axis_tdata,   -- in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+            i_axis_tkeep => i_axis_tkeep,   -- in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+            i_axis_tlast => i_axis_tlast,   -- in std_logic;                      
+            i_axis_tuser => i_axis_tuser,   -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+            i_axis_tvalid => i_axis_tvalid, -- in std_logic;
             i_data_clk    => i_eth100G_clk, -- in std_logic;     -- 322 MHz for 100GE MAC
             i_data_rst    => '0', -- in std_logic;
             -- milliseconds between writing summaries to the HBM
@@ -1194,11 +1194,11 @@ begin
         i_eth_clk    => i_eth100G_clk, --  in std_logic;
         -----------------------------------------------------
         -- Received data from 100GE
-        i_axis_tdata => dsp_axis_tdata, --  in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        i_axis_tkeep => dsp_axis_tkeep, -- in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-        i_axis_tlast => dsp_axis_tlast, -- in std_logic;                      
-        i_axis_tuser => dsp_axis_tuser, -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
-        i_axis_tvalid => dsp_axis_tvalid, -- in std_logic;
+        i_axis_tdata => i_axis_tdata, --  in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep => i_axis_tkeep, -- in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+        i_axis_tlast => i_axis_tlast, -- in std_logic;                      
+        i_axis_tuser => i_axis_tuser, -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
+        i_axis_tvalid => i_axis_tvalid, -- in std_logic;
         -- Data output - 1 clock latency from input
         o_axis_tdata => i_axis_tdata_gated, -- out std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
         o_axis_tkeep => i_axis_tkeep_gated, -- out std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
