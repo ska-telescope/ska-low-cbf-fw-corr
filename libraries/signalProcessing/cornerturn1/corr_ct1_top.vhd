@@ -32,7 +32,7 @@
 --  + corner turn readout.
 --
 -----------------------------------------------------------------------------------
--- For the U55c version (g_CORRELATOR_V80 = False) :
+-- For the U55c version (C_TARGET_DEVICE = "U55") :
 --  The corner turn supports up to 1024 virtual channels. It is agnostic about what the virtual channels represent, e.g.
 --    - 512 stations * 2 coarse channels
 --    - 8 stations * 128 coarse channels
@@ -55,7 +55,7 @@
 --  1 ultraRAM = 32 kbytes = 262144 bits. So 2 ultraRAMs are used as the shadow memory.
 --  
 -- -----------------------------------------------------------------------------------
--- For the v80 version (g_CORRELATOR_V80 = True) :
+-- For the v80 version (C_TARGET_DEVICE = "V80") :
 --  The corner turn supports up to 3072 virtual channels. It is agnostic about what the virtual channels represent, e.g.
 --    - 512 stations * 6 coarse channels
 --    - 24 stations * 128 coarse channels
@@ -147,8 +147,8 @@ use axi4_lib.axi4_full_pkg.all;
 
 entity corr_ct1_top is
     generic (
-        g_GENERATE_ILA      : BOOLEAN := FALSE;
-        g_INCLUDE_SPS_MONITOR : boolean := TRUE; -- if true, removes the HBM ILA (to avoid using an extra HBM interface)
+        g_GENERATE_ILA        : BOOLEAN := FALSE;
+        g_INCLUDE_SPS_MONITOR : boolean := TRUE -- if true, removes the HBM ILA (to avoid using an extra HBM interface)
         -- The v80 version :
         --  - Has 2 HBM interfaces
         --  - Each SPEAD packet is split across the two interfaces
@@ -158,7 +158,6 @@ entity corr_ct1_top is
         --  - Has a single HBM interface
         --  - 3 x 1Gbyte buffers
         --  - Sends data for 4 virtual channel simultaneously
-        g_CORRELATOR_V80      : boolean 
     );
     port (
         -- shared memory interface clock (300 MHz)
@@ -302,7 +301,7 @@ architecture Behavioral of corr_ct1_top is
     signal awCount : std_logic_vector(3 downto 0) := "0000";
     signal sps_addr : std_logic_vector(35 downto 0) := (others => '0');
     
-    signal validMemSetWrAddr : std_logic_vector(18 downto 0);
+    signal validMemSetWrAddr : std_logic_vector(20 downto 0);
     signal validMemSetWrEn : std_logic;
     signal duplicate : std_logic;
     signal dataMissing : std_logic;
@@ -373,7 +372,7 @@ architecture Behavioral of corr_ct1_top is
     signal m06_axi_aw : t_axi4_full_addr;
     signal m06_axi_w : t_axi4_full_data;
     signal sof_int,  sofFull_int : std_logic;
-    signal m01_axi_rready : std_logic;
+    signal m01_axi_rready, m02_axi_rready : std_logic;
     
     component ila_120_16k
     port (
@@ -381,7 +380,7 @@ architecture Behavioral of corr_ct1_top is
         probe0 : in std_logic_vector(119 downto 0)); 
     end component;
     
-    signal m01_axi_ar :  t_axi4_full_addr;
+    signal m01_axi_ar, m02_axi_ar :  t_axi4_full_addr;
     
     signal dbg_input_fsm_dbg : std_logic_vector(4 downto 0);
     signal dbg_running : std_logic;
@@ -450,87 +449,87 @@ architecture Behavioral of corr_ct1_top is
     signal bram_addr_d1             : STD_LOGIC_VECTOR(17 DOWNTO 0);
     signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
 
-
+    signal awfifo_addr_4k : std_logic_vector(20 downto 0);
 
 begin
     
     ------------------------------------------------------------------------------------
     -- CONFIG (TO/FROM MACE)
     ------------------------------------------------------------------------------------
--- ARGS U55
-gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE
-    E_TOP_CONFIG : entity ct_lib.corr_ct1_reg
-    port map (
-        MM_CLK  => i_shared_clk, -- in std_logic;
-        MM_RST  => i_shared_rst, -- in std_logic;
-
-        SLA_IN  => i_saxi_mosi,  -- IN    t_axi4_lite_mosi;
-        SLA_OUT => o_saxi_miso,  -- OUT   t_axi4_lite_miso;
-
-        CONFIG_FIELDS_RW   => config_rw, -- OUT t_config_rw;
-        CONFIG_FIELDS_RO   => config_ro, -- IN  t_config_ro;
+    -- ARGS U55
+    gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE
+        E_TOP_CONFIG : entity ct_lib.corr_ct1_reg
+        port map (
+            MM_CLK  => i_shared_clk, -- in std_logic;
+            MM_RST  => i_shared_rst, -- in std_logic;
+    
+            SLA_IN  => i_saxi_mosi,  -- IN    t_axi4_lite_mosi;
+            SLA_OUT => o_saxi_miso,  -- OUT   t_axi4_lite_miso;
+    
+            CONFIG_FIELDS_RW   => config_rw, -- OUT t_config_rw;
+            CONFIG_FIELDS_RO   => config_ro, -- IN  t_config_ro;
+            
+            CONFIG_CORRELATOR_OUTPUT_COUNT_IN => output_count_in,   -- IN  t_config_psspst_output_count_ram_in;
+            CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
+        );
+    END GENERATE;
+    
+    
+    -- ARGS Gaskets for V80
+    gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+    
+        i_ct1_noc : entity noc_lib.args_noc
+        generic map (
+            G_DEBUG => FALSE
+        )
+        port map ( 
+            i_clk       => i_shared_clk,
+            i_rst       => i_shared_rst,
         
-        CONFIG_CORRELATOR_OUTPUT_COUNT_IN => output_count_in,   -- IN  t_config_psspst_output_count_ram_in;
-		CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
-    );
-END GENERATE;
-
-
--- ARGS Gaskets for V80
-gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
-
-    i_ct1_noc : entity noc_lib.args_noc
-    generic map (
-        G_DEBUG => FALSE
-    )
-    port map ( 
-        i_clk       => i_shared_clk,
-        i_rst       => i_shared_rst,
+            noc_wren    => noc_wren,
+            noc_rden    => noc_rden,
+            noc_wr_adr  => noc_wr_adr,
+            noc_wr_dat  => noc_wr_dat,
+            noc_rd_adr  => noc_rd_adr,
+            noc_rd_dat  => noc_rd_dat_mux
+        );
     
-        noc_wren    => noc_wren,
-        noc_rden    => noc_rden,
-        noc_wr_adr  => noc_wr_adr,
-        noc_wr_dat  => noc_wr_dat,
-        noc_rd_adr  => noc_rd_adr,
-        noc_rd_dat  => noc_rd_dat_mux
-    );
-
-
-    E_TOP_CONFIG : entity ct_lib.corr_ct1_versal
-    port map (
-        MM_CLK              => i_shared_clk,
-        MM_RST              => i_shared_rst, 
-
-        noc_wren           => args_reg_wren,
-        noc_rden           => noc_rden,
-        noc_wr_adr         => noc_wr_adr,
-        noc_wr_dat         => noc_wr_dat,
-        noc_rd_adr         => noc_rd_adr,
-        noc_rd_dat         => args_rd_data,
-
-        CONFIG_FIELDS_RW   => config_rw, -- OUT t_config_rw;
-        CONFIG_FIELDS_RO   => config_ro, -- IN  t_config_ro;
+    
+        E_TOP_CONFIG : entity ct_lib.corr_ct1_versal
+        port map (
+            MM_CLK              => i_shared_clk,
+            MM_RST              => i_shared_rst, 
+    
+            noc_wren           => args_reg_wren,
+            noc_rden           => noc_rden,
+            noc_wr_adr         => noc_wr_adr,
+            noc_wr_dat         => noc_wr_dat,
+            noc_rd_adr         => noc_rd_adr,
+            noc_rd_dat         => args_rd_data,
+    
+            CONFIG_FIELDS_RW   => config_rw, -- OUT t_config_rw;
+            CONFIG_FIELDS_RO   => config_ro, -- IN  t_config_ro;
+            
+            CONFIG_CORRELATOR_OUTPUT_COUNT_IN => output_count_in,   -- IN  t_config_psspst_output_count_ram_in;
+            CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
+        );
         
-        CONFIG_CORRELATOR_OUTPUT_COUNT_IN => output_count_in,   -- IN  t_config_psspst_output_count_ram_in;
-		CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
-    );
+        args_reg_wren   <= noc_wren when noc_wr_adr(17 downto 16) = "01" else '0';
+        
+        args_poly_wren  <= noc_wren when noc_wr_adr(17 downto 16) = "00" else '0';
+        
+        noc_rd_dat_mux  <=  args_rd_data        when bram_addr_d2(17 downto 16) = "01"  else    -- 64k split
+                            args_poly_rd_data;
     
-    args_reg_wren   <= noc_wren when noc_wr_adr(17 downto 16) = "01" else '0';
-    
-    args_poly_wren  <= noc_wren when noc_wr_adr(17 downto 16) = "00" else '0';
-    
-    noc_rd_dat_mux  <=  args_rd_data        when bram_addr_d2(17 downto 16) = "01"  else    -- 64k split
-                        args_poly_rd_data;
-
-    bram_return_data_proc : process(i_shared_clk)
-    begin
-        if rising_edge(i_shared_clk) then
-            bram_addr_d1    <= noc_wr_adr;
-            bram_addr_d2    <= bram_addr_d1;
-        end if;
-    end process;
-                        
-END GENERATE;
+        bram_return_data_proc : process(i_shared_clk)
+        begin
+            if rising_edge(i_shared_clk) then
+                bram_addr_d1    <= noc_wr_adr;
+                bram_addr_d2    <= bram_addr_d1;
+            end if;
+        end process;
+                            
+    END GENERATE;
 
 
     -----------------------------------------------------------------------
@@ -813,7 +812,7 @@ END GENERATE;
                         input_fsm_dbg <= "00001";
                         trigger_readout <= '0';
                         if i_valid = '1' then
-                            if g_CORRELATOR_V80 = True then
+                            if (C_TARGET_DEVICE = "V80") then
                                 -- Base address for the first 32 of every 64 bytes in the packet 
                                 sps_addr(35 downto 31) <= "00000";
                                 sps_addr(30 downto 19) <= i_virtualChannel(11 downto 0);
@@ -876,7 +875,7 @@ END GENERATE;
                         input_fsm_dbg <= "00101";
                         AWFIFO_wrEn <= '0';
                         trigger_readout <= '0';
-                        if g_CORRELATOR_V80 = True then
+                        if (C_TARGET_DEVICE = "V80") then
                             if ct_buffer = "01" then
                                 sps_addr <= std_logic_vector(unsigned(sps_addr) + unsigned(c_3GBYTE));
                             elsif ct_buffer = "10" then
@@ -930,7 +929,7 @@ END GENERATE;
                         -- Otherwise it will mess up the axi bus, since wdata bus is in the LFAA ingest module.
                         -- Write to a point just past the end of the write window, where it will get overwritten
                         -- later when the real packet turns up.
-                        if g_CORRELATOR_V80 = True then
+                        if (C_TARGET_DEVICE = "V80") then
                             if next_wr_buffer = "00" then
                                 sps_addr <= c_DEV_NULL_V80;
                             elsif next_wr_buffer = "01" then
@@ -955,7 +954,7 @@ END GENERATE;
                         -- Otherwise it will mess up the axi bus, since wdata bus is in the LFAA ingest module.
                         -- Write to a point just past the end of the write window, where it will get overwritten
                         -- later when the real packet turns up.
-                        if g_CORRELATOR_V80 = True then
+                        if (C_TARGET_DEVICE = "V80") then
                             if next_wr_buffer = "00" then
                                 sps_addr <= c_DEV_NULL_V80;
                             elsif next_wr_buffer = "01" then
@@ -982,10 +981,10 @@ END GENERATE;
                         input_fsm_dbg <= "01001";
                         trigger_readout <= '0';
                         -- Put the write addresses into the FIFO
-                        if g_CORRELATOR_V80 = True then
+                        if (C_TARGET_DEVICE = "V80") then
                             -- Generate the write address
                             -- 128 beats x 32 bytes wide x 2 interfaces
-                            awFIFO_din <= sps_addr;
+                            awFIFO_din(35 downto 1) <= sps_addr(35 downto 1);
                             awFIFO_din(0) <= drop_packet;
                             awFIFO2_din <= std_logic_vector(unsigned(sps_addr) + unsigned(c_1p5GBYTE));
                             awFIFO2_din(0) <= drop_packet;
@@ -1162,7 +1161,7 @@ END GENERATE;
     
     -- FIFO for write addresses 
     -- Input to the fifo comes from "input_fsm". It is read as fast as addresses are accepted by the shared memory bus.
-    nogen_v80_correlatori : if g_CORRELATOR_V80 = False generate
+    nogen_v80_correlatori : if C_TARGET_DEVICE = "U55" generate
         fifo_aw_inst : xpm_fifo_sync
         generic map (
             DOUT_RESET_VALUE => "0",    -- String
@@ -1228,7 +1227,7 @@ END GENERATE;
         
     end generate;
     
-    gen_v80_correlatori : if g_CORRELATOR_V80 = True generate
+    gen_v80_correlatori : if  C_TARGET_DEVICE = "V80" generate
         fifo_aw_inst : xpm_fifo_sync
         generic map (
             DOUT_RESET_VALUE => "0",    -- String
@@ -1345,129 +1344,274 @@ END GENERATE;
     
     
     -----------------------------------------------------------------------------------------------
-    -- Valid memory keeps track of whether data has been written to each 8192 byte block in the shared memory.
-    -- One valid bit for every 8192 bytes.
-    -- 1Gbyte/8192 bytes = 2^30/2^13 = 2^17 bits
-    -- 
-    
-    -- When the last write address goes for an LFAA packet, then we assume we are done writing and can set the bit in the valid memory.
-    process(i_shared_clk)
-    begin
-        if rising_edge(i_shared_clk) then
-            if last_wr_in_SPS_packet = '1' then
-                validMemSetWrEn <= '1';
-                validMemSetWrAddr <= AWFIFO_dout(31 downto 13);
-            else
-                validMemSetWrEn <= '0';
-            end if;
-        end if;
-    end process;
-    
-    validmemInst : entity ct_lib.corr_ct1_valid
-    port map (
-        i_clk => i_shared_clk,
-        i_rst => AWFIFO_rst,
-        o_rstActive => validMemRstActive,
-        -- Set valid
-        i_setAddr   => validMemSetWrAddr,  -- in(18:0)
-        i_setValid  => validMemSetWrEn,    -- in std_logic;
-        o_duplicate => duplicate,          -- out std_logic;
-        -- clear valid
-        i_clearAddr => validMemWriteAddr,  -- in(18:0)
-        i_clearValid => validMemWrEn,      -- in std_logic;
-        -- Read contents
-        i_readAddr => validMemReadAddr,    -- in(18:0)
-        o_readData => validMemReadData     -- out std_logic;
-    );
-    
-    -----------------------------------------------------------------------------------------------
     -- readout of a frame
+    u55genroi : IF (C_TARGET_DEVICE = "U55") GENERATE
     
-    readout : entity ct_lib.corr_ct1_readout
-    generic map (
-        g_GENERATE_ILA          => g_GENERATE_ILA,
-        g_SPS_PACKETS_PER_FRAME => 128,
-        -- 24 preload + 24 postload for the 49 tap ripple filter
-        g_RIPPLE_PRELOAD  => 24, -- integer := 15;
-        g_RIPPLE_POSTLOAD => 24, -- integer := 15
-        g_CORRELATOR_V80 => g_CORRELATOR_V80 -- : boolean
-    ) port map (
-        shared_clk => i_shared_clk, -- in std_logic; Shared memory clock
-        i_rst      => AWFIFO_rst,
-        -- input signals to trigger reading of a buffer
-        i_currentBuffer => current_rd_buffer, -- in(1:0);
-        i_readStart => trigger_readout,       -- in std_logic; Pulse to start readout from i_currentBuffer
-        i_integration => rd_integration,      -- in(31:0)
-        i_Nchannels => NChannels,             -- in(11:0); -- Total number of virtual channels to read out,
-        i_clocksPerPacket => clocksPerPacket, -- in(15:0)
-        -- Reading polynomial info from the registers
-        -- 2 buffers, 10 words per buffer
-        --  - U55c version 1024 virtual channels = 20480 words; 
-        --  - V80 version 3072 virtual channels, 61440 words;
-        o_delayTableAddr => poly_addr,   -- out (15:0);
-        i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
-        -- RFI threshold for this channel.
-        o_RFI_rd_addr => RFI_rd_addr,    -- out std_logic_vector(9 downto 0);
-        i_RFI_rd_data => RFI_rd_data,    -- in std_logic_vector(31 downto 0);
-        -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
-        o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
-        i_validMemReadData => validMemReadData, -- in std_logic;  -- read data returned 3 clocks later.
-        o_validMemWriteAddr => validMemWriteAddr, -- out (18:0); -- write always clear the memory (mark the block as invalid).
-        o_validMemWrEn      => validMemWrEn,      -- out std_logic;
-        -----------------------------------------------------------------------
-        -- Data output to the filterbanks
-        -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
-        o_sof   => sof_int,   -- out std_logic; start of frame.
-        o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 283 ms of data.
-        o_readoutData => readoutData, -- t_slv_32_arr(11 downto 0);
-        -- No need to delay the meta data to align with o_data0, o_valid
-        -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
-        -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
-        -- So it is ok for it to change ~30 clocks earlier.
-        o_meta_delays         => o_meta_delays,         -- out t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
-        o_meta_RFIThresholds  => o_meta_RFIThresholds,  -- out t_slv_32_arr(11 downto 0);
-        o_meta_integration    => o_meta_integration,    -- out std_logic_vector(31 downto 0);
-        o_meta_ctFrame        => o_meta_ctFrame,        -- out std_logic_vector(1 downto 0); 
-        o_meta_virtualChannel => o_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
-        o_meta_valid          => o_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
-        o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
-        o_valid => validOut, -- out std_logic;
-        ------------------------------------------------------------------------
-        -- AXI read address and data input buses
-        -- ar bus - read address
-        o_axi_ar      => m01_axi_ar,         -- out t_axi4_full_addr; read address bus (.valid, .addr(39:0), .len(7:0))
-        i_axi_arready => i_m01_axi_arready,  -- in std_logic;
-        -- r bus - read data
-        i_axi_r       => i_m01_axi_r,        -- in  t_axi4_full_data;
-        o_axi_rready  => m01_axi_rready,     -- out std_logic;
-        -- Second interface, only used for the v80 version
-        o_axi2_ar      => m02_axi_ar,        -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
-        i_axi2_arready => i_m02_axi_arready, -- in std_logic;
-        -- r bus - read data
-        i_axi2_r       => i_m02_axi_r,       -- in  t_axi4_full_data;
-        o_axi2_rready  => m02_axi_rready,    -- out std_logic;
-        ------------------------------------------------------------------------
-        -- errors and debug
-        -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
-        o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
-        o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
-        o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
-        o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
-        o_dbg_valid => dbg_vec_valid,  -- out std_logic
-        o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
-        -- mismatch between output and expected when sending debug data inserted in lfaaIngest
-        o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
-        o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
-        o_dbgCheckData2 => config_ro.dbgCheckData2, -- out std_logic_vector(31 downto 0);
-        o_dbgCheckData3 => config_ro.dbgCheckData3, -- out std_logic_vector(31 downto 0);
-        o_dbgBadData0 => config_ro.dbgBadData0, --  out std_logic_vector(31 downto 0);
-        o_dbgBadData1 => config_ro.dbgBadData1, -- out std_logic_vector(31 downto 0);
-        o_dbgBadData2 => config_ro.dbgBadData2, -- out std_logic_vector(31 downto 0);
-        o_dbgBadData3 => config_ro.dbgBadData3, -- out std_logic_vector(31 downto 0);
-        o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
-        i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
-    );
+
+        -----------------------------------------------------------------------------------------------
+        -- Valid memory keeps track of whether data has been written to each 8192 byte block in the shared memory.
+        -- One valid bit for every 8192 bytes.
+        -- 1Gbyte/8192 bytes = 2^30/2^13 = 2^17 bits
+        -- 3 GBytes for U55c
+        
+        -- When the last write address goes for an LFAA packet, then we assume we are done writing and can set the bit in the valid memory.
+        process(i_shared_clk)
+        begin
+            if rising_edge(i_shared_clk) then
+                if last_wr_in_SPS_packet = '1' then
+                    validMemSetWrEn <= '1';
+                    validMemSetWrAddr <= AWFIFO_dout(31 downto 13);
+                else
+                    validMemSetWrEn <= '0';
+                end if;
+            end if;
+        end process;
+
+        validmemInst : entity ct_lib.corr_ct1_valid
+        port map (
+            i_clk => i_shared_clk,
+            i_rst => AWFIFO_rst,
+            o_rstActive => validMemRstActive,
+            -- Set valid
+            i_setAddr   => validMemSetWrAddr(18 downto 0),  -- in(18:0)
+            i_setValid  => validMemSetWrEn,    -- in std_logic;
+            o_duplicate => duplicate,          -- out std_logic;
+            -- clear valid
+            i_clearAddr => validMemWriteAddr(18 downto 0),  -- in(18:0)
+            i_clearValid => validMemWrEn,      -- in std_logic;
+            -- Read contents
+            i_readAddr => validMemReadAddr(18 downto 0),    -- in(18:0)
+            o_readData => validMemReadData     -- out std_logic;
+        );
     
+        readout : entity ct_lib.corr_ct1_readout
+        generic map (
+            g_GENERATE_ILA          => g_GENERATE_ILA,
+            g_SPS_PACKETS_PER_FRAME => 128,
+            -- 24 preload + 24 postload for the 49 tap ripple filter
+            g_RIPPLE_PRELOAD  => 24, -- integer := 15;
+            g_RIPPLE_POSTLOAD => 24  -- integer := 15
+        ) port map (
+            shared_clk => i_shared_clk, -- in std_logic; Shared memory clock
+            i_rst      => AWFIFO_rst,
+            -- input signals to trigger reading of a buffer
+            i_currentBuffer => current_rd_buffer, -- in(1:0);
+            i_readStart => trigger_readout,       -- in std_logic; Pulse to start readout from i_currentBuffer
+            i_integration => rd_integration,      -- in(31:0)
+            i_Nchannels => NChannels,             -- in(11:0); -- Total number of virtual channels to read out,
+            i_clocksPerPacket => clocksPerPacket, -- in(15:0)
+            -- Reading polynomial info from the registers
+            -- 2 buffers, 10 words per buffer
+            --  - U55c version 1024 virtual channels = 20480 words; 
+            --  - V80 version 3072 virtual channels, 61440 words;
+            o_delayTableAddr => poly_addr,   -- out (15:0);
+            i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
+            -- RFI threshold for this channel.
+            o_RFI_rd_addr => RFI_rd_addr,    -- out std_logic_vector(9 downto 0);
+            i_RFI_rd_data => RFI_rd_data,    -- in std_logic_vector(31 downto 0);
+            -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
+            o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
+            i_validMemReadData => validMemReadData, -- in std_logic;  -- read data returned 3 clocks later.
+            o_validMemWriteAddr => validMemWriteAddr, -- out (18:0); -- write always clear the memory (mark the block as invalid).
+            o_validMemWrEn      => validMemWrEn,      -- out std_logic;
+            -----------------------------------------------------------------------
+            -- Data output to the filterbanks
+            -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
+            o_sof   => sof_int,   -- out std_logic; start of frame.
+            o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 283 ms of data.
+            o_readoutData => readoutData, -- t_slv_32_arr(11 downto 0);
+            -- No need to delay the meta data to align with o_data0, o_valid
+            -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
+            -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
+            -- So it is ok for it to change ~30 clocks earlier.
+            o_meta_delays         => o_meta_delays,         -- out t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
+            o_meta_RFIThresholds  => o_meta_RFIThresholds,  -- out t_slv_32_arr(11 downto 0);
+            o_meta_integration    => o_meta_integration,    -- out std_logic_vector(31 downto 0);
+            o_meta_ctFrame        => o_meta_ctFrame,        -- out std_logic_vector(1 downto 0); 
+            o_meta_virtualChannel => o_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+            o_meta_valid          => o_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
+            o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
+            o_valid => validOut, -- out std_logic;
+            ------------------------------------------------------------------------
+            -- AXI read address and data input buses
+            -- ar bus - read address
+            o_axi_ar      => m01_axi_ar,         -- out t_axi4_full_addr; read address bus (.valid, .addr(39:0), .len(7:0))
+            i_axi_arready => i_m01_axi_arready,  -- in std_logic;
+            -- r bus - read data
+            i_axi_r       => i_m01_axi_r,        -- in  t_axi4_full_data;
+            o_axi_rready  => m01_axi_rready,     -- out std_logic;
+            -- Second interface, only used for the v80 version
+            o_axi2_ar      => m02_axi_ar,        -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
+            i_axi2_arready => i_m02_axi_arready, -- in std_logic;
+            -- r bus - read data
+            i_axi2_r       => i_m02_axi_r,       -- in  t_axi4_full_data;
+            o_axi2_rready  => m02_axi_rready,    -- out std_logic;
+            ------------------------------------------------------------------------
+            -- errors and debug
+            -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
+            o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
+            o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
+            o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
+            o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
+            o_dbg_valid => dbg_vec_valid,  -- out std_logic
+            o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
+            -- mismatch between output and expected when sending debug data inserted in lfaaIngest
+            o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
+            o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
+            o_dbgCheckData2 => config_ro.dbgCheckData2, -- out std_logic_vector(31 downto 0);
+            o_dbgCheckData3 => config_ro.dbgCheckData3, -- out std_logic_vector(31 downto 0);
+            o_dbgBadData0 => config_ro.dbgBadData0, --  out std_logic_vector(31 downto 0);
+            o_dbgBadData1 => config_ro.dbgBadData1, -- out std_logic_vector(31 downto 0);
+            o_dbgBadData2 => config_ro.dbgBadData2, -- out std_logic_vector(31 downto 0);
+            o_dbgBadData3 => config_ro.dbgBadData3, -- out std_logic_vector(31 downto 0);
+            o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
+            i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
+        );
+    end generate;
+    
+    
+    v80gen_roi : IF (C_TARGET_DEVICE = "V80") GENERATE
+    
+        -----------------------------------------------------------------------------------------------
+        -- Valid memory keeps track of whether data has been written to each 8192 byte block in the shared memory.
+        -- One valid bit for every 8192 bytes.
+        -- 1Gbyte/8192 bytes = 2^30/2^13 = 2^17 bits
+        -- 3 GBytes for U55c, 9 GByte for the V80
+        -- When the write address goes for an LFAA packet, then we are done writing and can set the bit in the valid memory.
+        
+        -- Address of 4 KByte blocks 
+        --  [Note : 3 GByte buffers, first 4 KByte of every packet goes to first 1.5 GByte of each buffer]
+        -- There are (3072 virtual channels) * (128 [4096 sample blocks]) = 393216 of these per buffer.
+        -- So for the first buffer : awfifo_addr_4k runs from 0       to 393215  [0x0,     0x60000)   ==> validMemSetWrAddr is 0 to 393215
+        --           second buffer : awfifo_addr_4k runs from 786432  to 1179647 [0xC0000, 0x120000)  ==> validMemSetWrAddr is 393216 to 786431
+        --            third buffer : awfifo_addr_4k runs from 1572864 to 1966079 [0x180000, 0x1E0000) ==> validMemSetWrAddr is 786432 to 1179647
+        awfifo_addr_4k <= AWFIFO_dout(32 downto 12);
+        
+        process(i_shared_clk)
+        begin
+            if rising_edge(i_shared_clk) then
+                if last_wr_in_SPS_packet = '1' then
+                    validMemSetWrEn <= '1';
+                    -- 4k block in 1.5 Gbyte, so
+                    --  - First buffer is 1.5 GBytes selected via bits 30:12
+                    --  - Second buffer is 1.5 GBytes from 3 to 4.5 GByte
+                    --  - Third buffer is 1.5 Gbytes from 6 to 7.5 GByte
+                    --  (see also comments above)
+                    if unsigned(awfifo_addr_4k) < 393216 then
+                        validMemSetWrAddr <= awfifo_addr_4k;
+                    elsif unsigned(awfifo_addr_4k) < 1179648 then
+                        validMemSetWrAddr <= std_logic_vector(unsigned(awfifo_addr_4k) - 393216);
+                    else
+                        validMemSetWrAddr <= std_logic_vector(unsigned(awfifo_addr_4k) - 786432);
+                    end if;
+                else
+                    validMemSetWrEn <= '0';
+                end if;
+            end if;
+        end process;    
+        
+        validmemInst : entity ct_lib.corr_ct1_valid_v80
+        port map (
+            i_clk => i_shared_clk,
+            i_rst => AWFIFO_rst,
+            o_rstActive => validMemRstActive,
+            -- Set valid
+            i_setAddr   => validMemSetWrAddr(20 downto 0),  -- in(20:0)
+            i_setValid  => validMemSetWrEn,    -- in std_logic;
+            o_duplicate => duplicate,          -- out std_logic;
+            -- clear valid
+            i_clearAddr => validMemWriteAddr(20 downto 0),  -- in(20:0)
+            i_clearValid => validMemWrEn,      -- in std_logic;
+            -- Read contents
+            i_readAddr => validMemReadAddr(20 downto 0),    -- in(20:0)
+            o_readData => validMemReadData     -- out std_logic;
+        );
+
+        readout : entity ct_lib.corr_ct1_readout_v80
+        generic map (
+            g_GENERATE_ILA          => g_GENERATE_ILA,
+            g_SPS_PACKETS_PER_FRAME => 128,
+            -- 24 preload + 24 postload for the 49 tap ripple filter
+            g_RIPPLE_PRELOAD  => 24, -- integer := 15;
+            g_RIPPLE_POSTLOAD => 24  -- integer := 15
+        ) port map (
+            shared_clk => i_shared_clk, -- in std_logic; Shared memory clock
+            i_rst      => AWFIFO_rst,
+            -- input signals to trigger reading of a buffer
+            i_currentBuffer => current_rd_buffer, -- in(1:0);
+            i_readStart => trigger_readout,       -- in std_logic; Pulse to start readout from i_currentBuffer
+            i_integration => rd_integration,      -- in(31:0)
+            i_Nchannels => NChannels,             -- in(11:0); -- Total number of virtual channels to read out,
+            i_clocksPerPacket => clocksPerPacket, -- in(15:0)
+            -- Reading polynomial info from the registers
+            -- 2 buffers, 10 words per buffer
+            --  - U55c version 1024 virtual channels = 20480 words; 
+            --  - V80 version 3072 virtual channels, 61440 words;
+            o_delayTableAddr => poly_addr,   -- out (15:0);
+            i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
+            -- RFI threshold for this channel.
+            o_RFI_rd_addr => RFI_rd_addr,    -- out std_logic_vector(9 downto 0);
+            i_RFI_rd_data => RFI_rd_data,    -- in std_logic_vector(31 downto 0);
+            -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
+            o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
+            i_validMemReadData => validMemReadData, -- in std_logic;  -- read data returned 3 clocks later.
+            o_validMemWriteAddr => validMemWriteAddr, -- out (18:0); -- write always clear the memory (mark the block as invalid).
+            o_validMemWrEn      => validMemWrEn,      -- out std_logic;
+            -----------------------------------------------------------------------
+            -- Data output to the filterbanks
+            -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
+            o_sof   => sof_int,   -- out std_logic; start of frame.
+            o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 283 ms of data.
+            o_readoutData => readoutData, -- t_slv_32_arr(11 downto 0);
+            -- No need to delay the meta data to align with o_data0, o_valid
+            -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
+            -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
+            -- So it is ok for it to change ~30 clocks earlier.
+            o_meta_delays         => o_meta_delays,         -- out t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
+            o_meta_RFIThresholds  => o_meta_RFIThresholds,  -- out t_slv_32_arr(11 downto 0);
+            o_meta_integration    => o_meta_integration,    -- out std_logic_vector(31 downto 0);
+            o_meta_ctFrame        => o_meta_ctFrame,        -- out std_logic_vector(1 downto 0); 
+            o_meta_virtualChannel => o_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+            o_meta_valid          => o_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
+            o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
+            o_valid => validOut, -- out std_logic;
+            ------------------------------------------------------------------------
+            -- AXI read address and data input buses
+            -- ar bus - read address
+            o_axi_ar      => m01_axi_ar,         -- out t_axi4_full_addr; read address bus (.valid, .addr(39:0), .len(7:0))
+            i_axi_arready => i_m01_axi_arready,  -- in std_logic;
+            -- r bus - read data
+            i_axi_r       => i_m01_axi_r,        -- in  t_axi4_full_data;
+            o_axi_rready  => m01_axi_rready,     -- out std_logic;
+            -- Second interface, only used for the v80 version
+            o_axi2_ar      => m02_axi_ar,        -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
+            i_axi2_arready => i_m02_axi_arready, -- in std_logic;
+            -- r bus - read data
+            i_axi2_r       => i_m02_axi_r,       -- in  t_axi4_full_data;
+            o_axi2_rready  => m02_axi_rready,    -- out std_logic;
+            ------------------------------------------------------------------------
+            -- errors and debug
+            -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
+            o_readOverflow => readOverflow,       -- out std_logic -- pulses high in the shared_clk domain.
+            o_Unexpected_rdata => open,   -- out std_logic -- data was returned from the HBM that we didn't expect (i.e. no read request was put in for it)
+            o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
+            o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
+            o_dbg_valid => dbg_vec_valid,  -- out std_logic
+            o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
+            -- mismatch between output and expected when sending debug data inserted in lfaaIngest
+            o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
+            o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
+            o_dbgCheckData2 => config_ro.dbgCheckData2, -- out std_logic_vector(31 downto 0);
+            o_dbgCheckData3 => config_ro.dbgCheckData3, -- out std_logic_vector(31 downto 0);
+            o_dbgBadData0 => config_ro.dbgBadData0, --  out std_logic_vector(31 downto 0);
+            o_dbgBadData1 => config_ro.dbgBadData1, -- out std_logic_vector(31 downto 0);
+            o_dbgBadData2 => config_ro.dbgBadData2, -- out std_logic_vector(31 downto 0);
+            o_dbgBadData3 => config_ro.dbgBadData3, -- out std_logic_vector(31 downto 0);
+            o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
+            i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
+        );
+    
+    end generate;
     ----------------------------------------------------------------------------
     
     flati : entity ct_lib.flattening_wrapper
@@ -1500,7 +1644,7 @@ END GENERATE;
         o_sofFUll => o_sofFull
     );
     
-    v80flatgen : if g_CORRELATOR_V80 = True generate
+    v80flatgen : if (C_TARGET_DEVICE = "V80") generate
         flat2i : entity ct_lib.flattening_wrapper
         port map (
             clk => i_shared_clk,
@@ -1563,7 +1707,7 @@ END GENERATE;
         
     end generate;
     
-    u55cflatgen : if g_CORRELATOR_V80 = False generate
+    u55cflatgen : if (C_TARGET_DEVICE = "U55") generate
         data8 <= (others => (others => '0'));
         data9 <= (others => (others => '0'));
         data10 <= (others => (others => '0'));
@@ -1609,10 +1753,10 @@ END GENERATE;
     
     o_valid <= validOut_final;
     
-
-    
     o_m01_axi_rready <= m01_axi_rready;
     o_m01_axi_ar <= m01_axi_ar;
+    o_m02_axi_rready <= m02_axi_rready;
+    o_m02_axi_ar <= m02_axi_ar;
     
     -- Everything on the same clock domain;
     process(i_shared_clk)

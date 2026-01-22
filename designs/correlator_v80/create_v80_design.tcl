@@ -465,7 +465,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/flattening_wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/sps_flatten_dclk.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/dsp_dotproduct.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
@@ -482,7 +482,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn1/sps_flatten_dclk.vhd \
  *libraries/signalProcessing/cornerturn1/dsp_dotproduct.vhd \
  *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
- *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_readout_v80.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
