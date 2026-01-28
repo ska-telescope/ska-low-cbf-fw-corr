@@ -52,13 +52,13 @@ peripherals:
           - - field_name        : Firmware_Major_Version
               width             : 16
               access_mode       : RO
-              reset_value       : 0x0
+              reset_value       : 0x1
               field_description : "Major version number"
           #################################
           - - field_name        : Firmware_Minor_Version
               width             : 16
               access_mode       : RO
-              reset_value       : 0x2
+              reset_value       : 0x0
               field_description : "Minor version number"
           #################################
           - - field_name        : Firmware_Patch_Version
