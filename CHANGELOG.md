@@ -1,5 +1,8 @@
 ### Changelog
 ## Correlator Personality
+* 1.0.0
+    * SPS monitoring and statistics added. Requires Processor 0.22.0+
+        * This is not backwards compatible due to HBM changes for the statistics.
 * 0.2.0
     * SPS monitoring and statistics added. Requires Processor 0.22.0+
     * VLAN tag support added.
