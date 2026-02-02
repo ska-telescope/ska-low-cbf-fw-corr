@@ -1,12 +1,13 @@
 ### Changelog
 ## Correlator Personality
+* 1.0.1
+    * SCAN ID added to SDP SPEAD Data packets.
 * 1.0.0
     * SPS monitoring and statistics added. Requires Processor 0.22.0+
         * This is not backwards compatible due to HBM changes for the statistics.
 * 0.2.0
     * SPS monitoring and statistics added. Requires Processor 0.22.0+
     * VLAN tag support added.
-    * SCAN ID added to SDP SPEAD Data packets.
 * 0.1.11
     * V80 - Additional PCIe Bars added for greater NoC access.
 * 0.1.10
