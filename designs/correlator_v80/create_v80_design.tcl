@@ -238,6 +238,8 @@ set bd_name         "top"
 
   source $COMMON_PATH/common/src/args_axi_terminus.tcl
 
+  set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd]
+
   #############################################################
   ## NOC
   # source $COMMON_PATH/NOC/args_fl/args_fl.tcl
@@ -467,7 +469,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/dsp_dotproduct.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
@@ -484,7 +486,7 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_v80.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
- *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_valid_v80.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
  *libraries/signalProcessing/cornerturn1/corr_div3.vhd \
  *libraries/signalProcessing/cornerturn1/hbm_ila.vhd \
@@ -561,12 +563,13 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din2HBM_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count6.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count16.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr_v80.vhd \
 ]
 
 set_property library ct_lib [get_files {\
@@ -574,12 +577,13 @@ set_property library ct_lib [get_files {\
  *corr_ct2/corr_ct2/corr_ct2_reg.vhd \
  *corr_ct2/corr_ct2/corr_ct2_reg_versal.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
- *libraries/signalProcessing/cornerturn2/corr_ct2_din.vhd \
- *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_din2HBM_v80.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_dout_v80.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count6.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count16.vhd \
- *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
+ *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr_v80.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd]
@@ -705,6 +709,8 @@ set_property library signal_processing_common [get_files {\
  }]
 
 set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/tb/tb_axi512_to_256.vhd]
+
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd]
 
 set_property top tb_axi512_to_256 [get_filesets sim_hbm_axi]
 set_property top_lib xil_defaultlib [get_filesets sim_hbm_axi]

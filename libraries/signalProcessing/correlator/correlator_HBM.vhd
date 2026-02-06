@@ -51,12 +51,6 @@ Library xpm;
 use xpm.vcomponents.all;
 
 entity correlator_HBM is
-    generic (
-        -- Number of samples in most packets. Each sample is 34 bytes of data. 
-        -- The last packet in a subarray will typically have less samples, since a given subarray 
-        -- does not have any particular total length.
-        g_PACKET_SAMPLES_DIV16 : integer  -- actual number of samples in the packet is this value x16  
-    ); 
     Port ( 
         i_axi_clk : in std_logic;
         i_axi_rst : in std_logic;

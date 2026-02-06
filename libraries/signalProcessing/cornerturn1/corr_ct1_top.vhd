@@ -190,15 +190,13 @@ entity corr_ct1_top is
         -- o_packetiser_table_select is the new table that will soon be selected. 
         -- The packetiser should hold its switch active bit high from when it sees a rising edge on 
         -- o_table_swap_in_progress through to when it gets notification of a packet to be sent using o_packetiser_table_select 
-        o_table_swap_in_progress : out std_logic;
+        o_table_swap_in_progress  : out std_logic;
         o_packetiser_table_select : out std_logic;
-        o_table_add_remove          : out std_logic;
-        -- 
+        o_table_add_remove        : out std_logic;
         ------------------------------------------------------------------------------------
         -- Data output, to go to the filterbanks.
         -- Data bus output to the Filterbanks
         -- 8 Outputs, each complex data, 8 bit real, 8 bit imaginary.
-        --FB_clk  : in std_logic;  -- interface runs off i_shared_clk
         o_sof     : out std_logic;   -- Start of frame, occurs for every new set of channels.
         o_sofFull : out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth for all virtual channels.
         o_data    : out t_slv_32_arr(23 downto 0);  -- each 32-bit value has real in bits 15:0, imaginary in bits 31:16 
@@ -381,7 +379,6 @@ architecture Behavioral of corr_ct1_top is
     end component;
     
     signal m01_axi_ar, m02_axi_ar :  t_axi4_full_addr;
-    
     signal dbg_input_fsm_dbg : std_logic_vector(4 downto 0);
     signal dbg_running : std_logic;
     signal dbg_wr_buffer : std_logic_vector(1 downto 0);
@@ -431,6 +428,8 @@ architecture Behavioral of corr_ct1_top is
     -- Discards go to time sample 65 in the next corner turn frame, since this guarantees they will be overwritten with legitimate data in the future (should it exist).
     constant c_DEV_NULL_V80 : std_logic_vector(35 downto 0) := x"000041000";
     signal m02_axi_rst_dbg : std_logic_vector(31 downto 0);
+    signal dbgCheckData : t_slv_32_arr(11 downto 0);
+    signal dbgBadData : t_slv_32_arr(11 downto 0);
     ----------------------------------------------------------------------
     -- ARGs mappings.
     signal args_reg_wren            : STD_LOGIC;
@@ -450,6 +449,7 @@ architecture Behavioral of corr_ct1_top is
     signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
 
     signal awfifo_addr_4k : std_logic_vector(20 downto 0);
+
 
 begin
     
@@ -1424,14 +1424,14 @@ begin
             -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
             -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
             -- So it is ok for it to change ~30 clocks earlier.
-            o_meta_delays         => o_meta_delays,         -- out t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
-            o_meta_RFIThresholds  => o_meta_RFIThresholds,  -- out t_slv_32_arr(11 downto 0);
-            o_meta_integration    => o_meta_integration,    -- out std_logic_vector(31 downto 0);
-            o_meta_ctFrame        => o_meta_ctFrame,        -- out std_logic_vector(1 downto 0); 
-            o_meta_virtualChannel => o_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
-            o_meta_valid          => o_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
+            o_meta_delays         => o_meta_delays(3 downto 0), -- out t_CT1_META_delays_arr(3 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
+            o_meta_RFIThresholds  => o_meta_RFIThresholds(3 downto 0),  -- out t_slv_32_arr(3 downto 0);
+            o_meta_integration    => o_meta_integration,        -- out std_logic_vector(31 downto 0);
+            o_meta_ctFrame        => o_meta_ctFrame,            -- out std_logic_vector(1 downto 0); 
+            o_meta_virtualChannel => o_meta_virtualChannel,     -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+            o_meta_valid          => o_meta_valid(3 downto 0),  -- out std_logic_vector(3 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
             o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
-            o_valid => validOut, -- out std_logic;
+            o_valid       => validOut, -- out std_logic;
             ------------------------------------------------------------------------
             -- AXI read address and data input buses
             -- ar bus - read address
@@ -1440,12 +1440,6 @@ begin
             -- r bus - read data
             i_axi_r       => i_m01_axi_r,        -- in  t_axi4_full_data;
             o_axi_rready  => m01_axi_rready,     -- out std_logic;
-            -- Second interface, only used for the v80 version
-            o_axi2_ar      => m02_axi_ar,        -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
-            i_axi2_arready => i_m02_axi_arready, -- in std_logic;
-            -- r bus - read data
-            i_axi2_r       => i_m02_axi_r,       -- in  t_axi4_full_data;
-            o_axi2_rready  => m02_axi_rready,    -- out std_logic;
             ------------------------------------------------------------------------
             -- errors and debug
             -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
@@ -1467,6 +1461,17 @@ begin
             o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
             i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
         );
+        
+        -- Second interface, only used for the v80 version
+        m02_axi_ar.valid <= '0';
+        m02_axi_ar.addr <= (others => '0');
+        m02_axi_ar.len <= (others => '0');
+        m02_axi_rready <= '1';
+        -- Outputs 11:4 are only used in the v80 version        
+        o_meta_delays(11 downto 4) <= (others => (HDeltaP => (others => '0'), VDeltaP => (others => '0'), HoffsetP => (others => '0'), VOffsetP => (others => '0'), bad_poly => '0'));
+        o_meta_RFIThresholds(11 downto 4) <= (others => (others => '0'));
+        o_meta_valid(11 downto 4) <= (others => '0');
+        
     end generate;
     
     
@@ -1599,18 +1604,19 @@ begin
             o_dbg_valid => dbg_vec_valid,  -- out std_logic
             o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
             -- mismatch between output and expected when sending debug data inserted in lfaaIngest
-            o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
-            o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
-            o_dbgCheckData2 => config_ro.dbgCheckData2, -- out std_logic_vector(31 downto 0);
-            o_dbgCheckData3 => config_ro.dbgCheckData3, -- out std_logic_vector(31 downto 0);
-            o_dbgBadData0 => config_ro.dbgBadData0, --  out std_logic_vector(31 downto 0);
-            o_dbgBadData1 => config_ro.dbgBadData1, -- out std_logic_vector(31 downto 0);
-            o_dbgBadData2 => config_ro.dbgBadData2, -- out std_logic_vector(31 downto 0);
-            o_dbgBadData3 => config_ro.dbgBadData3, -- out std_logic_vector(31 downto 0);
-            o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
+            o_dbgCheckData => dbgCheckData,  -- out t_slv_32_arr(11:0)
+            o_dbgBadData   => dbgBadData,     -- out t_slv_32_arr(11:0)
+            o_mismatch_set => config_ro.mismatch_set(11 downto 0),  -- out 11:0;
             i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
         );
-    
+        config_ro.dbgCheckData0 <= dbgCheckData(0);
+        config_ro.dbgCheckData1 <= dbgCheckData(1);
+        config_ro.dbgCheckData2 <= dbgCheckData(2);
+        config_ro.dbgCheckData3 <= dbgCheckData(3);
+        config_ro.dbgBadData0 <= dbgBadData(0);
+        config_ro.dbgBadData1 <= dbgBadData(1);
+        config_ro.dbgBadData2 <= dbgBadData(2);
+        config_ro.dbgBadData3 <= dbgBadData(3);
     end generate;
     ----------------------------------------------------------------------------
     
@@ -1755,6 +1761,9 @@ begin
     
     o_m01_axi_rready <= m01_axi_rready;
     o_m01_axi_ar <= m01_axi_ar;
+    o_m02_axi_rready <= m02_axi_rready;
+    o_m02_axi_ar <= m02_axi_ar;
+    
     o_m02_axi_rready <= m02_axi_rready;
     o_m02_axi_ar <= m02_axi_ar;
     

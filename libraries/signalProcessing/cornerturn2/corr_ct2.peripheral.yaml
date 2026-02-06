@@ -19,25 +19,73 @@ peripherals:
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Number of subarray beams stored in the first 1.5 Gbytes of HBM, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
+              field_description : "Number of subarray beams for the first correlator instance, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
           #################################
           - - field_name        : buf0_subarray_beams_table1
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Number of subarray beams stored in the first 1.5 Gbytes of HBM, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
+              field_description : "Number of subarray beams for the first correlator instance, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
           #################################
           - - field_name        : buf1_subarray_beams_table0
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Number of subarray beams stored in the second 1.5 Gbytes of HBM, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
+              field_description : "Number of subarray beams for the second correlator instance, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
           #################################
           - - field_name        : buf1_subarray_beams_table1
               width             : 16
               access_mode       : RW
               reset_value       : 0x0
-              field_description : "Number of subarray beams stored in the second 1.5 Gbytes of HBM, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
+              field_description : "Number of subarray beams for the second correlator instance, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
+          #################################
+          - - field_name        : buf2_subarray_beams_table0
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 3rd correlator instance, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
+          #################################
+          - - field_name        : buf2_subarray_beams_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 3rd correlator instance, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
+          #################################
+          - - field_name        : buf3_subarray_beams_table0
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 4th correlator instance, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
+          #################################
+          - - field_name        : buf3_subarray_beams_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 4th correlator instance, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
+          #################################
+          - - field_name        : buf4_subarray_beams_table0
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 5th correlator instance, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
+          #################################
+          - - field_name        : buf4_subarray_beams_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 5th correlator instance, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
+          #################################
+          - - field_name        : buf5_subarray_beams_table0
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 6th correlator instance, for the first half of the subarray-beam table (i.e. when table selected in CT1 = 0)"
+          #################################
+          - - field_name        : buf5_subarray_beams_table1
+              width             : 16
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "Number of subarray beams for the 6th correlator instance, for the second half of the subarray-beam table (i.e. when table selected in CT1 = 1)"
           #################################
           - - field_name        : insert_dbg
               width             : 8
@@ -166,9 +214,10 @@ peripherals:
               field_description : "Virtual Channel demapping table. Double buffered, 256 entries, 2 words per entry. \
                                    Index into the table is 2*floor(virtual_channel/4). Table returns the subarray and channel for each virtual channel. \
                                    The table select register in CT1 selects which double buffered version of this table to use.  \
-                                    Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table, \
+                                    Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table (low 8 bits), \
                                              bits(19:8) = (sub)station within this subarray. \
                                              bits(28:20) = Channel frequency index. x781.25kHz to get the sky frequency \
+                                             bits(30:29) = top 2 bits of subarray-beam id (only used for the V80, to support more correlator cores) \
                                              bit(31) = 1 to indicate this entry in the table is valid \
                                     word 1 : bits(11:0) = start fine channel for forwarding on the 100GE port. Forwarding is not currently implemented. \
                                              bits(23:12) = End fine channel for forwarding on the 100GE port. Forwarding is not currently implemented. \ 
@@ -178,10 +227,21 @@ peripherals:
           - - field_name        : subarray_beam
               width             : 32
               access_mode       : RW
-              number_of_fields  : 2048
-              field_description : "Subarray Configuration Table. 256 entries of 4 words each. \
-                                   128 entries for each correlator cell. First 128 entries for correlator cell 0, second 128 entries for correlator cell 1. \
-                                   Double buffered with the buffer selected by the table select register in CT1. \
+              number_of_fields  : 8192
+              field_description : "Subarray Configuration Table. \
+                                   Original : 256 entries of 4 words each. \
+                                   V80 : 1024 entries of 4 words each.  \
+                                   128 entries for each correlator cell. First 128 entries for correlator cell 0, second 128 entries for correlator cell 1 \
+                                   For the U55c, address into the memory is 11 bit (2048 words deep), with : \
+                                    bit 10 = double buffered table select \
+                                    bit 9 = select which of 2 correlator cores \
+                                    bits 8:2 = up to 128 entries for each correlator \
+                                    bits 1:0 = four words per entry \
+                                   For the V80, address into the memory is 13 bits (8192 words deep), with : \
+                                    bit 12 = select which of the double buffered tables to use. This is selected based on the table select register in CT1 \
+                                    bits 11:9 = select the correlator, address space for up to 8 correlator cores, but V80 supports 6 correlator cores. \
+                                    bits 8:2 = up to 128 entries for each correlator \
+                                    bits 1:0 = four words for each entry \
                                    Each entry has : \
                                     Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
                                              bits(30:16) = starting coarse frequency channel, \
@@ -193,20 +253,36 @@ peripherals:
                                     word 2 : bits (23:0) = Number of fine channels stored \
                                              bits (30:24) = Fine channels per integration \
                                              bits (31) = integration time; 0 = 283 ms, 1 = 849 ms \
-                                    Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
-                                   Data is written to the HBM in blocks of 512 bytes. \
-                                   The 512 byte blocks are arranged in a 3-D array (fine_channel, i_time_block, station) \
-                                   where data is ordered in memory first by station and last by fine channel \
-                                   The HBM address for a 512 byte block is: \
-                                    HBM_addr = SB_HBM_base_addr + 512 * [fine_channel * 6 * ceil(SB_stations/4) + time_block * ceil(SB_stations/4) + station_group] \
-                                   Where : \
-                                    SB_stations = total number of stations in this subarray-beam, i.e. the value in word 0 bits (15:0) \
-                                    time_block = 0 to 5, for 6 blocks of 32 time samples each (there are 32 time samples in a 512 byte block written to the HBM). \
-                                                 Note 6 x 32 = 192 time samples total = 849 ms of data. \
-                                    station_group = floor(station/4); where station runs from 0 to (SB_stations-1)  \
-                                                    Groups of 4 stations are stored in each 512 byte data block, \
-                                                    so the low 2 bits of i_station are ignored (thus floor(station/4)) \
-                                    fine_channel = fine channel offset relative to the first fine channel stored \
+                                    Word 3 : bits (31:0) = Original - Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
+                                                           v80 - Base address in HBM in units of 4 byte words, out of a unified 9 GByte address space for all correlator cores \
+                                   Memory layout (Original) - \
+                                    Data is written to the HBM in blocks of 512 bytes. \
+                                    The 512 byte blocks are arranged in a 3-D array (fine_channel, i_time_block, station) \
+                                    where data is ordered in memory first by station and last by fine channel \
+                                    The HBM address for a 512 byte block is: \
+                                     HBM_addr = SB_HBM_base_addr + 512 * [fine_channel * 6 * ceil(SB_stations/4) + time_block * ceil(SB_stations/4) + station_group] \
+                                    Where : \
+                                     SB_stations = total number of stations in this subarray-beam, i.e. the value in word 0 bits (15:0) \
+                                     time_block = 0 to 5, for 6 blocks of 32 time samples each (there are 32 time samples in a 512 byte block written to the HBM). \
+                                                  Note 6 x 32 = 192 time samples total = 849 ms of data. \
+                                     station_group = floor(station/4); where station runs from 0 to (SB_stations-1)  \
+                                                     Groups of 4 stations are stored in each 512 byte data block, \
+                                                     so the low 2 bits of i_station are ignored (thus floor(station/4)) \
+                                     fine_channel = fine channel offset relative to the first fine channel stored \
+                                   Memory layout (V80) - \
+                                    Data is written to the HBM in blocks of 256 bytes. \
+                                    The 256 byte blocks are arranged in a 3-D array (fine_channel, i_time_block, station) \
+                                    where data is ordered in memory first by station and last by fine channel \
+                                    The HBM address for a 256 byte block is: \
+                                     HBM_addr = SB_HBM_base_addr + 256 * [fine_channel * 12 * ceil(SB_stations/4) + time_block * ceil(SB_stations/4) + station_group] \
+                                    Where : \
+                                     SB_stations = total number of stations in this subarray-beam, i.e. the value in word 0 bits (15:0) \
+                                     time_block = 0 to 11, for 12 blocks of 16 time samples each (there are 16 time samples in a 256 byte block written to the HBM). \
+                                                  Note 12 x 16 = 192 time samples total = 849 ms of data. \
+                                     station_group = floor(station/4); where station runs from 0 to (SB_stations-1)  \
+                                                     Groups of 4 stations are stored in each 256 byte data block, \
+                                                     so the low 2 bits of i_station are ignored (thus floor(station/4)) \
+                                     fine_channel = fine channel offset relative to the first fine channel stored \
                                    "
           #################################
           - - field_name        : HBM_reset_corr_1

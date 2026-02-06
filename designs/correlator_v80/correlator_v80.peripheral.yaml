@@ -217,6 +217,24 @@ peripherals:
                                    This essentially gives 16 periperals, 8MB of address space each.
                                    "
           #################################
+          - - field_name        : packets_no_vlan_tag
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets passed through axi converter with no vlan tag."
+          #################################
+          - - field_name        : packets_one_vlan_tag
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets passed through axi converter with one vlan tag, it is then dropped before going to LFAA input."
+          #################################
+          - - field_name        : packets_two_vlan_tag
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "Total packets passed through axi converter with two vlan tag, it is then dropped before going to LFAA input."
+          #################################
           - - field_name        : hbm_1_status_0
               width             : 32
               access_mode       : RO

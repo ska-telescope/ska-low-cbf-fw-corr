@@ -19,14 +19,12 @@ use axi4_lib.axi4_full_pkg.all;
 USE common_lib.common_pkg.ALL;
 use spead_lib.spead_packet_pkg.ALL;
 
-entity single_correlator is
+entity single_correlator_v80 is
     generic (
-        -- Number of pipeline stages to include between correlator array and HBM interface (since it crosses SLRs)
+        -- Number of pipeline stages to include between correlator array and HBM interface
+        -- (used to cross SLRs, now just here as a legacy configurable feature)
         g_PIPELINE_STAGES : integer := 2;
-        -- Number of samples in most packets. Each sample is 34 bytes of data. 
-        -- The last packet in a subarray will typically have less samples, since a given subarray 
-        -- does not have any particular total length.
-        g_PACKET_SAMPLES_DIV16 : integer   -- Actual number of samples in the packet is this value x16  
+        g_CORRELATOR_INSTANCE : integer   -- unique ID for this correlator instance
     );
     port(
         -- clock used for all data input and output from this module (300 MHz)
@@ -85,26 +83,31 @@ entity single_correlator is
         o_HBM_axi_w       : out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
         i_HBM_axi_wready  : in  std_logic;
         i_HBM_axi_b       : in  t_axi4_full_b;    -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        ---------------------------------------------------------------
+        -- Readout bus tells the packetiser what to do
+        o_ro_data : out std_logic_vector(127 downto 0);
+        o_ro_valid : out std_logic;
+        
         -- reading from HBM
-        o_HBM_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_arready : in  std_logic;
-        i_HBM_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_rready  : out std_logic;
+--        o_HBM_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+--        i_HBM_axi_arready : in  std_logic;
+--        i_HBM_axi_r       : in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+--        o_HBM_axi_rready  : out std_logic;
         ---------------------------------------------------------------
         -- data out to SPEAD Packetiser
-        i_from_spead_pack   : in spead_to_hbm_bus;
-        o_to_spead_pack     : out hbm_to_spead_bus;
+--        i_from_spead_pack   : in spead_to_hbm_bus;
+--        o_to_spead_pack     : out hbm_to_spead_bus;
 
-        i_packetiser_enable : in std_logic;
+--        i_packetiser_enable : in std_logic;
         
-        i_packetiser_table_select   : in std_logic;
-        i_table_swap_in_progress    : in std_logic;
-        i_table_add_remove          : in std_logic;
+--        i_packetiser_table_select   : in std_logic;
+--        i_table_swap_in_progress    : in std_logic;
+--        i_table_add_remove          : in std_logic;
         
-        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
-        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
-        i_spead_hbm_rd_full_axi_mosi : in t_axi4_full_mosi;
-        o_spead_hbm_rd_full_axi_miso : out t_axi4_full_miso;
+--        i_spead_hbm_rd_lite_axi_mosi : in t_axi4_lite_mosi; 
+--        o_spead_hbm_rd_lite_axi_miso : out t_axi4_lite_miso;
+--        i_spead_hbm_rd_full_axi_mosi : in t_axi4_full_mosi;
+--        o_spead_hbm_rd_full_axi_miso : out t_axi4_full_miso;
         ---------------------------------------------------------------
         -- Registers
         o_HBM_end   : out std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
@@ -126,9 +129,9 @@ entity single_correlator is
         o_freq_index0_repeat : out std_logic
     );
     
-end single_correlator;
+end single_correlator_v80;
 
-architecture Behavioral of single_correlator is
+architecture Behavioral of single_correlator_v80 is
 
     signal data_del : t_slv_256_arr(g_PIPELINE_STAGES downto 0);
     signal visValid_del : std_logic_vector(g_PIPELINE_STAGES downto 0);
@@ -187,7 +190,7 @@ architecture Behavioral of single_correlator is
 begin
 
     ----------------------------------------------------------------------------------
-    -- 1st instance of correlator, long term accumulator, and HBM dump:
+    -- Correlator, long term accumulator, and HBM dump:
     
     o_cor_ready <= cor_ready_int;
     
@@ -305,7 +308,7 @@ begin
     
     -- Dump to HBM
     icdump : entity correlator_lib.correlator_HBM
-    Port map ( 
+    Port map (
         i_axi_clk   => i_axi_clk, -- in std_logic;
         i_axi_rst   => i_axi_rst, -- in std_logic;
         ----------------------------------------------------------------------------------------
@@ -388,53 +391,71 @@ begin
     end process;
     ro_time_ref(34 downto 32) <= ro_time_ref_shortIntegrations;
 
-    HBM_reader : entity correlator_lib.correlator_data_reader generic map ( 
-        DEBUG_ILA           => FALSE
-    )
-    Port map ( 
-        -- clock used for all data input and output from this module (300 MHz)
-        i_axi_clk           => i_axi_clk,
-        i_axi_rst           => i_axi_rst,
+    -- readout bus to the packetiser
+    o_ro_data(31 downto 0) <= ro_HBM_start_addr; 
+    o_ro_data(39 downto 32) <= ro_subarray;
+    o_ro_data(56 downto 40) <= ro_freq_index;
+    o_ro_data(59 downto 57) <= ro_time_ref_shortIntegrations;
+    o_ro_data(72 downto 60) <= ro_row;
+    o_ro_data(81 downto 73) <= ro_row_count;
+    o_ro_data(82) <= ro_bad_poly;
+    o_ro_data(83) <= ro_table_select;
+    o_ro_data(87 downto 84) <= "0000";
+    o_ro_data(95 downto 88) <= std_logic_vector(to_unsigned(g_CORRELATOR_INSTANCE,8));
+    o_ro_data(127 downto 96) <= (others => '0');
+    o_ro_valid <= ro_valid;
 
-        i_local_reset       => packetiser_reset,
+
+
+
+
+--    HBM_reader : entity correlator_lib.correlator_data_reader
+--    generic map ( 
+--        DEBUG_ILA           => FALSE
+--    ) Port map ( 
+--        -- clock used for all data input and output from this module (300 MHz)
+--        i_axi_clk           => i_axi_clk,
+--        i_axi_rst           => i_axi_rst,
+
+--        i_local_reset       => packetiser_reset,
         
-        i_packetiser_table_select   => i_packetiser_table_select, --  in std_logic;
-        i_table_swap_in_progress    => i_table_swap_in_progress,
-        i_table_add_remove          => i_table_add_remove,
-        -- ARGs Debug
-        i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
-        o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,
+--        i_packetiser_table_select   => i_packetiser_table_select, --  in std_logic;
+--        i_table_swap_in_progress    => i_table_swap_in_progress,
+--        i_table_add_remove          => i_table_add_remove,
+--        -- ARGs Debug
+--        i_spead_hbm_rd_lite_axi_mosi => i_spead_hbm_rd_lite_axi_mosi,
+--        o_spead_hbm_rd_lite_axi_miso => o_spead_hbm_rd_lite_axi_miso,
 
-        i_spead_hbm_rd_full_axi_mosi => i_spead_hbm_rd_full_axi_mosi,
-        o_spead_hbm_rd_full_axi_miso => o_spead_hbm_rd_full_axi_miso,
+--        i_spead_hbm_rd_full_axi_mosi => i_spead_hbm_rd_full_axi_mosi,
+--        o_spead_hbm_rd_full_axi_miso => o_spead_hbm_rd_full_axi_miso,
 
-        -- config of current sub/freq data read
-        i_hbm_start_addr    => ro_HBM_start_addr,
-                                                                    -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
-        i_sub_array         => ro_subarray,
-        i_freq_index        => ro_freq_index,
-        i_bad_poly          => ro_bad_poly,
-        i_table_select      => ro_table_select,
-        i_time_ref          => ro_time_ref,
+--        -- config of current sub/freq data read
+--        i_hbm_start_addr    => ro_HBM_start_addr,
+--                                                                    -- Start address of the meta data is at (i_HBM_start_addr/16 + 256 Mbytes)
+--        i_sub_array         => ro_subarray,
+--        i_freq_index        => ro_freq_index,
+--        i_bad_poly          => ro_bad_poly,
+--        i_table_select      => ro_table_select,
+--        i_time_ref          => ro_time_ref,
                             
-        i_row               => ro_row,
-        i_row_count         => ro_row_count,
-        i_data_valid        => ro_valid,
-        o_data_stall        => ro_stall,  -- out std_logic; FIFO is close to full, stop sending new data on i_data_valid
+--        i_row               => ro_row,
+--        i_row_count         => ro_row_count,
+--        i_data_valid        => ro_valid,
+--        o_data_stall        => ro_stall,  -- out std_logic; FIFO is close to full, stop sending new data on i_data_valid
 
-        o_HBM_curr_addr     => o_HBM_curr_rd_addr,
+--        o_HBM_curr_addr     => o_HBM_curr_rd_addr,
 
-        -- HBM read interface
-        o_HBM_axi_ar        => o_HBM_axi_ar,
-        i_HBM_axi_arready   => i_HBM_axi_arready,
-        i_HBM_axi_r         => i_HBM_axi_r,
-        o_HBM_axi_rready    => o_HBM_axi_rready,
+--        -- HBM read interface
+--        o_HBM_axi_ar        => o_HBM_axi_ar,
+--        i_HBM_axi_arready   => i_HBM_axi_arready,
+--        i_HBM_axi_r         => i_HBM_axi_r,
+--        o_HBM_axi_rready    => o_HBM_axi_rready,
         
-        -- Packed up Correlator Data.
-        i_from_spead_pack   => i_from_spead_pack,
-        o_to_spead_pack     => o_to_spead_pack
+--        -- Packed up Correlator Data.
+--        i_from_spead_pack   => i_from_spead_pack,
+--        o_to_spead_pack     => o_to_spead_pack
 
-    );
+--    );
     
     
     -- ILA

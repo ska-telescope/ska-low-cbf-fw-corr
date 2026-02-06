@@ -2,6 +2,7 @@
 ## Correlator Personality
 * 0.2.0
     * SPS monitoring and statistics added. Requires Processor 0.22.0+
+    * VLAN tag support added.
 * 0.1.11
     * V80 - Additional PCIe Bars added for greater NoC access.
 * 0.1.10

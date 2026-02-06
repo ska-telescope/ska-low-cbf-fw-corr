@@ -94,19 +94,19 @@ entity correlatorFBTop25 is
         clk_2x : in std_logic; -- 2x clock used for double data rate operation of the FIR filter DSPs in the versal version.
         rst : in std_logic;
         -- Data input, common valid signal, expects packets of 4096 samples. Requires at least 2 clocks idle time between packets.
-        data0_i : in t_slv_16_arr(1 downto 0);  -- 4 Inputs, each complex data, 16 bit real, 16 bit imaginary.
-        data1_i : in t_slv_16_arr(1 downto 0);
-        data2_i : in t_slv_16_arr(1 downto 0);
-        data3_i : in t_slv_16_arr(1 downto 0);
-        RFI_threshold01_i : in std_logic_vector(31 downto 0);
-        RFI_threshold23_i : in std_logic_vector(31 downto 0);
+        i_data0 : in std_logic_vector(31 downto 0);  -- 4 Inputs, each complex data, 16 bit real in bits 15:0, 16 bit imaginary in bits 31:16.
+        i_data1 : in std_logic_vector(31 downto 0);
+        i_data2 : in std_logic_vector(31 downto 0);
+        i_data3 : in std_logic_vector(31 downto 0);
+        i_RFI_threshold01 : in std_logic_vector(31 downto 0);
+        i_RFI_threshold23 : in std_logic_vector(31 downto 0);
         meta_i  : in std_logic_vector((METABITS-1) downto 0);
         valid_i : in std_logic;
         -- Data out; bursts of 3456 clocks for each channel.
-        data0_o : out t_slv_16_arr(1 downto 0);   -- 4 outputs, real and imaginary parts in (0) and (1) respectively;
-        data1_o : out t_slv_16_arr(1 downto 0);
-        data2_o : out t_slv_16_arr(1 downto 0);
-        data3_o : out t_slv_16_arr(1 downto 0);
+        o_data0 : out std_logic_vector(31 downto 0);  -- 4 outputs, real and imaginary parts in bits 31:0 and 63:32 respectively;
+        o_data1 : out std_logic_vector(31 downto 0);
+        o_data2 : out std_logic_vector(31 downto 0);
+        o_data3 : out std_logic_vector(31 downto 0);
         meta_o  : out std_logic_vector((METABITS-1) downto 0);
         mark_RFI01_o : out std_logic;
         mark_RFI23_o : out std_logic;
@@ -185,8 +185,8 @@ begin
     -- 1. Input Memory
     -- ---------------
     
-    wrData128 <= data3_i(1) & data3_i(0) & data2_i(1) & data2_i(0) & data1_i(1) & data1_i(0) & data0_i(1) & data0_i(0);
-
+    wrData128 <= i_data3 & i_data2 & i_data1 & i_data0; -- single 128 bit vector to write to the memory
+    
     cmem : entity filterbanks_lib.correlatorFBMem
     generic map (
         TAPS => 12)  -- Note only partially parameterized; modification needed to support anything other than 12.
@@ -367,8 +367,8 @@ begin
                 final_RFI_sum1 <= std_logic_vector(unsigned(final_RFI_sum1) + unsigned(RFI_weighted_sum1_ext));
             end if;
             
-            RFI_threshold01_del1 <= RFI_threshold01_i;
-            RFI_threshold23_del1 <= RFI_threshold23_i;
+            RFI_threshold01_del1 <= i_RFI_threshold01;
+            RFI_threshold23_del1 <= i_RFI_threshold23;
             if valid_i = '0' and validDel1 = '1' then 
                 -- On the falling edge of valid, hold the RFI threshold for use a short time later 
                 RFI_threshold01_hold <= RFI_threshold01_del1;
@@ -658,23 +658,15 @@ begin
             end if;
             
             if bufSelectRdDel2 = '0' then
-                data0_o(0) <= reorderDout0(15 downto 0);
-                data0_o(1) <= reorderDout0(31 downto 16);
-                data1_o(0) <= reorderDout0(47 downto 32);
-                data1_o(1) <= reorderDout0(63 downto 48);
-                data2_o(0) <= reorderDout1(15 downto 0);
-                data2_o(1) <= reorderDout1(31 downto 16);
-                data3_o(0) <= reorderDout1(47 downto 32);
-                data3_o(1) <= reorderDout1(63 downto 48);
+                o_data0 <= reorderDout0(31 downto 0);
+                o_data1 <= reorderDout0(63 downto 32);
+                o_data2 <= reorderDout1(31 downto 0);
+                o_data3 <= reorderDout1(63 downto 32);
             else
-                data0_o(0) <= reorderDout2(15 downto 0);
-                data0_o(1) <= reorderDout2(31 downto 16);
-                data1_o(0) <= reorderDout2(47 downto 32);
-                data1_o(1) <= reorderDout2(63 downto 48);
-                data2_o(0) <= reorderDout3(15 downto 0);
-                data2_o(1) <= reorderDout3(31 downto 16);
-                data3_o(0) <= reorderDout3(47 downto 32);
-                data3_o(1) <= reorderDout3(63 downto 48);
+                o_data0 <= reorderDout2(31 downto 0);
+                o_data1 <= reorderDout2(63 downto 32);
+                o_data2 <= reorderDout3(31 downto 0);
+                o_data3 <= reorderDout3(63 downto 32);
             end if;
             
             -- outputCountOut counts output packets, starting from 0.
