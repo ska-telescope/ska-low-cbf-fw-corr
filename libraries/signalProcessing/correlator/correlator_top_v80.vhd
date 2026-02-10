@@ -113,7 +113,7 @@
 --
 --      - Packetiser (reads from HBM and generates SPEAD packets).
 ----------------------------------------------------------------------------------
-library IEEE, correlator_lib, common_lib, xpm, spead_lib;
+library IEEE, correlator_lib, common_lib, xpm, spead_lib, ct_lib;
 library axi4_lib, DSP_top_lib, noc_lib, signal_processing_common;
 
 use IEEE.STD_LOGIC_1164.ALL;
@@ -161,6 +161,7 @@ entity correlator_top_v80 is
         -- Readout bus tells the packetiser what to do
         o_ro_data : out std_logic_vector(127 downto 0);
         o_ro_valid : out std_logic;
+        i_ro_stall : in std_logic;
         ---------------------------------------------------------------
         -- Copy of the bus taking data to be written to the HBM,
         -- for the first correlator instance.
@@ -176,9 +177,9 @@ entity correlator_top_v80 is
         o_freq_index0_repeat : out std_logic
         
     );
-end correlator_top;
+end correlator_top_v80;
 
-architecture Behavioral of correlator_top is
+architecture Behavioral of correlator_top_v80 is
     
     signal config_rw : t_setup_rw;
     signal config_ro : t_setup_ro;
@@ -229,21 +230,78 @@ architecture Behavioral of correlator_top is
     signal cfg_wr_addr : std_logic_vector(10 downto 0);
     signal SB_wr_addr : std_logic_vector(9 downto 0);
     
+    signal total_subarray_beams_hold : std_logic_vector(7 downto 0);
+    signal cfg_word_wr_en : std_logic_vector(0 downto 0);
+    signal cfg_word : std_logic_vector(31 downto 0) := x"00000000";
+    signal readout_tableSelect : std_logic := '0';
+    signal total_subarray_beams : std_logic_vector(7 downto 0);
+    signal readout_start : std_logic;
+    signal SB_rd_data : std_logic_vector(31 downto 0);
+    signal SB_rd_addr : std_logic_vector(9 downto 0);
+    signal dout_SB_done : std_logic := '1';
+    signal cur_readout_SB : std_logic_vector(6 downto 0);
+    type t_SB_rd_fsm is (idle, get_dout_rd1, get_dout_rd2, get_dout_rd3, get_dout_rd4);
+    signal SB_rd_fsm : t_SB_rd_fsm := idle;
+    signal SB_rd_fsm_del1, SB_rd_fsm_del2, SB_rd_fsm_del3 : t_SB_rd_fsm := idle;
+    signal dout_SB_req, dout_SB_req_d0 : std_logic := '0';
+    signal SB_rd_fsm_dbg : std_logic_vector(3 downto 0);
+    signal dout_SB_stations : std_logic_vector(15 downto 0);
+    signal dout_SB_coarseStart : std_logic_vector(15 downto 0);
+    signal dout_SB_outputDisable : std_logic;
+    signal dout_SB_fineStart : std_logic_vector(15 downto 0);
+    signal dout_SB_n_fine : std_logic_vector(23 downto 0);
+    signal dout_SB_fineIntegrations : std_logic_vector(6 downto 0);
+    signal dout_SB_timeIntegrations : std_logic;
+    signal dout_SB_valid : std_logic;
+    signal dout_SB_HBM_base_addr : std_logic_vector(31 downto 0);
+    signal dout_SB_bad_poly : std_logic;
+    
+    signal dout_ar_fsm_dbg : std_logic_vector(3 downto 0);
+    signal dout_readout_fsm_dbg : std_logic_vector(3 downto 0);
+    signal dout_arFIFO_wr_count : std_logic_vector(6 downto 0);
+    signal dout_dataFIFO_wrCount : std_logic_vector(9 downto 0);
+    signal dout_readout_error  : std_logic;
+    signal dout_recent_start_gap : std_logic_vector(31 downto 0);
+    signal dout_recent_readout_time : std_logic_vector(31 downto 0);
+    signal dout_min_start_gap : std_logic_vector(31 downto 0);
+    signal packet_first_bytes_count : std_logic_vector(2 downto 0);
+    signal readout_buffer_hold, readout_buffer : std_logic;
+    signal readout_frameCount_hold, readout_frameCount : std_logic_vector(31 downto 0);
+    signal axi_rst_del2, axi_rst_del1 : std_logic;
+    
 begin
     
     -------------------------------------------------------------
     -- Get instructions from corner turn 2
     -- subarray beam table and bad poly data
+    -- A single packet comes in at the start of every 849ms frame.
+    -- At the completion of the packet (i_cor_cfg_last = '1'), the correlator processes all the instructions for the full frame.
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
+            
             if i_cor_cfg_valid = '1' and i_cor_cfg_first = '1' then
-                total_subarray_beams_hold <= i_cor_cfg_data;
-                cfg_wr_addr <= (others => '0');
-                cfg_word_wr_en <= '0';
+                readout_buffer_hold <= i_cor_cfg_data(0);
+                cfg_word_wr_en(0) <= '0';
                 -- Data is double buffered in the memory, write data to the cfg_mem_select half, 
                 -- then switch to that half for readout
                 cfg_mem_select_wr <= not cfg_mem_select_wr; 
+                packet_first_bytes_count <= "000";
+            elsif i_cor_cfg_valid = '1' and (unsigned(packet_first_bytes_count) < 5) then
+                packet_first_bytes_count <= std_logic_vector(unsigned(packet_first_bytes_count) + 1);
+                if packet_first_bytes_count(2 downto 0) = "000" then
+                    readout_frameCount_hold(7 downto 0) <= i_cor_cfg_data;
+                elsif packet_first_bytes_count(2 downto 0) = "001" then
+                    readout_frameCount_hold(15 downto 8) <= i_cor_cfg_data;
+                elsif packet_first_bytes_count(2 downto 0) = "010" then
+                    readout_frameCount_hold(23 downto 16) <= i_cor_cfg_data;
+                elsif packet_first_bytes_count(2 downto 0) = "011" then
+                    readout_frameCount_hold(31 downto 24) <= i_cor_cfg_data;
+                else
+                    total_subarray_beams_hold <= i_cor_cfg_data;
+                end if;
+                cfg_word_wr_en(0) <= '0';
+                cfg_wr_addr <= (others => '0');
             elsif i_cor_cfg_valid = '1' then
                 cfg_wr_addr <= std_logic_vector(unsigned(cfg_wr_addr) + 1);
                 if cfg_wr_addr(1 downto 0) = "00" then
@@ -253,21 +311,23 @@ begin
                 elsif cfg_wr_addr(1 downto 0) = "10" then
                     cfg_word(23 downto 16) <= i_cor_cfg_data;
                 else
-                    cfg_word(31 downto 24) <= i_cof_cfg_data;
+                    cfg_word(31 downto 24) <= i_cor_cfg_data;
                 end if;
                 if cfg_wr_addr(1 downto 0) = "11" then
-                    cfg_word_wr_en <= '1';
+                    cfg_word_wr_en(0) <= '1';
                 else
-                    cfg_word_wr_en <= '0';
+                    cfg_word_wr_en(0) <= '0';
                 end if;
             else
-                cfg_word_wr_en <= '0';
+                cfg_word_wr_en(0) <= '0';
             end if;
             
             if i_cor_cfg_valid = '1' and i_cor_cfg_last = '1' then
                 -- trigger readout 
                 readout_tableSelect <= cfg_mem_select_wr;
                 total_subarray_beams <= total_subarray_beams_hold;
+                readout_buffer <= readout_buffer_hold;
+                readout_framecount <= readout_frameCount_hold;
                 readout_start <= '1';
             else
                 readout_start <= '0';
@@ -348,12 +408,12 @@ begin
             else
                 if (SB_rd_fsm_del3 = get_dout_rd4) then
                     -- use fsm_del3 so that dout_SB_done will only be set after dout_SB_valid.
-                    cur_readout_SB(i) <= std_logic_vector(unsigned(cur_readout_SB(i)) + 1);
+                    cur_readout_SB <= std_logic_vector(unsigned(cur_readout_SB) + 1);
                 end if;
                 if (unsigned(cur_readout_SB) = unsigned(total_subarray_beams)) then
-                    dout_SB_done(i) <= '1';
+                    dout_SB_done <= '1';
                 else
-                    dout_SB_done(i) <= '0';
+                    dout_SB_done <= '0';
                 end if;
             end if;
             
@@ -403,25 +463,17 @@ begin
             
             -- del1 : SB_rd_addr is valid
             SB_rd_fsm_del1 <= SB_rd_fsm;
-            dout_SB_sel_del1 <= dout_SB_sel;
             
-            -- del2 : subarray_beam_out.rd_dat is valid.
             SB_rd_fsm_del2 <= SB_rd_fsm_del1;
-            dout_SB_sel_del2 <= dout_SB_sel_del1;
             
             -- del3  : SB_rd_data is valid
             SB_rd_fsm_del3 <= SB_rd_fsm_del2;
-            dout_SB_sel_del3 <= dout_SB_sel_del2;
-            SB_rd_data <= subarray_beam_out.rd_dat;
-            
-            SB_rd_fsm_del4 <= SB_rd_fsm_del3;
             
             -- Assign din and dout data read from the subarray-beam table
             if (SB_rd_fsm_del3 = get_dout_rd1) then
                 dout_SB_stations      <= SB_rd_data(15 downto 0);
                 dout_SB_coarseStart   <= '0' & SB_rd_data(30 downto 16);
                 dout_SB_outputDisable <= SB_rd_data(31);
-                dout_SB_bad_poly      <= cor_bp_rd_data(to_integer(unsigned(dout_SB_sel_del3)));
             end if;
             if (SB_rd_fsm_del3 = get_dout_rd2) then
                 dout_SB_fineStart <= SB_rd_data(15 downto 0);
@@ -431,32 +483,35 @@ begin
                 dout_SB_fineIntegrations <= SB_rd_data(30 downto 24);
                 dout_SB_timeIntegrations <= SB_rd_data(31);
             end if;
-            dout_SB_valid <= (others => '0');
+            
             if (SB_rd_fsm_del3 = get_dout_rd4) then
                 dout_SB_HBM_base_addr <= SB_rd_data(31 downto 1) & '0';
                 dout_SB_bad_poly      <= SB_rd_data(0);
                 dout_SB_valid         <= '1';
+            else
+                dout_SB_valid <= '0';
             end if;
+            
+            axi_rst_del1 <= i_axi_rst;
+            axi_rst_del2 <= axi_rst_del1;
+            
         end if;
-    end process;    
+    end process;
     
-    
-    
-    cor_tableSelect <= ?;
     -------------------------------------------------------------
     -- Readout corner turn 2 data from the HBM
     cori : entity ct_lib.corr_ct2_dout_v80
     port map (
         -- Only uses the 300 MHz clock.
-        i_axi_clk   => i_axi_clk, --  in std_logic;
-        i_start     => readout_start_pulse, --  in std_logic; -- start reading out data to the correlators
-        i_buffer    => readout_buffer_del1, --  in std_logic; -- which of the double buffers to read out ?
-        i_frameCount => readout_frameCount_del1, -- in (31:0); -- 849ms frame since epoch.
+        i_axi_clk    => i_axi_clk,           -- in std_logic;
+        i_start      => readout_start,       -- in std_logic; Start reading out data to the correlators
+        i_buffer     => readout_buffer,      -- in std_logic; -- which of the double buffers to read out ?
+        i_frameCount => readout_frameCount, -- in (31:0); -- 849ms frame since epoch.
         -- Data path reset
-        i_rst      => rst_del2,         --  in std_logic;
+        i_rst       => axi_rst_del2,        --  in std_logic;
         -- Data from the subarray beam table. After o_SB_req goes high, i_SB_valid will be driven high with requested data from the table on the other busses.
         o_SB_req    => dout_SB_req,     -- Rising edge gets the parameters for the next subarray-beam to read out.
-        o_SB_buffer => dout_HBM_buffer, -- out std_logic;    -- which of the two HBM buffers are we reading from
+        o_SB_buffer => open,            -- out std_logic; Which of the two HBM buffers are we reading from (was used for selecting bad poly memory read address in previous versions, now unused)
         i_SB        => cur_readout_SB,  -- in (6:0); which subarray-beam are we currently processing from the subarray-beam table.
         i_SB_valid  => dout_SB_valid,   -- subarray-beam data below is valid; goes low when o_get_subarray_beam goes high, then goes high again once the parameters are valid.
         i_SB_done   => dout_SB_done,    -- Indicates that all the subarray beams for this correlator core has been processed.
@@ -499,17 +554,17 @@ begin
         o_cor_badPoly           => cor_badPoly,       -- out std_logic; No valid polynomial for some of the data in the subarray-beam
         ----------------------------------------------------------------
         -- read interfaces for the HBM
-        o_HBM_axi_ar      => HBM_axi_ar,        -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_ar      => o_HBM_axi_ar,        -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_HBM_axi_arready => i_HBM_axi_arready, -- in  std_logic;
         i_HBM_axi_r       => i_HBM_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_rready  => HBM_axi_rready,    -- out std_logic
+        o_HBM_axi_rready  => o_HBM_axi_rready,    -- out std_logic
         ----------------------------------------------------------------
-        -- debug info
+        -- debug info, could be connected to an ILA
         o_ar_fsm_dbg      => dout_ar_fsm_dbg,        -- out (3:0);
         o_readout_fsm_dbg => dout_readout_fsm_dbg,   -- out (3:0);
         o_arFIFO_wr_count => dout_arFIFO_wr_count,   -- out (6:0);
         o_dataFIFO_wrCount => dout_dataFIFO_wrCount, -- out (9:0);
-        o_readout_error       => dout_readout_error(0),    -- out std_logic;
+        o_readout_error       => dout_readout_error,    -- out std_logic;
         o_recent_start_gap    => dout_recent_start_gap,    -- out (31:0);
         o_recent_readout_time => dout_recent_readout_time, -- out (31:0);
         o_min_start_gap       => dout_min_start_gap        -- out (31:0)
@@ -574,15 +629,16 @@ begin
         i_cor_tableSelect       => cor_tableSelect,       -- in std_logic;
         ---------------------------------------------------------------
         -- Data out to the HBM
-        o_HBM_axi_aw      => o_cor0_axi_aw,      -- out t_axi4_full_addr; write address bus (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready => i_cor0_axi_awready, -- in  std_logic;
-        o_HBM_axi_w       => o_cor0_axi_w,       -- out t_axi4_full_data; w data bus (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  => i_cor0_axi_wready,  -- in  std_logic;
-        i_HBM_axi_b       => i_cor0_axi_b,       -- in  t_axi4_full_b; write response bus (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM_axi_aw      => o_HBM_axi_aw,      -- out t_axi4_full_addr; write address bus (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_awready => i_HBM_axi_awready, -- in  std_logic;
+        o_HBM_axi_w       => o_HBM_axi_w,       -- out t_axi4_full_data; w data bus (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_wready  => i_HBM_axi_wready,  -- in  std_logic;
+        i_HBM_axi_b       => i_HBM_axi_b,       -- in  t_axi4_full_b; write response bus (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         ---------------------------------------------------------------
         -- Readout bus tells the packetiser what to do
         o_ro_data  => o_ro_data,  -- out (127:0);
         o_ro_valid => o_ro_valid, -- out std_logic;
+        i_ro_stall => i_ro_stall, -- in std_logic;
         -- Registers
         o_HBM_end           => cor0_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
         o_HBM_errors        => cor0_HBM_errors, -- out (3:0)  -- Number of cells currently in the circular buffer.

@@ -71,6 +71,14 @@ peripherals:
         slave_description : "debug and statistic registers"
         dual_clock        : false
         fields            :
+          - - field_name        : hbm_rd_select
+              width             : 4
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "For V80 only, this selects which of up to 6 instances of the correlator data reader that the rest of the registers apply to. \
+                                   If this is changed, then internally RW mode registers are left in their current state for the non-selected correlator data reader modules \
+                                   However the newly selected module will have all RW mode registers updated to the new state immediately."
+         #################################
           - - field_name        : debug_pack_it_fsm
               width             : 4
               access_mode       : RO

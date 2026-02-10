@@ -26,6 +26,8 @@ USE technology_lib.technology_select_pkg.all;
 use correlator_lib.build_details_pkg.all;
 USE correlator_lib.correlator_v80_system_reg_pkg.ALL;
 
+use signal_processing_common.target_fpga_pkg.ALL;
+
 USE versal_dcmac_lib.versal_dcmac_pkg.ALL;
 
 USE UNISIM.vcomponents.all;
@@ -389,15 +391,17 @@ ARCHITECTURE structure OF correlator_core IS
     signal eth100G_rst          : std_logic;
     signal o_null               : t_axi4_lite_miso;
     
-    signal HBM_ila_counter      : unsigned(31 downto 0);
-    
     signal eth_disable, eth_disable_done : std_logic;
     signal lfaaDecode_reset : std_logic;
     
-    signal vlan_stats           : t_slv_32_arr(2 downto 0);
+    signal vlan_stats : t_slv_32_arr(2 downto 0);
     signal sps_mon_aw : t_axi4_full_addr;
     signal sps_mon_w  : t_axi4_full_data;
-    --signal sps_monitor_period_eth_clk, sps_monitor_time_since_write_eth_clk : std_logic_vector(15 downto 0);
+    signal sps_mon_awready, sps_mon_wready : std_logic;
+    signal sps_mon_b : t_axi4_full_b; 
+    signal sps_mon_bready : std_logic;
+    signal HBM_axi_a_dummy : t_axi4_full_addr;
+    signal HBM_axi_ready_dummy : std_logic;
     
     signal vlan_stats_del       : std_logic_vector(2 downto 0);
     
@@ -497,27 +501,19 @@ begin
         system_fields_ro.sps_monitor_wr_addr <= (others => '0');
         system_fields_ro.sps_monitor_exists <= '0';
         
-        HBM_axi_aw <= HBM_axi_aw_sigproc;
-        HBM_axi_w <= HBM_axi_w_sigproc;
-        
-        HBM_axi_awready_sigproc <= HBM_axi_awready;
-        HBM_axi_wready_sigproc <= HBM_axi_wready;
+        sps_mon_aw.valid <= '0';
+        sps_mon_aw.addr <= (others => '0');
+        sps_mon_aw.len <= (others => '0');
+        sps_mon_w.valid <= '0';
+        sps_mon_w.data <= (others => '0');
+        sps_mon_w.last <= '0';
+        sps_mon_w.resp <= (others => '0');
         
     end generate;
     
     hbm_sps_mon_gen : if g_INCLUDE_SPS_MONITOR generate
         
         system_fields_ro.sps_monitor_exists <= '1';
-        
-        HBM_axi_aw(4 downto 0) <= HBM_axi_aw_sigproc(4 downto 0);
-        HBM_axi_aw(5) <= sps_mon_aw;
-        HBM_axi_w(4 downto 0) <= HBM_axi_w_sigproc(4 downto 0);
-        HBM_axi_w(5) <= sps_mon_w;
-        
-        HBM_axi_awready_sigproc(4 downto 0) <= HBM_axi_awready(4 downto 0);
-        HBM_axi_wready_sigproc(4 downto 0) <= HBM_axi_wready(4 downto 0);
-        HBM_axi_awready_sigproc(5) <= '1';
-        HBM_axi_wready_sigproc(5) <= '1';
         
         sps_statsi : entity stats_lib.sps_statistics_top
         generic map (
@@ -542,10 +538,10 @@ begin
             -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
             i_ap_clk        => clk_300, -- in  std_logic;  -- Shared memory clock used to access the HBM.
             i_ap_rst        => '0',    --  in  std_logic;
-            o_axi_aw        => sps_mon_aw,         -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-            i_axi_awready   => HBM_axi_awready(5), -- in std_logic;
-            o_axi_w         => sps_mon_w,          -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0)) => o_m01_axi_w,    -- w data bus (.wvalid, .wdata, .wlast)
-            i_axi_wready    => HBM_axi_wready(5),  -- in std_logic;
+            o_axi_aw        => sps_mon_aw,      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+            i_axi_awready   => sps_mon_awready, -- in std_logic;
+            o_axi_w         => sps_mon_w,       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+            i_axi_wready    => sps_mon_wready,  -- in std_logic;
             -----------------------------------------------------------------------------------
             -- Configuration and status
             o_status => open, -- out std_logic_vector(31 downto 0); -- ??? put something in here
@@ -579,15 +575,38 @@ begin
 --            src_clk  => i_eth100G_clk,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
 --            src_in   => sps_monitor_time_since_write_eth_clk -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
 --        );
-        sps_monitor_period_eth_clk                      <= system_fields_rw.sps_monitor_period;
-        system_fields_ro.sps_monitor_time_since_write   <= sps_monitor_time_since_write_eth_clk;
+        sps_monitor_period_eth_clk                    <= system_fields_rw.sps_monitor_period;
+        system_fields_ro.sps_monitor_time_since_write <= sps_monitor_time_since_write_eth_clk;
     end generate;
     
+    -- NOC interface for either the HBM ILA or the SPS monitor
+    HBM_SPS_MONi : entity signal_processing_common.hbm_noc_if
+    generic map (
+        g_HBM_base_addr => c_V80_HBM_BASE_STATISTICS, -- std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
+        g_USE_VNOC => c_V80_STATISTICS_VNOC           -- True to use VNOC, otherwise false for HBM specific NOC interfaces at the top of SLR0
+    ) port map (
+        clk  => clk_300, --  in std_logic;
+        -- write
+        i_HBM_axi_aw      => sps_mon_aw,      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_awready => sps_mon_awready, -- out std_logic;
+        i_HBM_axi_w       => sps_mon_w,       -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_wready  => sps_mon_wready,  -- out std_logic;
+        o_HBM_axi_b       => sps_mon_b,       -- out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_bready  => sps_mon_bready,  -- in std_logic;
+        -- read
+        i_HBM_axi_ar => HBM_axi_a_dummy, -- in t_axi4_full_addr;
+        o_HBM_axi_arready => open, -- out std_logic;
+        o_HBM_axi_r  => open, -- out t_axi4_full_data;
+        i_HBM_axi_rready => HBM_axi_ready_dummy -- in std_logic
+    );
+    sps_mon_bready <= '1';
+    HBM_axi_a_dummy.valid <= '0';
+    HBM_axi_a_dummy.addr <= (others => '0');
+    HBM_axi_a_dummy.len <= (others => '0');
+    HBM_axi_ready_dummy -- in std_logic
+    
     o_dcmac_reset <= system_fields_rw.qsfpgty_resets;
-    
-    system_fields_ro.v80_args_bar_address_split     <= x"08000000";     -- THIS NEEDS TO MATCH THE FIRST ADDRESS 
-                                                                        -- ASSIGNED TO NMU_1
-    
+    system_fields_ro.v80_args_bar_address_split     <= x"08000000";     -- THIS NEEDS TO MATCH THE FIRST ADDRESS ASSIGNED TO NMU_1
     -- Uptime counter
     process(clk_300)
     begin
@@ -600,7 +619,6 @@ begin
                 uptime <= std_logic_vector(unsigned(uptime) + 1);
             end if;
             
-
             system_fields_ro.time_uptime                    <= uptime;
             system_fields_ro.status_clocks_locked           <= '1';
             system_fields_ro.eth100G_locked                 <= i_dcmac_locked_300m;
@@ -699,68 +717,10 @@ begin
        -- reset of the valid memory is in progress.
        o_validMemRstActive => o_validMemRstActive,
        -----------------------------------------------------------------------
-       -- AXI slave interfaces for modules
-       i_MACE_clk  => clk_300, -- in std_logic;
-       i_MACE_clkx2 => clk_600, -- in std_logic;
+       -- clocks - legacy naming - i_MACE_clk is used for filterbanks, CT1, CT2
+       i_MACE_clk  => clk_300,     -- in std_logic;
+       i_MACE_clkx2 => clk_600,    -- in std_logic;
        i_MACE_rst  => clk_300_rst, -- in std_logic;
-       -- LFAADecode, lite + full slave
-       i_LFAALite_axi_mosi             => c_axi4_lite_mosi_rst, 
-       o_LFAALite_axi_miso => open,
-       i_LFAAFull_axi_mosi             => c_axi4_full_mosi_null,
-       o_LFAAFull_axi_miso => open,
-       -- Corner Turn between LFAA Ingest and the filterbanks.
-       i_LFAA_CT_axi_mosi              => c_axi4_lite_mosi_rst,
-       o_LFAA_CT_axi_miso => open,
-       i_poly_full_axi_mosi            => c_axi4_full_mosi_null,
-       o_poly_full_axi_miso => open,
-       -- Filterbanks
-       i_FB_axi_mosi                   => c_axi4_lite_mosi_rst,
-       o_FB_axi_miso => open,
-       -- Corner turn between filterbanks and the correlator
-       i_cor_CT_axi_mosi               => c_axi4_lite_mosi_rst,
-       o_cor_CT_axi_miso => open,
-       -- correlator
-       i_cor_axi_mosi                  => c_axi4_lite_mosi_rst,
-       o_cor_axi_miso => open,
-       -- Output HBM
-       i_spead_hbm_rd_lite_axi_mosi(0) => c_axi4_lite_mosi_rst,
-       i_spead_hbm_rd_lite_axi_mosi(1) => c_axi4_lite_mosi_rst,
-        
-       o_spead_hbm_rd_lite_axi_miso(0) => o_null,
-       o_spead_hbm_rd_lite_axi_miso(1) => o_null,
-       
-       i_spead_hbm_rd_full_axi_mosi(0) => c_axi4_full_mosi_null,
-       i_spead_hbm_rd_full_axi_mosi(1) => c_axi4_full_mosi_null,
-
-       o_spead_hbm_rd_full_axi_miso    => open,
-
-       -- SDP SPEAD
-       i_spead_lite_axi_mosi(0)        => c_axi4_lite_mosi_rst,
-       i_spead_lite_axi_mosi(1)        => c_axi4_lite_mosi_rst,
-
-       o_spead_lite_axi_miso           => open,
-
-       i_spead_full_axi_mosi(0)        => c_axi4_full_mosi_null, 
-       i_spead_full_axi_mosi(1)        => c_axi4_full_mosi_null, 
-
-       o_spead_full_axi_miso           => open,
-
-       -----------------------------------------------------------------------
-       -- AXI interfaces to HBM memory (5 interfaces used)
-       -- write address buses : out t_axi4_full_addr_arr(4:0)(.valid, .addr(39:0), .len(7:0))
-       o_HBM_axi_aw      => HBM_axi_aw_sigproc,
-       i_HBM_axi_awready => HBM_axi_awready_sigproc, -- in std_logic_vector(5:0);
-       -- w data buses : out t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
-       o_HBM_axi_w       => HBM_axi_w_sigproc,
-       i_HBM_axi_wready  => HBM_axi_wready_sigproc,  -- in std_logic_vector(5:0);
-       -- write response bus : in t_axi4_full_b_arr(5:0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-       i_HBM_axi_b       => HBM_axi_b,
-       -- read address bus : out t_axi4_full_addr_arr(5:0)(.valid, .addr(39:0), .len(7:0))
-       o_HBM_axi_ar      => HBM_axi_ar,
-       i_HBM_axi_arready => HBM_axi_arready, -- in std_logic_vector(5:0);
-       -- r data bus : in t_axi4_full_data_arr(5:0)(.valid, .data(511:0), .last, .resp(1:0))
-       i_HBM_axi_r       => HBM_axi_r,
-       o_HBM_axi_rready  => HBM_axi_rready,  -- out std_logic_vector(5:0);
        
        -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
        -- used in testing with pre-load of the second corner turn HBM data
@@ -873,8 +833,6 @@ begin
         -----------------------------------------------------
     );     
     
-
-    
     --------------------------------------------------------------------------------------------------
     -- debug
     debug_gen : IF g_DEBUG_ILA GENERATE
@@ -920,378 +878,5 @@ begin
         );
 
     END GENERATE;
-    
-    -----------------------------------------------------------------------------------------------------------
-    hbm_ila_debug_chk : process(clk_450)
-    begin
-        if rising_edge(clk_450) then
-            HBM_ila_counter <= HBM_ila_counter + 1;
-        end if;
-    end process;
-    
-    
-axi_HBM_gen : for i in 0 to 4 generate
-
-    hbm_gasket : entity common_lib.axi512_to_256
-        Generic Map (
-            NO_OF_STATUS    => HBM_GASKET_NO_OF_STATUS
-        )
-        Port Map (
-            -- 256 wide connects to NOC MASTER UNIT.
-            ---------------------------------------------------------
-            -- 512 bit wide slave interface
-            -- w bus
-            i_clks          => clk_300,
-            i_clks_reset    => clk_300_rst,
-
-            i_axi_w         => slave_wr_data_bus(i),  -- write data (.valid, .data(511:0), .last, .resp(1:0))   
-            o_axi_wready    => slave_wr_data_bus_rdy(i),
-            -- aw bus - write address
-            i_axi_aw        => slave_wr_addr_bus(i),
-            o_axi_awready   => slave_wr_addr_bus_rdy(i),
-            -- b bus - write response; not used; o_axi_b.valid is tied to '0'
-            o_axi_b         => open, -- we don't use this.
-            -- ar bus - read address
-            i_axi_ar        => slave_rd_addr_bus(i),
-            o_axi_arready   => slave_rd_addr_bus_rdy(i),
-            -- r bus - read data
-            o_axi_r         => slave_rd_data_bus(i),
-            i_axi_rready    => slave_rd_data_bus_rdy(i),
-            ---------------------------------------------------------
-            -- 256 bit wide master interface
-            -- w bus
-            i_clkm          => clk_450,
-            i_clkm_reset    => clk_450_rst,
-
-            o_axi_w         => master_wr_data_bus(i),
-            i_axi_wready    => master_wr_data_bus_rdy(i),
-            -- aw bus - write address
-            o_axi_aw        => master_wr_addr_bus(i),
-            i_axi_awready   => master_wr_addr_bus_rdy(i),
-            -- b bus - write response
-            i_axi_b.valid   => '0',
-            i_axi_b.resp    => "00",
-            -- ar bus - read address
-            o_axi_ar        => master_rd_addr_bus(i),
-            i_axi_arready   => master_rd_addr_bus_rdy(i),
-            -- r bus - read data
-            i_axi_r         => master_rd_data_bus(i),
-            o_axi_rready    => master_rd_data_bus_rdy(i),      -- we are always ready
-            ----------------------------------------------------------
-            -- Status
-            o_status(0)     => HBM_gasket_stat(i,0),
-            o_status(1)     => HBM_gasket_stat(i,1),
-            o_status(2)     => HBM_gasket_stat(i,2),
-            o_status(3)     => HBM_gasket_stat(i,3),
-            o_status(4)     => HBM_gasket_stat(i,4)
-        );
-
-    slave_wr_data_bus(i)        <= HBM_axi_w(i);
-    HBM_axi_wready(i)           <= slave_wr_data_bus_rdy(i);
-
-    slave_wr_addr_bus(i)        <= HBM_axi_aw(i);
-    HBM_axi_awready(i)          <= slave_wr_addr_bus_rdy(i);
-    
-
-    HBM_axi_r(i)                <= slave_rd_data_bus(i);
-    slave_rd_data_bus_rdy(i)    <= HBM_axi_rready(i);
-    
-    slave_rd_addr_bus(i)        <= HBM_axi_ar(i);
-    HBM_axi_arready(i)          <= slave_rd_addr_bus_rdy(i);
-
-
-    ------------------------------------------------------------------------------------
-    -- ar and aw addresses need to be set to the correct offset within the HBM
-    HBM_axi_araddr256Mbyte(i)          <= master_rd_addr_bus(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
-    HBM_axi_araddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
-    HBM_axi_araddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_araddr256Mbyte(i)));
-    HBM_axi_araddr(i)(27 downto 0)     <= master_rd_addr_bus(i).addr(27 downto 0);
-    
-    HBM_axi_awaddr256Mbyte(i)          <= master_wr_addr_bus(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
-    HBM_axi_awaddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
-    HBM_axi_awaddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_awaddr256Mbyte(i)));
-    HBM_axi_awaddr(i)(27 downto 0)     <= master_wr_addr_bus(i).addr(27 downto 0);
-    
-    -- register slice ports that have a fixed value.
-    HBM_axi_awsize(i)       <= get_axi_size(NOC_DATA_WIDTH);
-    HBM_axi_awburst(i)      <= "01";   -- "01" indicates incrementing addresses for each beat in the burst.  -- out std_logic_vector(1 downto 0);
-    HBM_axi_bready(i)       <= '1';  -- Always accept acknowledgement of write transactions. -- out std_logic;
-    HBM_axi_wstrb(i)        <= (others => '1');  -- We always write all bytes in the bus. --  out std_logic_vector(63 downto 0);
-    HBM_axi_arsize(i)       <= get_axi_size(NOC_DATA_WIDTH);   -- 6 = 64 bytes per beat = 512 bit wide bus. -- out std_logic_vector(2 downto 0);
-    HBM_axi_arburst(i)      <= "01";    -- "01" = incrementing address for each beat in the burst. -- out std_logic_vector(1 downto 0);
-    
-    -- these have no ports on the axi register slice
-    HBM_axi_arlock(i)(0)    <= '0';
-    HBM_axi_awlock(i)(0)    <= '0';
-    HBM_axi_awcache(i)      <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
-    HBM_axi_awprot(i)       <= "000";   -- Has no effect in Vitis environment. -- out std_logic_vector(2 downto 0);
-    HBM_axi_awqos(i)        <= "0000";  -- Has no effect in vitis environment, -- out std_logic_vector(3 downto 0);
-    HBM_axi_awregion(i)     <= "0000"; -- Has no effect in Vitis environment. -- out std_logic_vector(3 downto 0);
-    HBM_axi_arcache(i)      <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
-    HBM_axi_arprot(i)       <= "000";   -- Has no effect in vitis environment; out std_logic_Vector(2 downto 0);
-    HBM_axi_arqos(i)        <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
-    HBM_axi_arregion(i)     <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
-    HBM_axi_awid(i)(0)      <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
-    HBM_axi_arid(i)(0)      <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
-
-    HBM_axi_awuser(i)       <= x"0000";     -- New NOC fields to keeep an eye on.
-    HBM_axi_wid(i)(0)       <= '0';         -- New NOC fields to keeep an eye on.
-    HBM_axi_wuser(i)(0)     <= '0';         -- New NOC fields to keeep an eye on.
-
-    -- HBM Master NoC
-    i_hbm_noc : xpm_nmu_mm
-        generic map (
-            NOC_FABRIC    => "pl_hbm", -- "VNOC",			-- pl/pl_hbm
-            DATA_WIDTH    => NOC_DATA_WIDTH,			-- 32/64/128/256/512
-            ADDR_WIDTH    => NOC_ADDR_WIDTH,			-- 12 to 64
-            ID_WIDTH      => NOC_ID_WIDTH,				-- 1 to 16
-            AUSER_WIDTH   => NOC_AUSER_WIDTH,			-- 16 for VNOC with parity disabled, 18 for VNOC with parity enabled 
-            DUSER_WIDTH   => NOC_DUSER_WIDTH,			-- 2*DATA_WIDTH/8 for parity enablement with VNOC, 1 for VNOC with parity disabled cases
-            ENABLE_USR_INTERRUPT => "false",	-- false/true
-            SIDEBAND_PINS => "false"		-- false/true/addr/data
-        )
-        port map ( 
-            s_axi_aclk              => clk_450,
-            
-            -----------------------------------------------------
-            -- To Logic
-            -- ADDR
-            s_axi_awid              => HBM_axi_awid(i),
-            s_axi_awaddr            => HBM_axi_awaddr(i), --HBM_axi_aw(i).addr,
-            s_axi_awlen             => master_wr_addr_bus(i).len,
-            s_axi_awsize            => HBM_axi_awsize(i),
-            s_axi_awburst           => HBM_axi_awburst(i),
-            s_axi_awlock            => HBM_axi_awlock(i),
-            s_axi_awcache           => HBM_axi_awcache(i),
-            s_axi_awprot            => HBM_axi_awprot(i),
-            s_axi_awregion          => HBM_axi_awregion(i),
-            s_axi_awqos             => HBM_axi_awqos(i),
-            s_axi_awuser            => HBM_axi_awuser(i),                -- Where does this go?
-            s_axi_awvalid           => master_wr_addr_bus(i).valid,
-            s_axi_awready           => master_wr_addr_bus_rdy(i),
-
-            -- DATA
-            s_axi_wid               => HBM_axi_wid(i),
-            s_axi_wdata             => master_wr_data_bus(i).data(255 downto 0),
-            s_axi_wstrb             => HBM_axi_wstrb(i)(31 downto 0),
-            s_axi_wlast             => master_wr_data_bus(i).last,
-            s_axi_wuser             => HBM_axi_wuser(i),
-            s_axi_wvalid            => master_wr_data_bus(i).valid,
-            s_axi_wready            => master_wr_data_bus_rdy(i),
-
-            s_axi_bid               => HBM_axi_bid(i),
-            s_axi_bresp             => HBM_axi_b(i).resp,
-            s_axi_buser             => HBM_axi_buser(i),
-            s_axi_bvalid            => HBM_axi_b(i).valid,
-            s_axi_bready            => HBM_axi_bready(i),
-            
-            -- reading from logic
-            -- ADDR
-
-            s_axi_arid              => HBM_axi_arid(i),
-            s_axi_araddr            => HBM_axi_araddr(i), --HBM_axi_ar(i).addr,
-            s_axi_arlen             => master_rd_addr_bus(i).len,
-            s_axi_arsize            => HBM_axi_arsize(i),
-            s_axi_arburst           => HBM_axi_arburst(i),
-            s_axi_arlock            => HBM_axi_arlock(i),
-            s_axi_arcache           => HBM_axi_arcache(i),
-            s_axi_arprot            => HBM_axi_arprot(i),
-            s_axi_arregion          => HBM_axi_arregion(i),
-            s_axi_arqos             => HBM_axi_arqos(i),
-            s_axi_aruser            => HBM_axi_aruser(i),
-            s_axi_arvalid           => master_rd_addr_bus(i).valid,
-            s_axi_arready           => master_rd_addr_bus_rdy(i),
-
-            -- DATA
-            s_axi_rid               => HBM_axi_rid(i),
-            s_axi_rdata             => master_rd_data_bus(i).data(255 downto 0),
-            s_axi_rresp             => master_rd_data_bus(i).resp,
-            s_axi_rlast             => master_rd_data_bus(i).last,
-            s_axi_ruser             => HBM_axi_ruser(i),
-            s_axi_rvalid            => master_rd_data_bus(i).valid,
-            s_axi_rready            => master_rd_data_bus_rdy(i),
-            
-            nmu_usr_interrupt_in    => x"0"
-        
-        );
-
-END GENERATE;
-
-
--- Interfaces that use 256 bits natively
---  sps stats module is 256 bits already, don't include the axi512_to_256 gasket
-sps_stats_gen : if g_INCLUDE_SPS_MONITOR generate
-    axi_sps_stats_gen : for i in 5 to 5 generate
-
---    hbm_gasket : entity common_lib.axi512_to_256
---        Generic Map (
---            NO_OF_STATUS    => HBM_GASKET_NO_OF_STATUS
---        )
---        Port Map (
---            -- 256 wide connects to NOC MASTER UNIT.
---            ---------------------------------------------------------
---            -- 512 bit wide slave interface
---            -- w bus
---            i_clks          => clk_300,
---            i_clks_reset    => clk_300_rst,
-
---            i_axi_w         => slave_wr_data_bus(i),  -- write data (.valid, .data(511:0), .last, .resp(1:0))   
---            o_axi_wready    => slave_wr_data_bus_rdy(i),
---            -- aw bus - write address
---            i_axi_aw        => slave_wr_addr_bus(i),
---            o_axi_awready   => slave_wr_addr_bus_rdy(i),
---            -- b bus - write response; not used; o_axi_b.valid is tied to '0'
---            o_axi_b         => open, -- we don't use this.
---            -- ar bus - read address
---            i_axi_ar        => slave_rd_addr_bus(i),
---            o_axi_arready   => slave_rd_addr_bus_rdy(i),
---            -- r bus - read data
---            o_axi_r         => slave_rd_data_bus(i),
---            i_axi_rready    => slave_rd_data_bus_rdy(i),
---            ---------------------------------------------------------
---            -- 256 bit wide master interface
---            -- w bus
---            i_clkm          => clk_450,
---            i_clkm_reset    => clk_450_rst,
-
---            o_axi_w         => master_wr_data_bus(i),
---            i_axi_wready    => master_wr_data_bus_rdy(i),
---            -- aw bus - write address
---            o_axi_aw        => master_wr_addr_bus(i),
---            i_axi_awready   => master_wr_addr_bus_rdy(i),
---            -- b bus - write response
---            i_axi_b.valid   => '0',
---            i_axi_b.resp    => "00",
---            -- ar bus - read address
---            o_axi_ar        => master_rd_addr_bus(i),
---            i_axi_arready   => master_rd_addr_bus_rdy(i),
---            -- r bus - read data
---            i_axi_r         => master_rd_data_bus(i),
---            o_axi_rready    => master_rd_data_bus_rdy(i),      -- we are always ready
---            ----------------------------------------------------------
---            -- Status
---            o_status(0)     => HBM_gasket_stat(i,0),
---            o_status(1)     => HBM_gasket_stat(i,1),
---            o_status(2)     => HBM_gasket_stat(i,2),
---            o_status(3)     => HBM_gasket_stat(i,3),
---            o_status(4)     => HBM_gasket_stat(i,4)
---        );
-
-    ------------------------------------------------------------------------------------
-    -- ar and aw addresses need to be set to the correct offset within the HBM
-    HBM_axi_araddr256Mbyte(i)          <= HBM_axi_ar(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
-    HBM_axi_araddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
-    HBM_axi_araddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_araddr256Mbyte(i)));
-    HBM_axi_araddr(i)(27 downto 0)     <= HBM_axi_ar(i).addr(27 downto 0);
-    
-    HBM_axi_awaddr256Mbyte(i)          <= HBM_axi_aw(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
-    HBM_axi_awaddr(i)(63 downto 36)    <= HBM_base_addr(i)(63 downto 36);
-    HBM_axi_awaddr(i)(35 downto 28)    <= std_logic_vector(unsigned(HBM_base_addr(i)(35 downto 28)) + unsigned(HBM_axi_awaddr256Mbyte(i)));
-    HBM_axi_awaddr(i)(27 downto 0)     <= HBM_axi_aw(i).addr(27 downto 0);
-    
-    -- register slice ports that have a fixed value.
-    HBM_axi_awsize(i)       <= get_axi_size(NOC_DATA_WIDTH);
-    HBM_axi_awburst(i)      <= "01";   -- "01" indicates incrementing addresses for each beat in the burst.  -- out std_logic_vector(1 downto 0);
-    HBM_axi_bready(i)       <= '1';  -- Always accept acknowledgement of write transactions. -- out std_logic;
-    HBM_axi_wstrb(i)        <= (others => '1');  -- We always write all bytes in the bus. --  out std_logic_vector(63 downto 0);
-    HBM_axi_arsize(i)       <= get_axi_size(NOC_DATA_WIDTH);   -- 6 = 64 bytes per beat = 512 bit wide bus. -- out std_logic_vector(2 downto 0);
-    HBM_axi_arburst(i)      <= "01";    -- "01" = incrementing address for each beat in the burst. -- out std_logic_vector(1 downto 0);
-    
-    -- these have no ports on the axi register slice
-    HBM_axi_arlock(i)(0)    <= '0';
-    HBM_axi_awlock(i)(0)    <= '0';
-    HBM_axi_awcache(i)      <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
-    HBM_axi_awprot(i)       <= "000";   -- Has no effect in Vitis environment. -- out std_logic_vector(2 downto 0);
-    HBM_axi_awqos(i)        <= "0000";  -- Has no effect in vitis environment, -- out std_logic_vector(3 downto 0);
-    HBM_axi_awregion(i)     <= "0000"; -- Has no effect in Vitis environment. -- out std_logic_vector(3 downto 0);
-    HBM_axi_arcache(i)      <= "0011";  -- out std_logic_vector(3 downto 0); bufferable transaction. Default in Vitis environment.
-    HBM_axi_arprot(i)       <= "000";   -- Has no effect in vitis environment; out std_logic_Vector(2 downto 0);
-    HBM_axi_arqos(i)        <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
-    HBM_axi_arregion(i)     <= "0000"; -- Has no effect in vitis environment; out std_logic_vector(3 downto 0);
-    HBM_axi_awid(i)(0)      <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
-    HBM_axi_arid(i)(0)      <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
-
-    HBM_axi_awuser(i)       <= x"0000";     -- New NOC fields to keeep an eye on.
-    HBM_axi_wid(i)(0)       <= '0';         -- New NOC fields to keeep an eye on.
-    HBM_axi_wuser(i)(0)     <= '0';         -- New NOC fields to keeep an eye on.
-
-    -- HBM Master NoC
-    i_hbm_noc : xpm_nmu_mm
-        generic map (
-            NOC_FABRIC    => "VNOC",			-- pl/pl_hbm
-            DATA_WIDTH    => NOC_DATA_WIDTH,			-- 32/64/128/256/512
-            ADDR_WIDTH    => NOC_ADDR_WIDTH,			-- 12 to 64
-            ID_WIDTH      => NOC_ID_WIDTH,				-- 1 to 16
-            AUSER_WIDTH   => NOC_AUSER_WIDTH,			-- 16 for VNOC with parity disabled, 18 for VNOC with parity enabled 
-            DUSER_WIDTH   => NOC_DUSER_WIDTH,			-- 2*DATA_WIDTH/8 for parity enablement with VNOC, 1 for VNOC with parity disabled cases
-            ENABLE_USR_INTERRUPT => "false",	-- false/true
-            SIDEBAND_PINS => "false"		-- false/true/addr/data
-        ) port map ( 
-            s_axi_aclk              => clk_300,  -- 300MHz clock is fine for the SPS stats, bandwidth requirement is low.
-            
-            -----------------------------------------------------
-            -- To Logic
-            -- ADDR
-            s_axi_awid              => HBM_axi_awid(i),
-            s_axi_awaddr            => HBM_axi_awaddr(i), --HBM_axi_aw(i).addr,
-            s_axi_awlen             => HBM_axi_aw(i).len,
-            s_axi_awsize            => HBM_axi_awsize(i),
-            s_axi_awburst           => HBM_axi_awburst(i),
-            s_axi_awlock            => HBM_axi_awlock(i),
-            s_axi_awcache           => HBM_axi_awcache(i),
-            s_axi_awprot            => HBM_axi_awprot(i),
-            s_axi_awregion          => HBM_axi_awregion(i),
-            s_axi_awqos             => HBM_axi_awqos(i),
-            s_axi_awuser            => HBM_axi_awuser(i),                -- Where does this go?
-            s_axi_awvalid           => HBM_axi_aw(i).valid,
-            s_axi_awready           => HBM_axi_awready(i),
-
-            -- DATA
-            s_axi_wid               => HBM_axi_wid(i),
-            s_axi_wdata             => HBM_axi_w(i).data(255 downto 0),
-            s_axi_wstrb             => HBM_axi_wstrb(i)(31 downto 0),
-            s_axi_wlast             => HBM_axi_w(i).last,
-            s_axi_wuser             => HBM_axi_wuser(i),
-            s_axi_wvalid            => HBM_axi_w(i).valid,
-            s_axi_wready            => HBM_axi_wready(i),
-
-            s_axi_bid               => HBM_axi_bid(i),
-            s_axi_bresp             => HBM_axi_b(i).resp,
-            s_axi_buser             => HBM_axi_buser(i),
-            s_axi_bvalid            => HBM_axi_b(i).valid,
-            s_axi_bready            => HBM_axi_bready(i),
-            
-            -- reading from logic
-            -- ADDR
-
-            s_axi_arid              => HBM_axi_arid(i),
-            s_axi_araddr            => HBM_axi_araddr(i), --HBM_axi_ar(i).addr,
-            s_axi_arlen             => HBM_axi_ar(i).len,
-            s_axi_arsize            => HBM_axi_arsize(i),
-            s_axi_arburst           => HBM_axi_arburst(i),
-            s_axi_arlock            => HBM_axi_arlock(i),
-            s_axi_arcache           => HBM_axi_arcache(i),
-            s_axi_arprot            => HBM_axi_arprot(i),
-            s_axi_arregion          => HBM_axi_arregion(i),
-            s_axi_arqos             => HBM_axi_arqos(i),
-            s_axi_aruser            => HBM_axi_aruser(i),
-            s_axi_arvalid           => HBM_axi_ar(i).valid,
-            s_axi_arready           => HBM_axi_arready(i),
-
-            -- DATA
-            s_axi_rid               => HBM_axi_rid(i),
-            s_axi_rdata             => HBM_axi_r(i).data(255 downto 0),
-            s_axi_rresp             => HBM_axi_r(i).resp,
-            s_axi_rlast             => HBM_axi_r(i).last,
-            s_axi_ruser             => HBM_axi_ruser(i),
-            s_axi_rvalid            => HBM_axi_r(i).valid,
-            s_axi_rready            => HBM_axi_rready(i),
-            
-            nmu_usr_interrupt_in    => x"0"
-        );
-
-    END GENERATE;
-end generate;
-
     
 END structure;

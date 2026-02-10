@@ -211,6 +211,7 @@ set bd_name         "top"
   $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
   $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
+  $DESIGN_PATH/src_v80/vhdl/hbm_noc_if.vhd  
   ]
 
   set_property library signal_processing_common [get_files {\
@@ -222,6 +223,7 @@ set bd_name         "top"
   */common/src/vhdl/memory_dp_64_32_wrapper.vhd \
   */common/src/vhdl/args_axi_terminus.vhd \
   */target_fpga_pkg.vhd \
+  */hbm_noc_if.vhd \
   }]
 
   set_property library common_lib [get_files {\
@@ -413,7 +415,7 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/spead_packet_pkg.vhd \
  $COMMON_PATH/spead/src/spead_packet.vhd \
  $COMMON_PATH/spead/src/spead_registers.vhd \
- $COMMON_PATH/spead/src/spead_top.vhd \
+ $COMMON_PATH/spead/src/spead_top_cor_v80.vhd \
  $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
  $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \
  $COMMON_PATH/spead/src/spead_init_memspace.vhd \
@@ -430,7 +432,7 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_packet_pkg.vhd \
  *libraries/spead/src/spead_packet.vhd \
  *libraries/spead/src/spead_registers.vhd \
- *libraries/spead/src/spead_top.vhd \
+ *libraries/spead/src/spead_top_cor_v80.vhd \
  *libraries/spead/src/memory_tdp_spead.vhd \
  *libraries/spead/src/spead_axi_bram_wrapper.vhd \
  *libraries/spead/src/spead_init_memspace.vhd \
@@ -504,7 +506,7 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
   $ARGS_PATH/cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
-  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBTop_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBMem.vhd \
@@ -535,7 +537,7 @@ set_property library filterbanks_lib [get_files {\
   *cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg.vhd \
   *cor_filterbanks/filterbanks/cor_filterbanks_filterbanks_reg_versal.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator.vhd \
-  *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/FB_top_correlator_dummy_v80.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop25.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop_dummy.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBMem.vhd \
@@ -599,8 +601,9 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/cor/config/cor_config_reg_pkg.vhd \
   $ARGS_PATH/cor/config/cor_config_reg.vhd \
   $ARGS_PATH/cor/config/cor_config_reg_versal.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_top.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/single_correlator.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_wrapper_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_top_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/single_correlator_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/full_correlator.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/correlator_HBM.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/LTA_urams.vhd \
@@ -624,7 +627,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_quad_wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_v80/cmac_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/hbm_read_axi_bram_wrapper.vhd \
@@ -634,8 +637,9 @@ set_property library correlator_lib [get_files {\
   *cor/config/cor_config_reg_pkg.vhd \
   *cor/config/cor_config_reg.vhd \
   *cor/config/cor_config_reg_versal.vhd \
-  *libraries/signalProcessing/correlator/correlator_top.vhd \
-  *libraries/signalProcessing/correlator/single_correlator.vhd \
+  *libraries/signalProcessing/correlator/correlator_wrapper_v80.vhd \
+  *libraries/signalProcessing/correlator/correlator_top_v80.vhd \
+  *libraries/signalProcessing/correlator/single_correlator_v80.vhd \
   *libraries/signalProcessing/correlator/full_correlator.vhd \
   *libraries/signalProcessing/correlator/correlator_HBM.vhd \
   *libraries/signalProcessing/correlator/LTA_urams.vhd \
@@ -659,13 +663,13 @@ set_property library correlator_lib [get_files {\
   *libraries/signalProcessing/correlator/cmac_quad_wrapper.vhd \
   *libraries/signalProcessing/correlator/cmac_array/cmac_v80/cmac_versal.vhd \
   *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
-  *libraries/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  *libraries/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader_v80.vhd \
   *libraries/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
   *signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
   *signalProcessing/correlator/cor_hbm_data_rd/hbm_read_axi_bram_wrapper.vhd \
 }]
 
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader_v80.vhd]
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd]
 set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/spead/src/spead_registers.vhd]
 

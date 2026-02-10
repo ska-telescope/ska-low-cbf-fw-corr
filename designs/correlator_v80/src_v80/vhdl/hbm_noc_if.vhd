@@ -23,7 +23,7 @@ use xpm.vcomponents.all;
 entity hbm_noc_if is
     generic (
         g_HBM_base_addr : std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
-        g_USE_VNOC : boolean := false  -- "pl_hbm" for the native HBM interfaces at the top of the chip or "VNOC" for other NOC interfaces
+        g_USE_VNOC : boolean := false  -- false for the native HBM interfaces at the top of the chip; True for VNOC interfaces
     );
     port (
         clk : in std_logic;

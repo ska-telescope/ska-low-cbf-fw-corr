@@ -51,8 +51,7 @@ entity corr_ct2_wrapper_v80 is
         o_cor_cfg_data  : out t_slv_8_arr(5 downto 0); -- 8 bit wide buses, to 6 correlators.
         o_cor_cfg_first : out std_logic_vector(5 downto 0);
         o_cor_cfg_last  : out std_logic_vector(5 downto 0);
-        o_cor_cfg_valid : out std_logic_vector(5 downto 0);
-   
+        o_cor_cfg_valid : out std_logic_vector(5 downto 0)
     );
 end corr_ct2_wrapper_v80;
 
@@ -93,10 +92,14 @@ architecture Behavioral of corr_ct2_wrapper_v80 is
     signal HBM_axi_wready : std_logic_vector(1 downto 0);
     signal HBM_axi_b : t_axi4_full_b_arr(1 downto 0);     -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
     signal HBM_axi_ar_dummy : t_axi4_full_addr;
+    signal HBM_axi_arready : std_logic_vector(1 downto 0);
+    signal dummy_slv8 : std_logic_vector(7 downto 0) := x"00";
+    signal dummy_slv8_zeros : t_slv_8_arr(5 downto 0);
+    signal dummy_slv32 : std_logic_vector(31 downto 0);
+    signal HBM_axi_rready_dummy : std_logic;
     
 begin
-
-
+    
     ct2topi : entity ct_lib.corr_ct2_top_v80
     generic map (
         g_USE_META   => g_USE_META,              -- boolean := FALSE; -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn.
@@ -117,18 +120,10 @@ begin
         o_noc_rd_dat  => noc_rd_dat, -- out STD_LOGIC_VECTOR(31 DOWNTO 0);
         -------------------------------------------------------------------------------------
         -- hbm reset   
-        o_hbm_reset_c1      : out std_logic;
-        i_hbm_status_c1     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c2      : out std_logic;
-        i_hbm_status_c2     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c3      : out std_logic;
-        i_hbm_status_c3     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c4      : out std_logic;
-        i_hbm_status_c4     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c5      : out std_logic;
-        i_hbm_status_c5     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c6      : out std_logic;
-        i_hbm_status_c6     : in std_logic_vector(7 downto 0);
+        o_hbm_reset_c1  => open, --  out std_logic;
+        i_hbm_status_c1 => dummy_slv8, -- in (7:0);
+        o_hbm_reset_c2  => open, -- out std_logic;
+        i_hbm_status_c2 => dummy_slv8, -- in (7:0);
         ------------------------------------------------------------------------------------
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
@@ -171,17 +166,18 @@ begin
         i_readout_frameCount => (others => '0'), -- in std_logic_vector(31 downto 0);
         i_freq_index0_repeat => '0', --  in std_logic;
         -- debug
-        i_hbm_status  : in t_slv_8_arr(5 downto 0);
-        i_hbm_reset_final : in std_logic;
-        i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0);
+        i_hbm_status  => dummy_slv8_zeros, -- in t_slv_8_arr(5 downto 0);
+        i_hbm_reset_final => '0', --  in std_logic;
+        i_eth_disable_fsm_dbg => "00000", --  in std_logic_vector(4 downto 0);
         --
-        i_hbm0_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm1_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm2_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm3_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm4_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm5_rst_dbg : in std_logic_vector(31 downto 0)
+        i_hbm0_rst_dbg => dummy_slv32, -- in std_logic_vector(31 downto 0);
+        i_hbm1_rst_dbg => dummy_slv32  -- in std_logic_vector(31 downto 0);
     );
+    
+    dummy_slv8 <= (others => '0'); -- std_logic_vector(7 downto 0) := x"00";
+    dummy_slv32 <= (others => '0');
+    dummy_slv8_zeros <= (others => (others => '0')); --  t_slv_8_arr(5 downto 0);
+    
     
     -- Registers NOC interface
     i_ct2_noc : entity noc_lib.args_noc
@@ -204,43 +200,43 @@ begin
     -- two interface for writing to HBM only. 
     -- CT2 reads occur in the correlators.
     
-    HBM0i : entity work.hbm_noc_if
+    HBM0i : entity signal_processing_common.hbm_noc_if
     generic map (
-        g_HBM_base_addr : std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
-        g_NOC_FABRIC : string := "pl_hbm"  -- "pl_hbm" for the native HBM interfaces at the top of the chip or "VNOC" for other NOC interfaces
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE0_ADDR, -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
+        g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE0_VNOC -- Use the direct HBM interfaces, not the VNOC
     ) port map (
         clk  => i_axi_clk, --  in std_logic;
         -- write
-        i_HBM_axi_aw      => HBM_axi_aw, --  in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_awready => hbm_axi_awready, -- out std_logic;
-        i_HBM_axi_w       => HBM_axi_w, -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_wready  => HBM_axi_wready, -- out std_logic;
-        o_HBM_axi_b       => HBM_axi_b, --out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_bready  => HBM_axi_bready, -- in std_logic;
+        i_HBM_axi_aw      => HBM_axi_aw(0), --  in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_awready => hbm_axi_awready(0), -- out std_logic;
+        i_HBM_axi_w       => HBM_axi_w(0), -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_wready  => HBM_axi_wready(0), -- out std_logic;
+        o_HBM_axi_b       => HBM_axi_b(0), --out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_bready  => HBM_axi_bready(0), -- in std_logic;
         -- read
         i_HBM_axi_ar => HBM_axi_ar_dummy, -- in t_axi4_full_addr;
-        o_HBM_axi_arready => HBM_axi_arready, -- out std_logic;
-        o_HBM_axi_r  => HBM_axi_r, -- out t_axi4_full_data;
+        o_HBM_axi_arready => HBM_axi_arready(0), -- out std_logic;
+        o_HBM_axi_r  => HBM_axi_r(0), -- out t_axi4_full_data;
         i_HBM_axi_rready => HBM_axi_rready_dummy -- in std_logic
     );
     
-    HBM1i : entity work.hbm_noc_if
+    HBM1i : entity signal_processing_common.hbm_noc_if
     generic map (
-        g_HBM_base_addr : std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
-        g_NOC_FABRIC : string := "pl_hbm"  -- "pl_hbm" for the native HBM interfaces at the top of the chip or "VNOC" for other NOC interfaces
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE1_ADDR,  -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
+        g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE1_VNOC -- Use the direct HBM interfaces, not the VNOC
     ) port map (
         clk  => i_axi_clk, --  in std_logic;
         -- write
-        i_HBM_axi_aw      => HBM_axi_aw, --  in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_awready => hbm_axi_awready, -- out std_logic;
-        i_HBM_axi_w       => HBM_axi_w, -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_wready  => HBM_axi_wready, -- out std_logic;
-        o_HBM_axi_b       => HBM_axi_b, --out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_bready  => HBM_axi_bready, -- in std_logic;
+        i_HBM_axi_aw      => HBM_axi_aw(1), --  in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_awready => hbm_axi_awready(1), -- out std_logic;
+        i_HBM_axi_w       => HBM_axi_w(1), -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_wready  => HBM_axi_wready(1), -- out std_logic;
+        o_HBM_axi_b       => HBM_axi_b(1), --out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_bready  => HBM_axi_bready(1), -- in std_logic;
         -- read
         i_HBM_axi_ar => HBM_axi_ar_dummy, -- in t_axi4_full_addr;
-        o_HBM_axi_arready => HBM_axi_arready, -- out std_logic;
-        o_HBM_axi_r  => HBM_axi_r, -- out t_axi4_full_data;
+        o_HBM_axi_arready => HBM_axi_arready(1), -- out std_logic;
+        o_HBM_axi_r  => HBM_axi_r(1), -- out t_axi4_full_data;
         i_HBM_axi_rready => HBM_axi_rready_dummy -- in std_logic
     );
     

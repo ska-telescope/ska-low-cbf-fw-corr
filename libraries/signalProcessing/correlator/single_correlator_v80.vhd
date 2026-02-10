@@ -87,7 +87,7 @@ entity single_correlator_v80 is
         -- Readout bus tells the packetiser what to do
         o_ro_data : out std_logic_vector(127 downto 0);
         o_ro_valid : out std_logic;
-        
+        i_ro_stall : in std_logic;
         -- reading from HBM
 --        o_HBM_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
 --        i_HBM_axi_arready : in  std_logic;
@@ -373,9 +373,6 @@ begin
         i_axi_b       => i_HBM_axi_b        -- in  t_axi4_full_b; write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
     );
     
-
-    packetiser_reset <= NOT i_packetiser_enable;
-
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
@@ -385,7 +382,7 @@ begin
             -- For the 283ms case, bits 33:32 = "00","01", or "10" to indicate which 283 ms integration this is.
             -- For the 849ms case, bits 33:32 = "10", since it's always the end of the 849 ms interval.
             ro_time_ref(31 downto 0) <= i_cor_frameCount;
-            ro_stall_del1 <= ro_stall;
+            ro_stall_del1 <= i_ro_stall;
             ro_stall_del2 <= ro_stall_del1;
         end if;
     end process;
@@ -402,13 +399,10 @@ begin
     o_ro_data(83) <= ro_table_select;
     o_ro_data(87 downto 84) <= "0000";
     o_ro_data(95 downto 88) <= std_logic_vector(to_unsigned(g_CORRELATOR_INSTANCE,8));
-    o_ro_data(127 downto 96) <= (others => '0');
+    o_ro_data(127 downto 96) <= ro_time_ref(31 downto 0);
     o_ro_valid <= ro_valid;
 
-
-
-
-
+    --packetiser_reset <= NOT i_packetiser_enable;
 --    HBM_reader : entity correlator_lib.correlator_data_reader
 --    generic map ( 
 --        DEBUG_ILA           => FALSE

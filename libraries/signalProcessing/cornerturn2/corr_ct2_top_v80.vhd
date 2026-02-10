@@ -115,19 +115,11 @@ entity corr_ct2_top_v80 is
         i_noc_rd_adr  : in STD_LOGIC_VECTOR(17 DOWNTO 0);
         o_noc_rd_dat  : out STD_LOGIC_VECTOR(31 DOWNTO 0);
         -------------------------------------------------------------------------------------
-        -- hbm reset   
+        -- hbm reset
         o_hbm_reset_c1      : out std_logic;
         i_hbm_status_c1     : in std_logic_vector(7 downto 0);
         o_hbm_reset_c2      : out std_logic;
         i_hbm_status_c2     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c3      : out std_logic;
-        i_hbm_status_c3     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c4      : out std_logic;
-        i_hbm_status_c4     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c5      : out std_logic;
-        i_hbm_status_c5     : in std_logic_vector(7 downto 0);
-        o_hbm_reset_c6      : out std_logic;
-        i_hbm_status_c6     : in std_logic_vector(7 downto 0);
         ------------------------------------------------------------------------------------
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
@@ -175,11 +167,7 @@ entity corr_ct2_top_v80 is
         i_eth_disable_fsm_dbg : in std_logic_vector(4 downto 0);
         --
         i_hbm0_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm1_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm2_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm3_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm4_rst_dbg : in std_logic_vector(31 downto 0);
-        i_hbm5_rst_dbg : in std_logic_vector(31 downto 0)
+        i_hbm1_rst_dbg : in std_logic_vector(31 downto 0)
     );
 end corr_ct2_top_v80;
 
@@ -221,7 +209,7 @@ architecture Behavioral of corr_ct2_top_v80 is
     signal dout_SB_bad_poly : std_logic_vector(g_MAX_CORRELATORS-1 downto 0);
     signal total_subarray_beams : t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0);
     --signal dout_SB_done : std_logic_vector(15 downto 0);
-    type SB_rd_fsm_type is (idle, get_din_rd1, get_din_rd2, get_din_rd3, get_din_rd4, get_din_wait_done, get_dout, dout_done);
+    type SB_rd_fsm_type is (idle, get_din_rd1, get_din_rd2, get_din_rd3, get_din_rd4, get_din_wait_done, send_meta, get_dout, dout_done);
     signal SB_rd_fsm, SB_rd_fsm_del1, SB_rd_fsm_del2, SB_rd_fsm_del3, SB_rd_fsm_del4 : SB_rd_fsm_type;
     signal dout_SB_sel, dout_SB_sel_del1, dout_SB_sel_del2, dout_SB_sel_del3 : std_logic_vector(2 downto 0);
     signal SB_addr : std_logic_vector(10 downto 0);
@@ -409,8 +397,7 @@ begin
             end if;
             
             readout_start_del1 <= readout_start;
-            readout_buffer_del1 <= readout_buffer;
-            readout_frameCount_Del1 <= readout_frameCount;
+            
             if readout_start = '1' and readout_start_del1 = '0' then
                 readout_start_pulse <= '1';
             else
@@ -737,6 +724,8 @@ begin
                     total_subarray_beams(4) <= statctrl_rw.buf4_subarray_beams_table1;
                     total_subarray_beams(5) <= statctrl_rw.buf5_subarray_beams_table1;
                 end if;
+                readout_buffer_del1 <= readout_buffer;
+                readout_frameCount_del1 <= readout_frameCount;
                 -- Where we are currently up to in the subarray-beam table for each correlator cell readout.
                 for i in 0 to (g_MAX_CORRELATORS-1) loop
                     cur_readout_SB(i) <= (others => '0');
@@ -755,7 +744,7 @@ begin
                 when idle =>
                     SB_rd_fsm_dbg <= "0000";
                     if readout_pending = '1' then
-                        SB_rd_fsm <= get_dout;
+                        SB_rd_fsm <= send_meta;
                         dout_SB_sel <= "000";  -- which correlator to read out for
                         dout_SB_entry <= "000000000"; -- which of the 512 maximum possible words in each table we are up to
                     elsif din_SB_req = '1' then
@@ -791,6 +780,19 @@ begin
                         SB_rd_fsm <= idle;
                     end if;
                 
+                -----------------------------------------------------------------------
+                -- Send packets of meta and subarray-beam table data to each of the correlator cores
+                when send_meta =>
+                    -- First 5 bytes = readout_buffer, readout_frameCount 
+                    if dout_SB_sel = "101" then 
+                        -- hold in this state for 6 clocks so that it behaves the same as in the get_dout state,
+                        -- and allows time for the 1-byte wide bus to the correlators to clear the data loaded.
+                        SB_rd_fsm <= get_dout;
+                        dout_SB_sel <= "000";
+                    else
+                        dout_SB_sel <= std_logic_vector(unsigned(dout_SB_sel) + 1);
+                    end if;
+                    
                 when get_dout =>
                     -- Readout the full subarray beam table for all 6 correlators, to copy it onto the o_axis_cor_* bus
                     -- which is sent to each correlator core.
@@ -874,6 +876,7 @@ begin
         -- 
         -- Packets are sent on "readout_start_pulse"
         --  1st byte (o_axis_cor_first = '1') = Number of subarray beams
+        --  Next 4 bytes = 
         --  Then 128 groups of 4 bytes each, where each 4 bytes are the data from a 32-bit word in the subarray beam table.
         --  The lsb of the last 32 bit word is replaced with the bad poly value for that subarray beam (LSB must be zero in the table because addresses are 256 byte aligned)
         -- 
@@ -884,26 +887,33 @@ begin
             variable dout_SB_sel_v : integer := 0;
         begin
             if rising_edge(i_axi_clk) then
-                if (SB_rd_fsm_del3 = get_dout) and (unsigned(dout_SB_sel_del3) = i) then
-                    if (unsigned(dout_SB_entry_del3) = 0) then
-                        -- first word read for this correlator, put in the number of subarray beams as well as the data read from the config memory
-                        cfg_to_send(i) <= SB_rd_data & total_subarray_beams(i)(7 downto 0);
+                if (unsigned(dout_SB_sel_del3) = i) then
+                    if (SB_rd_fsm_del3 = send_meta) then
+                        cfg_to_send(i) <= readout_frameCount_Del1 & "0000000" & readout_buffer_del1;
                         cfg_to_send_valid(i) <= "11111";
                         cfg_to_send_first(i) <= "00001";
                         cfg_to_send_last(i) <= "00000";
-                    else
-                        if (dout_SB_entry_del3(1 downto 0) = "11") then
-                            -- last of 4 words, put bad poly in the LSB
-                            cfg_to_send(i) <= x"00" & SB_rd_data(31 downto 1) & cor_bp_rd_data(i);
-                        else
-                            cfg_to_send(i) <= x"00" & SB_rd_data;
-                        end if;
-                        cfg_to_send_valid(i) <= "01111";
-                        cfg_to_send_first(i) <= "00000";
-                        if (unsigned(dout_SB_entry_del3) = 511) then
-                            cfg_to_send_last(i) <= "01000";
-                        else
+                    elsif (SB_rd_fsm_del3 = get_dout) then
+                        if (unsigned(dout_SB_entry_del3) = 0) then
+                            -- first word read for this correlator, put in the number of subarray beams as well as the data read from the config memory
+                            cfg_to_send(i) <= SB_rd_data & total_subarray_beams(i)(7 downto 0);
+                            cfg_to_send_valid(i) <= "11111";
+                            cfg_to_send_first(i) <= "00000";
                             cfg_to_send_last(i) <= "00000";
+                        else
+                            if (dout_SB_entry_del3(1 downto 0) = "11") then
+                                -- last of 4 words, put bad poly in the LSB
+                                cfg_to_send(i) <= x"00" & SB_rd_data(31 downto 1) & cor_bp_rd_data(i);
+                            else
+                                cfg_to_send(i) <= x"00" & SB_rd_data;
+                            end if;
+                            cfg_to_send_valid(i) <= "01111";
+                            cfg_to_send_first(i) <= "00000";
+                            if (unsigned(dout_SB_entry_del3) = 511) then
+                                cfg_to_send_last(i) <= "01000";
+                            else
+                                cfg_to_send_last(i) <= "00000";
+                            end if;
                         end if;
                     end if;
                 else

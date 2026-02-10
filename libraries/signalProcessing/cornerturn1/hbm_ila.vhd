@@ -6,7 +6,7 @@
 -- Module Name: hbm_ila.vhd - Behavioral
 -- Description: 
 --  Write data to HBM, just like an ILA
---  
+--  Assumes a 512 MByte block of memory to write to. Wraps at 512 MBytes.
 ----------------------------------------------------------------------------------
 library IEEE, common_lib;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -186,7 +186,6 @@ begin
     
     
     -- Each write to HBM is 4096 bytes.
-    -- Generate 8 aw requests, each a write of 4096 bytes.
     process(axi_clk)
     begin
         if rising_edge(axi_clk) then
@@ -220,6 +219,7 @@ begin
                         aw_fsm <= wait_done0;
                     
                     when wait_done0 => -- wait until "to_send_count" is updated
+                        aw_addr(31 downto 29) <= "000"; -- force wrap back to zero at 512 MBytes   
                         aw_fsm <= wait_done1;
                     
                     when wait_done1 =>

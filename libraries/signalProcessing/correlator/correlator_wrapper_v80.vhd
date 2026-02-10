@@ -52,15 +52,32 @@ end correlator_wrapper_v80;
 
 architecture Behavioral of correlator_wrapper_v80 is
     
-    signal HBM_axi_ar : t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+    signal HBM_axi_ar, HBM_axi_aw, HBM_axi_addr_dummy : t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
     signal HBM_axi_arready : std_logic;
     signal HBM_axi_r : t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
     signal HBM_axi_rready : std_logic;
-    signal HBM_axi_aw :  t_axi4_full_addr; -- write address bus (.valid, .addr(39:0), .len(7:0))
+    signal HBM_axi_ready_dummy : std_logic := '1';
     signal HBM_axi_awready : std_logic;
     signal HBM_axi_w :  t_axi4_full_data; -- w data bus (.valid, .data(511:0), .last, .resp(1:0))
     signal HBM_axi_wready : std_logic;
-    signal HBM_axi_b : t_axi4_full_b; 
+    signal HBM_axi_b : t_axi4_full_b;
+    signal HBM_axi_w_dummy : t_axi4_full_data;
+    signal HBM_axi_bready : std_logic;
+    
+    signal ro_FIFO_din : std_logic_vector(127 downto 0);
+    signal ro_FIFO_wrEn : std_logic;
+    signal ro_FIFO_valid, ro_FIFO_full : std_logic;
+    signal ro_FIFO_dout : std_logic_vector(127 downto 0);
+    signal ro_FIFO_wr_count : std_logic_vector(4 downto 0);
+    signal ro_FIFO_RdEn, ro_tready : std_logic;
+    signal ro_reg_used : std_logic := '0';
+    signal ro_tdata : std_logic_vector(127 downto 0);
+    
+    signal ro_tdest : std_logic_vector(3 downto 0);
+    signal ro_tkeep : std_logic_vector(15 downto 0);
+    signal ro_tid : std_logic_vector(15 downto 0);
+    signal ro_tlast : std_logic;
+    signal ro_stall : std_logic;
     
 begin
     
@@ -97,6 +114,7 @@ begin
         -- Readout bus tells the packetiser what to do
         o_ro_data  => ro_FIFO_din,  -- out std_logic_vector(127 downto 0);
         o_ro_valid => ro_FIFO_wrEn, -- out std_logic;
+        i_ro_stall => ro_stall,     -- in std_logic;
         ---------------------------------------------------------------
         -- Copy of the bus taking data to be written to the HBM,
         -- for the first correlator instance.
@@ -113,12 +131,40 @@ begin
     );
     
     ------------------------------------------------------------------
-    -- Instantiate HBM 
+    -- Instantiate HBM interfaces
+    -- Read and write use separate NOC interfaces
+    -- Read from HBM reads from the full CT2 memory (18 Gbytes)
     
-    HBM0i : entity work.hbm_noc_if
+    HBM_readi : entity signal_processing_common.hbm_noc_if
     generic map (
-        g_HBM_base_addr : std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
-        g_USE_VNOC => g_USE_VNOC  -- "pl_hbm" for the native HBM interfaces at the top of the chip or "VNOC" for other NOC interfaces
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_ADDR, -- : std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
+        g_USE_VNOC => c_CORRELATOR_VNOC(g_CORRELATOR_INSTANCE)  -- "pl_hbm" for the native HBM interfaces at the top of the chip or "VNOC" for other NOC interfaces
+    ) port map (
+        clk  => i_axi_clk, --  in std_logic;
+        -- write
+        i_HBM_axi_aw      => HBM_axi_addr_dummy, -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_awready => open,             -- out std_logic;
+        i_HBM_axi_w       => HBM_axi_w_dummy,  -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_wready  => open,             -- out std_logic;
+        o_HBM_axi_b       => open,             -- out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_bready  => HBM_axi_ready_dummy, -- in std_logic;
+        -- read
+        i_HBM_axi_ar => HBM_axi_ar, -- in t_axi4_full_addr;
+        o_HBM_axi_arready => HBM_axi_arready, -- out std_logic;
+        o_HBM_axi_r  => HBM_axi_r, -- out t_axi4_full_data;
+        i_HBM_axi_rready => HBM_axi_rready -- in std_logic
+    );
+    
+    HBM_axi_w_dummy.valid <= '0';
+    HBM_axi_w_dummy.data <= (others => '0');
+    HBM_axi_w_dummy.last <= '0';
+    HBM_axi_w_dummy.resp <= (others => '0');
+    
+    -- Write to HBM is just for the visibility output buffer, which is smaller and specific to this correlator core 
+    HBM_writei : entity signal_processing_common.hbm_noc_if
+    generic map (
+        g_HBM_base_addr => c_V80_HBM_BASE_VIS_ADDR(g_CORRELATOR_INSTANCE), -- std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
+        g_USE_VNOC =>  c_CORRELATOR_VNOC(g_CORRELATOR_INSTANCE)  -- "pl_hbm" for the native HBM interfaces at the top of the chip or "VNOC" for other NOC interfaces
     ) port map (
         clk  => i_axi_clk, --  in std_logic;
         -- write
@@ -129,12 +175,17 @@ begin
         o_HBM_axi_b       => HBM_axi_b, --out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         i_HBM_axi_bready  => HBM_axi_bready, -- in std_logic;
         -- read
-        i_HBM_axi_ar => HBM_axi_ar, -- in t_axi4_full_addr;
-        o_HBM_axi_arready => HBM_axi_arready, -- out std_logic;
-        o_HBM_axi_r  => HBM_axi_r, -- out t_axi4_full_data;
-        i_HBM_axi_rready => HBM_axi_rready -- in std_logic
+        i_HBM_axi_ar => HBM_axi_addr_dummy, -- in t_axi4_full_addr;
+        o_HBM_axi_arready => open, -- out std_logic;
+        o_HBM_axi_r  => open, -- out t_axi4_full_data;
+        i_HBM_axi_rready => HBM_axi_ready_dummy -- in std_logic
     );
     
+    HBM_axi_bready <= '0';
+    HBM_axi_ready_dummy <= '1';
+    HBM_axi_addr_dummy.valid <= '0';
+    HBM_axi_addr_dummy.addr <= (others => '0');
+    HBM_axi_addr_dummy.len <= (others => '0');
     
     ------------------------------------------------------------------
     -- Point to point streaming AXI to tell the packetiser to read out data from the HBM
@@ -159,30 +210,30 @@ begin
         WRITE_DATA_WIDTH => 128,    -- DECIMAL
         WR_DATA_COUNT_WIDTH => 5    -- DECIMAL
     ) port map (
-        almost_empty => open,       -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
-        almost_full => open,        -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
+        almost_empty => open,        -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
+        almost_full => open,         -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
         data_valid => ro_FIFO_valid, -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
-        dbiterr => open,            -- 1-bit output: Double Bit Error: Indicates that the ECC decoder detected a double-bit error and data in the FIFO core is corrupted.
+        dbiterr => open,             -- 1-bit output: Double Bit Error: Indicates that the ECC decoder detected a double-bit error and data in the FIFO core is corrupted.
         dout => ro_FIFO_dout,        -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
-        empty => open,              -- 1-bit output: Empty Flag: When asserted, this signal indicates that- the FIFO is empty.
+        empty => open,               -- 1-bit output: Empty Flag: When asserted, this signal indicates that- the FIFO is empty.
         full => ro_FIFO_full,        -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full.
-        overflow => open,           -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
-        prog_empty => open,         -- 1-bit output: Programmable Empty: This signal is asserted when the number of words in the FIFO is less than or equal to the programmable empty threshold value.
-        prog_full => open,          -- 1-bit output: Programmable Full: This signal is asserted when the number of words in the FIFO is greater than or equal to the programmable full threshold value.
-        rd_data_count => open,      -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
-        rd_rst_busy => open,        -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
-        sbiterr => open,            -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
-        underflow => open,          -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
-        wr_ack => open,             -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
+        overflow => open,            -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
+        prog_empty => open,          -- 1-bit output: Programmable Empty: This signal is asserted when the number of words in the FIFO is less than or equal to the programmable empty threshold value.
+        prog_full => open,           -- 1-bit output: Programmable Full: This signal is asserted when the number of words in the FIFO is greater than or equal to the programmable full threshold value.
+        rd_data_count => open,       -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
+        rd_rst_busy => open,         -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
+        sbiterr => open,             -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
+        underflow => open,           -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
+        wr_ack => open,              -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => ro_FIFO_wr_count, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
-        wr_rst_busy => open,        -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
+        wr_rst_busy => open,         -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
         din => ro_FIFO_din,          -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
-        injectdbiterr => '0',       -- 1-bit input: Double Bit Error Injection
-        injectsbiterr => '0',       -- 1-bit input: Single Bit Error Injection: 
+        injectdbiterr => '0',        -- 1-bit input: Double Bit Error Injection
+        injectsbiterr => '0',        -- 1-bit input: Single Bit Error Injection: 
         rd_en => ro_FIFO_RdEn,       -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
-        rst => i_rst,               -- 1-bit input: Reset: Must be synchronous to wr_clk.
-        sleep => '0',               -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
-        wr_clk => i_axi_clk,        -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
+        rst => '0',                  -- 1-bit input: Reset: Must be synchronous to wr_clk.
+        sleep => '0',                -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
+        wr_clk => i_axi_clk,         -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
         wr_en => ro_FIFO_wrEn        -- 1-bit input: Write Enable: 
     );
     
@@ -197,6 +248,13 @@ begin
             elsif ro_tready = '1' then
                 ro_reg_used <= '0';
             end if;
+            
+            if unsigned(ro_FIFO_wr_count) > 8 then
+                ro_stall <= '1';
+            else
+                ro_stall <= '0';
+            end if;
+            
         end if;
     end process;
     
@@ -223,6 +281,8 @@ begin
     ro_tlast <= '1';
     ro_tid <= std_logic_vector(to_unsigned(g_CORRELATOR_INSTANCE,16));
     ro_tdest <= "0000";
+    
+
     
 --    ----------------------------------------------------------------
 --    -- Registers
