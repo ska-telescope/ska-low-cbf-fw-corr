@@ -154,7 +154,7 @@ ska-low-cbf-fw-testing:
   # tag (so raw-publish has something to publish)
   - if: $CI_COMMIT_TAG
   # 'build' keyword in commit title
-  - if: $CI_COMMIT_TITLE =~ /build/
+  #- if: $CI_COMMIT_TITLE =~ /build/
   - if: $CI_COMMIT_TITLE =~ /v80_b/
   # default - allow manual trigger but don't require it for pipeline success
   - when: manual
@@ -174,7 +174,7 @@ ska-low-cbf-fw-testing:
   # tag (so raw-publish has something to publish)
   - if: $CI_COMMIT_TAG
   # 'build' keyword in commit title
-  - if: $CI_COMMIT_TITLE =~ /build/
+  #- if: $CI_COMMIT_TITLE =~ /build/
   - if: $CI_COMMIT_TITLE =~ /v80_b/
   # default - allow manual trigger but don't require it for pipeline success
   - when: manual
