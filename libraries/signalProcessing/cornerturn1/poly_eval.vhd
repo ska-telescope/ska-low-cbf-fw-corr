@@ -176,6 +176,7 @@ entity poly_eval is
         --  - bufVpolDeltaP : 16 bits. Delay as a phase step across the coarse channel
         --  - bufVpolPhase  : 16 bits. Phase offset for V pol
         o_vc : out std_logic_vector(15 downto 0);
+        o_vcCount : out std_logic_vector(3 downto 0); -- which virtual channel in the current batch, 0 to (g_VIRTUAL_CHANNELS - 1)
         o_packet : out std_logic_vector(15 downto 0);
         --
         o_sample_offset : out std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
@@ -298,7 +299,8 @@ architecture Behavioral of poly_eval is
     type t_poly_fsm_del is array(47 downto 0) of poly_fsm_type;
     signal poly_fsm_del : t_poly_fsm_del;
     signal first_virtual_channel : std_logic_vector(15 downto 0);
-    signal virtual_channels, virtual_channels_x10, virtual_channels_x8, virtual_channels_x2, vc_base_addr : t_slv_20_arr((g_VIRTUAL_CHANNELS-1) downto 0);
+    signal virtual_channels : t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0);
+    signal virtual_channels_x10, virtual_channels_x8, virtual_channels_x2, vc_base_addr : t_slv_20_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     signal integration : std_logic_vector(31 downto 0);
     signal ct_frame : std_logic_vector(1 downto 0);
     signal vc_count : std_logic_vector(3 downto 0);
@@ -324,7 +326,7 @@ architecture Behavioral of poly_eval is
     
 begin
     
-    o_rd_addr <= poly_rd_addr(14 downto 0);
+    o_rd_addr <= poly_rd_addr(15 downto 0);
     
     vc_gen : for i in 0 to (g_VIRTUAL_CHANNELS-1) generate
         -- Processing for each of the virtual channels.
@@ -896,6 +898,7 @@ begin
             
             if poly_fsm = send_values then
                 o_vc <= virtual_channels(to_integer(unsigned(vc_count)));
+                o_vcCount <= vc_count;
                 o_packet <= x"00" & packets_sent; -- out std_logic_vector(15 downto 0);
                 o_sample_offset  <= sample_offset(to_integer(unsigned(vc_count)))(11 downto 0); -- Number of whole 1080ns samples to delay by.
                 o_Hpol_deltaP <= Hpol_deltaP(to_integer(unsigned(vc_count))); -- out std_logic_vector(15 downto 0);
@@ -913,6 +916,7 @@ begin
                 o_uptime <= uptime;   -- 48 bits, count of 300 MHz clocks.
             else
                 o_vc <= (others => '0');
+                o_vcCount <= (others => '0');
                 o_packet <= (others => '0'); -- out std_logic_vector(15 downto 0);
                 o_sample_offset <= (others => '0'); -- Number of whole 1080ns samples to delay by.
                 o_Hpol_deltaP <= (others => '0');
@@ -928,7 +932,7 @@ begin
             elsif poly_fsm = get_validity_buf1 then
                 -- read validity info for the second buffer for each virtual channel
                 -- validity = offset 7 within set of 10 words, second buffer = offset 10240
-                poly_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + 10240 + 9);
+                poly_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + g_BUFFER_OFFSET + 9);
             elsif (poly_fsm_del(9) = calc_t_start) then
                 -- Fetch from configuration memory the offset in seconds from the integration to the 
                 -- start of validity for the polynomial (word 7).

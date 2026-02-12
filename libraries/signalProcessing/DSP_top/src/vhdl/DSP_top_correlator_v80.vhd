@@ -170,9 +170,9 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     
     signal FD_integration :  std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
     signal FD_ctFrame : std_logic_vector(1 downto 0);
-    signal FD_virtualChannel : t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-    signal FD_headerValid : std_logic_vector(3 downto 0);
-    signal FD_data : t_ctc_output_payload_arr(3 downto 0);
+    signal FD_virtualChannel : t_slv_16_arr(11 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+    signal FD_headerValid : std_logic_vector(11 downto 0);
+    signal FD_data : t_ctc_output_payload_arr(11 downto 0);
     signal FD_dataValid : std_logic;
     
     signal ct_rst : std_logic;
@@ -299,9 +299,7 @@ begin
 
 
     LFAAin : entity LFAADecode100G_lib.LFAADecodeTop100G
-    generic map (
-        g_CORRELATOR_V80 => True -- boolean 
-    ) port map(
+    port map(
         -- Data in from the 100GE MAC
         i_axis_tdata     => i_axis_tdata, --  in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
         i_axis_tkeep     => i_axis_tkeep, --  in (63:0);  one bit per byte in i_axi_tdata
@@ -594,14 +592,14 @@ begin
             
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
-            o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
+            o_integration    => FD_integration,    -- out (31:0); Frame count is the same for all simultaneous output streams.
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
-            o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
+            o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(11 downto 0); 3 virtual channels, one for each of the PST data streams.
             o_bad_poly       => FD_bad_poly,       -- out (2:0);
             o_lastChannel    => FD_lastChannel,    -- out std_logic; Last of the group of 4 channels
             o_demap_table_select => FD_demap_table_select, -- out std_logic;
-            o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
-            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
+            o_HeaderValid    => FD_headerValid,    -- out (11:0);
+            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(11 downto 0);
             o_DataValid      => FD_dataValid,      -- out std_logic
             -- i_SOF delayed by 16384 clocks;
             -- i_sof occurs at the start of each new block of 4 virtual channels.
@@ -645,8 +643,8 @@ begin
             o_bad_poly       => FD_bad_poly,       -- out std_logic;
             o_lastChannel    => FD_lastChannel,    -- out std_logic; Last of the group of 4 channels
             o_demap_table_select => FD_demap_table_select, -- out std_logic;
-            o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
-            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(3 downto 0);
+            o_HeaderValid    => FD_headerValid,    -- out (11:0);
+            o_Data           => FD_data,           -- out t_ctc_output_payload_arr(11 downto 0);
             o_DataValid      => FD_dataValid,      -- out std_logic
             -- i_SOF delayed by 16384 clocks;
             -- i_sof occurs at the start of each new block of 4 virtual channels.
@@ -683,11 +681,11 @@ begin
         i_sof             => FB_out_sof,        -- in std_logic; Pulse high at the start of every new group of virtual channels. (1 frame is typically 283 ms of data).
         i_integration     => FD_integration,    -- in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame         => FD_ctFrame,        -- in (1:0);
-        i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(3 downto 0); 4 virtual channels, one for each of the PST data streams.
+        i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(11 downto 0); 12 virtual channels processed in parallel
         i_bad_poly        => FD_bad_poly,       -- in (2:0); One value for each group of 4 virtual channels.
         i_lastChannel     => FD_lastChannel,    -- in std_logic; Last of the group of 4 channels
         i_demap_table_select => FD_demap_table_select, -- in std_logic;
-        i_HeaderValid     => FD_headerValid,    -- in (3:0);
+        i_HeaderValid     => FD_headerValid,    -- in (11:0);
         i_data            => FD_data,           -- in t_ctc_output_payload_arr(11 downto 0); 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), ..., i_data(11)
         i_dataValid       => FD_dataValid,      -- in std_logic;
         --------------------------------------------------------------------------

@@ -44,16 +44,16 @@ entity poly_axi_bram_wrapper_v80 is
         -- Block ram interface for access by the rest of the module
         -- Memory is 20480 x 8 byte words
         -- read latency 3 clocks
-        i_bram_addr         : in std_logic_vector(15 downto 0); -- 16 bit address of 8-byte words (= 19 bit byte address)
-        o_bram_rddata       : out std_logic_vector(63 downto 0);
-        -- 1024 x 4-byte words for the RFI threshold
+        i_bram_addr       : in std_logic_vector(15 downto 0); -- 16 bit address of 8-byte words (= 19 bit byte address)
+        o_bram_rddata     : out std_logic_vector(63 downto 0);
+        -- 4096 x 4-byte words for the RFI threshold
         i_RFI_bram_addr   : in  std_logic_vector(11 downto 0);
         o_RFI_bram_rddata : out std_logic_vector(31 downto 0);
         ------------------------------------------------------
-        noc_wren            : IN STD_LOGIC;
-        noc_wr_adr          : IN STD_LOGIC_VECTOR(17 DOWNTO 0); -- This is a 4-byte address from the NOC
-        noc_wr_dat          : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-        noc_rd_dat          : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+        noc_wren   : IN STD_LOGIC;
+        noc_wr_adr : IN STD_LOGIC_VECTOR(17 DOWNTO 0); -- This is a 4-byte address from the NOC
+        noc_wr_dat : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        noc_rd_dat : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
         ------------------------------------------------------
         -- debug
         o_dbg_wrEn : out std_logic;

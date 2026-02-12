@@ -378,7 +378,7 @@ begin
         dbiterrb => open,      -- 1-bit output: Status signal to indicate double bit error occurrence on the data output of port B
         doutb => SB_rd_data,   -- READ_DATA_WIDTH_B-bit output: Data output for port B read operations
         sbiterrb => open,      -- 1-bit output: Status signal to indicate single bit error occurrence on the data output of port B
-        addra => cfg_wr_addr(11 downto 2), -- ADDR_WIDTH_A-bit input: Address for port A write operations
+        addra => SB_wr_addr,   -- ADDR_WIDTH_A-bit input: Address for port A write operations
         addrb => SB_rd_addr,   -- ADDR_WIDTH_B-bit input: Address for port B read operations
         clka => i_axi_clk,     -- 1-bit input: Clock signal for port A. Also clocks port B when parameter CLOCKING_MODE is "common_clock"
         clkb => i_axi_clk,     -- 1-bit input: Clock signal for port B when parameter CLOCKING_MODE is "independent_clock"

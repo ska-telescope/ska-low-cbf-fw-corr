@@ -33,8 +33,9 @@ PACKAGE target_fpga_pkg IS
                                                                            x"0000004780000000",   -- 30 GBytes
                                                                            x"00000047C0000000");  -- 31 GBytes
     -- two HBM interfaces to write SPS data into the HBM from the 200GE
-    constant c_V80_HBM_SPS_DECODE_VNOC0 : boolean := false;
-    constant c_V80_HBM_SPS_DECODE_VNOC1 : boolean := false;
+    -- Place these in SLR1 near the ethernet MAC. Writes over the VNOC get high bandwidth even from a different SLR.
+    constant c_V80_HBM_SPS_DECODE_VNOC0 : boolean := True;
+    constant c_V80_HBM_SPS_DECODE_VNOC1 : boolean := True;
     
     -- SPS statistics
     constant c_V80_STATISTICS_VNOC : boolean := True;
@@ -49,8 +50,13 @@ PACKAGE target_fpga_pkg IS
     constant c_V80_HBM_ILA_VNOC : boolean := false;
 
     -- up to 6 correlator instances
-    constant c_CORRELATOR_VNOC : t_boolean_arr(5 downto 0) := (false, false, false, false, false, false);
-    constant c_VIS_VNOC : t_boolean_arr(5 downto 0) := (false, false, false, false, false, false);
-    constant c_V80_HBM_BASE_CT2_READ_VNOC : boolean := false; -- true to use VNOC, false to use dedicated HBM interfaces at the top of SLR0
+    -- Correlator read from CT2
+    constant c_CORRELATOR_VNOC : t_boolean_arr(5 downto 0) := (true, true, true, true, true, false);
+    -- Correlator visibility write to HBM
+    constant c_VIS_VNOC : t_boolean_arr(5 downto 0) := (true, true, true, true, true, false);
+    -- Correlator visibility read from HBM
+    constant c_VIS_RD_VNOC : t_boolean_arr(5 downto 0) := (true, true, true, true, true, true);
+    -- correlator visibility read from HBM
+    constant c_V80_HBM_BASE_CT2_READ_VNOC : boolean := true; -- true to use VNOC, false to use dedicated HBM interfaces at the top of SLR0
     
 end target_fpga_pkg;

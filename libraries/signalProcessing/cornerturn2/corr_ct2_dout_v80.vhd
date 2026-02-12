@@ -202,7 +202,7 @@ architecture Behavioral of corr_ct2_dout_v80 is
     signal arFIFO_din, arFIFO_dout : std_logic_vector(133 downto 0);
     signal dataFIFO_valid, dataFIFO_rdEn, dataFIFO_wrEn, dataFIFO_full : std_logic;
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
-    signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
+    signal dataFIFO_rdCount : std_logic_vector(9 downto 0);
     signal dataFIFO_wrCount : std_logic_vector(9 downto 0);
     --
     signal SB_stations : std_logic_vector(15 downto 0); -- 16 bits, the number of (sub)stations in this subarray-beam
@@ -839,7 +839,7 @@ begin
         FULL_RESET_VALUE => 0,      -- DECIMAL
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 11,  -- DECIMAL  should be = log2(FIFO_READ_DEPTH) + 1
+        RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL  should be = log2(FIFO_READ_DEPTH) + 1
         READ_DATA_WIDTH => 256,     -- DECIMAL
         READ_MODE => "std",         -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages

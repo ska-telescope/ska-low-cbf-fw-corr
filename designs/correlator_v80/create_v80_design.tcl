@@ -564,7 +564,8 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg_versal.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_wrapper_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din2HBM_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout_v80.vhd \
@@ -578,7 +579,8 @@ set_property library ct_lib [get_files {\
  *corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
  *corr_ct2/corr_ct2/corr_ct2_reg.vhd \
  *corr_ct2/corr_ct2/corr_ct2_reg_versal.vhd \
- *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_wrapper_v80.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_top_v80.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_din2HBM_v80.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_dout_v80.vhd \
@@ -588,9 +590,9 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr_v80.vhd \
 }]
 
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd]
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd]
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top_v80.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr_v80.vhd]
 
 #############################################################
 ## Correlator

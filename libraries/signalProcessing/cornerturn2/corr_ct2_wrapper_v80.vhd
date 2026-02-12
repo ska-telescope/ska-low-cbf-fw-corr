@@ -39,7 +39,7 @@ entity corr_ct2_wrapper_v80 is
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
         i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      : in std_logic_vector(1 downto 0);  -- 283 ms frame within each integration interval
-        i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
+        i_virtualChannel : in t_slv_16_arr(11 downto 0);   -- 12 virtual channels, one for each of the data streams.
         i_bad_poly     : in std_logic_vector(2 downto 0);  -- one signal for each group of 4 virtual channels
         i_lastChannel  : in std_logic;   -- last of the group of 4 channels
         i_demap_table_select : in std_logic;
@@ -71,15 +71,15 @@ architecture Behavioral of corr_ct2_wrapper_v80 is
     signal vc_demap_rd_addr : std_logic_vector(9 downto 0);
     signal din_SB_addr : std_logic_vector(7 downto 0);
     
-    signal noc_wren                 : STD_LOGIC;
-    signal noc_rden                 : STD_LOGIC;
-    signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
-    signal noc_wr_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
-    signal noc_rd_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
-    signal noc_rd_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
-    signal noc_rd_dat_mux           : STD_LOGIC_VECTOR(31 DOWNTO 0);
-    signal bram_addr_d1             : STD_LOGIC_VECTOR(17 DOWNTO 0);
-    signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wren        : STD_LOGIC;
+    signal noc_rden        : STD_LOGIC;
+    signal noc_wr_adr      : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat      : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr      : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat      : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_dat_mux  : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal bram_addr_d1    : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal bram_addr_d2    : STD_LOGIC_VECTOR(17 DOWNTO 0);
     signal max_copyAW_time : std_logic_vector(31 downto 0); -- time required to put out all the addresses
     signal max_copyData_time : std_logic_vector(31 downto 0); -- time required to put out all the data
     signal min_trigger_interval : std_logic_Vector(31 downto 0); -- minimum time available
@@ -97,6 +97,7 @@ architecture Behavioral of corr_ct2_wrapper_v80 is
     signal dummy_slv8_zeros : t_slv_8_arr(5 downto 0);
     signal dummy_slv32 : std_logic_vector(31 downto 0);
     signal HBM_axi_rready_dummy : std_logic;
+    signal HBM_axi_bready : std_logic_vector(1 downto 0);
     
 begin
     
@@ -127,16 +128,16 @@ begin
         ------------------------------------------------------------------------------------
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
         -- (on i_axi_clk)
-        i_sof          => i_sof, --  in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
-        i_integration  => i_integration, -- in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
-        i_ctFrame      => i_ctFrame, --  in std_logic_vector(1 downto 0);  -- 283 ms frame within each integration interval
-        i_virtualChannel => i_virtualChannel, --  in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
-        i_bad_poly     => i_bad_poly, -- in std_logic_vector(2 downto 0);  -- one signal for each group of 4 virtual channels
-        i_lastChannel  => i_lastChannel, -- in std_logic;   -- last of the group of 4 channels
-        i_demap_table_select => i_demap_table_select, --  in std_logic;
-        i_HeaderValid => i_headerValid, --  in std_logic_vector(3 downto 0);
-        i_data        => i_data, --  in t_ctc_output_payload_arr(11 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), ..., i_data(11)
-        i_dataValid   => i_dataValid, --  in std_logic;
+        i_sof          => i_sof,              -- in std_logic; pulse high at the start of every frame. (1 frame is 283 ms of data).
+        i_integration  => i_integration,      -- in (31:0); frame count is the same for all simultaneous output streams.
+        i_ctFrame      => i_ctFrame,          -- in (1:0);  283 ms frame within each integration interval
+        i_virtualChannel => i_virtualChannel, -- in t_slv_16_arr(11 downto 0); 12 virtual channels, one for each of the data streams.
+        i_bad_poly     => i_bad_poly,         -- in (2:0); one signal for each group of 4 virtual channels
+        i_lastChannel  => i_lastChannel,      -- in std_logic; last of the group of 4 channels
+        i_demap_table_select => i_demap_table_select, -- in std_logic;
+        i_HeaderValid => i_headerValid,       -- in (11:0);
+        i_data        => i_data,              -- in t_ctc_output_payload_arr(11 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), ..., i_data(11)
+        i_dataValid   => i_dataValid,         -- in std_logic;
         ---------------------------------------------------------------
         -- Data out to the correlator arrays
         -- packets of data to each correlator instance
@@ -202,44 +203,44 @@ begin
     
     HBM0i : entity signal_processing_common.hbm_noc_if
     generic map (
-        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE0_ADDR, -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_ADDR, -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
         g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE0_VNOC -- Use the direct HBM interfaces, not the VNOC
     ) port map (
         clk  => i_axi_clk, --  in std_logic;
         -- write
-        i_HBM_axi_aw      => HBM_axi_aw(0), --  in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_aw      => HBM_axi_aw(0),      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
         o_HBM_axi_awready => hbm_axi_awready(0), -- out std_logic;
-        i_HBM_axi_w       => HBM_axi_w(0), -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_wready  => HBM_axi_wready(0), -- out std_logic;
-        o_HBM_axi_b       => HBM_axi_b(0), --out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_bready  => HBM_axi_bready(0), -- in std_logic;
+        i_HBM_axi_w       => HBM_axi_w(0),       -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_wready  => HBM_axi_wready(0),  -- out std_logic;
+        o_HBM_axi_b       => HBM_axi_b(0),       -- out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_bready  => HBM_axi_bready(0),  -- in std_logic;
         -- read
-        i_HBM_axi_ar => HBM_axi_ar_dummy, -- in t_axi4_full_addr;
+        i_HBM_axi_ar => HBM_axi_ar_dummy,        -- in t_axi4_full_addr;
         o_HBM_axi_arready => HBM_axi_arready(0), -- out std_logic;
-        o_HBM_axi_r  => HBM_axi_r(0), -- out t_axi4_full_data;
+        o_HBM_axi_r  => open,                    -- out t_axi4_full_data;
         i_HBM_axi_rready => HBM_axi_rready_dummy -- in std_logic
     );
     
     HBM1i : entity signal_processing_common.hbm_noc_if
     generic map (
-        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE1_ADDR,  -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_ADDR,  -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
         g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE1_VNOC -- Use the direct HBM interfaces, not the VNOC
     ) port map (
         clk  => i_axi_clk, --  in std_logic;
         -- write
-        i_HBM_axi_aw      => HBM_axi_aw(1), --  in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_aw      => HBM_axi_aw(1),      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
         o_HBM_axi_awready => hbm_axi_awready(1), -- out std_logic;
-        i_HBM_axi_w       => HBM_axi_w(1), -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_wready  => HBM_axi_wready(1), -- out std_logic;
-        o_HBM_axi_b       => HBM_axi_b(1), --out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_bready  => HBM_axi_bready(1), -- in std_logic;
+        i_HBM_axi_w       => HBM_axi_w(1),       -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
+        o_HBM_axi_wready  => HBM_axi_wready(1),  -- out std_logic;
+        o_HBM_axi_b       => HBM_axi_b(1),       -- out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_HBM_axi_bready  => HBM_axi_bready(1),  -- in std_logic;
         -- read
-        i_HBM_axi_ar => HBM_axi_ar_dummy, -- in t_axi4_full_addr;
+        i_HBM_axi_ar => HBM_axi_ar_dummy,        -- in t_axi4_full_addr;
         o_HBM_axi_arready => HBM_axi_arready(1), -- out std_logic;
-        o_HBM_axi_r  => HBM_axi_r(1), -- out t_axi4_full_data;
+        o_HBM_axi_r  => open,                    -- out t_axi4_full_data;
         i_HBM_axi_rready => HBM_axi_rready_dummy -- in std_logic
     );
-    
+    HBM_axi_bready <= "11";
     HBM_axi_ar_dummy.valid <= '0';
     HBM_axi_ar_dummy.addr <= (others => '0');
     HBM_axi_ar_dummy.len <= (others => '0');

@@ -75,7 +75,7 @@ architecture Behavioral of correlator_wrapper_v80 is
     
     signal ro_tdest : std_logic_vector(3 downto 0);
     signal ro_tkeep : std_logic_vector(15 downto 0);
-    signal ro_tid : std_logic_vector(15 downto 0);
+    signal ro_tid : std_logic_vector(5 downto 0);
     signal ro_tlast : std_logic;
     signal ro_stall : std_logic;
     
@@ -264,7 +264,7 @@ begin
     generic map (
         DATA_WIDTH => 128,    -- DECIMAL
         DST_ID_WIDTH => 4,    -- DECIMAL
-        ID_WIDTH => 16,       -- DECIMAL
+        ID_WIDTH => 6,        -- DECIMAL
         NOC_FABRIC => "VNOC"  -- STRING
     ) port map (
         dst_id_err    => open,       -- 1-bit output: Indicates DST ID error
@@ -279,10 +279,8 @@ begin
     );
     ro_tkeep <= "1111111111111111";
     ro_tlast <= '1';
-    ro_tid <= std_logic_vector(to_unsigned(g_CORRELATOR_INSTANCE,16));
+    ro_tid <= std_logic_vector(to_unsigned(g_CORRELATOR_INSTANCE,6));
     ro_tdest <= "0000";
-    
-
     
 --    ----------------------------------------------------------------
 --    -- Registers

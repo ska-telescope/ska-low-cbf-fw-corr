@@ -70,7 +70,7 @@ entity FB_Top_correlator_dummy_v80 is
     
     -- prevent optimisation across module boundaries.
     attribute keep_hierarchy : string;
-    attribute keep_hierarchy of FB_Top_correlator_dummy : entity is "yes";
+    attribute keep_hierarchy of FB_Top_correlator_dummy_v80 : entity is "yes";
     
 end FB_Top_correlator_dummy_v80;
 

@@ -173,7 +173,7 @@ begin
     
     -- HBM Master NoC
     vnoc_gen : if g_USE_VNOC generate
-        i_hbm_noc : xpm_nmu_mm
+        hbm_noci : xpm_nmu_mm
         generic map (
             NOC_FABRIC    => "VNOC",	        -- "VNOC" or "pl" or "pl_hbm"
             DATA_WIDTH    => NOC_DATA_WIDTH,	-- 32/64/128/256/512
@@ -245,9 +245,8 @@ begin
         );
     end generate;
     
-    
     hbm_noc_geni : if (not g_USE_VNOC) generate
-        i_hbm_noc : xpm_nmu_mm
+        hbm_noci : xpm_nmu_mm
         generic map (
             NOC_FABRIC    => "pl_hbm",	        -- "VNOC" or "pl" or "pl_hbm"
             DATA_WIDTH    => NOC_DATA_WIDTH,	-- 32/64/128/256/512

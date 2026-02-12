@@ -202,7 +202,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     constant c_1p5GBYTE : std_logic_vector(35 downto 0) := x"060000000";
     constant c_3GBYTE   : std_logic_vector(35 downto 0) := x"0C0000000";
     constant c_6GBYTE   : std_logic_vector(35 downto 0) := x"180000000";
-    signal bufRdAddr : std_logic_vector(11 downto 0);
+    signal bufRdAddr : std_logic_vector(12 downto 0);
     signal bufDout : std_logic_vector(511 downto 0);
     
     signal FBintegration : std_logic_vector(31 downto 0);
@@ -278,7 +278,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal bufWE_high32bytes : std_logic_vector(0 downto 0);
     
     signal axi_arvalid0, axi_arvalid2 : std_logic;
-    signal axi_araddr  : std_logic_vector(31 downto 0);
+    signal axi_araddr  : std_logic_vector(35 downto 0);
     signal axi_arlen   : std_logic_vector(3 downto 0);
 
     signal ARFIFO_dinDel1, ARFIFO_dinDel2, ARFIFO_dinDel3 : std_logic_vector(16 downto 0);
@@ -287,7 +287,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal rdata_dvalid, rdata2_dvalid : std_logic;
     signal bufWrData_low32bytes, bufWrData_high32bytes : std_logic_vector(255 downto 0);
     
-    signal validMemWriteAddr, validMemWriteAddrDel1, validMemWriteAddrDel2 : std_logic_vector(18 downto 0);
+    signal validMemWriteAddr, validMemWriteAddrDel1, validMemWriteAddrDel2 : std_logic_vector(20 downto 0);
     signal validMemWrEn, validMemWrEnDel1, validMemWrEnDel2 : std_logic;
     signal axi_arvalidDel1 : std_logic;
     signal readStartDel1, readStartDel2 : std_logic;
@@ -318,7 +318,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal clockCount : std_logic_vector(15 downto 0);
     signal packetsRemaining, packetsRemaining_minus1 : std_logic_vector(15 downto 0);
     signal some_packets_remaining : std_logic := '0';
-    signal validOut : std_logic_vector(3 downto 0);
+    signal validOut : std_logic_vector(11 downto 0);
     --signal packetCount : std_logic_vector(31 downto 0);
     signal meta0VirtualChannel : std_logic_vector(15 downto 0);
     signal sofFull, sof : std_logic := '0';
@@ -358,7 +358,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal delay_offset, delay_offset_inv, delay_offset_neg : std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
     
     signal delayFIFO_din : std_logic_vector(128 downto 0);
-    signal delayFIFO_wrEn : std_logic_Vector(3 downto 0);
+    signal delayFIFO_wrEn : std_logic_vector(11 downto 0);
     
     type poly_fsm_t is (start, wait_done0, wait_done1, wait_done2, check_fifos, update_vc, check_vc, done);
     signal poly_fsm : poly_fsm_t := done;
@@ -410,10 +410,10 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal readoutData_int, readoutCheckData, readoutCheckData_del, readoutData_del : t_slv_32_arr(11 downto 0);
     
     signal start_checking : std_logic := '0';
-    signal readout_mismatch : std_logic_vector(3 downto 0) := "0000";
+    signal readout_mismatch : std_logic_vector(11 downto 0) := "000000000000";
     
     signal reset_mismatch : std_logic := '0';
-    signal mismatch_set : std_logic_vector(3 downto 0) := "0000";
+    signal mismatch_set : std_logic_vector(11 downto 0) := "000000000000";
     signal readoutCheckData_reg, readoutData_reg : t_slv_32_arr(11 downto 0);
     signal dFIFO_underflow : std_logic_vector(11 downto 0) := "000000000000";
     
@@ -423,7 +423,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
 
     signal meta_delays : t_CT1_META_delays_arr(11 downto 0);
     signal space_available : std_logic_vector(11 downto 0);
-    signal maxUsed_01_level, maxUsed_23_level, maxUsed_45_level, maxUsed_67_level, maxUsed_89_level, maxUsed_AB_level, maxUsed_0123_level, maxUsed_4567_level, maxUsed_89AB_level : std_logic_vector(11 downto 0);
+    signal maxUsed_01_level, maxUsed_23_level, maxUsed_45_level, maxUsed_67_level, maxUsed_89_level, maxUsed_AB_level, maxUsed_0123_level, maxUsed_4567_level, maxUsed_89AB_level : std_logic_vector(10 downto 0);
     signal maxUsed_01_sel, maxUsed_23_sel,  maxUsed_45_sel,  maxUsed_67_sel,  maxUsed_89_sel,  maxUsed_AB_sel,  maxUsed_0123_sel,  maxUsed_4567_sel,  maxUsed_89AB_sel, maxUsed_final_sel : std_logic_vector(3 downto 0);
     signal maxUsed_01_valid, maxUsed_23_valid, maxUsed_45_valid, maxUsed_67_valid, maxUsed_89_valid, maxUsed_AB_valid, maxUsed_0123_valid, maxUsed_4567_valid, maxUsed_89AB_valid, maxUsed_final_valid : std_logic;
     signal axi_araddr_buffer : std_logic_vector(1 downto 0);
@@ -434,6 +434,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal buf_to_read : std_logic_vector(3 downto 0);
     signal RFI_rd_addr : std_logic_vector(11 downto 0);
     signal RFI_rds : std_logic_vector(3 downto 0);
+    signal delay_vcCount : std_logic_vector(3 downto 0);
     
 begin
     
@@ -1166,10 +1167,18 @@ begin
         end if;
     end process;
     
-    bufLen_ext(0) <= "0000000000000" & bufLen(0) & "0000";
-    bufLen_ext(1) <= "0000000000000" & bufLen(1) & "0000";
-    bufLen_ext(2) <= "0000000000000" & bufLen(2) & "0000";
-    bufLen_ext(3) <= "0000000000000" & bufLen(3) & "0000";
+    bufLen_ext(0) <= "000000000000" & bufLen(0) & "0000";
+    bufLen_ext(1) <= "000000000000" & bufLen(1) & "0000";
+    bufLen_ext(2) <= "000000000000" & bufLen(2) & "0000";
+    bufLen_ext(3) <= "000000000000" & bufLen(3) & "0000";
+    bufLen_ext(4) <= "000000000000" & bufLen(4) & "0000";
+    bufLen_ext(5) <= "000000000000" & bufLen(5) & "0000";
+    bufLen_ext(6) <= "000000000000" & bufLen(6) & "0000";
+    bufLen_ext(7) <= "000000000000" & bufLen(7) & "0000";
+    bufLen_ext(8) <= "000000000000" & bufLen(8) & "0000";
+    bufLen_ext(9) <= "000000000000" & bufLen(9) & "0000";
+    bufLen_ext(10) <= "000000000000" & bufLen(10) & "0000";
+    bufLen_ext(11) <= "000000000000" & bufLen(11) & "0000";
     
     ARFIFO_wrBeats <= "0000000" & ARFIFO_din(11 downto 8);
     -- FIFO for the read requests, so we know which buffer to put the data into when it is returned. (several read requests can be in flight at a time)
@@ -1597,40 +1606,52 @@ begin
             --delayFIFO_din(143 downto 128) <= delay_vc;  -- Just a sanity check, fifo read and write order should be ensure that the correct virtual channel goes to the correct output
             --delayFIFO_din(151 downto 144) <= delay_packet(7 downto 0); -- packet within the corner turn frame
             if delay_valid = '1' then
-                if delay_vc(1 downto 0) = "00" then
-                    delayFIFO_wrEn <= "0001";
-                elsif delay_vc(1 downto 0) = "01" then
-                    delayFIFO_wrEn <= "0010";
-                elsif delay_vc(1 downto 0) = "10" then
-                    delayFIFO_wrEn <= "0100";
-                else
-                    delayFIFO_wrEn <= "1000";
-                end if;
+                case delay_vcCount is
+                    when "0000" => delayFIFO_wrEn <= "000000000001";
+                    when "0001" => delayFIFO_wrEn <= "000000000010";
+                    when "0010" => delayFIFO_wrEn <= "000000000100";
+                    when "0011" => delayFIFO_wrEn <= "000000001000";
+                    when "0100" => delayFIFO_wrEn <= "000000010000";
+                    when "0101" => delayFIFO_wrEn <= "000000100000";
+                    when "0110" => delayFIFO_wrEn <= "000001000000";
+                    when "0111" => delayFIFO_wrEn <= "000010000000";
+                    when "1000" => delayFIFO_wrEn <= "000100000000";
+                    when "1001" => delayFIFO_wrEn <= "001000000000";
+                    when "1010" => delayFIFO_wrEn <= "010000000000";
+                    when "1011" => delayFIFO_wrEn <= "100000000000";
+                    when others => delayFIFO_wrEn <= "000000000000";
+                end case;
             else
-                delayFIFO_wrEn <= "0000";
+                delayFIFO_wrEn <= "000000000000";
             end if;
             
             coarseFIFO_din(11 downto 0) <= delay_offset_neg;
             coarseFIFO_din(27 downto 12) <= delay_vc;
             coarseFIFO_din(31 downto 28) <= "0000";
             if (delay_valid = '1' and (unsigned(delay_packet) = 0)) then
-                if delay_vc(1 downto 0) = "00" then
-                    coarseFIFO_wrEn <= "0001";
-                elsif delay_vc(1 downto 0) = "01" then
-                    coarseFIFO_wrEn <= "0010";
-                elsif delay_vc(1 downto 0) = "10" then
-                    coarseFIFO_wrEn <= "0100";
-                else
-                    coarseFIFO_wrEn <= "1000";
-                end if;
+                case delay_vcCount is
+                    when "0000" => coarseFIFO_wrEn <= "000000000001";
+                    when "0001" => coarseFIFO_wrEn <= "000000000010";
+                    when "0010" => coarseFIFO_wrEn <= "000000000100";
+                    when "0011" => coarseFIFO_wrEn <= "000000001000";
+                    when "0100" => coarseFIFO_wrEn <= "000000010000";
+                    when "0101" => coarseFIFO_wrEn <= "000000100000";
+                    when "0110" => coarseFIFO_wrEn <= "000001000000";
+                    when "0111" => coarseFIFO_wrEn <= "000010000000";
+                    when "1000" => coarseFIFO_wrEn <= "000100000000";
+                    when "1001" => coarseFIFO_wrEn <= "001000000000";
+                    when "1010" => coarseFIFO_wrEn <= "010000000000";
+                    when "1011" => coarseFIFO_wrEn <= "100000000000";
+                    when others => coarseFIFO_wrEn <= "000000000000";
+                end case;
             else
-                coarseFIFO_wrEn <= "0000";
+                coarseFIFO_wrEn <= "000000000000";
             end if;
             
             if ar_fsm = getCoarseDelays0 then
-                coarseFIFO_rdEn <= "1111";
+                coarseFIFO_rdEn <= "111111111111";
             else
-                coarseFIFO_rdEn <= "0000";
+                coarseFIFO_rdEn <= "000000000000";
             end if;
             
         end if;
@@ -1736,7 +1757,7 @@ begin
         enb                     => '1',
         regceb                  => '1',
         addrb                   => bufRdAddr,
-        doutb                   => bufDout,
+        doutb                   => bufDout(255 downto 0),
         sbiterrb                => open,
         dbiterrb                => open
     );
@@ -1785,7 +1806,7 @@ begin
         enb                     => '1',
         regceb                  => '1',
         addrb                   => bufRdAddr,
-        doutb                   => bufDout,
+        doutb                   => bufDout(511 downto 256),
         sbiterrb                => open,
         dbiterrb                => open
     );
@@ -1813,14 +1834,12 @@ begin
         i_integration           => poly_integration, -- in std_logic_vector(31 downto 0); Which integration is this for ?
         i_ct_frame              => poly_ct_frame, -- in slv(1:0);  3 corner turn frames per integration
         o_idle                  => poly_idle,     -- out std_logic;
-        
         -- read the config memory (to get polynomial coefficients)
         -- Block ram interface for access by the rest of the module
         -- Memory is 20480 x 8 byte words = (2 buffers) x (10240 words) = (1024 virtual channels) x (10 words)
         -- read latency 3 clocks
         o_rd_addr  => o_delayTableAddr, -- out (15:0);
-        i_rd_data  => i_delayTableData, -- in (63:0);  -- 3 clock latency.
-        
+        i_rd_data  => i_delayTableData, -- in (63:0); 3 clock latency
         -----------------------------------------------------------------------
         -- Output delay parameters 
         -- For each pulse on i_start, this module generates 64*4 = 256 outputs
@@ -1835,22 +1854,22 @@ begin
         --  - bufHpolPhase  : 16 bits. Phase offset for H pol
         --  - bufVpolDeltaP : 16 bits. Delay as a phase step across the coarse channel
         --  - bufVpolPhase  : 16 bits. Phase offset for V pol
-        o_vc     => delay_vc, -- out std_logic_vector(15 downto 0);
-        o_packet => delay_packet, -- out std_logic_vector(15 downto 0);
+        o_vc     => delay_vc,       -- out (15:0);
+        o_vcCount => delay_vcCount, -- out (3:0); Which virtual channel in the current batch, 0 to (g_VIRTUAL_CHANNELS - 1)
+        o_packet => delay_packet,   -- out (15:0);
         --
-        o_sample_offset => delay_offset, -- out std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
+        o_sample_offset => delay_offset, -- out (11:0); Number of whole 1080ns samples to delay by.
         -- Units for deltaP are rotations; 1 sign bit, 15 fractional bits. + 16 extra fractional bits
         -- So pi radians at the band edge = 16384 * 65536
         -- As a fraction of a coarse sample, 1 coarse sample = pi radian at the band edge = 16384 * 65536
         --                                   0.5 coarse samples = pi/2 radians at the band edge = 8192 * 65536
-        o_Hpol_deltaP => delay_Hpol_deltaP, -- out std_logic_vector(31 downto 0);
+        o_Hpol_deltaP => delay_Hpol_deltaP, -- out (31:0);
         -- Phase uses 32768 * 65536 to represent pi radians. Note this differs by a factor of 2 compared with Hpol_deltaP.
-        o_Hpol_phase => delay_Hpol_phase, -- out std_logic_vector(31 downto 0);
-        o_Vpol_deltaP => delay_Vpol_deltaP, -- out std_logic_vector(31 downto 0);
-        o_Vpol_phase  => delay_Vpol_phase, -- out std_logic_vector(31 downto 0);
-        o_bad_poly    => bad_poly,         -- out std_logic; No valid polynomial was found.
-        o_valid       => delay_valid,      -- out std_logic
-        
+        o_Hpol_phase => delay_Hpol_phase,   -- out (31:0);
+        o_Vpol_deltaP => delay_Vpol_deltaP, -- out (31:0);
+        o_Vpol_phase  => delay_Vpol_phase,  -- out (31:0);
+        o_bad_poly    => bad_poly,          -- out std_logic; No valid polynomial was found.
+        o_valid       => delay_valid,       -- out std_logic
         ----------------------------------------------------------------------
         -- Debug Data, valid on o_valid
         o_poly_result => poly_result, --  out std_logic_vector(63 downto 0);
@@ -2228,7 +2247,7 @@ begin
                 packetsRemaining <= (others => '0');
                 clockCount <= (others => '0');
                 clockCountZero <= '1';
-                delayFIFO_rden <= "0000";
+                delayFIFO_rden <= "000000000000";
                 firstPacket <= '0';
             elsif readoutStartDel(27) = '1' then
                 -- Packets are 4096 samples; Number of packets in a burst is 11 preload packets plus half the number of LFAA blocks per frame, since LFAA blocks are 2048 samples.
@@ -2236,7 +2255,7 @@ begin
                 firstPacket <= '1';
                 clockCount <= (others => '0');
                 clockCountZero <= '1';
-                delayFIFO_rden <= "0000";
+                delayFIFO_rden <= "000000000000";
                 o_meta_delays <= meta_delays;
                 o_meta_RFIThresholds <= RFI_threshold;
             elsif (unsigned(packetsRemaining) > 0) then
@@ -2244,7 +2263,7 @@ begin
                 if (firstPacket = '0' and clockCountIncrement = '1') or (firstPacket = '1' and firstPacketClockCountIncrement = '1') or clockCountZero = '1' then
                     clockCount <= std_logic_vector(unsigned(clockCount) + 1);
                     clockCountZero <= '0';  -- This signal is needed because of the extra cycle latency before clockCountIncrement becomes valid when clockCount is set to zero. 
-                    delayFIFO_rden <= "0000";
+                    delayFIFO_rden <= "000000000000";
                 else
                     clockCount <= (others => '0');
                     clockCountZero <= '1'; 
@@ -2254,13 +2273,13 @@ begin
                     if ((unsigned(packetsRemaining_minus1) <= (g_SPS_PACKETS_PER_FRAME/2)) and
                         (some_packets_remaining = '1')) then
                         -- At the point where this happens, actual packetsRemaining is one less than "packetsRemaining"
-                        delayFIFO_rden <= "1111";
+                        delayFIFO_rden <= "111111111111";
                     else
-                        delayFIFO_rden <= "0000";
+                        delayFIFO_rden <= "000000000000";
                     end if;
                 end if;
             else
-                delayFIFO_rden <= "0000";
+                delayFIFO_rden <= "000000000000";
             end if;
             
             packetsRemaining_minus1 <= std_logic_vector(unsigned(packetsRemaining) - 1);
@@ -2310,18 +2329,18 @@ begin
         outfifoInst: entity ct_lib.corr_ct1_readout_32bit
         Port map(
             i_clk => shared_clk,
-            i_rst => readOutRst, -- in std_logic;  -- Drive this high for one clock between each virtual channel.
-            o_rstBusy => rstBusy(i), --  out std_logic;
+            i_rst => readOutRst,         -- in std_logic;  -- Drive this high for one clock between each virtual channel.
+            o_rstBusy => rstBusy(i),     -- out std_logic;
             -- Data in from the buffer
-            i_data => bufDout, -- in std_logic_vector(511 downto 0); --
+            i_data => bufDout,           -- in (511:0);
             -- data in from the FIFO that shadows the buffer
-            i_rdOffset => rdOffset(i), -- in std_logic_vector(1 downto 0);  -- Sample offset in the 128 bit word; 0 = use all 4 samples, "01" = Skip first sample, "10" = skip 2 samples, "11" = skip 3 samples; Only used on the first 128 bit word after i_rst.
+            i_rdOffset => rdOffset(i),   -- in (1:0);  Sample offset in the 128 bit word; 0 = use all 4 samples, "01" = Skip first sample, "10" = skip 2 samples, "11" = skip 3 samples; Only used on the first 128 bit word after i_rst.
             i_valid    => bufRdValid(i), -- in std_logic; -- should go high no more than once every 4 clocks
-            o_stop     => rdStop(i), -- out std_logic;
+            o_stop     => rdStop(i),     -- out std_logic;
             -- data out
-            o_data    => readoutData_int(i),    -- out std_logic_vector(31 downto 0); 
-            i_run     => readPacket,        -- in std_logic -- should go high for a burst of 64 clocks to output a packet.
-            o_valid   => validOut(i)        -- out std_logic;
+            o_data    => readoutData_int(i), -- out (31:0); 
+            i_run     => readPacket,         -- in std_logic -- should go high for a burst of 64 clocks to output a packet.
+            o_valid   => validOut(i)         -- out std_logic;
         );
     end generate;
     
@@ -2330,7 +2349,7 @@ begin
     
     o_meta_integration <= FBintegration; -- (31:0); integration in units of 849ms relative to the epoch.
     o_meta_ctFrame <= FBctFrame;
-    o_meta_virtualChannel <= meta0VirtualChannel;     -- virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
+    o_meta_virtualChannel <= meta0VirtualChannel(11 downto 0); -- virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
     
     ----------------------------------------------------------------
     -- Check output against meta data that can optionally be inserted in the input
@@ -2340,7 +2359,7 @@ begin
             if sof = '1' then
                 -- restart checking for a new virtual channel
                 start_checking <= '1';
-                readout_mismatch <= "0000";
+                readout_mismatch <= "000000000000";
             elsif validOut(0) = '1' then
                 start_checking <= '0';
                 if start_checking = '1' then
@@ -2350,7 +2369,7 @@ begin
                         readoutCheckData(i)(21 downto 0) <= std_logic_vector(unsigned(readoutData_int(i)(21 downto 0)) + 1);
                         readoutCheckData(i)(31 downto 22) <= readoutData_int(i)(31 downto 22);
                     end loop;
-                    readout_mismatch <= "0000";
+                    readout_mismatch <= "000000000000";
                 else
                     for i in 0 to 11 loop
                         readoutCheckData(i)(31 downto 22) <= readoutCheckData(i)(31 downto 22);
@@ -2363,7 +2382,7 @@ begin
                     end loop;
                 end if;
             else
-                readout_mismatch <= "0000";
+                readout_mismatch <= "000000000000";
             end if;
             
             -- Capture mismatches to registers
@@ -2400,7 +2419,7 @@ begin
                 int_axi_ar.len(7 downto 4) <= "0000";  -- Never ask for more than 16 x 32 byte words.
                 int_axi_ar.len(3 downto 0) <= axi_arlen(3 downto 0);
                 int_axi_ar.valid    <= axi_arvalid0;
-                int_axi_ar.addr     <= x"00" & axi_araddr;
+                int_axi_ar.addr     <= x"0" & axi_araddr;
                 int_axi_r           <= i_axi_r;
             end if;
         end process;

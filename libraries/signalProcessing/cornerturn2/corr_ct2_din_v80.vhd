@@ -133,8 +133,8 @@ end corr_ct2_din_v80;
 
 architecture Behavioral of corr_ct2_din_v80 is
     
-    signal bufDout : t_slv_128_arr(3 downto 0);
-    signal bufWEFinal, bufWEFinal_del1 : std_logic_vector(3 downto 0);
+    signal bufDout : t_slv_128_arr(11 downto 0);
+    signal bufWEFinal, bufWEFinal_del1 : std_logic_vector(11 downto 0);
     signal bufWE_slv : t_slv_1_arr(11 downto 0);
     signal bufWrAddr, bufWrAddrFinal, bufWrAddrFinal_del1 : std_logic_vector(14 downto 0);
     signal bufWrData, bufWrDataFinal, bufWrDataFinal_del1 : t_slv_128_arr(2 downto 0);
@@ -150,7 +150,7 @@ architecture Behavioral of corr_ct2_din_v80 is
    -- signal copyToHBM_channelGroup : std_logic_vector(7 downto 0);
     signal copy_buffer : std_logic := '0';
     --signal copy_channelGroup : std_logic_vector(7 downto 0);
-    signal copyToHBM_time : std_logic_vector(2 downto 0);
+    signal copyToHBM_time : std_logic_vector(3 downto 0);
     signal copy_time : std_logic_vector(2 downto 0);
     signal fineChannel, fineChannel_del1 : std_logic_vector(11 downto 0);
     signal virtualChannel : std_logic_vector(15 downto 0);

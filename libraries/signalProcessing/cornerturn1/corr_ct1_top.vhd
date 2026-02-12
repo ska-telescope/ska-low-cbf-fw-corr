@@ -273,9 +273,9 @@ architecture Behavioral of corr_ct1_top is
     signal config_rw : t_config_rw;
     signal config_ro : t_config_ro;
     
-    signal validMemWriteAddr : std_logic_vector(18 downto 0);
+    signal validMemWriteAddr : std_logic_vector(20 downto 0);
     signal validMemWrEn : std_logic;
-    signal validMemReadAddr : std_logic_vector(18 downto 0);
+    signal validMemReadAddr : std_logic_vector(20 downto 0);
     signal validMemReadData : std_logic;
     
     signal output_count_in  : t_config_correlator_output_count_ram_in;
@@ -417,7 +417,7 @@ architecture Behavioral of corr_ct1_top is
     signal m01_axi_rst_dbg : std_logic_vector(31 downto 0);
     signal clks_between_readouts, recent_clks_between_readouts, min_clks_between_readouts : std_logic_vector(31 downto 0) := (others => '1');
     
-    signal RFI_rd_addr : std_logic_vector(9 downto 0);
+    signal RFI_rd_addr : std_logic_vector(11 downto 0);
     signal RFI_rd_data : std_logic_vector(31 downto 0);
 
     signal last_wr_in_SPS_packet : std_logic;
@@ -530,8 +530,7 @@ begin
         end process;
                             
     END GENERATE;
-
-
+    
     -----------------------------------------------------------------------
     -- Full AXI interface - write to the ultraRAM 
     -- Full axi to bram
@@ -549,7 +548,7 @@ begin
             i_bram_addr    => poly_addr,   -- in (15:0); 
             o_bram_rddata  => poly_rddata, -- out (63:0);
             -- 1024 x 4-byte words for the RFI threshold
-            i_RFI_bram_addr   => RFI_rd_addr, -- in  std_logic_vector(9 downto 0);
+            i_RFI_bram_addr   => RFI_rd_addr(9 downto 0), -- in  std_logic_vector(9 downto 0);
             o_RFI_bram_rddata => RFI_rd_data, -- out std_logic_vector(31 downto 0);
             ------------------------------------------------------
             noc_wren            => args_poly_wren,
@@ -1173,7 +1172,7 @@ begin
             PROG_EMPTY_THRESH => 10,    -- DECIMAL
             PROG_FULL_THRESH => 10,     -- DECIMAL
             RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
-            READ_DATA_WIDTH => 32,      -- DECIMAL
+            READ_DATA_WIDTH => 36,      -- DECIMAL
             READ_MODE => "fwft",        -- String
             SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "0404", -- String  -- bit 2 and bit 10 enables write data count and read data count
@@ -1239,7 +1238,7 @@ begin
             PROG_EMPTY_THRESH => 10,    -- DECIMAL
             PROG_FULL_THRESH => 10,     -- DECIMAL
             RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
-            READ_DATA_WIDTH => 32,      -- DECIMAL
+            READ_DATA_WIDTH => 36,      -- DECIMAL
             READ_MODE => "fwft",        -- String
             SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "0404", -- String  -- bit 2 and bit 10 enables write data count and read data count
@@ -1297,7 +1296,7 @@ begin
             PROG_EMPTY_THRESH => 10,    -- DECIMAL
             PROG_FULL_THRESH => 10,     -- DECIMAL
             RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
-            READ_DATA_WIDTH => 32,      -- DECIMAL
+            READ_DATA_WIDTH => 36,      -- DECIMAL
             READ_MODE => "fwft",        -- String
             SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
             USE_ADV_FEATURES => "0404", -- String  -- bit 2 and bit 10 enables write data count and read data count
@@ -1405,14 +1404,14 @@ begin
             --  - U55c version 1024 virtual channels = 20480 words; 
             --  - V80 version 3072 virtual channels, 61440 words;
             o_delayTableAddr => poly_addr,   -- out (15:0);
-            i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
+            i_delayTableData => poly_rdData, -- in (63:0); Data from the delay table with 3 cycle latency. 
             -- RFI threshold for this channel.
-            o_RFI_rd_addr => RFI_rd_addr,    -- out std_logic_vector(9 downto 0);
-            i_RFI_rd_data => RFI_rd_data,    -- in std_logic_vector(31 downto 0);
+            o_RFI_rd_addr => RFI_rd_addr(9 downto 0),  -- out (9:0);
+            i_RFI_rd_data => RFI_rd_data,              -- in (31:0);
             -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
-            o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
-            i_validMemReadData => validMemReadData, -- in std_logic;  -- read data returned 3 clocks later.
-            o_validMemWriteAddr => validMemWriteAddr, -- out (18:0); -- write always clear the memory (mark the block as invalid).
+            o_validMemReadAddr => validMemReadAddr(18 downto 0), -- out (18:0);  8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
+            i_validMemReadData => validMemReadData, -- in std_logic; read data returned 3 clocks later.
+            o_validMemWriteAddr => validMemWriteAddr(18 downto 0), -- out (18:0);  write always clear the memory (mark the block as invalid).
             o_validMemWrEn      => validMemWrEn,      -- out std_logic;
             -----------------------------------------------------------------------
             -- Data output to the filterbanks
@@ -1426,10 +1425,10 @@ begin
             -- So it is ok for it to change ~30 clocks earlier.
             o_meta_delays         => o_meta_delays(3 downto 0), -- out t_CT1_META_delays_arr(3 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
             o_meta_RFIThresholds  => o_meta_RFIThresholds(3 downto 0),  -- out t_slv_32_arr(3 downto 0);
-            o_meta_integration    => o_meta_integration,        -- out std_logic_vector(31 downto 0);
-            o_meta_ctFrame        => o_meta_ctFrame,            -- out std_logic_vector(1 downto 0); 
-            o_meta_virtualChannel => o_meta_virtualChannel,     -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
-            o_meta_valid          => o_meta_valid(3 downto 0),  -- out std_logic_vector(3 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
+            o_meta_integration    => o_meta_integration,        -- out (31:0);
+            o_meta_ctFrame        => o_meta_ctFrame,            -- out (1:0); 
+            o_meta_virtualChannel => o_meta_virtualChannel,     -- out (11:0); First virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+            o_meta_valid          => o_meta_valid(3 downto 0),  -- out (3:0);  Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
             o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
             o_valid       => validOut, -- out std_logic;
             ------------------------------------------------------------------------
@@ -1448,17 +1447,17 @@ begin
             o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
             o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
             o_dbg_valid => dbg_vec_valid,  -- out std_logic
-            o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
+            o_dFIFO_underflow => config_ro.dFIFO_underflow(3 downto 0), -- out (3:0); Read of output fifos but they were empty
             -- mismatch between output and expected when sending debug data inserted in lfaaIngest
-            o_dbgCheckData0 => config_ro.dbgCheckData0, -- out std_logic_vector(31 downto 0);
-            o_dbgCheckData1 => config_ro.dbgCheckData1, -- out std_logic_vector(31 downto 0);
-            o_dbgCheckData2 => config_ro.dbgCheckData2, -- out std_logic_vector(31 downto 0);
-            o_dbgCheckData3 => config_ro.dbgCheckData3, -- out std_logic_vector(31 downto 0);
-            o_dbgBadData0 => config_ro.dbgBadData0, --  out std_logic_vector(31 downto 0);
-            o_dbgBadData1 => config_ro.dbgBadData1, -- out std_logic_vector(31 downto 0);
-            o_dbgBadData2 => config_ro.dbgBadData2, -- out std_logic_vector(31 downto 0);
-            o_dbgBadData3 => config_ro.dbgBadData3, -- out std_logic_vector(31 downto 0);
-            o_mismatch_set => config_ro.mismatch_set, -- out std_logic_vector(3 downto 0);
+            o_dbgCheckData0 => config_ro.dbgCheckData0, -- out (31:0);
+            o_dbgCheckData1 => config_ro.dbgCheckData1, -- out (31:0);
+            o_dbgCheckData2 => config_ro.dbgCheckData2, -- out (31:0);
+            o_dbgCheckData3 => config_ro.dbgCheckData3, -- out (31:0);
+            o_dbgBadData0 => config_ro.dbgBadData0,     -- out (31:0);
+            o_dbgBadData1 => config_ro.dbgBadData1,     -- out (31:0);
+            o_dbgBadData2 => config_ro.dbgBadData2,     -- out (31:0);
+            o_dbgBadData3 => config_ro.dbgBadData3,     -- out (31:0);
+            o_mismatch_set => config_ro.mismatch_set,   -- out (3:0);
             i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
         );
         
@@ -1555,12 +1554,12 @@ begin
             o_delayTableAddr => poly_addr,   -- out (15:0);
             i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
             -- RFI threshold for this channel.
-            o_RFI_rd_addr => RFI_rd_addr,    -- out std_logic_vector(9 downto 0);
-            i_RFI_rd_data => RFI_rd_data,    -- in std_logic_vector(31 downto 0);
+            o_RFI_rd_addr => RFI_rd_addr,    -- out (11:0);
+            i_RFI_rd_data => RFI_rd_data,    -- in (31:0);
             -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
-            o_validMemReadAddr => validMemReadAddr, -- out (18 downto 0); -- 8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
-            i_validMemReadData => validMemReadData, -- in std_logic;  -- read data returned 3 clocks later.
-            o_validMemWriteAddr => validMemWriteAddr, -- out (18:0); -- write always clear the memory (mark the block as invalid).
+            o_validMemReadAddr => validMemReadAddr,   -- out (20:0);   8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
+            i_validMemReadData => validMemReadData,   -- in std_logic; read data returned 3 clocks later.
+            o_validMemWriteAddr => validMemWriteAddr, -- out (20:0); write always clear the memory (mark the block as invalid).
             o_validMemWrEn      => validMemWrEn,      -- out std_logic;
             -----------------------------------------------------------------------
             -- Data output to the filterbanks
@@ -1602,7 +1601,7 @@ begin
             o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
             o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
             o_dbg_valid => dbg_vec_valid,  -- out std_logic
-            o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out std_logic_vector(3 downto 0); -- Read of output fifos but they were empty
+            o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out (11:0); Read of output fifos but they were empty
             -- mismatch between output and expected when sending debug data inserted in lfaaIngest
             o_dbgCheckData => dbgCheckData,  -- out t_slv_32_arr(11:0)
             o_dbgBadData   => dbgBadData,     -- out t_slv_32_arr(11:0)

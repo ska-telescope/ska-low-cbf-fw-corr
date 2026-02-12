@@ -165,7 +165,7 @@ architecture Behavioral of corr_ct2_din2HBM_v80 is
     signal cur_station : std_logic_vector(11 downto 0);
     signal wcopy_fifo_space_available, wdata_FIFO_space_available : std_logic := '0';
     signal vc_block_select : std_logic_vector(1 downto 0);
-    signal vc_block_select_del : t_slv_2_arr(6 downto 0);
+    signal vc_block_select_del : t_slv_2_arr(7 downto 0);
     signal wCopyFIFO_WrCount : std_logic_vector(6 downto 0);
     signal awFIFO_WrCount : std_logic_vector(9 downto 0);
     signal aw_fsm_dbg : std_logic_vector(3 downto 0);
@@ -565,8 +565,8 @@ begin
             end if;
             vc_block_select_del(0) <= vc_block_select;
             
-            uram_addr_valid_del(7 downto 1) <= uram_addr_valid_del(5 downto 0);
-            vc_block_select_del(7 downto 1) <= vc_block_select_del(5 downto 0);
+            uram_addr_valid_del(7 downto 1) <= uram_addr_valid_del(6 downto 0);
+            vc_block_select_del(7 downto 1) <= vc_block_select_del(6 downto 0);
             last_del(7 downto 1) <= last_del(6 downto 0);
             
             if (vc_block_select_del(7) = "00") then
@@ -688,7 +688,7 @@ begin
     o_status1(9 downto 0) <= wdataFIFO_wrCount;
     o_status1(16 downto 10) <= wCopyFIFO_WrCount;
     o_status1(26 downto 17) <= awFIFO_WrCount;
-    o_status1(29 downto 27) <= aw_fsm_dbg;
+    o_status1(29 downto 27) <= aw_fsm_dbg(2 downto 0);
     o_status1(31 downto 30) <= wdataCopy_fsm_dbg;
     
 end Behavioral;

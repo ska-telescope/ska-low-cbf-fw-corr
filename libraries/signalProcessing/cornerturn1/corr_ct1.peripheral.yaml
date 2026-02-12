@@ -200,10 +200,10 @@ peripherals:
               field_description : "Reset search for mismatched data. Write high then low to reset."
 
           - - field_name        : mismatch_set
-              width             : 4
+              width             : 12
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "One bit for each of the 4 output lanes to indicate that a mismatch with expected debug data has been found"
+              field_description : "One bit for each of the 12 output lanes to indicate that a mismatch with expected debug data has been found"
 
           - - field_name        : dbgCheckData0
               width             : 32
@@ -254,7 +254,7 @@ peripherals:
               field_description : "Output lane 3 actual data"
 
           - - field_name        : dFIFO_underflow
-              width             : 4
+              width             : 12
               access_mode       : RO
               reset_value       : 0x0
               field_description : "Output FIFO underflow occurred. This should never happen. "

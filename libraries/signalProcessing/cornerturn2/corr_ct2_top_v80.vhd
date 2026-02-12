@@ -126,13 +126,13 @@ entity corr_ct2_top_v80 is
         i_sof          : in std_logic; -- pulse high at the start of every frame. (1 frame is 283 ms of data).
         i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      : in std_logic_vector(1 downto 0);  -- 283 ms frame within each integration interval
-        i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
+        i_virtualChannel : in t_slv_16_arr(11 downto 0);   -- 12 virtual channels, one for each of the data streams.
         i_bad_poly     : in std_logic_vector(2 downto 0);  -- one signal for each group of 4 virtual channels
         i_lastChannel  : in std_logic;   -- last of the group of 4 channels
         i_demap_table_select : in std_logic;
-        i_HeaderValid : in std_logic_vector(3 downto 0);
-        i_data        : in t_ctc_output_payload_arr(11 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), ..., i_data(11)
-        i_dataValid   : in std_logic;
+        i_HeaderValid  : in std_logic_vector(11 downto 0);
+        i_data         : in t_ctc_output_payload_arr(11 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), ..., i_data(11)
+        i_dataValid    : in std_logic;
         ---------------------------------------------------------------
         -- Data out to the correlator arrays
         -- packets of data to each correlator instance
@@ -212,7 +212,7 @@ architecture Behavioral of corr_ct2_top_v80 is
     type SB_rd_fsm_type is (idle, get_din_rd1, get_din_rd2, get_din_rd3, get_din_rd4, get_din_wait_done, send_meta, get_dout, dout_done);
     signal SB_rd_fsm, SB_rd_fsm_del1, SB_rd_fsm_del2, SB_rd_fsm_del3, SB_rd_fsm_del4 : SB_rd_fsm_type;
     signal dout_SB_sel, dout_SB_sel_del1, dout_SB_sel_del2, dout_SB_sel_del3 : std_logic_vector(2 downto 0);
-    signal SB_addr : std_logic_vector(10 downto 0);
+    signal SB_addr : std_logic_vector(12 downto 0);
     signal din_SB_req : std_logic;
     signal readout_tableSelect : std_logic := '0';
     signal din_tableSelect : std_logic := '0';
@@ -221,7 +221,7 @@ architecture Behavioral of corr_ct2_top_v80 is
     
     signal vc_demap_req : std_logic_vector(2 downto 0);  -- request a read from address o_vc_demap_rd_addr
     signal vc_demap_data_valid   : std_logic_vector(2 downto 0);  -- Read data below (i_demap* signals) is valid.
-    signal vc_demap_SB_index     : std_logic_vector(7 downto 0);  -- index into the subarray-beam table.
+    signal vc_demap_SB_index     : std_logic_vector(9 downto 0);  -- index into the subarray-beam table.
     signal vc_demap_station      : std_logic_vector(11 downto 0); -- station index within the subarray-beam.
     signal vc_demap_skyFrequency : std_logic_vector(8 downto 0);  -- sky frequency.
     signal vc_demap_valid        : std_logic;                     -- This entry in the demap table is valid.
@@ -298,8 +298,8 @@ architecture Behavioral of corr_ct2_top_v80 is
         probe0 : in std_logic_vector(119 downto 0)); 
     end component;
     
-    signal HBM_axi_aw : t_axi4_full_addr_arr(g_MAX_CORRELATORS-1 downto 0);
-    signal HBM_axi_w  : t_axi4_full_data_arr(g_MAX_CORRELATORS-1 downto 0);
+    signal HBM_axi_aw : t_axi4_full_addr_arr(1 downto 0);
+    signal HBM_axi_w  : t_axi4_full_data_arr(1 downto 0);
     
     signal dbg_hbm_status0, dbg_hbm_status1 : std_logic_vector(7 downto 0);
     signal dbg_hbm_reset_final : std_logic;
@@ -498,7 +498,7 @@ begin
         i_virtualChannel0  => i_virtualChannel(0), -- in (15:0); first virtual channel of the 12 being processed
         i_bad_poly         => i_bad_poly,       -- in (2:0);
         i_lastChannel      => i_lastchannel,    -- in std_logic;
-        i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
+        i_HeaderValid      => i_headerValid,    -- in (11:0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(11 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), ... ,  i_data(11)
         i_dataValid        => dataValid,        -- in std_logic;
         o_trigger_readout  => trigger_readout,  -- out std_logic; All data has been written to the HBM, can start reading out to the correlator.
@@ -513,12 +513,12 @@ begin
         --------------------------------------------------------------------
         -- interface to the demap table 
         o_vc_demap_rd_addr   => vc_demap_rd_addr,    -- out (9:0);  Address into the demap table, 0-1023 = floor(virtual_channel / 4)
-        o_vc_demap_req       => vc_demap_req,        -- out (2:0);  -- Request a read from address o_vc_demap_rd_addr
-        i_demap_data_valid   => vc_demap_data_valid, -- in (2:0);   -- Read data below (i_demap* signals) is valid.
-        i_demap_SB_index     => vc_demap_SB_index,   -- in (7:0);   -- index into the subarray-beam table.
-        i_demap_station      => vc_demap_station,    -- in (11:0);  -- station index within the subarray-beam.
-        i_demap_skyFrequency => vc_demap_skyFrequency, -- in (8:0);  -- sky frequency.
-        i_demap_valid        => vc_demap_valid,        -- in std_logic;                     -- This entry in the demap table is valid.
+        o_vc_demap_req       => vc_demap_req,        -- out (2:0);  Request a read from address o_vc_demap_rd_addr
+        i_demap_data_valid   => vc_demap_data_valid, -- in (2:0);   Read data below (i_demap* signals) is valid.
+        i_demap_SB_index     => vc_demap_SB_index,   -- in (9:0);   index into the subarray-beam table.
+        i_demap_station      => vc_demap_station,    -- in (11:0);  station index within the subarray-beam.
+        i_demap_skyFrequency => vc_demap_skyFrequency, -- in (8:0); sky frequency.
+        i_demap_valid        => vc_demap_valid,        -- in std_logic; This entry in the demap table is valid.
         -- Interface to the subarray_beam table
         o_SB_addr          => din_SB_addr,          -- out (9:0);
         o_SB_req           => din_SB_req,           -- out std_logic;

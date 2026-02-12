@@ -97,20 +97,17 @@ architecture Behavioral of FB_Top_correlator is
     signal CorDout0, CorDout1, CorDout2, CorDout3 : t_slv_16_arr(1 downto 0);
     signal CorValidOut, CorValidOutDel : std_logic_vector(11 downto 0);
     
-    signal FDcorDataValid : std_logic_vector(3 downto 0);
+    signal FDcorDataValid : std_logic_vector(11 downto 0);
     
-    signal corFBHeader : t_CT1_META_out_arr(3 downto 0);
-    signal corDout_arr : t_FB_output_payload_a(3 downto 0);
+    signal corFBHeader : t_CT1_META_out_arr(11 downto 0);
+    signal corDout_arr : t_FB_output_payload_a(11 downto 0);
     
-    signal FDHeader : t_CT1_META_out_arr(3 downto 0);
+    signal FDHeader : t_CT1_META_out_arr(11 downto 0);
     signal DataValid : std_logic;
     
     signal corFBDout : t_slv_32_arr(23 downto 0);
-    signal corFBHeaderValid : std_logic_vector(5 downto 0);
-    
-    signal captureCount : std_logic_vector(3 downto 0);
+    signal corFBHeaderValid : std_logic_vector(11 downto 0);
     signal FDcorDataValidDel1 : std_logic;
-    signal captureData : t_slv_256_arr(7 downto 0);
     
     signal triggerRdLow128bits : std_logic_vector(6 downto 0) := "0000000";
     signal triggerRdHigh128bits : std_logic_vector(6 downto 0) := "0000000";
@@ -129,7 +126,6 @@ architecture Behavioral of FB_Top_correlator is
 
     signal bufWrData, bufDout : std_logic_vector(127 downto 0);
     signal triggerSendTo100GE : std_logic;
-    signal vc_hold, vc_out : t_slv_16_arr(3 downto 0);
     signal integration_hold, integration_out : std_logic_vector(31 downto 0);
     signal bufWrAddr, bufRdAddr : std_logic_vector(12 downto 0);
     signal config_ro : t_config_ro;
@@ -141,11 +137,10 @@ architecture Behavioral of FB_Top_correlator is
     signal output_disable_addr : std_logic_vector(9 downto 0);
     signal reg_reset_del1, reg_reset : std_logic;
     signal config_rw : t_config_rw;
-    signal HeaderValid : std_logic_vector(3 downto 0);
+    signal HeaderValid : std_logic_vector(11 downto 0);
     signal sof_out, sof_del1 : std_logic := '0';
     signal sof_out_count : std_logic_vector(13 downto 0) := (others => '0');
     signal RFIScale : std_logic_vector(4 downto 0);
-    signal RFI_threshold : t_slv_32_arr(3 downto 0);
     
     signal noc_wren         : STD_LOGIC;
     signal noc_rden         : STD_LOGIC;
@@ -154,7 +149,6 @@ architecture Behavioral of FB_Top_correlator is
     signal noc_rd_adr       : STD_LOGIC_VECTOR(17 DOWNTO 0);
     signal noc_rd_dat       : STD_LOGIC_VECTOR(31 DOWNTO 0);
     signal noc_rd_dat_mux   : STD_LOGIC_VECTOR(31 DOWNTO 0);
-    signal markRFI : std_logic_vector(3 downto 0);
     signal mark_RFI : std_logic_vector(11 downto 0);
     
     signal dataIn :  t_slv_32_arr(23 downto 0);
@@ -305,7 +299,7 @@ begin
             i_clk  => i_axi_clk,
             -- data and header in
             i_data        => corDout_arr(i),    -- in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
-            i_markRFI     => markRFI(i),        -- in std_logic;
+            i_markRFI     => mark_RFI(i),       -- in std_logic;
             i_dataValid   => corValidOut(i),    -- in std_logic;
             i_header      => corFBHeader(i),    -- .HDeltaP(31:0), .VDeltaP(31:0), .HOffsetP(31:0), .VOffsetP(31:0), integration(31:0), ctFrame(1:0), virtualChannel(15:0);
             i_headerValid => corFBHeaderValid(0),  -- in std_logic;
