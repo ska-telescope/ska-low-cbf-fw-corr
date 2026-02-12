@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="102,955.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="109,675.001 ns"></ZoomEndTime>
-      <Cursor1Time time="104,075.000 ns"></Cursor1Time>
+      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
+      <ZoomEndTime time="6,740.000001 us"></ZoomEndTime>
+      <Cursor1Time time="501.674519 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="229"></NameColumnWidth>
+      <NameColumnWidth column_width="225"></NameColumnWidth>
       <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="564" />
+   <WVObjectSize size="574" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -2543,6 +2543,10 @@
       <obj_property name="ElementShortName">o_current_ethernet</obj_property>
       <obj_property name="ObjectShortName">o_current_ethernet</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/subarraybeam_addr_lkup">
+      <obj_property name="ElementShortName">subarraybeam_addr_lkup[6:0]</obj_property>
+      <obj_property name="ObjectShortName">subarraybeam_addr_lkup[6:0]</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_to_spead_pack.spead_data_rdy">
       <obj_property name="ElementShortName">.spead_data_rdy</obj_property>
       <obj_property name="ObjectShortName">.spead_data_rdy</obj_property>
@@ -2555,6 +2559,14 @@
       <obj_property name="ElementShortName">i_data_packet_sending</obj_property>
       <obj_property name="ObjectShortName">i_data_packet_sending</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_end_packet_sending">
+      <obj_property name="ElementShortName">i_end_packet_sending[7:0]</obj_property>
+      <obj_property name="ObjectShortName">i_end_packet_sending[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_init_packet_sending">
+      <obj_property name="ElementShortName">i_init_packet_sending[7:0]</obj_property>
+      <obj_property name="ObjectShortName">i_init_packet_sending[7:0]</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/i_to_spead_pack.hbm_readout_complete">
       <obj_property name="ElementShortName">.hbm_readout_complete</obj_property>
       <obj_property name="ObjectShortName">.hbm_readout_complete</obj_property>
@@ -2566,7 +2578,6 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/o_current_udp">
       <obj_property name="ElementShortName">o_current_udp</obj_property>
       <obj_property name="ObjectShortName">o_current_udp</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/o_spead_data_packet">
       <obj_property name="ElementShortName">o_spead_data_packet</obj_property>
@@ -2587,5 +2598,33 @@
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/o_packet_calc_done">
       <obj_property name="ElementShortName">o_packet_calc_done</obj_property>
       <obj_property name="ObjectShortName">o_packet_calc_done</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_dest_port_data">
+      <obj_property name="ElementShortName">udp_dest_port_data[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_dest_port_data[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_dest_port_init_end">
+      <obj_property name="ElementShortName">udp_dest_port_init_end[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_dest_port_init_end[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_destination_port">
+      <obj_property name="ElementShortName">udp_destination_port[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_destination_port[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_start_data">
+      <obj_property name="ElementShortName">udp_start_data[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_start_data[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_start_init_end">
+      <obj_property name="ElementShortName">udp_start_init_end[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_start_init_end[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_stop_data">
+      <obj_property name="ElementShortName">udp_stop_data[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_stop_data[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/udp_stop_init_end">
+      <obj_property name="ElementShortName">udp_stop_init_end[15:0]</obj_property>
+      <obj_property name="ObjectShortName">udp_stop_init_end[15:0]</obj_property>
    </wvobject>
 </wave_config>
