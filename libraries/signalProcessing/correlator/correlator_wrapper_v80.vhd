@@ -14,7 +14,7 @@ library axi4_lib, DSP_top_lib, noc_lib, signal_processing_common;
 
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use correlator_lib.cor_config_reg_pkg.ALL;
+--use correlator_lib.cor_config_reg_pkg.ALL;
 use common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
 use axi4_lib.axi4_lite_pkg.ALL;
