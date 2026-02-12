@@ -181,8 +181,8 @@ end correlator_top_v80;
 
 architecture Behavioral of correlator_top_v80 is
     
-    signal config_rw : t_setup_rw;
-    signal config_ro : t_setup_ro;
+    --signal config_rw : t_setup_rw;
+    --signal config_ro : t_setup_ro;
     
     signal cor0_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
     signal cor0_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
