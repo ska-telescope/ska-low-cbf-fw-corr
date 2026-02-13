@@ -212,6 +212,7 @@ fpga lint v80:
   interruptible: true
   needs:
     - create project v80
+  timeout: 2 hours
   variables:
     TARGET_ALVEO: "v80"
     VITIS_VERSION: "2025.1"
@@ -236,7 +237,7 @@ build v80:
   interruptible: true
   needs:
     - fpga lint v80
-  timeout: 6 hours
+  timeout: 12 hours
   variables:
     TARGET_ALVEO: "v80"
     VITIS_VERSION: "2025.1"
