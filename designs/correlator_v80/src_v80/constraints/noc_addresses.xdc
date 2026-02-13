@@ -382,7 +382,7 @@ set_property -dict [list READ_BANDWIDTH 600 READ_AVERAGE_BURST 64 WRITE_BANDWIDT
 set hbm_ct1_0_rd8 [create_noc_connection -source $ct1_read_1 -target $hbm24G_port0]
 set_property -dict [list READ_BANDWIDTH 600 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 0 WRITE_AVERAGE_BURST 64] $hbm_ct1_0_rd8
 
-set ct1_read_2 [get_noc_interfaces i_correlator_core/dsp_topi/CT1_HBM_read0/hbm_noc_geni.hbm_noci/S_AXI_nmu]
+set ct1_read_2 [get_noc_interfaces i_correlator_core/dsp_topi/CT1_HBM_read1/hbm_noc_geni.hbm_noci/S_AXI_nmu]
 set hbm_ct1_1_rd0 [create_noc_connection -source $ct1_read_2 -target $hbm16G_port1]
 set_property -dict [list READ_BANDWIDTH 600 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 0 WRITE_AVERAGE_BURST 64] $hbm_ct1_1_rd0
 set hbm_ct1_1_rd1 [create_noc_connection -source $ct1_read_2 -target $hbm17G_port1]
@@ -734,4 +734,52 @@ set_property -dict [list READ_BANDWIDTH 4200 READ_AVERAGE_BURST 64 WRITE_BANDWID
 set vis_rd_5 [get_noc_interfaces i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[5].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu]
 set hbm_conn5_vis_rd [create_noc_connection -source $vis_rd_5 -target $hbm31G_port1]
 set_property -dict [list READ_BANDWIDTH 4200 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 0 WRITE_AVERAGE_BURST 64] $hbm_conn5_vis_rd
+
+#######################################################################################################
+#######################################################################################################
+## Placement of noc ports
+# Put SPS ingest and all the packetiser NOC ports on the right hand side of SLR1
+set_property LOCATION NOC_NSU512_X3Y12 $lfaa_1_nsu
+set_property LOCATION NOC_NMU512_X3Y12 $hbm_input_1
+set_property LOCATION NOC_NMU512_X2Y12 $hbm_input_2
+
+set_property LOCATION NOC_NMU512_X2Y11 $sps_stats_wr
+
+set_property LOCATION NOC_NSU512_X3Y11 $spead_0_nsu
+set_property LOCATION NOC_NMU512_X3Y11 $vis_rd_0
+
+set_property LOCATION NOC_NSU512_X3Y10 $spead_1_nsu
+set_property LOCATION NOC_NMU512_X3Y10 $vis_rd_1
+
+set_property LOCATION NOC_NSU512_X3Y9 $spead_2_nsu
+set_property LOCATION NOC_NMU512_X3Y9 $vis_rd_2
+
+set_property LOCATION NOC_NSU512_X3Y8 $spead_3_nsu
+set_property LOCATION NOC_NMU512_X3Y8 $vis_rd_3
+
+set_property LOCATION NOC_NSU512_X3Y7 $spead_4_nsu
+set_property LOCATION NOC_NMU512_X3Y7 $vis_rd_4
+
+set_property LOCATION NOC_NSU512_X2Y7 $spead_5_nsu
+set_property LOCATION NOC_NMU512_X2Y7 $vis_rd_5
+
+set_property LOCATION NOC_NSU512_X2Y9 $spead_hbmrd_nsu
+set_property LOCATION NOC_NSU512_X2Y8 $spead_pkt_axis_rx
+
+# put ct1, filterbank and ct2 in slr0
+set_property LOCATION NOC_NSU512_X2Y18 $ct_1_nsu
+set_property LOCATION NOC_NSU512_X1Y18 $fb_nsu
+set_property LOCATION NOC_NSU512_X0Y18 $ct_2_nsu
+
+# correlator cores in SLR2
+set_property LOCATION NOC_NMU512_X0Y3 $corr_rd_3
+set_property LOCATION NOC_NMU512_X1Y3 $corr_rd_4
+set_property LOCATION NOC_NMU512_X2Y3 $corr_rd_5
+
+# Correlator cores in SLR1
+set_property LOCATION NOC_NMU512_X0Y9 $corr_rd_1
+set_property LOCATION NOC_NMU512_X1Y9 $corr_rd_2
+
+# Correlator core in SLR0
+set_property LOCATION NOC_NMU_HBM2E_X38Y0 $corr_rd_0
 
