@@ -738,48 +738,136 @@ set_property -dict [list READ_BANDWIDTH 4200 READ_AVERAGE_BURST 64 WRITE_BANDWID
 #######################################################################################################
 #######################################################################################################
 ## Placement of noc ports
+#######################################################################################################
+## Placement of noc ports
 # Put SPS ingest and all the packetiser NOC ports on the right hand side of SLR1
-set_property LOCATION NOC_NSU512_X3Y12 $lfaa_1_nsu
-set_property LOCATION NOC_NMU512_X3Y12 $hbm_input_1
-set_property LOCATION NOC_NMU512_X2Y12 $hbm_input_2
 
-set_property LOCATION NOC_NMU512_X2Y11 $sps_stats_wr
+#set_property LOCATION NOC_NSU512_X3Y12 $lfaa_1_nsu
+#set_property LOCATION NOC_NMU512_X3Y12 $hbm_input_1
+#set_property LOCATION NOC_NMU512_X2Y12 $hbm_input_2
 
-set_property LOCATION NOC_NSU512_X3Y11 $spead_0_nsu
-set_property LOCATION NOC_NMU512_X3Y11 $vis_rd_0
+#set_property LOCATION NOC_NMU512_X2Y11 $sps_stats_wr
 
-set_property LOCATION NOC_NSU512_X3Y10 $spead_1_nsu
-set_property LOCATION NOC_NMU512_X3Y10 $vis_rd_1
+#set_property LOCATION NOC_NSU512_X3Y11 $spead_0_nsu
+#set_property LOCATION NOC_NMU512_X3Y11 $vis_rd_0
 
-set_property LOCATION NOC_NSU512_X3Y9 $spead_2_nsu
-set_property LOCATION NOC_NMU512_X3Y9 $vis_rd_2
+#set_property LOCATION NOC_NSU512_X3Y10 $spead_1_nsu
+#set_property LOCATION NOC_NMU512_X3Y10 $vis_rd_1
 
-set_property LOCATION NOC_NSU512_X3Y8 $spead_3_nsu
-set_property LOCATION NOC_NMU512_X3Y8 $vis_rd_3
+#set_property LOCATION NOC_NSU512_X3Y9 $spead_2_nsu
+#set_property LOCATION NOC_NMU512_X3Y9 $vis_rd_2
 
-set_property LOCATION NOC_NSU512_X3Y7 $spead_4_nsu
-set_property LOCATION NOC_NMU512_X3Y7 $vis_rd_4
+#set_property LOCATION NOC_NSU512_X3Y8 $spead_3_nsu
+#set_property LOCATION NOC_NMU512_X3Y8 $vis_rd_3
 
-set_property LOCATION NOC_NSU512_X2Y7 $spead_5_nsu
-set_property LOCATION NOC_NMU512_X2Y7 $vis_rd_5
+#set_property LOCATION NOC_NSU512_X3Y7 $spead_4_nsu
+#set_property LOCATION NOC_NMU512_X3Y7 $vis_rd_4
 
-set_property LOCATION NOC_NSU512_X2Y9 $spead_hbmrd_nsu
-set_property LOCATION NOC_NSU512_X2Y8 $spead_pkt_axis_rx
+#set_property LOCATION NOC_NSU512_X2Y7 $spead_5_nsu
+#set_property LOCATION NOC_NMU512_X2Y7 $vis_rd_5
 
-# put ct1, filterbank and ct2 in slr0
-set_property LOCATION NOC_NSU512_X2Y18 $ct_1_nsu
-set_property LOCATION NOC_NSU512_X1Y18 $fb_nsu
-set_property LOCATION NOC_NSU512_X0Y18 $ct_2_nsu
+#set_property LOCATION NOC_NSU512_X2Y9 $spead_hbmrd_nsu
+#set_property LOCATION NOC_NSU512_X2Y8 $spead_pkt_axis_rx
 
-# correlator cores in SLR2
-set_property LOCATION NOC_NMU512_X0Y3 $corr_rd_3
-set_property LOCATION NOC_NMU512_X1Y3 $corr_rd_4
-set_property LOCATION NOC_NMU512_X2Y3 $corr_rd_5
+## put ct1, filterbank and ct2 in slr0
+#set_property LOCATION NOC_NSU512_X2Y18 $ct_1_nsu
+#set_property LOCATION NOC_NSU512_X1Y18 $fb_nsu
+#set_property LOCATION NOC_NSU512_X0Y18 $ct_2_nsu
 
-# Correlator cores in SLR1
-set_property LOCATION NOC_NMU512_X0Y9 $corr_rd_1
-set_property LOCATION NOC_NMU512_X1Y9 $corr_rd_2
+## correlator cores in SLR0
+#set_property LOCATION NOC_NMU512_X0Y3 $corr_rd_3
+#set_property LOCATION NOC_NMU512_X1Y3 $corr_rd_4
+#set_property LOCATION NOC_NMU512_X2Y3 $corr_rd_5
 
-# Correlator core in SLR0
-set_property LOCATION NOC_NMU_HBM2E_X38Y0 $corr_rd_0
+## Correlator cores in SLR1
+#set_property LOCATION NOC_NMU512_X0Y9 $corr_rd_1
+#set_property LOCATION NOC_NMU512_X1Y9 $corr_rd_2
+
+## Correlator core in SLR2
+#set_property LOCATION NOC_NMU_HBM2E_X38Y0 $corr_rd_0
+
+# packetiser and ingest in SLR1 near the ethernet MAC
+#add_cells_to_pblock pblock_SLR1 [get_cells [list i_correlator_core/dsp_topi/spead_packetiser_top]]
+#add_cells_to_pblock pblock_SLR1 [get_cells [list i_correlator_core/dsp_topi/LFAAin]]
+
+#add_cells_to_pblock pblock_SLR2 [get_cells [list i_correlator_core/dsp_topi/FBreali.corFB_i]]
+
+
+###############################
+# Following mappings met timing - these mappings were generated without any working constraints
+#set noc_nmus [get_noc_interfaces -mode NMU]
+# i_correlator_core/HBM_SPS_MONi/vnoc_gen.hbm_noci/S_AXI_nmu
+# i_correlator_core/dsp_topi/CT1_HBM_read0/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/CT1_HBM_read1/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/SPS_HBM_ILA/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/SPS_HBM_write0/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/SPS_HBM_write1/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[0].correlator_wrapperi/HBM_readi/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[0].correlator_wrapperi/HBM_writei/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[0].correlator_wrapperi/xpm_nmu_strm_inst/S_AXIS_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[1].correlator_wrapperi/HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[1].correlator_wrapperi/HBM_writei/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[1].correlator_wrapperi/xpm_nmu_strm_inst/S_AXIS_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[2].correlator_wrapperi/HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[2].correlator_wrapperi/HBM_writei/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[2].correlator_wrapperi/xpm_nmu_strm_inst/S_AXIS_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[3].correlator_wrapperi/HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[3].correlator_wrapperi/HBM_writei/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[3].correlator_wrapperi/xpm_nmu_strm_inst/S_AXIS_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[4].correlator_wrapperi/HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[4].correlator_wrapperi/HBM_writei/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[4].correlator_wrapperi/xpm_nmu_strm_inst/S_AXIS_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[5].correlator_wrapperi/HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[5].correlator_wrapperi/HBM_writei/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/correlator_geni[5].correlator_wrapperi/xpm_nmu_strm_inst/S_AXIS_nmu 
+# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM0i/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM1i/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[0].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[1].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[2].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[3].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[4].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[5].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu
+
+#get_property LOCATION $noc_nmus
+#NOC_NMU512_X2Y11 
+#{} 
+#{} 
+#{} 
+#{} 
+#{} 
+#NOC_NMU_HBM2E_X38Y0 
+#{} 
+#{} 
+#NOC_NMU512_X0Y9 
+#{} 
+#{} 
+#NOC_NMU512_X1Y9 
+#{} 
+#{} 
+#NOC_NMU512_X0Y3 
+#{} 
+#{} 
+#NOC_NMU512_X1Y3 
+#{} 
+#{} 
+#NOC_NMU512_X2Y3 
+#{} 
+#{} 
+#{} 
+#{} 
+#NOC_NMU512_X3Y11 
+#NOC_NMU512_X3Y10 
+#NOC_NMU512_X3Y9 
+#NOC_NMU512_X3Y8 
+#NOC_NMU512_X3Y7 
+#NOC_NMU512_X2Y7
+
+
+
+
+#set noc_nsus [get_noc_interfaces -mode NSU]
+#i_correlator_core/dsp_topi/FBreali.corFB_i/gen_v80_args.i_fb_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/LFAA_FB_CT/gen_v80_args.i_ct1_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/LFAAin/gen_v80_args.i_lfaa_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/ct_cor_out_inst/i_ct2_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[0].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[1].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[2].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[3].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[4].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[5].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/spead_hbm_rd_noci/xpm_nsu_mm_inst/M_AXI_nsu i_correlator_core/dsp_topi/spead_packetiser_top/xpm_nsu_strm_inst/M_AXIS_nsu i_correlator_core/i_system_noc/xpm_nsu_mm_inst/M_AXI_nsu i_dcmac_wrapper/i_port_0_stats/i_dcmac_noc/xpm_nsu_mm_inst/M_AXI_nsu
+#get_property LOCATION $noc_nsus
+#NOC_NSU512_X1Y18 NOC_NSU512_X2Y18 {} NOC_NSU512_X0Y18 NOC_NSU512_X3Y11 NOC_NSU512_X3Y10 NOC_NSU512_X3Y9 NOC_NSU512_X3Y8 NOC_NSU512_X3Y7 NOC_NSU512_X2Y7 NOC_NSU512_X2Y9 NOC_NSU512_X2Y8 {} {}
 
