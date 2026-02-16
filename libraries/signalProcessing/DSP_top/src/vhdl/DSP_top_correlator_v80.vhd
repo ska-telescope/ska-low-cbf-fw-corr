@@ -491,9 +491,16 @@ begin
         i_m06_axi_r       => HBM_ILA_axi_r,       -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
         o_m06_axi_rready  => HBM_ILA_axi_rready,  -- out std_logic;
         --
-        i_m06_axi_rst_dbg => dummy_slv32          -- in (31:0)
+        i_m06_axi_rst_dbg => dummy_slv32,          -- in (31:0)
+        -- addr/data ARGS interface used for simulation to avoid the NOC component
+        i_noc_wren_tb => '0', -- in std_logic;
+        i_noc_rden_tb => '0', -- in std_logic;
+        i_noc_wr_adr_tb => (others => '0'), -- in (17:0);
+        i_noc_wr_dat_tb => (others => '0'), -- in (31:0);
+        i_noc_rd_adr_tb => (others => '0'), -- in (17:0);
+        o_noc_rd_dat_tb => open             -- out (31:0)
     );
-
+    
     -------------------------------------------------------------------------------------------------
     -- 2 NOC interfaces for CT1 to read data from the HBM to send to the filterbanks 
     CT1_HBM_read0 : entity signal_processing_common.hbm_noc_if

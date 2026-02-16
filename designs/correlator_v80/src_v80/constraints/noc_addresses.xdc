@@ -14,7 +14,7 @@
 set nmu_0 [get_noc_interfaces "i_v80_board/top_i/axi_noc_cips/S00_AXI_nmu"]
 set system_nsu [get_noc_interfaces "i_correlator_core/i_system_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set lfaa_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/LFAAin/gen_v80_args.i_lfaa_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
-set ct_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/LFAA_FB_CT/gen_v80_args.i_ct1_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
+set ct_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/LFAA_FB_CT/gen_v80_args.v80_nosim_geni.i_ct1_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set fb_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/FBreali.corFB_i/gen_v80_args.i_fb_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set ct_2_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/ct_cor_out_inst/i_ct2_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 # correlator instances do not have registers instantiated

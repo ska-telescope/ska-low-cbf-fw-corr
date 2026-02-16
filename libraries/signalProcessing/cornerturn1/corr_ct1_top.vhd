@@ -148,7 +148,7 @@ use axi4_lib.axi4_full_pkg.all;
 entity corr_ct1_top is
     generic (
         g_GENERATE_ILA        : BOOLEAN := FALSE;
-        g_INCLUDE_SPS_MONITOR : boolean := TRUE -- if true, removes the HBM ILA (to avoid using an extra HBM interface)
+        g_INCLUDE_SPS_MONITOR : boolean := TRUE; -- if true, removes the HBM ILA (to avoid using an extra HBM interface)
         -- The v80 version :
         --  - Has 2 HBM interfaces
         --  - Each SPEAD packet is split across the two interfaces
@@ -158,6 +158,7 @@ entity corr_ct1_top is
         --  - Has a single HBM interface
         --  - 3 x 1Gbyte buffers
         --  - Sends data for 4 virtual channel simultaneously
+        g_V80_SIMULATION : boolean := FALSE  -- if true, don't instantiate the ARGs NOC component, use the addr/data inputs instead
     );
     port (
         -- shared memory interface clock (300 MHz)
@@ -196,7 +197,7 @@ entity corr_ct1_top is
         ------------------------------------------------------------------------------------
         -- Data output, to go to the filterbanks.
         -- Data bus output to the Filterbanks
-        -- 8 Outputs, each complex data, 8 bit real, 8 bit imaginary.
+        -- 24 Outputs, each complex data, 16 bit real, 16 bit imaginary.
         o_sof     : out std_logic;   -- Start of frame, occurs for every new set of channels.
         o_sofFull : out std_logic; -- Start of a full frame, i.e. 128 LFAA packets worth for all virtual channels.
         o_data    : out t_slv_32_arr(23 downto 0);  -- each 32-bit value has real in bits 15:0, imaginary in bits 31:16 
@@ -258,7 +259,15 @@ entity corr_ct1_top is
         i_m06_axi_r       : in t_axi4_full_data; -- (.valid, .data(511:0), .last, .resp(1:0));
         o_m06_axi_rready  : out std_logic;
         --
-        i_m06_axi_rst_dbg : in std_logic_vector(31 downto 0) -- in (31:0)
+        i_m06_axi_rst_dbg : in std_logic_vector(31 downto 0); -- in (31:0)
+        -------------------------------------------------------------------
+        -- addr/data ARGS interface used for simulation to avoid the NOC component
+        i_noc_wren_tb : in std_logic;
+        i_noc_rden_tb : in std_logic;
+        i_noc_wr_adr_tb : in std_logic_vector(17 downto 0);
+        i_noc_wr_dat_tb : in std_logic_vector(31 downto 0);
+        i_noc_rd_adr_tb : in std_logic_vector(17 downto 0);
+        o_noc_rd_dat_tb : out std_logic_vector(31 downto 0)
     );
     
     -- prevent optimisation across module boundaries.
@@ -478,22 +487,32 @@ begin
     -- ARGS Gaskets for V80
     gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
     
-        i_ct1_noc : entity noc_lib.args_noc
-        generic map (
-            G_DEBUG => FALSE
-        )
-        port map ( 
-            i_clk       => i_shared_clk,
-            i_rst       => i_shared_rst,
-        
-            noc_wren    => noc_wren,
-            noc_rden    => noc_rden,
-            noc_wr_adr  => noc_wr_adr,
-            noc_wr_dat  => noc_wr_dat,
-            noc_rd_adr  => noc_rd_adr,
-            noc_rd_dat  => noc_rd_dat_mux
-        );
-    
+        v80_nosim_geni : if (not g_V80_SIMULATION) generate
+            i_ct1_noc : entity noc_lib.args_noc
+            generic map (
+                G_DEBUG => FALSE
+            )
+            port map ( 
+                i_clk       => i_shared_clk,
+                i_rst       => i_shared_rst,
+            
+                noc_wren    => noc_wren,
+                noc_rden    => noc_rden,
+                noc_wr_adr  => noc_wr_adr,
+                noc_wr_dat  => noc_wr_dat,
+                noc_rd_adr  => noc_rd_adr,
+                noc_rd_dat  => noc_rd_dat_mux
+            );
+            o_noc_rd_dat_tb <= (others => '0');
+        end generate;
+        v80_simgeni : if (g_V80_SIMULATION) generate
+            noc_wren <= i_noc_wren_tb;
+            noc_rden <= i_noc_rden_tb;
+            noc_wr_adr <= i_noc_wr_adr_tb;
+            noc_wr_dat <= i_noc_wr_dat_tb;
+            noc_rd_adr <= i_noc_rd_adr_tb;
+            o_noc_rd_dat_tb <= noc_rd_dat_mux;
+        end generate;
     
         E_TOP_CONFIG : entity ct_lib.corr_ct1_versal
         port map (
