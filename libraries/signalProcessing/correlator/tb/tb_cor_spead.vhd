@@ -37,8 +37,8 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := TRUE;
-constant GEN_DATA_END       : BOOLEAN := TRUE;
+constant USE_TEST_CASE      : BOOLEAN := FALSE;
+constant GEN_DATA_END       : BOOLEAN := FALSE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -331,12 +331,16 @@ begin
             end if;
 
             if testCount_300 = 81000 then
-                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(2)        <= '1';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             
-            if testCount_300 = 118000 then
+            if testCount_300 = 149500 then
                 tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+            if testCount_300 = 150000 then
+                tb_debug(2)        <= '1';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             
