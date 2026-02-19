@@ -37,8 +37,8 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := FALSE;
-constant GEN_DATA_END       : BOOLEAN := FALSE;
+constant USE_TEST_CASE      : BOOLEAN := TRUE;
+constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -320,7 +320,12 @@ begin
             end if;
             
             stim_time_ref   <= (others => '0');
-
+            
+            if testCount_300 = 73650 then
+                tb_debug(2)        <= '1';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+            
             -- using defaul values send end packets.
             if testCount_300 = 51500 then
                 tb_debug(3)        <= '0';  -- trigger END
@@ -329,9 +334,13 @@ begin
             if testCount_300 = 56500 then
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
-
+            
+            if testCount_300 = 80500 then
+                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
             if testCount_300 = 81000 then
-                tb_debug(2)        <= '1';  -- trigger INIT
+                tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             
@@ -340,7 +349,7 @@ begin
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             if testCount_300 = 150000 then
-                tb_debug(2)        <= '1';  -- trigger INIT
+                tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             
