@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="491,948.900 ns"></ZoomStartTime>
-      <ZoomEndTime time="492,222.501 ns"></ZoomEndTime>
-      <Cursor1Time time="492,013.500 ns"></Cursor1Time>
+      <ZoomStartTime time="4.660757 us"></ZoomStartTime>
+      <ZoomEndTime time="32.100758 us"></ZoomEndTime>
+      <Cursor1Time time="9.234090 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="205"></NameColumnWidth>
+      <NameColumnWidth column_width="201"></NameColumnWidth>
       <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="606" />
+   <WVObjectSize size="611" />
    <wave_markers>
       <marker label="" time="539729700" />
    </wave_markers>
@@ -679,6 +679,27 @@
    <wvobject type="other" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/scratch_pad/init_packet_sm">
       <obj_property name="ElementShortName">init_packet_sm</obj_property>
       <obj_property name="ObjectShortName">init_packet_sm</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/byte_count">
+      <obj_property name="ElementShortName">byte_count[13:0]</obj_property>
+      <obj_property name="ObjectShortName">byte_count[13:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_cor_spead/DUT_2/cor_speader/c_data_packet_total_header_bytes_sm">
+      <obj_property name="ElementShortName">c_data_packet_total_header_bytes_sm</obj_property>
+      <obj_property name="ObjectShortName">c_data_packet_total_header_bytes_sm</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/bytes_coming_from_cor">
+      <obj_property name="ElementShortName">bytes_coming_from_cor[13:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_coming_from_cor[13:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/bytes_to_transmit">
+      <obj_property name="ElementShortName">bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_to_transmit[13:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_packet_bytes_remain">
+      <obj_property name="ElementShortName">data_packet_bytes_remain[13:0]</obj_property>
+      <obj_property name="ObjectShortName">data_packet_bytes_remain[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_to_player_wr">
       <obj_property name="ElementShortName">data_to_player_wr</obj_property>
