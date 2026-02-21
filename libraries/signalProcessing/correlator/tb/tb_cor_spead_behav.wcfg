@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="4.660757 us"></ZoomStartTime>
-      <ZoomEndTime time="32.100758 us"></ZoomEndTime>
-      <Cursor1Time time="9.234090 us"></Cursor1Time>
+      <ZoomStartTime time="70,384.167 ns"></ZoomStartTime>
+      <ZoomEndTime time="71,008.668 ns"></ZoomEndTime>
+      <Cursor1Time time="70,509.667 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="201"></NameColumnWidth>
-      <ValueColumnWidth column_width="66"></ValueColumnWidth>
+      <NameColumnWidth column_width="273"></NameColumnWidth>
+      <ValueColumnWidth column_width="133"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="611" />
+   <WVObjectSize size="618" />
    <wave_markers>
       <marker label="" time="539729700" />
    </wave_markers>
@@ -683,6 +683,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/byte_count">
       <obj_property name="ElementShortName">byte_count[13:0]</obj_property>
       <obj_property name="ObjectShortName">byte_count[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="other" fp_name="/tb_cor_spead/DUT_2/cor_speader/c_data_packet_total_header_bytes_sm">
       <obj_property name="ElementShortName">c_data_packet_total_header_bytes_sm</obj_property>
@@ -691,15 +692,21 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/bytes_coming_from_cor">
       <obj_property name="ElementShortName">bytes_coming_from_cor[13:0]</obj_property>
       <obj_property name="ObjectShortName">bytes_coming_from_cor[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/bytes_to_transmit">
       <obj_property name="ElementShortName">bytes_to_transmit[13:0]</obj_property>
       <obj_property name="ObjectShortName">bytes_to_transmit[13:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_packet_bytes_remain">
       <obj_property name="ElementShortName">data_packet_bytes_remain[13:0]</obj_property>
       <obj_property name="ObjectShortName">data_packet_bytes_remain[13:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/spead_data_rd">
+      <obj_property name="ElementShortName">spead_data_rd</obj_property>
+      <obj_property name="ObjectShortName">spead_data_rd</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_to_player_wr">
       <obj_property name="ElementShortName">data_to_player_wr</obj_property>
@@ -713,6 +720,31 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/data_to_player">
       <obj_property name="ElementShortName">data_to_player[511:0]</obj_property>
       <obj_property name="ObjectShortName">data_to_player[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/packed_fifo_rd">
+      <obj_property name="ElementShortName">packed_fifo_rd</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_rd</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/packed_fifo_empty">
+      <obj_property name="ElementShortName">packed_fifo_empty</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_empty</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_data_rd">
+      <obj_property name="ElementShortName">spead_data_rd</obj_property>
+      <obj_property name="ObjectShortName">spead_data_rd</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_data">
+      <obj_property name="ElementShortName">spead_data[511:0]</obj_property>
+      <obj_property name="ObjectShortName">spead_data[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/pack_data_vector">
+      <obj_property name="ElementShortName">pack_data_vector[1:0][511:0]</obj_property>
+      <obj_property name="ObjectShortName">pack_data_vector[1:0][511:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_q">
+      <obj_property name="ElementShortName">packed_fifo_q[511:0]</obj_property>
+      <obj_property name="ObjectShortName">packed_fifo_q[511:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/init_packet_data">
       <obj_property name="ElementShortName">init_packet_data[511:0]</obj_property>
