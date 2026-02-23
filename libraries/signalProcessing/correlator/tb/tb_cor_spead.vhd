@@ -465,35 +465,35 @@ begin
                 elsif stim_count = 4000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"2";
+                    row_count       <= 9D"1";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"1";
-                    stim_sub_array  <= x"01"; --8D"0";
+                    stim_sub_array  <= x"00"; --8D"0";
                     
                 elsif stim_count = 7000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"3";
+                    row_count       <= 9D"1";
                     data_valid      <= '1';
     
-                    stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"2";
+                    stim_freq_index <= 17D"2";
+                    stim_sub_array  <= 8D"0";
                 elsif stim_count = 10000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"4";
-                    data_valid      <= '1';
-    
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"3";
-                elsif stim_count = 13000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"5";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"4";
+                elsif stim_count = 13000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"5";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"1";
                     stim_sub_array  <= 8D"4";
                     
                     stim_time_ref(31 downto 0)  <= 32D"4";

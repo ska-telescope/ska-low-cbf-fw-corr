@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="70,384.167 ns"></ZoomStartTime>
-      <ZoomEndTime time="71,008.668 ns"></ZoomEndTime>
-      <Cursor1Time time="70,509.667 ns"></Cursor1Time>
+      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
+      <ZoomEndTime time="61.850001 us"></ZoomEndTime>
+      <Cursor1Time time="9.150000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="273"></NameColumnWidth>
-      <ValueColumnWidth column_width="133"></ValueColumnWidth>
+      <ValueColumnWidth column_width="129"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="618" />
+   <WVObjectSize size="621" />
    <wave_markers>
       <marker label="" time="539729700" />
    </wave_markers>
@@ -663,6 +663,18 @@
    <wvobject type="other" fp_name="/tb_cor_spead/DUT_2/cor_speader/spead_sm">
       <obj_property name="ElementShortName">spead_sm</obj_property>
       <obj_property name="ObjectShortName">spead_sm</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/zero_scan_id">
+      <obj_property name="ElementShortName">zero_scan_id</obj_property>
+      <obj_property name="ObjectShortName">zero_scan_id</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/scan_id">
+      <obj_property name="ElementShortName">scan_id[63:0]</obj_property>
+      <obj_property name="ObjectShortName">scan_id[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/cor_speader/host_interface/scan_id_le">
+      <obj_property name="ElementShortName">scan_id_le[63:0]</obj_property>
+      <obj_property name="ObjectShortName">scan_id_le[63:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT_2/cor_speader/scratchpad_updated">
       <obj_property name="ElementShortName">scratchpad_updated</obj_property>
