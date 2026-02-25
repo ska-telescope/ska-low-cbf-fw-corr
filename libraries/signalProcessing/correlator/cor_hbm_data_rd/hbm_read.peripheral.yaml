@@ -58,6 +58,8 @@ peripherals:
                                    Bit 26       - table_swap_in_progress - this comes from ct1
                                    Bit 27       - table_add_remove - this comes from ct1 and is config_rw.table_select(0)
 
+                                   Ram 4 contains bits 39->8 of the 64 bit time vector that is derived from the SPS packet.
+
                                    Writes to this debug buffer are triggered by an instruction write from corr output (bit 0)
                                    OR
                                    An level change on the table select direct from CT1.

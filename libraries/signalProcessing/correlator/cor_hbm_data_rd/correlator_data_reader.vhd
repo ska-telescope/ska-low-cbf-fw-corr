@@ -346,13 +346,15 @@ signal debug_i_data_valid               : std_logic;
 signal debug_table_select               : std_logic;
 signal debug_wr_ct1_table_change        : std_logic := '0';
 
+signal debug_i_time_ref                 : std_logic_vector(63 downto 0);
+
 signal debug_swap_in_progress           : std_logic;
 signal debug_wr_ct1_swap_progress       : std_logic := '0';
 
 signal debug_table_add_remove           : std_logic;
 signal debug_wr_table_add_remove        : std_logic := '0';
 
-CONSTANT no_of_debug_rams               : integer := 3;
+CONSTANT no_of_debug_rams               : integer := 4;
 signal debug_wr                         : std_logic := '0';
 signal debug_data                       : t_slv_32_arr((no_of_debug_rams-1) downto 0);
 signal debug_data_wr                    : std_logic_vector((no_of_debug_rams-1) downto 0) := (others => '0');
@@ -1320,7 +1322,7 @@ ila_gen : if DEBUG_ILA generate
         probe0(66)              => debug_data_wr(0),
         probe0(67)              => debug_data_wr(1),
         probe0(81 downto 68)    => args_addr,
-        probe0(95 downto 82)    => bram_addr_d2,
+        probe0(95 downto 82)    => bram_addr_d2(13 downto 0),
 
         probe0(127 downto 96)   => debug_rd_data(0),
         probe0(159 downto 128)  => debug_rd_data(1),
@@ -1347,6 +1349,8 @@ ila_gen : if DEBUG_ILA generate
             debug_i_bad_poly                <= i_bad_poly;
             debug_i_table_select            <= i_table_select;
             debug_i_data_valid              <= i_data_valid;
+
+            debug_i_time_ref                <= i_time_ref;
 
             debug_vec_from_packet           <= i_from_spead_pack.debug_vec;
 
@@ -1392,6 +1396,7 @@ ila_gen : if DEBUG_ILA generate
                                 debug_i_table_swap_in_progress &
                                 debug_vec_from_packet(25 downto 0);
 
+            debug_data(3)   <=  debug_i_time_ref(39 downto 8);
 
             if debug_wr = '1' then
                 debug_wr_addr   <= debug_wr_addr + 1;
@@ -1407,7 +1412,7 @@ ila_gen : if DEBUG_ILA generate
     bram_return_data_proc : process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            bram_addr_d1    <= args_addr;
+            bram_addr_d1    <= x"0" & args_addr;
             bram_addr_d2    <= bram_addr_d1;
         end if;
     end process;
@@ -1415,6 +1420,7 @@ ila_gen : if DEBUG_ILA generate
     bram_rddata     <=  debug_rd_data(0) when bram_addr_d2(11 downto 10) = "00"  else
                         debug_rd_data(1) when bram_addr_d2(11 downto 10) = "01"  else
                         debug_rd_data(2) when bram_addr_d2(11 downto 10) = "10"  else
+                        debug_rd_data(3) when bram_addr_d2(11 downto 10) = "11"  else
                         x"DEADBEEF";
     
     debug_data_wr(0)    <=  '1' when (args_addr(11 downto 10) = "00") AND bram_we(0) = '1' AND bram_en = '1' else
@@ -1422,6 +1428,8 @@ ila_gen : if DEBUG_ILA generate
     debug_data_wr(1)    <=  '1' when (args_addr(11 downto 10) = "01") AND bram_we(0) = '1' AND bram_en = '1' else
                                     '0';
     debug_data_wr(2)    <=  '1' when (args_addr(11 downto 10) = "10") AND bram_we(0) = '1' AND bram_en = '1' else
+                                    '0';
+    debug_data_wr(3)    <=  '1' when (args_addr(11 downto 10) = "11") AND bram_we(0) = '1' AND bram_en = '1' else
                                     '0';
     
     debug_rams_gen : FOR i in 0 to (no_of_debug_rams-1) GENERATE
