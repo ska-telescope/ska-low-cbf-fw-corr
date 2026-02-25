@@ -37,7 +37,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := TRUE;
+constant USE_TEST_CASE      : BOOLEAN := FALSE;
 constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
@@ -320,7 +320,12 @@ begin
             end if;
             
             stim_time_ref   <= (others => '0');
-
+            
+            if testCount_300 = 73650 then
+                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+            
             -- using defaul values send end packets.
             if testCount_300 = 51500 then
                 tb_debug(3)        <= '0';  -- trigger END
@@ -329,13 +334,21 @@ begin
             if testCount_300 = 56500 then
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
-
+            
+            if testCount_300 = 80500 then
+                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
             if testCount_300 = 81000 then
                 tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             
-            if testCount_300 = 118000 then
+            if testCount_300 = 149500 then
+                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+            if testCount_300 = 150000 then
                 tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
@@ -421,18 +434,6 @@ begin
             if USE_TEST_CASE = FALSE AND (GEN_DATA_END = TRUE) then
 -- HEAP data size rams
 -- ADDR    Config      Value(inc Epoch offset)
--- 0       6x6         722         0x2d2
--- 1       8x8         1232        0x4d0
--- 2       12x12       2660        0xa64
--- 3       16x16       4632        0x1218
--- 4       18x18       5822        0x16be
--- 5       20x20       7148        0x1bec
--- 6       22x22       8610        0x21a2
--- 7       24x24       10208       0x27e0
--- 8       26x26       11942       0x2ea6
--- 9       28x28       13812       0x35f4
--- 
--- 
 -- 
 -- 64	    249	        1058258	    0x1025D2
 -- 65	    250	        1066758	    0x104706
@@ -455,11 +456,11 @@ begin
                 if stim_count = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"2";
+                    row_count       <= 9D"1";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= x"0D"; --8D"0";
+                    stim_sub_array  <= x"00"; --8D"0";
     
                 elsif stim_count = 4000 then
                     -- META DATA FROM CORRELATOR SIM
@@ -468,75 +469,75 @@ begin
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"1";
-                    stim_sub_array  <= x"0C"; --8D"0";
+                    stim_sub_array  <= x"00"; --8D"0";
                     
                 elsif stim_count = 7000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"6";
+                    row_count       <= 9D"1";
                     data_valid      <= '1';
     
-                    stim_freq_index <= 17D"0";
+                    stim_freq_index <= 17D"2";
                     stim_sub_array  <= 8D"0";
                 elsif stim_count = 10000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"16";
-                    data_valid      <= '1';
-    
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"3";
-                elsif stim_count = 13000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"18";
+                    row_count       <= 9D"5";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"4";
+                elsif stim_count = 13000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"5";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"1";
                     stim_sub_array  <= 8D"4";
                     
                     stim_time_ref(31 downto 0)  <= 32D"4";
                     stim_time_ref(33 downto 32) <= "00";
                     stim_time_ref(34)           <= '1';
-                elsif stim_count = 17000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"20";
-                    data_valid      <= '1';
+--                elsif stim_count = 17000 then
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"20";
+--                    data_valid      <= '1';
     
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"5";
+--                    stim_freq_index <= 17D"1";
+--                    stim_sub_array  <= 8D"5";
                     
-                    stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "01";
-                    stim_time_ref(34)           <= '1';
-                elsif stim_count = 21000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"22";
-                    data_valid      <= '1';
+--                    stim_time_ref(31 downto 0)  <= 32D"3";
+--                    stim_time_ref(33 downto 32) <= "01";
+--                    stim_time_ref(34)           <= '1';
+--                elsif stim_count = 21000 then
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"22";
+--                    data_valid      <= '1';
     
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"6";
+--                    stim_freq_index <= 17D"1";
+--                    stim_sub_array  <= 8D"6";
                     
-                    stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "10";
-                    stim_time_ref(34)           <= '1';
+--                    stim_time_ref(31 downto 0)  <= 32D"3";
+--                    stim_time_ref(33 downto 32) <= "10";
+--                    stim_time_ref(34)           <= '1';
     
-                elsif stim_count = 25000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"50";
-                    data_valid      <= '1';
+--                elsif stim_count = 25000 then
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"50";
+--                    data_valid      <= '1';
     
-                    stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"11";
+--                    stim_freq_index <= 17D"0";
+--                    stim_sub_array  <= 8D"11";
                     
-                    stim_table_select  <= '1';
+--                    stim_table_select  <= '1';
     
-                    stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "00";
-                    stim_time_ref(34)           <= '0';
+--                    stim_time_ref(31 downto 0)  <= 32D"3";
+--                    stim_time_ref(33 downto 32) <= "00";
+--                    stim_time_ref(34)           <= '0';
                 end if;
             
             end if;
