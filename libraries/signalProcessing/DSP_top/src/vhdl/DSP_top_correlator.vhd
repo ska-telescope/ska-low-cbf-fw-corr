@@ -159,7 +159,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     ---------------------------------------------------------------------------
     -- SIGNAL DECLARATIONS  --
     ---------------------------------------------------------------------------   
-    signal LFAADecode_dbg : std_logic_vector(13 downto 0);
+    signal LFAADecode_dbg : std_logic_vector(19 downto 0);
     signal gnd : std_logic_vector(199 downto 0);
     
     signal clk_LFAA40GE_wallTime : t_wall_time;
@@ -181,6 +181,12 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     port (
         clk : in std_logic;
         probe0 : in std_logic_vector(119 downto 0)); 
+    end component;
+    
+    component ila_hbm_test
+    port (
+        clk : in std_logic;
+        probe0 : in std_logic_vector(71 downto 0)); 
     end component;
     
     signal mac100G : std_logic_vector(47 downto 0);
@@ -276,6 +282,27 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal table_add_remove : std_logic;
     
     
+    signal tx_fsm_dbg : std_logic_vector(3 downto 0); -- <= LFAADecode_dbg(3 downto 0);
+    signal wdFIFO_wrDataCount : std_logic_vector(12 downto 0); --  <= LFAADecode_dbg(16 downto 4);
+    signal goodPacket_dbg : std_logic; --  <= LFAADecode_dbg(17); 
+    signal axis_tvalid_dbg : std_logic; -- <= LFAADecode_dbg(18);
+    signal axis_tlast_dbg : std_logic; -- <= LFAADecode_dbg(19);
+    signal aw_addr_dbg : std_logic_vector(18 downto 0); -- <= ct1_HBM_axi_aw.addr(31 downto 13);
+    signal aw_valid_dbg : std_logic; -- <= ct1_HBM_axi_aw.valid;
+    signal aw_ready_dbg : std_logic; -- <= i_HBM_axi_awready(0);
+    signal ar_addr_dbg : std_logic_vector(18 downto 0); -- <= ct1_HBM_axi_ar.addr(31 downto 13);
+    signal ar_valid_dbg : std_logic; -- <= ct1_HBM_axi_ar.valid;
+    signal ar_ready_dbg : std_logic; -- <= i_HBM_axi_arready(0);
+    signal w_valid_dbg : std_logic; -- <= ct1_HBM_axi_w.valid;
+    signal w_last_dbg : std_logic; -- <= ct1_HBM_axi_w.last;
+    signal w_ready_dbg : std_logic; -- <= i_HBM_axi_wready(0);
+    signal r_valid_dbg : std_logic; -- <= i_HBM_axi_r(0).valid;
+    signal r_last_dbg : std_logic; -- <= i_HBM_axi_r(0).last;
+    signal r_ready_dbg : std_logic; -- <= o_HBM_axi_rready(0);
+    signal ct1_HBM_axi_aw : t_axi4_full_addr;
+    signal ct1_HBM_axi_ar : t_axi4_full_addr;
+    signal ct1_HBM_axi_w : t_axi4_full_data;
+    
 begin
     
     gnd <= (others => '0');
@@ -316,7 +343,7 @@ begin
         o_tableSelect    => open, -- LFAAingest_tableSelect,     -- out std_logic;
         o_valid          => LFAAingest_valid,           -- out std_logic; o_virtualChannel and o_packetCount are valid.
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
-        o_axi_w      => o_HBM_axi_w(0),      -- w data bus (.wvalid, .wdata, .wlast)
+        o_axi_w      => ct1_HBM_axi_w,      -- w data bus (.wvalid, .wdata, .wlast)
         i_axi_wready => i_HBM_axi_wready(0), -- 
         --AXI lite Interface
         i_s_axi_mosi       => i_LFAALite_axi_mosi, -- in t_axi4_lite_mosi; at the top level use mc_lite_mosi(c_LFAADecode_lite_index)
@@ -341,7 +368,7 @@ begin
         o_dbg              => LFAADecode_dbg
     );
 
-
+    o_HBM_axi_w(0) <= ct1_HBM_axi_w;
     
     LFAA_FB_CT : entity CT_lib.corr_ct1_top
     generic map (
@@ -403,12 +430,12 @@ begin
         -- AXI bus to the shared memory. 
         -- This has the aw, b, ar and r buses (the w bus is on the output of the LFAA decode module)
         -- aw bus - write address
-        o_m01_axi_aw      => o_HBM_axi_aw(0),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        o_m01_axi_aw      => ct1_HBM_axi_aw,      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
         i_m01_axi_awready => i_HBM_axi_awready(0), -- in std_logic;
         -- b bus - write response
         i_m01_axi_b  => i_HBM_axi_b(0),            -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
         -- ar bus - read address
-        o_m01_axi_ar => o_HBM_axi_ar(0),           -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
+        o_m01_axi_ar => ct1_HBM_axi_ar,           -- out t_axi4_full_addr; (.valid, .addr(39:0), .len(7:0))
         i_m01_axi_arready => i_HBM_axi_arready(0), -- in std_logic;
         -- r bus - read data
         i_m01_axi_r      => i_HBM_axi_r(0),        -- in t_axi4_full_data  (.valid, .data(511:0), .last, .resp(1:0))
@@ -431,6 +458,9 @@ begin
         --
         i_m06_axi_rst_dbg => i_hbm_rst_dbg(5)      -- in (31:0)
     );
+
+    o_HBM_axi_aw(0) <= ct1_HBM_axi_aw;
+    o_HBM_axi_ar(0) <= ct1_HBM_axi_ar;
 
     -- Correlator filterbank and fine delay.
     FBreali : if (not g_USE_DUMMY_FB) generate
@@ -832,6 +862,55 @@ begin
             eth100G_rst     <= NOT i_eth100G_locked;
         end if;
     end process;
+    
+    
+    -------------------------------------------------------------
+    -- ILA for investigating burst write speed to HBM for SPS ingest
+    process(i_MACE_clk)
+    begin
+        if rising_edge(i_MACE_clk) then
+            tx_fsm_dbg <= LFAADecode_dbg(3 downto 0);
+            wdFIFO_wrDataCount <= LFAADecode_dbg(16 downto 4);
+            goodPacket_dbg <= LFAADecode_dbg(17); 
+            axis_tvalid_dbg <= LFAADecode_dbg(18);
+            axis_tlast_dbg <= LFAADecode_dbg(19);
+            aw_addr_dbg <= ct1_HBM_axi_aw.addr(31 downto 13);
+            aw_valid_dbg <= ct1_HBM_axi_aw.valid;
+            aw_ready_dbg <= i_HBM_axi_awready(0);
+            ar_addr_dbg <= ct1_HBM_axi_ar.addr(31 downto 13);
+            ar_valid_dbg <= ct1_HBM_axi_ar.valid;
+            ar_ready_dbg <= i_HBM_axi_arready(0);
+            w_valid_dbg <= ct1_HBM_axi_w.valid;
+            w_last_dbg <= ct1_HBM_axi_w.last;
+            w_ready_dbg <= i_HBM_axi_wready(0);
+            r_valid_dbg <= i_HBM_axi_r(0).valid;
+            r_last_dbg <= i_HBM_axi_r(0).last;
+            r_ready_dbg <= o_HBM_axi_rready(0);
+        end if;
+    end process;
+    
+    u_hbmtest_ila : ila_hbm_test
+    port map (
+        clk => i_MACE_clk,
+        probe0(3 downto 0) => tx_fsm_dbg,
+        probe0(16 downto 4) => wdFIFO_wrDataCount, --  <= LFAADecode_dbg(16 downto 4);
+        probe0(17) => goodPacket_dbg, --  <= LFAADecode_dbg(17); 
+        probe0(18) => axis_tvalid_dbg, --  <= LFAADecode_dbg(18);
+        probe0(19) => axis_tlast_dbg, --  <= LFAADecode_dbg(19);
+        probe0(38 downto 20) => aw_addr_dbg, --  <= ct1_HBM_axi_aw.addr(31 downto 13);
+        probe0(39) => aw_valid_dbg, --  <= ct1_HBM_axi_aw.valid;
+        probe0(40) => aw_ready_dbg, --  <= i_HBM_axi_awready(0);
+        probe0(59 downto 41) => ar_addr_dbg, --  <= ct1_HBM_axi_ar.addr(31 downto 13);
+        probe0(60) => ar_valid_dbg, --  <= ct1_HBM_axi_ar.valid;
+        probe0(61) => ar_ready_dbg, --  <= i_HBM_axi_arready(0);
+        probe0(62) => w_valid_dbg, --  <= ct1_HBM_axi_w.valid;
+        probe0(63) => w_last_dbg,  --
+        probe0(64) => w_ready_dbg, -- 
+        probe0(65) => r_valid_dbg,
+        probe0(66) => r_ready_dbg,
+        probe0(67) => r_last_dbg,
+        probe0(71 downto 68) => (others => '0')
+    );
     
    
 END structure;
