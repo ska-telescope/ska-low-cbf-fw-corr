@@ -159,7 +159,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     ---------------------------------------------------------------------------
     -- SIGNAL DECLARATIONS  --
     ---------------------------------------------------------------------------   
-    signal LFAADecode_dbg : std_logic_vector(19 downto 0);
+    signal LFAADecode_dbg : std_logic_vector(21 downto 0);
     signal gnd : std_logic_vector(199 downto 0);
     
     signal clk_LFAA40GE_wallTime : t_wall_time;
@@ -283,7 +283,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     
     
     signal tx_fsm_dbg : std_logic_vector(3 downto 0); -- <= LFAADecode_dbg(3 downto 0);
-    signal wdFIFO_wrDataCount : std_logic_vector(12 downto 0); --  <= LFAADecode_dbg(16 downto 4);
+    signal wdFIFO_wrDataCount : std_logic_vector(14 downto 0); --  <= LFAADecode_dbg(16 downto 4);
     signal goodPacket_dbg : std_logic; --  <= LFAADecode_dbg(17); 
     signal axis_tvalid_dbg : std_logic; -- <= LFAADecode_dbg(18);
     signal axis_tlast_dbg : std_logic; -- <= LFAADecode_dbg(19);
@@ -870,10 +870,10 @@ begin
     begin
         if rising_edge(i_MACE_clk) then
             tx_fsm_dbg <= LFAADecode_dbg(3 downto 0);
-            wdFIFO_wrDataCount <= LFAADecode_dbg(16 downto 4);
-            goodPacket_dbg <= LFAADecode_dbg(17); 
-            axis_tvalid_dbg <= LFAADecode_dbg(18);
-            axis_tlast_dbg <= LFAADecode_dbg(19);
+            wdFIFO_wrDataCount <= LFAADecode_dbg(18 downto 4);
+            goodPacket_dbg <= LFAADecode_dbg(19); 
+            axis_tvalid_dbg <= LFAADecode_dbg(20);
+            axis_tlast_dbg <= LFAADecode_dbg(21);
             aw_addr_dbg <= ct1_HBM_axi_aw.addr(31 downto 13);
             aw_valid_dbg <= ct1_HBM_axi_aw.valid;
             aw_ready_dbg <= i_HBM_axi_awready(0);
@@ -893,9 +893,7 @@ begin
     port map (
         clk => i_MACE_clk,
         probe0(3 downto 0) => tx_fsm_dbg,
-        probe0(16 downto 4) => wdFIFO_wrDataCount, --  <= LFAADecode_dbg(16 downto 4);
-        probe0(17) => goodPacket_dbg, --  <= LFAADecode_dbg(17); 
-        probe0(18) => axis_tvalid_dbg, --  <= LFAADecode_dbg(18);
+        probe0(18 downto 4) => wdFIFO_wrDataCount, --  <= LFAADecode_dbg(16 downto 4);
         probe0(19) => axis_tlast_dbg, --  <= LFAADecode_dbg(19);
         probe0(38 downto 20) => aw_addr_dbg, --  <= ct1_HBM_axi_aw.addr(31 downto 13);
         probe0(39) => aw_valid_dbg, --  <= ct1_HBM_axi_aw.valid;
@@ -909,7 +907,9 @@ begin
         probe0(65) => r_valid_dbg,
         probe0(66) => r_ready_dbg,
         probe0(67) => r_last_dbg,
-        probe0(71 downto 68) => (others => '0')
+        probe0(68) => goodPacket_dbg, --  <= LFAADecode_dbg(17); 
+        probe0(69) => axis_tvalid_dbg, --  <= LFAADecode_dbg(18);
+        probe0(71 downto 70) => (others => '0')
     );
     
    
