@@ -210,7 +210,13 @@ peripherals:
               width             : 16
               access_mode       : RO
               reset_value       : 0x0
-              field_description : "This is has a max value of 4096."
+              field_description : "This is has a max value of 16383."
+          #################################
+          - - field_name        : max_uram_buffer_level
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "high water mark for the uram buffer level. This is has a max value of 16383."              
           #################################
           - - field_name        : uram_buffer_fill_warn
               width             : 16
