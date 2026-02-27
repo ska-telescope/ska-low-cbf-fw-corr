@@ -439,19 +439,32 @@ begin
             axi_arvalidDel1 <= axi_arvalid;
             if ((((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "0000") and (unsigned(LFAABlock_v) = 0))) and 
                 (axi_arvalid = '1' and axi_arvalidDel1 = '0')) then
-                -- Note axi_araddr(31:30) = 1 GByte buffer in the HBM  = valid memory address bits (18:17)
-                --      axi_araddr(29:20) = virtual channel            = valid memory address bits (16:7)
-                --      axi_araddr(19:13) = LFAA block                 = valid memory address bits (6:0)
-                --      axi_araddr(12:0)  = byte within the 8192 byte LFAA block.
-                --                          Reads are 512 bytes, so if bits(12:9) = "1111" then this is the last read from this LFAA block.
+                
+                -- OLD scheme : 
+                --   Note axi_araddr(31:30) = 1 GByte buffer in the HBM  = valid memory address bits (18:17)
+                --        axi_araddr(29:20) = virtual channel            = valid memory address bits (16:7)
+                --        axi_araddr(19:13) = LFAA block                 = valid memory address bits (6:0)
+                --        axi_araddr(12:0)  = byte within the 8192 byte LFAA block.
+                --                            Reads are 512 bytes, so if bits(12:9) = "1111" then this is the last read from this LFAA block.
+                --
+                -- NEW scheme :
+                --  axi_araddr(31:30) = 1 GByte buffer in the HBM  = valid memory address bits (18:17)
+                --  axi_araddr(29:23) = LFAA block                 = valid memory address bits (16:10)
+                --  axi_araddr(22:13) = virtual channel            = valid memory address bits (9:0)
+                --  axi_araddr(12:0)  = byte within the 8192 byte LFAA block.
+                --
                 -- This clause clears the valid bit :
                 --   - For the 13th from the end LFAA block in the previous buffer, on the first memory request to the first LFAA block in the current buffer
                 --     (This happens on the reads of current buffer to ensure that all the preload blocks in the previous buffer are cleared,
                 --      since large values of the coarse delay may mean the first possible preload LFAA block in previous buffer is not read to preload the filterbanks)
                 validMemWrEn <= '1';
                 validMemWriteAddr(18 downto 17) <= ar_previousBuffer;
-                validMemWriteAddr(16 downto 7) <= axi_araddr(29 downto 20);
-                validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
+                -- Old scheme:
+                --  validMemWriteAddr(16 downto 7) <= axi_araddr(29 downto 20);
+                --  validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
+                -- New scheme :
+                validMemWriteAddr(9 downto 0) <= axi_araddr(22 downto 17);
+                validMemWriteAddr(16 downto 10) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
             elsif (((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) < (g_SPS_PACKETS_PER_FRAME-13))) or 
                    ((axi_araddr(31 downto 30) = ar_previousBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) >= (g_SPS_PACKETS_PER_FRAME-13)))) and
                   (axi_arvalid = '1' and axi_arvalidDel1 = '0') then
@@ -637,8 +650,14 @@ begin
                     when getBufData =>  -- "buf0" in the name "getBuf0Data" refers to the particular virtual channel
                         axi_arvalid <= '1';
                         axi_araddr(31 downto 30) <= bufBuffer(to_integer(unsigned(ar_fsm_buffer))); -- which HBM buffer
-                        axi_araddr(29 downto 20) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
-                        axi_araddr(19 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 0) & "00"; -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
+                        -- Old scheme:
+                        --   axi_araddr(29 downto 20) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
+                        --   axi_araddr(19 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 0) & "00"; -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
+                        -- New scheme:
+                        axi_araddr(22 downto 13) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
+                        axi_araddr(29 downto 23) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 11);
+                        axi_araddr(12 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(10 downto 0) & "00";  -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
+                        
                         axi_arlen(2 downto 0) <= bufLen(to_integer(unsigned(ar_fsm_buffer)));
                         ar_fsm <= waitARReady;
                     
