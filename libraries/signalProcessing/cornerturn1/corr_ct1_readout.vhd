@@ -463,7 +463,7 @@ begin
                 --  validMemWriteAddr(16 downto 7) <= axi_araddr(29 downto 20);
                 --  validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
                 -- New scheme :
-                validMemWriteAddr(9 downto 0) <= axi_araddr(22 downto 17);
+                validMemWriteAddr(9 downto 0) <= axi_araddr(22 downto 13);
                 validMemWriteAddr(16 downto 10) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
             elsif (((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) < (g_SPS_PACKETS_PER_FRAME-13))) or 
                    ((axi_araddr(31 downto 30) = ar_previousBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) >= (g_SPS_PACKETS_PER_FRAME-13)))) and
