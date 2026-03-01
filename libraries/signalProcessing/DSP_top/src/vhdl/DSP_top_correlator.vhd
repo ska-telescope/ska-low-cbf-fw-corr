@@ -886,27 +886,27 @@ begin
         end if;
     end process;
     
-    u_hbmtest_ila : ila_hbm_test
-    port map (
-        clk => i_MACE_clk,
-        probe0(3 downto 0) => tx_fsm_dbg,
-        probe0(19 downto 4) => wdFIFO_wrDataCount, --  <= LFAADecode_dbg(16 downto 4);
-        probe0(20) => axis_tlast_dbg, --  <= LFAADecode_dbg(19);
-        probe0(39 downto 21) => aw_addr_dbg, --  <= ct1_HBM_axi_aw.addr(31 downto 13);
-        probe0(40) => aw_valid_dbg, --  <= ct1_HBM_axi_aw.valid;
-        probe0(41) => aw_ready_dbg, --  <= i_HBM_axi_awready(0);
-        probe0(60 downto 42) => ar_addr_dbg, --  <= ct1_HBM_axi_ar.addr(31 downto 13);
-        probe0(61) => ar_valid_dbg, --  <= ct1_HBM_axi_ar.valid;
-        probe0(62) => ar_ready_dbg, --  <= i_HBM_axi_arready(0);
-        probe0(63) => w_valid_dbg, --  <= ct1_HBM_axi_w.valid;
-        probe0(64) => w_last_dbg,  --
-        probe0(65) => w_ready_dbg, -- 
-        probe0(66) => r_valid_dbg,
-        probe0(67) => r_ready_dbg,
-        probe0(68) => r_last_dbg,
-        probe0(69) => goodPacket_dbg, --  <= LFAADecode_dbg(17); 
-        probe0(70) => axis_tvalid_dbg, --  <= LFAADecode_dbg(18);
-        probe0(71) => '0'
-    );
+--    u_hbmtest_ila : ila_hbm_test
+--    port map (
+--        clk => i_MACE_clk,
+--        probe0(3 downto 0) => tx_fsm_dbg,
+--        probe0(19 downto 4) => wdFIFO_wrDataCount, --  <= LFAADecode_dbg(16 downto 4);
+--        probe0(20) => axis_tlast_dbg, --  <= LFAADecode_dbg(19);
+--        probe0(39 downto 21) => aw_addr_dbg, --  <= ct1_HBM_axi_aw.addr(31 downto 13);
+--        probe0(40) => aw_valid_dbg, --  <= ct1_HBM_axi_aw.valid;
+--        probe0(41) => aw_ready_dbg, --  <= i_HBM_axi_awready(0);
+--        probe0(60 downto 42) => ar_addr_dbg, --  <= ct1_HBM_axi_ar.addr(31 downto 13);
+--        probe0(61) => ar_valid_dbg, --  <= ct1_HBM_axi_ar.valid;
+--        probe0(62) => ar_ready_dbg, --  <= i_HBM_axi_arready(0);
+--        probe0(63) => w_valid_dbg, --  <= ct1_HBM_axi_w.valid;
+--        probe0(64) => w_last_dbg,  --
+--        probe0(65) => w_ready_dbg, -- 
+--        probe0(66) => r_valid_dbg,
+--        probe0(67) => r_ready_dbg,
+--        probe0(68) => r_last_dbg,
+--        probe0(69) => goodPacket_dbg, --  <= LFAADecode_dbg(17); 
+--        probe0(70) => axis_tvalid_dbg, --  <= LFAADecode_dbg(18);
+--        probe0(71) => '0'
+--    );
     
 END structure;
