@@ -122,8 +122,12 @@ $COMMON_PATH/hbm_axi_reset_handler/eth_disable.vhd \
 $BUILD_PATH/build_details_pkg.vhd \
 ]
 
+## removed src/vhdl/tb_correlatorCore.vhd \
+## also removed *correlator/src/vhdl/tb_correlatorCore.vhd \
+# top level testbench
+#### and skip this too - set_property top tb_correlatorCore [get_filesets sim_1]
+
 add_files -fileset sim_1 [glob \
-$DESIGN_PATH/src/vhdl/tb_correlatorCore.vhd \
 $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd \
 ]
 
@@ -132,7 +136,6 @@ set_property library correlator_lib [get_files {\
 *correlator/src/vhdl/correlator_core.vhd \
 *correlator/src/vhdl/cdma_wrapper.vhd \
 *correlator/src/vhdl/krnl_control_axi.vhd \
-*correlator/src/vhdl/tb_correlatorCore.vhd \
 *correlator/src/vhdl/lbus_packet_receive.vhd \
 *correlator/src/vhdl/HBM_axi_tbModel.vhd \
 *correlator/src/vhdl/version_pkg.vhd \
@@ -145,8 +148,6 @@ set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/u55c/correl
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/correlator_core.vhd]
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src/vhdl/HBM_axi_tbModel.vhd]
 
-# top level testbench
-set_property top tb_correlatorCore [get_filesets sim_1]
 
 # vivado_xci_files: Importing IP to the project
 # tcl scripts for ip generation
@@ -477,6 +478,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBTop_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFBMem.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/URAMWrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
@@ -495,6 +497,7 @@ set_property library filterbanks_lib [get_files {\
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBTop_dummy.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFBMem.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/URAMWrapper.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
