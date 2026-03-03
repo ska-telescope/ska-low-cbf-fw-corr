@@ -435,7 +435,7 @@ begin
             ----------------------------------------------------------------------------
             -- write to clear the valid memory (mark the block as invalid).
              
-            LFAABlock_v := axi_araddr(19 downto 13);
+            LFAABlock_v := axi_araddr(29 downto 23);
             axi_arvalidDel1 <= axi_arvalid;
             if ((((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "0000") and (unsigned(LFAABlock_v) = 0))) and 
                 (axi_arvalid = '1' and axi_arvalidDel1 = '0')) then
