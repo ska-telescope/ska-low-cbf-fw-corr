@@ -216,7 +216,7 @@ architecture Behavioral of corr_ct1_readout is
     signal ARFIFO_rst : std_logic;
     signal ARFIFO_wrEn : std_logic;
     
-    signal ar_virtualChannel : std_logic_vector(9 downto 0);
+    signal ar_virtualChannel : std_logic_vector(11 downto 0);
     signal ar_currentBuffer : std_logic_vector(1 downto 0);
     signal ar_previousBuffer, ar_nextBuffer : std_logic_vector(1 downto 0);
     signal ar_integration : std_logic_vector(31 downto 0);
@@ -236,7 +236,7 @@ architecture Behavioral of corr_ct1_readout is
     signal bufSamplesToRead : t_slv_8_arr(3 downto 0);
     signal bufLen_ext : t_slv_20_arr(3 downto 0);
     
-    signal bufVirtualChannel : t_slv_10_arr(3 downto 0);
+    signal bufVirtualChannel : t_slv_12_arr(3 downto 0);
     signal bufCoarseDelay : t_slv_20_arr(3 downto 0);
     signal bufHasMoreSamples : std_logic_vector(3 downto 0); -- one bit for each buffer.
     signal bufFirstRead, bufLastRead : std_logic_Vector(3 downto 0);
@@ -654,7 +654,7 @@ begin
                         --   axi_araddr(29 downto 20) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
                         --   axi_araddr(19 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 0) & "00"; -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
                         -- New scheme:
-                        axi_araddr(22 downto 13) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
+                        axi_araddr(22 downto 13) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)))(9 downto 0);
                         axi_araddr(29 downto 23) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 11);
                         axi_araddr(12 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(10 downto 0) & "00";  -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
                         
