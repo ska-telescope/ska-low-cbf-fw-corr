@@ -2,6 +2,7 @@
 ## Correlator Personality
 * 1.0.1
     * SCAN ID added to SDP SPEAD Data packets for ADR-111.
+    * Burst traffic fix on input module.
 * 1.0.0
     * SPS monitoring and statistics added. Requires Processor 0.22.0+
         * This is not backwards compatible due to HBM changes for the statistics.
