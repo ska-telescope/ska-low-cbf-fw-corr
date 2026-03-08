@@ -80,6 +80,8 @@ set_property library Timeslave_CMAC_lib [get_files {\
  */Timeslave/timeslave/Timeslave_timeslave_reg.vhd \ 
 }]
 
+source $COMMON_PATH/ptp/src/cmac_100G_U55C.tcl
+
 ############################################################
 # ARGS generated files
 ############################################################
