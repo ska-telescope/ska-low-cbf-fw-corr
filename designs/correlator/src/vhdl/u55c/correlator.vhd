@@ -571,6 +571,7 @@ begin
     
     u_100G_port_a : entity Timeslave_CMAC_lib.CMAC_100G_wrap_w_timeslave
     Generic map (
+        PTP_IP_IN_USE       => FALSE,
         U55_TOP_QSFP        => TRUE,
         U55_BOTTOM_QSFP     => FALSE         -- THIS CONFIG IS VALID FOR U50 as well.
     )
