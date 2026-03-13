@@ -1243,25 +1243,29 @@ gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
     
 END GENERATE;
 
-
-    hbm_rd_debug_ro.debug_pack_it_fsm           <= pack_it_fsm_debug;
-    hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;
-    hbm_rd_debug_ro.debug_hbm_reader_fsm		<= hbm_reader_fsm_debug;
-    hbm_rd_debug_ro.debug_hbm_reader_fsm_cache  <= hbm_reader_fsm_debug_cache;
-    hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
-
-    hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
-    hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo_reg;
-    hbm_rd_debug_ro.debug_bytes_in_heap_trkr    <= std_logic_vector(dbg_bytes_in_heap_trkr);
-    
-    testmode_select				<= hbm_rd_debug_rw.testmode_select;
-    testmode_hbm_start_addr		<= hbm_rd_debug_rw.testmode_hbm_start_addr;
-    testmode_subarray			<= hbm_rd_debug_rw.testmode_subarray;
-    testmode_freqindex			<= hbm_rd_debug_rw.testmode_freqindex;
-    testmode_time_ref			<= hbm_rd_debug_rw.testmode_time_ref;
-    testmode_row				<= hbm_rd_debug_rw.testmode_row;
-    testmode_row_count			<= hbm_rd_debug_rw.testmode_row_count;
-    testmode_load_instruct		<= hbm_rd_debug_rw.testmode_load_instruct;
+    reg_args_proc : process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            hbm_rd_debug_ro.debug_pack_it_fsm           <= pack_it_fsm_debug;
+            hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;
+            hbm_rd_debug_ro.debug_hbm_reader_fsm		<= hbm_reader_fsm_debug;
+            hbm_rd_debug_ro.debug_hbm_reader_fsm_cache  <= hbm_reader_fsm_debug_cache;
+            hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
+        
+            hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
+            hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo_reg;
+            hbm_rd_debug_ro.debug_bytes_in_heap_trkr    <= std_logic_vector(dbg_bytes_in_heap_trkr);
+            
+            testmode_select				<= hbm_rd_debug_rw.testmode_select;
+            testmode_hbm_start_addr		<= hbm_rd_debug_rw.testmode_hbm_start_addr;
+            testmode_subarray			<= hbm_rd_debug_rw.testmode_subarray;
+            testmode_freqindex			<= hbm_rd_debug_rw.testmode_freqindex;
+            testmode_time_ref			<= hbm_rd_debug_rw.testmode_time_ref;
+            testmode_row				<= hbm_rd_debug_rw.testmode_row;
+            testmode_row_count			<= hbm_rd_debug_rw.testmode_row_count;
+            testmode_load_instruct		<= hbm_rd_debug_rw.testmode_load_instruct;
+        end if;
+    end process;
 
     ---------------------------------------------------------------------------
     

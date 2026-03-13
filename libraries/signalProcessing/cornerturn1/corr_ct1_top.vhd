@@ -46,6 +46,10 @@
 --          - bits 12:0 = byte within an LFAA packet (LFAA packets are 8192 bytes)
 --          - bits 19:13 = packet count within the buffer (up to 128 LFAA packets per buffer)
 --          - bits 29:20 = virtual channel
+--     - New data ordering to reduce read-write clashes in 512 MByte HBM banks
+--          - bits 12:0 = byte within an LFAA packet (LFAA packets are 8192 bytes)
+--          - bits 22:13 = Virtual Channel
+--          - bits 29:23 = packet count within the buffer (up to 128 LFAA packets per buffer)
 --   * The total number of LFAA packets per buffer is configurable via a generic, up to a maximum of 128.
 --   
 --  A shadow memory keeps track of which LFAA packets have been written to the memory.
@@ -720,9 +724,15 @@ END GENERATE;
                         input_fsm_dbg <= "00001";
                         trigger_readout <= '0';
                         if i_valid = '1' then
-                            sps_addr(29 downto 20) <= i_virtualChannel(9 downto 0);
+                            -- old scheme
+                            --sps_addr(29 downto 20) <= i_virtualChannel(9 downto 0);
+                            ---- which packet out of 128 SPS packets per corner turn frame.
+                            --sps_addr(19 downto 13) <= i_packetCount(6 downto 0);
+                            -- New scheme:
+                            sps_addr(22 downto 13) <= i_virtualChannel(9 downto 0);
                             -- which packet out of 128 SPS packets per corner turn frame.
-                            sps_addr(19 downto 13) <= i_packetCount(6 downto 0);
+                            sps_addr(29 downto 23) <= i_packetCount(6 downto 0);
+                            
                             -- low 13 bits are zero, sps packets are 8192 byte aligned in HBM. 
                             sps_addr(12 downto 0) <= (others => '0');
                             -- top 2 bits select the HBM buffer (put in later).
@@ -797,9 +807,38 @@ END GENERATE;
                             end if;
                         else
                             -- check the packet count is not too early or too late
+                            -- !! OLD window for valid writes !!
+                            -- Suppose current_wr_buffer = 1
+                            -- Then
+                            --                                       |       current_wr_buffer        |
+                            --    |0                              127|0                            127|0                            127|    <-- sps packet count within the buffer
+                            --    |        buf 0                     |             buf 1              |              buf 2             |
+                            --                               |<----------------------valid writes------------------------>|
+                            --                              112                                                          63 
+                            --    |------------------------------------->|                                                          |<-|    <-- buf 0 being read out; preload from buf2, postload from buf 1 as shown
+                            --                                          12                                                        116
+                            --                                                                             |
+                            --                                                                       framecount_start (default value of 16) <-- Point at which the write buffer steps from buf 1 to buf 2 (and read is triggered for buf 1)
+                            --
+                            --if ((ct_buffer = current_wr_buffer and ct_eq_current = '1') or
+                            --    (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) < 64)) or
+                            --    (ct_buffer = previous_wr_buffer and ct_eq_previous = '1' and (unsigned(packet_count_in_buffer) > 112))) then
+                          
+                            -- Revised Scheme
+                            -- Window for valid writes : 
+                            -- Suppose current_wr_buffer = 1
+                            -- Then
+                            --                                       |       current_wr_buffer        |
+                            --    |0                              127|0                            127|0                            127|    <-- sps packet count within the buffer
+                            --    |        buf 0                     |             buf 1              |              buf 2             |
+                            --                                       |<----------------------valid writes------------------------>|
+                            --                                                                                                   111 
+                            --                                                                                          |
+                            --                                                                                         64                   <-- Point at which the write buffer steps from buf 1 to buf 2, and read is triggered for buf 1
+                            --
                             if ((ct_buffer = current_wr_buffer and ct_eq_current = '1') or
-                                (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) < 64)) or
-                                (ct_buffer = previous_wr_buffer and ct_eq_previous = '1' and (unsigned(packet_count_in_buffer) > 112))) then
+                                (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) < 112))) then
+                          
                                 -- just write the packet into the buffer
                                 input_fsm <= generate_aw;
                                 drop_packet <= '0';
@@ -819,9 +858,17 @@ END GENERATE;
                         -- Otherwise it will mess up the axi bus, since wdata bus is in the LFAA ingest module.
                         -- Write to a point just past the end of the write window, where it will get overwritten
                         -- later when the real packet turns up.
+                        
+                        -- old address bit ordering
+                        --sps_addr(31 downto 30) <= next_wr_buffer;
+                        --sps_addr(29 downto 20) <= (others => '0');
+                        --sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                        --sps_addr(12 downto 0) <= (others => '0');
+                    
+                        -- New Address bit ordering :
                         sps_addr(31 downto 30) <= next_wr_buffer;
-                        sps_addr(29 downto 20) <= (others => '0');
-                        sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                        sps_addr(22 downto 13) <= (others => '0');
+                        sps_addr(29 downto 23) <= "1110000"; -- position 112, beyond the point where packets can be written to. 
                         sps_addr(12 downto 0) <= (others => '0');
                     
                     when packet_early_or_late =>
@@ -834,10 +881,18 @@ END GENERATE;
                         -- Otherwise it will mess up the axi bus, since wdata bus is in the LFAA ingest module.
                         -- Write to a point just past the end of the write window, where it will get overwritten
                         -- later when the real packet turns up.
+                        
+                        -- Old address bit ordering :
+                        --sps_addr(31 downto 30) <= next_wr_buffer;
+                        --sps_addr(29 downto 20) <= (others => '0');
+                        --sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                        --sps_Addr(12 downto 0) <= (others => '0');
+                        
+                        -- New Address bit ordering :
                         sps_addr(31 downto 30) <= next_wr_buffer;
-                        sps_addr(29 downto 20) <= (others => '0');
-                        sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
-                        sps_Addr(12 downto 0) <= (others => '0');
+                        sps_addr(22 downto 13) <= (others => '0');
+                        sps_addr(29 downto 23) <= "1110000"; -- position 112, beyond the point where packets can be written to. 
+                        sps_addr(12 downto 0) <= (others => '0');
                     
                     when check_awfifo_space =>
                         -- check there is space in the FIFO for 16 aw transactions.
@@ -868,9 +923,15 @@ END GENERATE;
                         input_fsm_dbg <= "01010";
                         AWFIFO_wrEn <= '0';
                         trigger_readout <= '0';
-                        if (ct_buffer = next_wr_buffer and ct_eq_next = '1' and 
-                            (unsigned(packet_count_in_buffer) < 64) and 
-                            (unsigned(packet_count_in_buffer) > unsigned(framecount_start))) then
+                        
+                        -- Old version - see comments above about the window for valid writes
+                        --if (ct_buffer = next_wr_buffer and ct_eq_next = '1' and 
+                        --    (unsigned(packet_count_in_buffer) < 64) and 
+                        --    (unsigned(packet_count_in_buffer) > unsigned(framecount_start))) then
+                        
+                        -- New version - always start the readout when we get to halfway through the next buffer
+                        if (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) >= 64)) then
+                            
                             -- update current buffer to the next buffer, trigger readout 
                             current_wr_buffer <= next_wr_buffer;
                             -- next integration only increments if we were up to buffer 2. 
