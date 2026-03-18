@@ -98,13 +98,11 @@ entity corr_ct2_top is
         -- pipelined reset from first stage corner turn ?
         i_rst : in std_logic;   -- First data received after this reset is placed in the first 283ms block in a 849 ms integration.
         
-        -- hbm reset   
+        -- hbm reset
         o_hbm_reset_c1      : out std_logic;
         i_hbm_status_c1     : in std_logic_vector(7 downto 0);
-        
         o_hbm_reset_c2      : out std_logic;
         i_hbm_status_c2     : in std_logic_vector(7 downto 0);
-        
         -- configuration data from registers in other modules
         --i_virtualChannels   : in std_logic_vector(10 downto 0); -- total virtual channels 
         -- Data in from the correlator filterbanks; bursts of 3456 clocks for each channel.
@@ -113,7 +111,7 @@ entity corr_ct2_top is
         i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      : in std_logic_vector(1 downto 0);  -- 283 ms frame within each integration interval
         i_virtualChannel : in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
-        i_bad_poly     : in std_logic;
+        i_bad_poly     : in std_logic_vector(3 downto 0);
         i_lastChannel  : in std_logic;   -- last of the group of 4 channels
         i_demap_table_select : in std_logic;
         i_HeaderValid : in std_logic_vector(3 downto 0);
@@ -512,7 +510,7 @@ begin
         i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
         i_frameCount_849ms => frameCount_849ms, -- in (31:0)
         i_virtualChannel   => i_virtualChannel, -- in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the data streams.
-        i_bad_poly         => i_bad_poly,       -- in std_logic;
+        i_bad_poly         => i_bad_poly,       -- in (3:0);
         i_lastChannel      => i_lastchannel,    -- in std_logic;
         i_HeaderValid      => i_headerValid,    -- in std_logic_vector(3 downto 0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2)
@@ -598,7 +596,6 @@ begin
     );
     
     -----------------------------------------------------------------------    
-
     
     o_HBM_axi_aw <= HBM_axi_aw;
     o_HBM_axi_w <= HBM_axi_w;
