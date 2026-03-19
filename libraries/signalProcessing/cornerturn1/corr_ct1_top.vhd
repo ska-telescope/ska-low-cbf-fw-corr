@@ -569,7 +569,7 @@ begin
             -- Block ram interface for access by the rest of the module
             -- Memory is 18432 x 8 byte words
             -- read latency 3 clocks
-            i_bram_addr    => poly_addr,   -- in (15:0); 
+            i_bram_addr    => poly_addr(14 downto 0),   -- in (14:0); 
             o_bram_rddata  => poly_rddata, -- out (63:0);
             -- 1024 x 4-byte words for the RFI threshold
             i_RFI_bram_addr   => RFI_rd_addr(9 downto 0), -- in  std_logic_vector(9 downto 0);
@@ -1436,7 +1436,7 @@ begin
             if rising_edge(i_shared_clk) then
                 if last_wr_in_SPS_packet = '1' then
                     validMemSetWrEn <= '1';
-                    validMemSetWrAddr <= AWFIFO_dout(31 downto 13);
+                    validMemSetWrAddr <= "00" & AWFIFO_dout(31 downto 13);
                 else
                     validMemSetWrEn <= '0';
                 end if;
@@ -1495,7 +1495,7 @@ begin
             -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
             o_sof   => sof_int,   -- out std_logic; start of frame.
             o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 283 ms of data.
-            o_readoutData => readoutData, -- t_slv_32_arr(11 downto 0);
+            o_readoutData => readoutData(3 downto 0), -- t_slv_32_arr(11 downto 0);
             -- No need to delay the meta data to align with o_data0, o_valid
             -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
             -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
@@ -1534,10 +1534,11 @@ begin
             o_dbgBadData1 => config_ro.dbgBadData1,     -- out (31:0);
             o_dbgBadData2 => config_ro.dbgBadData2,     -- out (31:0);
             o_dbgBadData3 => config_ro.dbgBadData3,     -- out (31:0);
-            o_mismatch_set => config_ro.mismatch_set,   -- out (3:0);
+            o_mismatch_set => config_ro.mismatch_set(3 downto 0),   -- out (3:0);
             i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
         );
-        
+        config_ro.mismatch_set(11 downto 4) <= (others => '0');
+        readoutData(11 downto 4) <= (others => (others => '0'));
         -- Second interface, only used for the v80 version
         m02_axi_ar.valid <= '0';
         m02_axi_ar.addr <= (others => '0');

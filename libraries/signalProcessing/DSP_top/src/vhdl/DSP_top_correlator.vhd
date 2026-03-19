@@ -77,7 +77,6 @@ entity DSP_top_correlator is
         -- MACE AXI slave interfaces for modules
         -- The 300MHz MACE_clk is also used for some of the signal processing
         i_MACE_clk  : in std_logic;
-        i_MACE_clkx2 : in std_logic;  -- used in v80 for double rate DSPs in ct1 and filterbanks
         i_MACE_rst  : in std_logic;
         -- LFAADecode, lite + full slave
         i_LFAALite_axi_mosi : in t_axi4_lite_mosi;  -- => mc_lite_mosi(c_LFAADecode_lite_index),
@@ -161,7 +160,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     ---------------------------------------------------------------------------
     -- SIGNAL DECLARATIONS  --
     ---------------------------------------------------------------------------   
-    signal LFAADecode_dbg : std_logic_vector(13 downto 0);
+    signal LFAADecode_dbg : std_logic_vector(22 downto 0);
     signal gnd : std_logic_vector(199 downto 0);
     
     signal clk_LFAA40GE_wallTime : t_wall_time;
@@ -357,7 +356,7 @@ begin
     ) port map (
         -- shared memory interface clock (300 MHz)
         i_shared_clk        => i_MACE_clk, -- in std_logic;
-        i_shared_clkx2      => i_MACE_clkx2, -- in std_logic;
+        i_shared_clkx2      => '0', -- in std_logic;
         i_shared_rst        => i_MACE_rst, -- in std_logic;
         --AXI Lite Interface for registers
         i_saxi_mosi         => i_LFAA_CT_axi_mosi, -- in t_axi4_lite_mosi;
@@ -479,7 +478,7 @@ begin
             i_data_rst => FB_sof, -- in std_logic;
             -- Register interface
             i_axi_clk    => i_MACE_clk,   -- in std_logic;
-            i_axi_clk_2x => i_MACE_clkx2, -- in std_logic;
+            i_axi_clk_2x => '0', -- in std_logic;
             i_axi_rst => i_MACE_rst,      -- in std_logic;
             i_axi_mosi => i_FB_axi_mosi,  -- in t_axi4_lite_mosi;
             o_axi_miso => o_FB_axi_miso,  -- out t_axi4_lite_miso;

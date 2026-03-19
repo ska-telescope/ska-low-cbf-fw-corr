@@ -129,7 +129,7 @@ entity corr_ct1_readout is
         i_clocksPerPacket : in std_logic_vector(15 downto 0);  -- Number of clocks per output, connect to register "output_cycles"
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
-        o_delayTableAddr : out std_logic_vector(14 downto 0);  -- 2 buffers, 10 words per buffer, 1024 virtual channels = 20480 words
+        o_delayTableAddr : out std_logic_vector(15 downto 0);  -- 2 buffers, 10 words per buffer, 1024 virtual channels = 20480 words; 16 bits for compatibility with the v80 version.
         i_delayTableData : in std_logic_vector(63 downto 0);   -- Data from the delay table with 3 cycle latency. 
         -- RFI threshold for this channel.
         o_RFI_rd_addr : out std_logic_vector(9 downto 0);
@@ -1398,7 +1398,10 @@ begin
     generic map (
         -- Number of virtual channels to generate in at a time, code supports up to 16
         -- Code assumes at least 4, otherwise it would need extra delays to wait for data to return from the memory. 
-        g_VIRTUAL_CHANNELS => 4 -- : integer range 4 to 16 := 4 
+        g_VIRTUAL_CHANNELS => 4,  -- integer range 4 to 16 := 4 
+        -- Offset into the configuration memory for the second buffer.
+        -- Must be set to the number of virtual channels supported * 10
+        g_BUFFER_OFFSET => 10240   -- 1024 virtual channels supported for the U55c version
     ) port map (
         clk  => shared_clk, -- in std_logic;
         -- First output after a reset will reset the data generation
@@ -1414,7 +1417,7 @@ begin
         -- Block ram interface for access by the rest of the module
         -- Memory is 20480 x 8 byte words = (2 buffers) x (10240 words) = (1024 virtual channels) x (10 words)
         -- read latency 3 clocks
-        o_rd_addr  => o_delayTableAddr, -- out (14:0);
+        o_rd_addr  => o_delayTableAddr, -- out (15:0);
         i_rd_data  => i_delayTableData, -- in (63:0);  -- 3 clock latency.
         
         -----------------------------------------------------------------------
