@@ -322,7 +322,7 @@ architecture Behavioral of poly_eval is
     
     signal poly_rd_addr : std_logic_vector(19 downto 0);
     signal uptime : std_logic_vector(47 downto 0) := x"000000000000";
-    signal bad_poly : std_logic := '0';
+    signal bad_poly : std_logic_vector(15 downto 0) := (others => '0');
     
 begin
     
@@ -907,7 +907,7 @@ begin
                 o_Hpol_phase  <= Hpol_phase(to_integer(unsigned(vc_count)));
                 o_Vpol_deltaP <= Vpol_deltaP(to_integer(unsigned(vc_count)));
                 o_Vpol_phase <= Vpol_phase(to_integer(unsigned(vc_count)));
-                o_bad_poly <= bad_poly;
+                o_bad_poly <= bad_poly(to_integer(unsigned(vc_count)));
                 o_valid <= '1';
                 -- debug data
                 o_poly_result <= cur_poly_state(to_integer(unsigned(vc_count)));
@@ -1024,9 +1024,9 @@ begin
             end if;
             
             if poly_fsm_del(7) = start then
-                bad_poly <= '0';
+                bad_poly(15 downto 0) <= (others => '0');
             elsif poly_fsm_del(7) = get_validity_buf1 and buf0_ok_del7 = '0' and buf1_ok_del7 = '0' then
-                bad_poly <= '1';
+                bad_poly(to_integer(unsigned(vc_count_del(7)))) <= '1';
             end if;
             
             
