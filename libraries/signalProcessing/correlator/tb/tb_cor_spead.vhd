@@ -75,6 +75,18 @@ signal HBM_axi_arready          : std_logic;
 signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
 signal HBM_axi_rready           : std_logic;
 
+signal o_bytes_to_transmit      : STD_LOGIC_VECTOR(13 downto 0);
+signal bytes_to_transmit_cache  : STD_LOGIC_VECTOR(13 downto 0);
+
+signal o_data_to_player         : STD_LOGIC_VECTOR(511 downto 0);
+signal o_data_to_player_wr      : STD_LOGIC;
+signal data_to_player_wr_cache  : STD_LOGIC;
+signal i_data_to_player_rdy     : STD_LOGIC;
+
+signal check_wr_to_cmac_cnt     : UNSIGNED(15 downto 0) := x"0000";
+signal check_wr_to_cmac_cnt_last: UNSIGNED(15 downto 0) := x"0000";
+
+signal bytes_to_cmac_corr       : BOOLEAN := FALSE;     
 -- SPEAD Signals
 signal from_spead_pack          : t_spead_to_hbm_bus_array(1 downto 0);
 signal to_spead_pack            : t_hbm_to_spead_bus_array(1 downto 0);
@@ -369,14 +381,24 @@ begin
 
             if USE_TEST_CASE = TRUE AND (GEN_DATA_END = TRUE) then
                 tb_300_rst      <= '0';
+--                if testCount_300 = 1000 then 
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"253";
+--                    data_valid      <= '1';
+--                    --stim_table_select   <= '1';
+--                    stim_freq_index <= 17D"0";
+--                    stim_sub_array  <= 8D"68";      --0x44
+--                    hbm_start_addr  <= x"00000000";
+--                end if;
                 if testCount_300 = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"253";
+                    row_count       <= 9D"64";
                     data_valid      <= '1';
-                    stim_table_select   <= '1';
+                    --stim_table_select   <= '1';
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"68";
+                    stim_sub_array  <= 8D"63";      --0x44
                     hbm_start_addr  <= x"00000000";
                 end if;
                 
@@ -387,7 +409,7 @@ begin
                     row_count       <= 9D"254";
                     data_valid      <= '1';
     
-                    stim_table_select   <= '0';
+                    --stim_table_select   <= '0';
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"69";
                     hbm_start_addr  <= x"00000000";
@@ -403,7 +425,7 @@ begin
                     row_count       <= 9D"255";
                     data_valid      <= '1';
     
-                    stim_table_select   <= '1';
+                    --stim_table_select   <= '1';
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"70";
                     hbm_start_addr  <= x"00000000";
@@ -524,20 +546,20 @@ begin
 --                    stim_time_ref(33 downto 32) <= "10";
 --                    stim_time_ref(34)           <= '1';
     
---                elsif stim_count = 25000 then
---                    -- META DATA FROM CORRELATOR SIM
---                    row             <= 13D"0";
---                    row_count       <= 9D"50";
---                    data_valid      <= '1';
+                elsif stim_count = 25000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"32";
+                    data_valid      <= '1';
     
---                    stim_freq_index <= 17D"0";
---                    stim_sub_array  <= 8D"11";
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"31";
                     
---                    stim_table_select  <= '1';
+                    --stim_table_select  <= '1';
     
---                    stim_time_ref(31 downto 0)  <= 32D"3";
---                    stim_time_ref(33 downto 32) <= "00";
---                    stim_time_ref(34)           <= '0';
+                    stim_time_ref(31 downto 0)  <= 32D"3";
+                    stim_time_ref(33 downto 32) <= "00";
+                    stim_time_ref(34)           <= '0';
                 end if;
             
             end if;
@@ -567,6 +589,35 @@ begin
         end if;
     end if;
 end process;
+
+check_writes_to_cmac_proc : process (clock_300)
+begin
+    if rising_edge(clock_300) then
+        data_to_player_wr_cache <= o_data_to_player_wr;
+        
+        if data_to_player_wr_cache = '0' and o_data_to_player_wr = '1' then
+            bytes_to_transmit_cache <= o_bytes_to_transmit;
+        end if;
+        
+        if o_data_to_player_wr = '1' then
+            check_wr_to_cmac_cnt <= check_wr_to_cmac_cnt + 64;
+        elsif o_data_to_player_wr = '0' AND data_to_player_wr_cache = '1' then
+            check_wr_to_cmac_cnt        <= x"0000";
+            check_wr_to_cmac_cnt_last   <= check_wr_to_cmac_cnt;
+            if check_wr_to_cmac_cnt >= unsigned(o_bytes_to_transmit) then
+                bytes_to_cmac_corr <= TRUE;
+            elsif check_wr_to_cmac_cnt >= 9000 then
+                bytes_to_cmac_corr <= FALSE;
+            else
+                bytes_to_cmac_corr <= FALSE;
+            end if;
+        end if;
+
+--i_data_to_player_rdy
+
+    end if;
+end process;
+
 
 
 DUT : entity correlator_lib.correlator_data_reader generic map ( 
@@ -708,9 +759,9 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_cmac_clk          => clock_322,
         i_cmac_clk_rst      => clock_322_rst,
 
-        o_bytes_to_transmit     => open,
-        o_data_to_player        => open,
-        o_data_to_player_wr     => open,
+        o_bytes_to_transmit     => o_bytes_to_transmit,
+        o_data_to_player        => o_data_to_player,
+        o_data_to_player_wr     => o_data_to_player_wr,
         i_data_to_player_rdy    => cmac_ready,
 
         -- Packed up Correlator Data.
