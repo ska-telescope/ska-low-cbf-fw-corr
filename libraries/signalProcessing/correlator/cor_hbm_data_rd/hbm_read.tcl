@@ -7,12 +7,14 @@ set_property -dict [list \
   CONFIG.A_Precision_Type {Single} \
   CONFIG.C_A_Exponent_Width {8} \
   CONFIG.C_A_Fraction_Width {24} \
-  CONFIG.C_Latency {4} \
   CONFIG.C_Mult_Usage {No_Usage} \
   CONFIG.C_Rate {1} \
   CONFIG.C_Result_Exponent_Width {5} \
   CONFIG.C_Result_Fraction_Width {11} \
   CONFIG.Operation_Type {Float_to_float} \
   CONFIG.Result_Precision_Type {Half} \
+  CONFIG.C_Latency {3} \
+  CONFIG.Flow_Control {NonBlocking} \
+  CONFIG.Has_RESULT_TREADY {false} \
 ] [get_ips float32_float16_ip]
 create_ip_run [get_ips float32_float16_ip]
