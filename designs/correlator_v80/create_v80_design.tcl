@@ -511,7 +511,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
-  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
@@ -542,7 +542,7 @@ set_property library filterbanks_lib [get_files {\
   *libraries/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
-  *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25_versal.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
