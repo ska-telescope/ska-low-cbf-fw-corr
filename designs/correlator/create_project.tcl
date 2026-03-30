@@ -410,10 +410,14 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct1/corr_ct1/corr_ct1_reg_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_eval.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/flattening_wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/sps_flatten_dclk_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_v80_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid_v80_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/hbm_ila.vhd \
@@ -424,10 +428,14 @@ set_property library ct_lib [get_files {\
  *build/ARGS/correlator/corr_ct1/corr_ct1/corr_ct1_reg_versal.vhd \
  *libraries/signalProcessing/cornerturn1/poly_eval.vhd \
  *libraries/signalProcessing/cornerturn1/flattening_wrapper.vhd \
+ *libraries/signalProcessing/cornerturn1/sps_flatten_dclk_dummy.vhd \
  *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper.vhd \
+ *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80_dummy.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_readout_v80_dummy.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_valid_v80_dummy.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
  *libraries/signalProcessing/cornerturn1/corr_div3.vhd \
  *libraries/signalProcessing/cornerturn1/hbm_ila.vhd \
@@ -441,6 +449,7 @@ source $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1.tcl
 add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_reg_versal_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
@@ -453,6 +462,7 @@ add_files -fileset sources_1 [glob \
 set_property library ct_lib [get_files {\
  *build/ARGS/correlator/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
  *build/ARGS/correlator/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_reg_versal_dummy.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_din.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
@@ -484,6 +494,7 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25_versal_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
@@ -503,6 +514,7 @@ set_property library filterbanks_lib [get_files {\
   *libraries/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25_versal_dummy.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
