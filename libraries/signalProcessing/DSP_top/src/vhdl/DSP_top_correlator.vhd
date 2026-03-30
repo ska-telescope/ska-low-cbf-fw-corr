@@ -77,6 +77,7 @@ entity DSP_top_correlator is
         -- MACE AXI slave interfaces for modules
         -- The 300MHz MACE_clk is also used for some of the signal processing
         i_MACE_clk  : in std_logic;
+        i_MACE_clkx2 : in std_logic;
         i_MACE_rst  : in std_logic;
         -- LFAADecode, lite + full slave
         i_LFAALite_axi_mosi : in t_axi4_lite_mosi;  -- => mc_lite_mosi(c_LFAADecode_lite_index),
@@ -356,7 +357,7 @@ begin
     ) port map (
         -- shared memory interface clock (300 MHz)
         i_shared_clk        => i_MACE_clk, -- in std_logic;
-        i_shared_clkx2      => '0', -- in std_logic;
+        i_shared_clkx2      => i_MACE_clkx2, -- in std_logic;
         i_shared_rst        => i_MACE_rst, -- in std_logic;
         --AXI Lite Interface for registers
         i_saxi_mosi         => i_LFAA_CT_axi_mosi, -- in t_axi4_lite_mosi;

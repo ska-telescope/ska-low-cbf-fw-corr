@@ -70,6 +70,7 @@ ENTITY correlator_core IS
         clk_100_rst     : in std_logic;
         
         clk_300         : in std_logic;
+        clk_600         : in std_logic;
         clk_300_rst     : in std_logic;
         
         i_dcmac_locked_300m : in std_logic;
@@ -599,7 +600,6 @@ begin
                 uptime <= std_logic_vector(unsigned(uptime) + 1);
             end if;
             
-
             system_fields_ro.time_uptime                    <= uptime;
             system_fields_ro.status_clocks_locked           <= '1';
             system_fields_ro.eth100G_locked                 <= i_dcmac_locked_300m;
@@ -698,8 +698,9 @@ begin
        -- reset of the valid memory is in progress.
        o_validMemRstActive => o_validMemRstActive,
        -----------------------------------------------------------------------
-       -- AXI slave interfaces for modules
-       i_MACE_clk  => clk_300, -- in std_logic;
+       -- clocks - legacy naming - i_MACE_clk is used for filterbanks, CT1, CT2
+       i_MACE_clk  => clk_300,     -- in std_logic;
+       i_MACE_clkx2 => clk_600,    -- in std_logic;
        i_MACE_rst  => clk_300_rst, -- in std_logic;
        -- LFAADecode, lite + full slave
        i_LFAALite_axi_mosi             => c_axi4_lite_mosi_rst, 
@@ -790,11 +791,10 @@ begin
        -- 100GE input disable
        o_lfaaDecode_reset   => lfaaDecode_reset,
        i_ethDisable_done    => eth_disable_done
-   );
+    );
     
     hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
     hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
-    
     
     -----------------------------------------------------------------------------------------------------------
     CMAC_100G_reset_proc : process(i_eth100G_clk)
@@ -871,8 +871,6 @@ begin
         o_axis_tvalid => i_axis_tvalid_gated -- out std_logic
         -----------------------------------------------------
     );     
-    
-
     
     --------------------------------------------------------------------------------------------------
     -- debug
