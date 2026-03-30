@@ -48,6 +48,10 @@
 --          - bits 12:0 = byte within an LFAA packet (LFAA packets are 8192 bytes)
 --          - bits 19:13 = packet count within the buffer (up to 128 LFAA packets per buffer)
 --          - bits 29:20 = virtual channel
+--     - New data ordering to reduce read-write clashes in 512 MByte HBM banks
+--          - bits 12:0 = byte within an LFAA packet (LFAA packets are 8192 bytes)
+--          - bits 22:13 = Virtual Channel
+--          - bits 29:23 = packet count within the buffer (up to 128 LFAA packets per buffer)
 --   * The total number of LFAA packets per buffer is configurable via a generic, up to a maximum of 128.
 --   
 --  A shadow memory keeps track of which LFAA packets have been written to the memory.
@@ -533,9 +537,10 @@ begin
             CONFIG_CORRELATOR_OUTPUT_COUNT_OUT => output_count_out  -- OUT t_config_psspst_output_count_ram_out
         );
         
-        args_reg_wren   <= noc_wren when noc_wr_adr(17 downto 16) = "01" else '0';
-        
-        args_poly_wren  <= noc_wren when noc_wr_adr(17 downto 16) = "00" else '0';
+        -- For the V80, 128KWords (word = 4 bytes) in the poly memory
+        -- then registers in the next 128 kWords
+        args_reg_wren   <= noc_wren when noc_wr_adr(17) = '1' else '0';
+        args_poly_wren  <= noc_wren when noc_wr_adr(17) = '0' else '0';
         
         noc_rd_dat_mux  <=  args_rd_data        when bram_addr_d2(17 downto 16) = "01"  else    -- 64k split
                             args_poly_rd_data;
@@ -564,7 +569,7 @@ begin
             -- Block ram interface for access by the rest of the module
             -- Memory is 18432 x 8 byte words
             -- read latency 3 clocks
-            i_bram_addr    => poly_addr,   -- in (15:0); 
+            i_bram_addr    => poly_addr(14 downto 0),   -- in (14:0); 
             o_bram_rddata  => poly_rddata, -- out (63:0);
             -- 1024 x 4-byte words for the RFI threshold
             i_RFI_bram_addr   => RFI_rd_addr(9 downto 0), -- in  std_logic_vector(9 downto 0);
@@ -837,9 +842,15 @@ begin
                                 sps_addr(18 downto 12) <= i_packetCount(6 downto 0);
                                 sps_addr(11 downto 0) <= (others => '0');
                             else
-                                sps_addr(29 downto 20) <= i_virtualChannel(9 downto 0);
+                                -- old scheme
+                                --sps_addr(29 downto 20) <= i_virtualChannel(9 downto 0);
+                                ---- which packet out of 128 SPS packets per corner turn frame.
+                                --sps_addr(19 downto 13) <= i_packetCount(6 downto 0);
+                                -- New scheme:
+                                sps_addr(22 downto 13) <= i_virtualChannel(9 downto 0);
                                 -- which packet out of 128 SPS packets per corner turn frame.
-                                sps_addr(19 downto 13) <= i_packetCount(6 downto 0);
+                                sps_addr(29 downto 23) <= i_packetCount(6 downto 0);
+                                
                                 -- low 13 bits are zero, sps packets are 8192 byte aligned in HBM. 
                                 sps_addr(12 downto 0) <= (others => '0');
                                 -- top 2 bits select the HBM buffer (put in later).
@@ -925,9 +936,37 @@ begin
                             end if;
                         else
                             -- check the packet count is not too early or too late
+                            -- !! OLD window for valid writes !!
+                            -- Suppose current_wr_buffer = 1
+                            -- Then
+                            --                                       |       current_wr_buffer        |
+                            --    |0                              127|0                            127|0                            127|    <-- sps packet count within the buffer
+                            --    |        buf 0                     |             buf 1              |              buf 2             |
+                            --                               |<----------------------valid writes------------------------>|
+                            --                              112                                                          63 
+                            --    |------------------------------------->|                                                          |<-|    <-- buf 0 being read out; preload from buf2, postload from buf 1 as shown
+                            --                                          12                                                        116
+                            --                                                                             |
+                            --                                                                       framecount_start (default value of 16) <-- Point at which the write buffer steps from buf 1 to buf 2 (and read is triggered for buf 1)
+                            --
+                            --if ((ct_buffer = current_wr_buffer and ct_eq_current = '1') or
+                            --    (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) < 64)) or
+                            --    (ct_buffer = previous_wr_buffer and ct_eq_previous = '1' and (unsigned(packet_count_in_buffer) > 112))) then
+                          
+                            -- Revised Scheme
+                            -- Window for valid writes : 
+                            -- Suppose current_wr_buffer = 1
+                            -- Then
+                            --                                       |       current_wr_buffer        |
+                            --    |0                              127|0                            127|0                            127|    <-- sps packet count within the buffer
+                            --    |        buf 0                     |             buf 1              |              buf 2             |
+                            --                                       |<----------------------valid writes------------------------>|
+                            --                                                                                                   111 
+                            --                                                                                          |
+                            --                                                                                         64                   <-- Point at which the write buffer steps from buf 1 to buf 2, and read is triggered for buf 1
+                            --
                             if ((ct_buffer = current_wr_buffer and ct_eq_current = '1') or
-                                (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) < 64)) or
-                                (ct_buffer = previous_wr_buffer and ct_eq_previous = '1' and (unsigned(packet_count_in_buffer) > 112))) then
+                                (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) < 112))) then
                                 -- just write the packet into the buffer
                                 input_fsm <= generate_aw;
                                 drop_packet <= '0';
@@ -956,9 +995,16 @@ begin
                                 sps_addr <= std_logic_vector(unsigned(c_DEV_NULL_V80) + unsigned(c_6GBYTE));
                             end if;
                         else
+                            -- old address bit ordering
+                            --sps_addr(31 downto 30) <= next_wr_buffer;
+                            --sps_addr(29 downto 20) <= (others => '0');
+                            --sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                            --sps_addr(12 downto 0) <= (others => '0');
+                            
+                            -- New Address bit ordering :
                             sps_addr(31 downto 30) <= next_wr_buffer;
-                            sps_addr(29 downto 20) <= (others => '0');
-                            sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                            sps_addr(22 downto 13) <= (others => '0');
+                            sps_addr(29 downto 23) <= "1110000"; -- position 112, beyond the point where packets can be written to. 
                             sps_addr(12 downto 0) <= (others => '0');
                         end if;
                     
@@ -981,10 +1027,17 @@ begin
                                 sps_addr <= std_logic_vector(unsigned(c_DEV_NULL_V80) + unsigned(c_6GBYTE));
                             end if;
                         else
+                            -- Old address bit ordering :
+                            --sps_addr(31 downto 30) <= next_wr_buffer;
+                            --sps_addr(29 downto 20) <= (others => '0');
+                            --sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
+                            --sps_Addr(12 downto 0) <= (others => '0');
+                            
+                            -- New Address bit ordering :
                             sps_addr(31 downto 30) <= next_wr_buffer;
-                            sps_addr(29 downto 20) <= (others => '0');
-                            sps_addr(19 downto 13) <= "1000001"; -- position 65, just beyond the point where packets can be written to. 
-                            sps_Addr(12 downto 0) <= (others => '0');
+                            sps_addr(22 downto 13) <= (others => '0');
+                            sps_addr(29 downto 23) <= "1110000"; -- position 112, beyond the point where packets can be written to. 
+                            sps_addr(12 downto 0) <= (others => '0');
                         end if;
                     
                     when check_awfifo_space =>
@@ -1028,9 +1081,14 @@ begin
                         input_fsm_dbg <= "01010";
                         AWFIFO_wrEn <= '0';
                         trigger_readout <= '0';
-                        if (ct_buffer = next_wr_buffer and ct_eq_next = '1' and 
-                            (unsigned(packet_count_in_buffer) < 64) and 
-                            (unsigned(packet_count_in_buffer) > unsigned(framecount_start))) then
+                        
+                        -- Old version - see comments above about the window for valid writes
+                        --if (ct_buffer = next_wr_buffer and ct_eq_next = '1' and 
+                        --    (unsigned(packet_count_in_buffer) < 64) and 
+                        --    (unsigned(packet_count_in_buffer) > unsigned(framecount_start))) then
+                        -- New version - always start the readout when we get to halfway through the next buffer
+                        if (ct_buffer = next_wr_buffer and ct_eq_next = '1' and (unsigned(packet_count_in_buffer) >= 64)) then
+                        
                             -- update current buffer to the next buffer, trigger readout 
                             current_wr_buffer <= next_wr_buffer;
                             -- next integration only increments if we were up to buffer 2. 
@@ -1358,14 +1416,14 @@ begin
         -- Warning : The "wlast" signal generated in the LFAA ingest module (in "LFAAProcess100G.vhd") assumes that this value is 63 (= 64 beats per burst)
         o_m02_axi_aw.len   <= x"7F";
         
-    end generate;    
+    end generate;
     
     
     -----------------------------------------------------------------------------------------------
     -- readout of a frame
     u55genroi : IF (C_TARGET_DEVICE = "U55") GENERATE
     
-
+    
         -----------------------------------------------------------------------------------------------
         -- Valid memory keeps track of whether data has been written to each 8192 byte block in the shared memory.
         -- One valid bit for every 8192 bytes.
@@ -1378,7 +1436,7 @@ begin
             if rising_edge(i_shared_clk) then
                 if last_wr_in_SPS_packet = '1' then
                     validMemSetWrEn <= '1';
-                    validMemSetWrAddr <= AWFIFO_dout(31 downto 13);
+                    validMemSetWrAddr <= "00" & AWFIFO_dout(31 downto 13);
                 else
                     validMemSetWrEn <= '0';
                 end if;
@@ -1437,7 +1495,7 @@ begin
             -- FB_clk  => FB_clk,  -- in std_logic; Interface runs off shared_clk
             o_sof   => sof_int,   -- out std_logic; start of frame.
             o_sofFull => sofFull_int, -- out std_logic; -- start of a full frame, i.e. 283 ms of data.
-            o_readoutData => readoutData, -- t_slv_32_arr(11 downto 0);
+            o_readoutData => readoutData(3 downto 0), -- t_slv_32_arr(11 downto 0);
             -- No need to delay the meta data to align with o_data0, o_valid
             -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
             -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
@@ -1476,10 +1534,11 @@ begin
             o_dbgBadData1 => config_ro.dbgBadData1,     -- out (31:0);
             o_dbgBadData2 => config_ro.dbgBadData2,     -- out (31:0);
             o_dbgBadData3 => config_ro.dbgBadData3,     -- out (31:0);
-            o_mismatch_set => config_ro.mismatch_set,   -- out (3:0);
+            o_mismatch_set => config_ro.mismatch_set(3 downto 0),   -- out (3:0);
             i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
         );
-        
+        config_ro.mismatch_set(11 downto 4) <= (others => '0');
+        readoutData(11 downto 4) <= (others => (others => '0'));
         -- Second interface, only used for the v80 version
         m02_axi_ar.valid <= '0';
         m02_axi_ar.addr <= (others => '0');
@@ -2198,40 +2257,40 @@ begin
         end if;
     end process;
     
-debug_ila_gen : if g_GENERATE_ILA GENERATE    
-    ct2_ila : ila_120_16k
-    port map (
-       clk => i_shared_clk,
-       probe0(0) => data_rst,
-       probe0(5 downto 1) => dbg_input_fsm_dbg,
-       probe0(6) => dbg_running,
-       probe0(8 downto 7) => dbg_wr_buffer,
-       probe0(9) => dbg_first_readout,
-       probe0(10) => dbg_waiting_to_latch_on,
-       probe0(11) => dbg_readOverflow_set,
-       probe0(12) => dbg_readoverflow,
-       probe0(22 downto 13) => dbg_chan0,
-       probe0(35 downto 23) => dbg_integration(12 downto 0),
+--debug_ila_gen : if g_GENERATE_ILA GENERATE    
+--    ct2_ila : ila_120_16k
+--    port map (
+--       clk => i_shared_clk,
+--       probe0(0) => data_rst,
+--       probe0(5 downto 1) => dbg_input_fsm_dbg,
+--       probe0(6) => dbg_running,
+--       probe0(8 downto 7) => dbg_wr_buffer,
+--       probe0(9) => dbg_first_readout,
+--       probe0(10) => dbg_waiting_to_latch_on,
+--       probe0(11) => dbg_readOverflow_set,
+--       probe0(12) => dbg_readoverflow,
+--       probe0(22 downto 13) => dbg_chan0,
+--       probe0(35 downto 23) => dbg_integration(12 downto 0),
        
-       probe0(39 downto 36) => dbg_hbm_reset_fsm,
-       probe0(40) => dbg_hbm_reset,
-       probe0(41) => dbg_rd_tracker_bad,
-       probe0(42) => dbg_wr_tracker_bad,
-       probe0(54 downto 43) => dbg_wr_tracker,
+--       probe0(39 downto 36) => dbg_hbm_reset_fsm,
+--       probe0(40) => dbg_hbm_reset,
+--       probe0(41) => dbg_rd_tracker_bad,
+--       probe0(42) => dbg_wr_tracker_bad,
+--       probe0(54 downto 43) => dbg_wr_tracker,
        
-       probe0(56 downto 55) => "00",
-       probe0(57) => dbg_o_valid,
-       probe0(58) => dbg_sof_int,
-       probe0(59) => dbg_sofFull_int,
-       probe0(91 downto 60) => time_since_sofFull,
-       probe0(92) => dbg_hbm_aw_valid,
-       probe0(93) => dbg_hbm_aw_ready,
-       probe0(94) => dbg_hbm_r_valid,
-       probe0(95) => dbg_hbm_r_ready,
-       probe0(96) => dbg_hbm_ar_valid,
-       probe0(97) => dbg_hbm_ar_ready,
-       probe0(119 downto 98) => dbg_hbm_ar_addr(31 downto 10)
-    );
-END GENERATE;    
+--       probe0(56 downto 55) => "00",
+--       probe0(57) => dbg_o_valid,
+--       probe0(58) => dbg_sof_int,
+--       probe0(59) => dbg_sofFull_int,
+--       probe0(91 downto 60) => time_since_sofFull,
+--       probe0(92) => dbg_hbm_aw_valid,
+--       probe0(93) => dbg_hbm_aw_ready,
+--       probe0(94) => dbg_hbm_r_valid,
+--       probe0(95) => dbg_hbm_r_ready,
+--       probe0(96) => dbg_hbm_ar_valid,
+--       probe0(97) => dbg_hbm_ar_ready,
+--       probe0(119 downto 98) => dbg_hbm_ar_addr(31 downto 10)
+--    );
+--END GENERATE;    
     
 end Behavioral;

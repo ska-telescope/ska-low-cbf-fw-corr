@@ -74,7 +74,7 @@ entity corr_ct2_din_v80 is
         i_frameCount_mod3 : in std_logic_vector(1 downto 0);  -- which of the three first corner turn frames is this, out of the 3 that make up a 849 ms integration. "00", "01", or "10".
         i_frameCount_849ms : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
         i_virtualChannel0  : in std_logic_vector(15 downto 0); -- first of 12 virtual channels, one for each of the filterbank data streams.
-        i_bad_poly        : in std_logic_vector(2 downto 0);
+        i_bad_poly        : in std_logic_vector(11 downto 0);
         i_lastChannel     : in std_logic;
         i_HeaderValid     : in std_logic_vector(11 downto 0);
         i_data            : in t_ctc_output_payload_arr(11 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0) to i_data(11)
@@ -147,23 +147,13 @@ architecture Behavioral of corr_ct2_din_v80 is
     type copy_fsm_t is (start, set_aw, wait_HBM1_aw_rdy, wait_HBM0_aw_rdy, skip_rdy, get_next_addr, idle);
     signal copy_fsm : copy_fsm_t := idle;
     signal copyToHBM_buffer : std_logic;
-   -- signal copyToHBM_channelGroup : std_logic_vector(7 downto 0);
     signal copy_buffer : std_logic := '0';
-    --signal copy_channelGroup : std_logic_vector(7 downto 0);
     signal copyToHBM_time : std_logic_vector(3 downto 0);
     signal copy_time : std_logic_vector(2 downto 0);
     signal fineChannel, fineChannel_del1 : std_logic_vector(11 downto 0);
     signal virtualChannel : std_logic_vector(15 downto 0);
     signal frameCount_mod3 : std_logic_vector(1 downto 0);
     signal frameCount_849ms : std_logic_vector(31 downto 0);
-    
-    signal dataFIFO_valid : std_logic_vector(1 downto 0);
-    type t_slv_515_arr     is array (integer range <>) of std_logic_vector(514 downto 0);
-    signal dataFIFO_dout : t_slv_515_arr(1 downto 0);
-    signal dataFIFO_dataCount : t_slv_6_arr(1 downto 0);
-    signal dataFIFO_din : t_slv_515_arr(1 downto 0);
-    signal dataFIFO_rdEn : std_logic_vector(1 downto 0);
-    signal dataFIFO_wrEn : std_logic_vector(1 downto 0);
     
     signal fifo_size_plus_pending, fifo_size_plus_pending1, fifo_size_plus_pending0 : std_logic_vector(5 downto 0);
     signal dataFIFO0_wrEn, dataFIFO1_wrEn : std_logic_vector(15 downto 0) := (others => '0');
@@ -248,7 +238,7 @@ architecture Behavioral of corr_ct2_din_v80 is
     type t_bad_poly_fsm is (clear_memory, check_bad0, set_bad0, check_bad1, set_bad1, check_bad2, set_bad2, idle, wait_check_bad);
     signal bad_poly_fsm : t_bad_poly_fsm := idle;
     signal bp_wr_en : std_logic_vector(5 downto 0);
-    signal bad_poly_del1, bad_poly : std_logic_vector(2 downto 0);
+    signal bad_poly_del1, bad_poly : std_logic_vector(11 downto 0);
     signal bp_wr_data  : std_logic;
     signal bad_poly_wait_count : std_logic_vector(7 downto 0);
     
@@ -265,6 +255,7 @@ architecture Behavioral of corr_ct2_din_v80 is
     signal bufDout_even_0_3, bufDout_even_4_7, bufDout_even_8_11 : std_logic_vector(255 downto 0);
     signal bufDout_odd_0_3, bufDout_odd_4_7, bufDout_odd_8_11 : std_logic_vector(255 downto 0);
     signal copyToHBM_done_odd, copyToHBM_done_even : std_logic;
+    signal vc1_valid, vc2_valid, vc3_valid, vc5_valid, vc6_valid, vc7_valid, vc9_valid, vc10_valid, vc11_valid : std_logic;
     
 begin
     
@@ -295,6 +286,55 @@ begin
             -- the corresponding subarray-beam. 
             bad_poly_del1 <= i_bad_poly;
             
+            -- Check that each virtual channel is valid, i.e. not past the end of the subarray
+            -- This can happen because virtual channels are processed in groups of 4
+            -- This is a pipeline stage for the check. 
+            if unsigned(SB_stations(0)) > (unsigned(demap_station(0)) + 1) then
+                vc1_valid <= '1';
+            else
+                vc1_valid <= '0';
+            end if;
+            if unsigned(SB_stations(0)) > (unsigned(demap_station(0)) + 2) then
+                vc2_valid <= '1';
+            else
+                vc2_valid <= '0';
+            end if;
+            if unsigned(SB_stations(0)) > (unsigned(demap_station(0)) + 3) then
+                vc3_valid <= '1';
+            else
+                vc3_valid <= '0';
+            end if;
+            if unsigned(SB_stations(1)) > (unsigned(demap_station(1)) + 1) then
+                vc5_valid <= '1';
+            else
+                vc5_valid <= '0';
+            end if;
+            if unsigned(SB_stations(1)) > (unsigned(demap_station(1)) + 2) then
+                vc6_valid <= '1';
+            else
+                vc6_valid <= '0';
+            end if;
+            if unsigned(SB_stations(1)) > (unsigned(demap_station(1)) + 3) then
+                vc7_valid <= '1';
+            else
+                vc7_valid <= '0';
+            end if;
+            if unsigned(SB_stations(2)) > (unsigned(demap_station(2)) + 1) then
+                vc9_valid <= '1';
+            else
+                vc9_valid <= '0';
+            end if;
+            if unsigned(SB_stations(2)) > (unsigned(demap_station(2)) + 2) then
+                vc10_valid <= '1';
+            else
+                vc10_valid <= '0';
+            end if;
+            if unsigned(SB_stations(2)) > (unsigned(demap_station(2)) + 3) then
+                vc11_valid <= '1';
+            else
+                vc11_valid <= '0';
+            end if;
+            
             if sof_hold = '1' and dataValidDel1 = '1' and i_frameCount_mod3 = "00" and unsigned(virtualChannel0Del1) = 0 then
                 -- first data in first 283ms frame (out of an 849ms frame) for the first virtual channel, clear the bad_poly memory
                 bad_poly_fsm <= clear_memory;
@@ -315,7 +355,13 @@ begin
                         end if;
                     
                     when check_bad0 => -- Check if the polynomials were ok for the first group of 4 virtual channels being processed
-                        if demap_valid(0) = '1' and bad_poly(0) = '1' then
+                        -- check each vc is valid. Only check virtual channels that are used.
+                        -- demap_station(0) is the station for the first of the 4 virtual channels in the group
+                        -- SB_stations(0) is the total number of stations in the subarray-beam for this group.
+                        if ((demap_valid(0) = '1' and bad_poly(0) = '1') or
+                            (demap_valid(0) = '1' and bad_poly(1) = '1' and vc1_valid = '1')  or
+                            (demap_valid(0) = '1' and bad_poly(2) = '1' and vc2_valid = '1') or
+                            (demap_valid(0) = '1' and bad_poly(3) = '1' and vc3_valid = '1')) then
                             bad_poly_fsm <= set_bad0;
                         else
                             bad_poly_fsm <= check_bad1;
@@ -337,7 +383,10 @@ begin
                         bad_poly_fsm <= check_bad1;
                    
                    when check_bad1 => -- Check if the polynomials were ok for the second group of 4 virtual channels being processed
-                        if demap_valid(1) = '1' and bad_poly(1) = '1' then
+                        if ((demap_valid(1) = '1' and bad_poly(4) = '1') or
+                            (demap_valid(1) = '1' and bad_poly(5) = '1' and vc5_valid = '1')  or
+                            (demap_valid(1) = '1' and bad_poly(6) = '1' and vc6_valid = '1') or
+                            (demap_valid(1) = '1' and bad_poly(7) = '1' and vc7_valid = '1')) then
                             bad_poly_fsm <= set_bad1;
                         else
                             bad_poly_fsm <= check_bad2;
@@ -359,7 +408,10 @@ begin
                         bad_poly_fsm <= check_bad2;
                     
                     when check_bad2 => -- Check if the polynomials were ok for the third group of 4 virtual channels being processed
-                        if demap_valid(2) = '1' and bad_poly(2) = '1' then
+                        if ((demap_valid(2) = '1' and bad_poly(8) = '1') or
+                            (demap_valid(2) = '1' and bad_poly(9) = '1' and vc9_valid = '1')  or
+                            (demap_valid(2) = '1' and bad_poly(10) = '1' and vc10_valid = '1') or
+                            (demap_valid(2) = '1' and bad_poly(11) = '1' and vc11_valid = '1')) then
                             bad_poly_fsm <= set_bad2;
                         else
                             bad_poly_fsm <= idle;
@@ -489,11 +541,17 @@ begin
                         if i_SB_valid = '1' then
                             SB_req <= '0';
                             SB_req_fsm <= get_SB1;
-                            SB_stations(0) <= i_SB_stations;       -- in (15:0); The number of (sub)stations in this subarray-beam
+                            if demap_valid(0) = '1' then
+                                SB_stations(0) <= i_SB_stations;   -- in (15:0); The number of (sub)stations in this subarray-beam
+                                SB_n_fine(0) <= i_SB_n_fine;       -- in (23:0); The number of fine channels in this subarray-beam
+                            else
+                                SB_stations(0) <= (others => '0'); -- in (15:0); The number of (sub)stations in this subarray-beam
+                                SB_n_fine(0) <= (others => '0');   -- in (23:0); The number of fine channels in this subarray-beam
+                            end if;
                             SB_coarseStart(0) <= i_SB_coarseStart; -- in (15:0); The first coarse channel in this subarray-beam
                             SB_fineStart(0) <= i_SB_fineStart;     -- in (15:0); readout_buf1_fineStart, -- the first fine channel in this subarray-beam
-                            SB_n_fine(0) <= i_SB_n_fine;           -- in (23:0); The number of fine channels in this subarray-beam
                             SB_HBM_base_addr(0) <= i_SB_HBM_base_addr;  -- in (31:0); Base address in HBM for this subarray-beam.
+                            
                             -- this value gets registered at some point just after getting the first 
                             time_block <= '0' & frameCount_mod3 & timeStep(5); -- blocks of 32 times;
                         end if;
@@ -507,10 +565,15 @@ begin
                         if i_SB_valid = '1' then
                             SB_req <= '0';
                             SB_req_fsm <= get_SB2;
-                            SB_stations(1) <= i_SB_stations;       -- in (15:0); The number of (sub)stations in this subarray-beam
+                            if demap_valid(1) = '1' then
+                                SB_stations(1) <= i_SB_stations;   -- in (15:0); The number of (sub)stations in this subarray-beam
+                                SB_n_fine(1) <= i_SB_n_fine;       -- in (23:0); The number of fine channels in this subarray-beam
+                            else
+                                SB_stations(1) <= (others => '0'); -- in (15:0); The number of (sub)stations in this subarray-beam
+                                SB_n_fine(1) <= (others => '0');   -- in (23:0); The number of fine channels in this subarray-beam
+                            end if;
                             SB_coarseStart(1) <= i_SB_coarseStart; -- in (15:0); The first coarse channel in this subarray-beam
                             SB_fineStart(1) <= i_SB_fineStart;     -- in (15:0); readout_buf1_fineStart, -- the first fine channel in this subarray-beam
-                            SB_n_fine(1) <= i_SB_n_fine;           -- in (23:0); The number of fine channels in this subarray-beam
                             SB_HBM_base_addr(1) <= i_SB_HBM_base_addr;  -- in (31:0); Base address in HBM for this subarray-beam.
                         end if;
                         
@@ -523,10 +586,15 @@ begin
                         if i_SB_valid = '1' then
                             SB_req <= '0';
                             SB_req_fsm <= done;
-                            SB_stations(2) <= i_SB_stations;       -- in (15:0); The number of (sub)stations in this subarray-beam
+                            if demap_valid(2) = '1' then
+                                SB_stations(2) <= i_SB_stations;   -- in (15:0); The number of (sub)stations in this subarray-beam
+                                SB_n_fine(2) <= i_SB_n_fine;       -- in (23:0); The number of fine channels in this subarray-beam
+                            else
+                                SB_stations(2) <= (others => '0'); -- in (15:0); The number of (sub)stations in this subarray-beam
+                                SB_n_fine(2) <= (others => '0');   -- in (23:0); The number of fine channels in this subarray-beam
+                            end if;
                             SB_coarseStart(2) <= i_SB_coarseStart; -- in (15:0); The first coarse channel in this subarray-beam
                             SB_fineStart(2) <= i_SB_fineStart;     -- in (15:0); readout_buf1_fineStart, -- the first fine channel in this subarray-beam
-                            SB_n_fine(2) <= i_SB_n_fine;           -- in (23:0); The number of fine channels in this subarray-beam
                             SB_HBM_base_addr(2) <= i_SB_HBM_base_addr;  -- in (31:0); Base address in HBM for this subarray-beam.
                         end if;
                         
@@ -952,11 +1020,6 @@ begin
             if (copyToHBM_done_odd = '1') then
                 trigger_readout <= '1';
                 trigger_frameCount <= recent_frameCount;
-                if dataFIFO_rden(0) = '1' then
-                    trigger_buffer <= dataFIFO_dout(0)(514);
-                else
-                    trigger_buffer <= dataFIFO_dout(1)(514);
-                end if;
             else
                 trigger_readout <= '0';
             end if;
@@ -964,7 +1027,7 @@ begin
     end process;
     
     o_trigger_readout <= trigger_readout;
-    o_trigger_buffer <= trigger_buffer;
+    o_trigger_buffer <= trigger_frameCount(0); -- Framecount counts 849ms frames, LSB determines which of the two buffers it is written to in HBM
     o_trigger_frameCount <= trigger_frameCount;
     
     

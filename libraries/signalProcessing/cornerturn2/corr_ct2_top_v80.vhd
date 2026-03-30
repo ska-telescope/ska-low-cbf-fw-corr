@@ -127,7 +127,7 @@ entity corr_ct2_top_v80 is
         i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      : in std_logic_vector(1 downto 0);  -- 283 ms frame within each integration interval
         i_virtualChannel : in t_slv_16_arr(11 downto 0);   -- 12 virtual channels, one for each of the data streams.
-        i_bad_poly     : in std_logic_vector(2 downto 0);  -- one signal for each group of 4 virtual channels
+        i_bad_poly     : in std_logic_vector(11 downto 0);  -- one signal for each group of 4 virtual channels
         i_lastChannel  : in std_logic;   -- last of the group of 4 channels
         i_demap_table_select : in std_logic;
         i_HeaderValid  : in std_logic_vector(11 downto 0);
@@ -137,7 +137,9 @@ entity corr_ct2_top_v80 is
         -- Data out to the correlator arrays
         -- packets of data to each correlator instance
         -- Sends a single packet full of instructions to each correlator, at the start of each 849ms corner turn frame readout.
-        -- The first byte sent is the number of subarray-beams configured
+        --  - 1st byte (o_axis_cor_first = '1') = Readout buffer selection
+        --  - Next 4 bytes                      = framecount
+        --  - 1 byte                            = Number of subarray beams
         -- The remaining (128 subarray-beams) * (4 words/subarray-beam) * (4 bytes/word) = 2048 bytes contains the subarray-beam table for the correlator
         -- The LSB of the 4th word contains the bad_poly bit for the subarray beam.
         -- The correlator should use (o_cor_cfg_last and o_cor_cfg_valid) to trigger processing 849ms of data.
@@ -149,6 +151,7 @@ entity corr_ct2_top_v80 is
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         -- Expected to be up to 18 Gbyte of unified memory used by the correlators
+        -- One HBM port is used for even indexed fine channels, while the other HBM port is used for odd indexed fine channels.
         o_HBM_axi_aw      : out t_axi4_full_addr_arr(1 downto 0); -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
         i_HBM_axi_awready : in std_logic_vector(1 downto 0);
         o_HBM_axi_w       : out t_axi4_full_data_arr(1 downto 0); -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
@@ -225,7 +228,7 @@ architecture Behavioral of corr_ct2_top_v80 is
     signal vc_demap_station      : std_logic_vector(11 downto 0); -- station index within the subarray-beam.
     signal vc_demap_skyFrequency : std_logic_vector(8 downto 0);  -- sky frequency.
     signal vc_demap_valid        : std_logic;                     -- This entry in the demap table is valid.
-    signal vc_demap_req_del1, vc_demap_req_del2 : std_logic_vector(2 downto 0);
+    signal vc_demap_req_del1     : std_logic_vector(2 downto 0);
     
     signal readout_start, readout_buffer_int, readout_buffer : std_logic := '0';
     signal readout_start_pulse, readout_start_del1, readout_buffer_del1 : std_logic := '0';
@@ -496,7 +499,7 @@ begin
         i_frameCount_mod3  => frameCount_mod3,  -- in(1:0)
         i_frameCount_849ms => frameCount_849ms, -- in (31:0)
         i_virtualChannel0  => i_virtualChannel(0), -- in (15:0); first virtual channel of the 12 being processed
-        i_bad_poly         => i_bad_poly,       -- in (2:0);
+        i_bad_poly         => i_bad_poly,       -- in (11:0);
         i_lastChannel      => i_lastchannel,    -- in std_logic;
         i_HeaderValid      => i_headerValid,    -- in (11:0);
         i_data             => i_data,           -- in t_ctc_output_payload_arr(11 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), ... ,  i_data(11)
@@ -682,8 +685,7 @@ begin
             -- vc_demap_req should pulse high for 1 clock.
             -- Read data comes back in the next clock.
             vc_demap_req_del1 <= vc_demap_req;
-            vc_demap_req_del2 <= vc_demap_req_del1;
-            vc_demap_data_valid <= vc_demap_req_del2;
+            vc_demap_data_valid <= vc_demap_req_del1;
             
             if vc_demap_req_del1(0) = '1' or vc_demap_req_del1(1) = '1' or vc_demap_req_del1(2) = '1' then
                 vc_demap_SB_index <= vc_demap_out.rd_dat(30 downto 29) & vc_demap_out.rd_dat(7 downto 0);       -- Index into the subarray-beam table.
@@ -875,9 +877,10 @@ begin
         --     o_axis_cor_last  : out std_logic;
         -- 
         -- Packets are sent on "readout_start_pulse"
-        --  1st byte (o_axis_cor_first = '1') = Number of subarray beams
-        --  Next 4 bytes = 
-        --  Then 128 groups of 4 bytes each, where each 4 bytes are the data from a 32-bit word in the subarray beam table.
+        --  - 1st byte (o_axis_cor_first = '1') = Readout buffer selection
+        --  - Next 4 bytes                      = framecount
+        --  - 1 byte                            = Number of subarray beams 
+        --  - Then 128 groups of 4 bytes each, where each 4 bytes are the data from a 32-bit word in the subarray beam table.
         --  The lsb of the last 32 bit word is replaced with the bad poly value for that subarray beam (LSB must be zero in the table because addresses are 256 byte aligned)
         -- 
         -- The fsm reads the first word from the SB table for each of the 6 correlators, then the next word etc, 

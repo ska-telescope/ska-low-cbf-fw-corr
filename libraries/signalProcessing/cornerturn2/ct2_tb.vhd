@@ -5,7 +5,7 @@
 -- Create Date: 08/14/2023 10:14:24 PM
 -- Module Name: ct1_tb - Behavioral
 -- Description: 
---  Standalone testbench for correlator corner turn 1
+--  Standalone testbench for correlator corner turn 2
 -- 
 ----------------------------------------------------------------------------------
 

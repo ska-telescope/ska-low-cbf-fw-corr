@@ -129,7 +129,7 @@ entity corr_ct1_readout is
         i_clocksPerPacket : in std_logic_vector(15 downto 0);  -- Number of clocks per output, connect to register "output_cycles"
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
-        o_delayTableAddr : out std_logic_vector(14 downto 0);  -- 2 buffers, 10 words per buffer, 1024 virtual channels = 20480 words
+        o_delayTableAddr : out std_logic_vector(15 downto 0);  -- 2 buffers, 10 words per buffer, 1024 virtual channels = 20480 words; 16 bits for compatibility with the v80 version.
         i_delayTableData : in std_logic_vector(63 downto 0);   -- Data from the delay table with 3 cycle latency. 
         -- RFI threshold for this channel.
         o_RFI_rd_addr : out std_logic_vector(9 downto 0);
@@ -157,8 +157,7 @@ entity corr_ct1_readout is
         o_meta_virtualChannel : out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
         o_meta_valid : out std_logic_vector(3 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
         o_lastChannel : out std_logic; -- Aligns with o_metaX
-        o_valid : out std_logic;    
-        
+        o_valid : out std_logic;
         -- AXI read address and data input buses
         -- ar bus - read address
         o_axi_ar      : out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
@@ -219,7 +218,7 @@ architecture Behavioral of corr_ct1_readout is
     signal ARFIFO_rst : std_logic;
     signal ARFIFO_wrEn : std_logic;
     
-    signal ar_virtualChannel : std_logic_vector(9 downto 0);
+    signal ar_virtualChannel : std_logic_vector(11 downto 0);
     signal ar_currentBuffer : std_logic_vector(1 downto 0);
     signal ar_previousBuffer, ar_nextBuffer : std_logic_vector(1 downto 0);
     signal ar_integration : std_logic_vector(31 downto 0);
@@ -239,7 +238,7 @@ architecture Behavioral of corr_ct1_readout is
     signal bufSamplesToRead : t_slv_8_arr(3 downto 0);
     signal bufLen_ext : t_slv_20_arr(3 downto 0);
     
-    signal bufVirtualChannel : t_slv_10_arr(3 downto 0);
+    signal bufVirtualChannel : t_slv_12_arr(3 downto 0);
     signal bufCoarseDelay : t_slv_20_arr(3 downto 0);
     signal bufHasMoreSamples : std_logic_vector(3 downto 0); -- one bit for each buffer.
     signal bufFirstRead, bufLastRead : std_logic_Vector(3 downto 0);
@@ -437,23 +436,36 @@ begin
             ----------------------------------------------------------------------------
             -- write to clear the valid memory (mark the block as invalid).
              
-            LFAABlock_v := axi_araddr(19 downto 13);
+            LFAABlock_v := axi_araddr(29 downto 23);
             axi_arvalidDel1 <= axi_arvalid;
             if ((((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "0000") and (unsigned(LFAABlock_v) = 0))) and 
                 (axi_arvalid = '1' and axi_arvalidDel1 = '0')) then
-                -- Note axi_araddr(31:30) = 1 GByte buffer in the HBM  = valid memory address bits (18:17)
-                --      axi_araddr(29:20) = virtual channel            = valid memory address bits (16:7)
-                --      axi_araddr(19:13) = LFAA block                 = valid memory address bits (6:0)
-                --      axi_araddr(12:0)  = byte within the 8192 byte LFAA block.
-                --                          Reads are 512 bytes, so if bits(12:9) = "1111" then this is the last read from this LFAA block.
+                
+                -- OLD scheme : 
+                --   Note axi_araddr(31:30) = 1 GByte buffer in the HBM  = valid memory address bits (18:17)
+                --        axi_araddr(29:20) = virtual channel            = valid memory address bits (16:7)
+                --        axi_araddr(19:13) = LFAA block                 = valid memory address bits (6:0)
+                --        axi_araddr(12:0)  = byte within the 8192 byte LFAA block.
+                --                            Reads are 512 bytes, so if bits(12:9) = "1111" then this is the last read from this LFAA block.
+                --
+                -- NEW scheme :
+                --  axi_araddr(31:30) = 1 GByte buffer in the HBM  = valid memory address bits (18:17)
+                --  axi_araddr(29:23) = LFAA block                 = valid memory address bits (16:10)
+                --  axi_araddr(22:13) = virtual channel            = valid memory address bits (9:0)
+                --  axi_araddr(12:0)  = byte within the 8192 byte LFAA block.
+                --
                 -- This clause clears the valid bit :
                 --   - For the 13th from the end LFAA block in the previous buffer, on the first memory request to the first LFAA block in the current buffer
                 --     (This happens on the reads of current buffer to ensure that all the preload blocks in the previous buffer are cleared,
                 --      since large values of the coarse delay may mean the first possible preload LFAA block in previous buffer is not read to preload the filterbanks)
                 validMemWrEn <= '1';
                 validMemWriteAddr(18 downto 17) <= ar_previousBuffer;
-                validMemWriteAddr(16 downto 7) <= axi_araddr(29 downto 20);
-                validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
+                -- Old scheme:
+                --  validMemWriteAddr(16 downto 7) <= axi_araddr(29 downto 20);
+                --  validMemWriteAddr(6 downto 0) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
+                -- New scheme :
+                validMemWriteAddr(9 downto 0) <= axi_araddr(22 downto 13);
+                validMemWriteAddr(16 downto 10) <= std_logic_vector(to_unsigned(g_SPS_PACKETS_PER_FRAME - 13,7));
             elsif (((axi_araddr(31 downto 30) = ar_currentBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) < (g_SPS_PACKETS_PER_FRAME-13))) or 
                    ((axi_araddr(31 downto 30) = ar_previousBuffer) and (axi_araddr(12 downto 9) = "1111") and (unsigned(LFAABlock_v) >= (g_SPS_PACKETS_PER_FRAME-13)))) and
                   (axi_arvalid = '1' and axi_arvalidDel1 = '0') then
@@ -639,8 +651,14 @@ begin
                     when getBufData =>  -- "buf0" in the name "getBuf0Data" refers to the particular virtual channel
                         axi_arvalid <= '1';
                         axi_araddr(31 downto 30) <= bufBuffer(to_integer(unsigned(ar_fsm_buffer))); -- which HBM buffer
-                        axi_araddr(29 downto 20) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
-                        axi_araddr(19 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 0) & "00"; -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
+                        -- Old scheme:
+                        --   axi_araddr(29 downto 20) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
+                        --   axi_araddr(19 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 0) & "00"; -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
+                        -- New scheme:
+                        axi_araddr(22 downto 13) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)))(9 downto 0);
+                        axi_araddr(29 downto 23) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 11);
+                        axi_araddr(12 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(10 downto 0) & "00";  -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
+                        
                         axi_arlen(2 downto 0) <= bufLen(to_integer(unsigned(ar_fsm_buffer)));
                         ar_fsm <= waitARReady;
                     
@@ -1374,20 +1392,23 @@ begin
 
     --------------------------------------------------------------------------------------------
     --------------------------------------------------------------------------------------------
-    -- Evaluation of the polynomials to get the delays 
+    -- Evaluation of the polynomials to get the delays     
     
     poly_delays : entity ct_lib.poly_eval
     generic map (
         -- Number of virtual channels to generate in at a time, code supports up to 16
         -- Code assumes at least 4, otherwise it would need extra delays to wait for data to return from the memory. 
-        g_VIRTUAL_CHANNELS => 4 -- : integer range 4 to 16 := 4 
+        g_VIRTUAL_CHANNELS => 4,  -- integer range 4 to 16 := 4 
+        -- Offset into the configuration memory for the second buffer.
+        -- Must be set to the number of virtual channels supported * 10
+        g_BUFFER_OFFSET => 10240   -- 1024 virtual channels supported for the U55c version
     ) port map (
         clk  => shared_clk, -- in std_logic;
         -- First output after a reset will reset the data generation
         i_rst => rstInternal, --  in std_logic;
         -- Control
         i_start            => poly_start, -- in std_logic; Start on a batch of 4 polynomials
-        i_first_virtual_channel => poly_vc_base, -- in t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0); List of virtual channels to evaluate; this maps to the address in the lookup table.
+        i_first_virtual_channel => poly_vc_base, -- in (15:0); First in the set of g_VIRTUAL_CHANNELS to evaluate; this maps to the address in the lookup table.
         i_integration      => poly_integration, -- in std_logic_vector(31 downto 0); Which integration is this for ?
         i_ct_frame         => poly_ct_frame, -- in std_logic_vector(1 downto 0);  3 corner turn frames per integration
         o_idle             => poly_idle, -- out std_logic;
@@ -1396,7 +1417,7 @@ begin
         -- Block ram interface for access by the rest of the module
         -- Memory is 20480 x 8 byte words = (2 buffers) x (10240 words) = (1024 virtual channels) x (10 words)
         -- read latency 3 clocks
-        o_rd_addr  => o_delayTableAddr, -- out (14:0);
+        o_rd_addr  => o_delayTableAddr, -- out (15:0);
         i_rd_data  => i_delayTableData, -- in (63:0);  -- 3 clock latency.
         
         -----------------------------------------------------------------------

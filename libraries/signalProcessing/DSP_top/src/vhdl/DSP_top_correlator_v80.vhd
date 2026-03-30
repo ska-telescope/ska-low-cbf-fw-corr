@@ -227,7 +227,7 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
     signal reset_to_ct_1 : std_logic;
     signal freq_index0_repeat : std_logic;
-    signal FD_bad_poly : std_logic_vector(2 downto 0);
+    signal FD_bad_poly : std_logic_vector(11 downto 0);
     signal LFAAingest_table_select : std_logic;
     signal totalChannelsTable0, totalChannelsTable1 : std_logic_vector(11 downto 0);
     signal FB_demap_table_select : std_logic;
@@ -602,7 +602,7 @@ begin
             o_integration    => FD_integration,    -- out (31:0); Frame count is the same for all simultaneous output streams.
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(11 downto 0); 3 virtual channels, one for each of the PST data streams.
-            o_bad_poly       => FD_bad_poly,       -- out (2:0);
+            o_bad_poly       => FD_bad_poly,       -- out (11:0);
             o_lastChannel    => FD_lastChannel,    -- out std_logic; Last of the group of 4 channels
             o_demap_table_select => FD_demap_table_select, -- out std_logic;
             o_HeaderValid    => FD_headerValid,    -- out (11:0);
@@ -647,7 +647,7 @@ begin
             o_integration    => FD_integration,    -- out (31:0); frame count is the same for all simultaneous output streams.
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-            o_bad_poly       => FD_bad_poly,       -- out std_logic;
+            o_bad_poly       => FD_bad_poly,       -- out (11:0);
             o_lastChannel    => FD_lastChannel,    -- out std_logic; Last of the group of 4 channels
             o_demap_table_select => FD_demap_table_select, -- out std_logic;
             o_HeaderValid    => FD_headerValid,    -- out (11:0);
@@ -689,7 +689,7 @@ begin
         i_integration     => FD_integration,    -- in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame         => FD_ctFrame,        -- in (1:0);
         i_virtualChannel  => FD_virtualChannel, -- in t_slv_16_arr(11 downto 0); 12 virtual channels processed in parallel
-        i_bad_poly        => FD_bad_poly,       -- in (2:0); One value for each group of 4 virtual channels.
+        i_bad_poly        => FD_bad_poly,       -- in (11:0); One value for each virtual channel
         i_lastChannel     => FD_lastChannel,    -- in std_logic; Last of the group of 4 channels
         i_demap_table_select => FD_demap_table_select, -- in std_logic;
         i_HeaderValid     => FD_headerValid,    -- in (11:0);

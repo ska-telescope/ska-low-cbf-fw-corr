@@ -282,8 +282,8 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal axi_arlen   : std_logic_vector(3 downto 0);
 
     signal ARFIFO_dinDel1, ARFIFO_dinDel2, ARFIFO_dinDel3 : std_logic_vector(16 downto 0);
-    signal ARFIFO_dinDel4, ARFIFO_dinDel5, ARFIFO_dinDel6 : std_logic_vector(16 downto 0);
-    signal ARFIFO_wrEnDel1, ARFIFO_wrEnDel2, ARFIFO_wrEnDel3, ARFIFO_wrEnDel4, ARFIFO_wrEnDel5, ARFIFO_wrEnDel6 : std_logic;
+    signal ARFIFO_dinDel4, ARFIFO_dinDel5, ARFIFO_dinDel6, ARFIFO_dinDel7 : std_logic_vector(16 downto 0);
+    signal ARFIFO_wrEnDel1, ARFIFO_wrEnDel2, ARFIFO_wrEnDel3, ARFIFO_wrEnDel4, ARFIFO_wrEnDel5, ARFIFO_wrEnDel6, ARFIFO_wrEnDel7 : std_logic;
     signal rdata_dvalid, rdata2_dvalid : std_logic;
     signal bufWrData_low32bytes, bufWrData_high32bytes : std_logic_vector(255 downto 0);
     
@@ -679,11 +679,11 @@ begin
             
             if ((unsigned(bufMaxUsed(10)) <= unsigned(bufMaxUsed(11))) and (bufHasMoreSamples(10) = '1')) or (bufHasMoreSamples(11) = '0') then
                 maxUsed_AB_level <= bufMaxUsed(10);
-                maxUsed_AB_sel <= "0010";
+                maxUsed_AB_sel <= "1010";
                 maxUsed_AB_valid <= bufHasMoreSamples(10);
             elsif (bufHasMoreSamples(11) = '1') then
                 maxUsed_AB_level <= bufMaxUsed(11);
-                maxUsed_AB_sel <= "0011";
+                maxUsed_AB_sel <= "1011";
                 maxUsed_AB_valid <= '1';
             else
                 maxUsed_AB_level <= (others => '0');
@@ -740,7 +740,7 @@ begin
                 maxUsed_0123_valid = '1') then
                 maxUsed_final_sel <= maxUsed_0123_sel;
                 maxUsed_final_valid <= '1';
-            elsif (unsigned(maxUsed_4567_level) <= unsigned(maxUsed_89AB_level) or maxUsed_89AB_valid = '0') and maxUsed_0123_valid = '1' then
+            elsif (unsigned(maxUsed_4567_level) <= unsigned(maxUsed_89AB_level) or maxUsed_89AB_valid = '0') and maxUsed_4567_valid = '1' then
                 maxUsed_final_sel <= maxUsed_4567_sel;
                 maxUsed_final_valid <= '1';
             else
@@ -852,7 +852,9 @@ begin
                         axi_araddr(35 downto 31) <= "00000";
                         axi_araddr_buffer <= bufBuffer(to_integer(unsigned(ar_fsm_buffer))); -- which HBM buffer
                         axi_araddr(30 downto 19) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
-                        axi_araddr(19 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 0) & "00"; -- LFAA packet within the buffer (bits 17:13), sample (bits 12:2), 4 byte aligned (bits 1:0 = "00")
+                        -- 128 SPS packets within the buffer (bits 18:12), then bits 11:6 select which of 64 x 32-byte blocks within each 2048 bytes
+                        -- bufSample is aligned to a multiple of 16, add one extra bit so that axi_araddr is aligned to a multiple of 32 bytes
+                        axi_araddr(18 downto 0) <= bufSample(to_integer(unsigned(ar_fsm_buffer)))(17 downto 0) & '0';
                         axi_arlen(3 downto 0) <= bufLen(to_integer(unsigned(ar_fsm_buffer)));
                         axi_arvalid0 <= '0';
                         axi_arvalid2 <= '0';
@@ -1138,7 +1140,7 @@ begin
             ARFIFO_dinDel1(15 downto 8) <= ARFIFO_din(15 downto 8); -- ARFIFO_din : bits 11:8 = buf len (number of beats), 15:12 = stream (0 to 11) 
             ARFIFO_dinDel1(16) <= '0'; -- filled in later with data from valid memory
             
-            ARFIFO_wrEnDel1 <= ARFIFO_wrEn;  -- ARFIFO_wrEn is valid in the same cycle as o_validMemReadAddr
+            ARFIFO_wrEnDel1 <= ARFIFO_wrEn;  -- ARFIFO_wrEnDel1 is valid in the same cycle as o_validMemReadAddr
             
             ARFIFO_dinDel2 <= ARFIFO_dinDel1;
             ARFIFO_wrEnDel2 <= ARFIFO_wrEnDel1;
@@ -1152,10 +1154,13 @@ begin
             ARFIFO_dinDel5 <= ARFIFO_dinDel4;
             ARFIFO_wrEnDel5 <= ARFIFO_wrEnDel4;
             
-            ARFIFO_dinDel6(15 downto 0) <= ARFIFO_dinDel5(15 downto 0);
-            ARFIFO_dinDel6(16) <= i_validMemReadData;
-            
+            ARFIFO_dinDel6 <= ARFIFO_dinDel5;
             ARFIFO_wrEnDel6 <= ARFIFO_wrEnDel5;
+            
+            ARFIFO_dinDel7(15 downto 0) <= ARFIFO_dinDel6(15 downto 0);
+            ARFIFO_dinDel7(16) <= i_validMemReadData;
+            ARFIFO_wrEnDel7 <= ARFIFO_wrEnDel6;
+            
             if i_validMemReadData = '0' and ARFIFO_wrEnDel5 = '1' then
                 -- 5 cycle latency to read the valid memory;
                 -- Read address is taken from HBM read address, valid when ARFIFO_wrEn = '1'
@@ -1227,14 +1232,14 @@ begin
         wr_ack => open,           -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => ARFIFO_WrDataCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
         wr_rst_busy => open,      -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
-        din => ARFIFO_dinDel6,    -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+        din => ARFIFO_dinDel7,    -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
         injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
         injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection: 
         rd_en => ARFIFO_rdEn,     -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
         rst => ARFIFO_rst,        -- 1-bit input: Reset: Must be synchronous to wr_clk.
         sleep => '0',             -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
         wr_clk => shared_clk,     -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
-        wr_en => ARFIFO_wrEnDel6  -- 1-bit input: Write Enable: 
+        wr_en => ARFIFO_wrEnDel7  -- 1-bit input: Write Enable: 
     );
     
     fifo_ar2_inst : xpm_fifo_sync
@@ -1274,14 +1279,14 @@ begin
         wr_ack => open,            -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => ARFIFO2_WrDataCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
         wr_rst_busy => open,       -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
-        din => ARFIFO_dinDel6,    -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+        din => ARFIFO_dinDel7,     -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
         injectdbiterr => '0',      -- 1-bit input: Double Bit Error Injection
         injectsbiterr => '0',      -- 1-bit input: Single Bit Error Injection: 
         rd_en => ARFIFO2_rdEn,     -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
         rst => ARFIFO_rst,         -- 1-bit input: Reset: Must be synchronous to wr_clk.
         sleep => '0',              -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
         wr_clk => shared_clk,      -- 1-bit input: Write clock: Used for write operation. wr_clk must be a free running clock.
-        wr_en => ARFIFO_wrEnDel6  -- 1-bit input: Write Enable: 
+        wr_en => ARFIFO_wrEnDel7  -- 1-bit input: Write Enable: 
     );
     
     ARFIFO_rst <= rstFIFOs;
@@ -1692,12 +1697,12 @@ begin
                 when others => bufWrAddr_high32bytes <= bufWrAddr_high32bytes_buf(11);
             end case;
             
-            bufWE_low32bytes(0) <= i_axi_r.valid;
+            bufWE_low32bytes(0) <= axi_rvalid_del1; -- i_axi_r.valid;
             axi_rdataDel1_low32bytes <= i_axi_r.data(255 downto 0);
             axi_rdataDel2_low32bytes <= axi_rdataDel1_low32bytes;
             selRFI_low32bytes <= not rdata_dvalid;
             
-            bufWE_high32bytes(0) <= i_axi2_r.valid;
+            bufWE_high32bytes(0) <= axi_rvalid2_del1; -- i_axi2_r.valid;
             axi_rdataDel1_high32bytes <= i_axi2_r.data(255 downto 0);
             axi_rdataDel2_high32bytes <= axi_rdataDel1_high32bytes;
             selRFI_high32bytes <= not rdata2_dvalid;
@@ -2022,7 +2027,7 @@ begin
                 if (rstInternal = '1' or shared_to_FB_valid_del1 = '1') then
                     -- buffers of 640 words each
                     bufReadAddr_buf(i) <= std_logic_vector(to_unsigned(i*640,13));
-                elsif ((rd_fsm = rd_bufX) and (rdStop(i) = '0') and (bufReadDone(i) = '0') and (unsigned(buf_to_read) = i)) then
+                elsif ((rd_fsm = rd_bufX) and (bufReadDone(i) = '0') and (unsigned(buf_to_read) = i)) then
                     if (unsigned(bufReadAddr_buf(i)) = (i*640 + 639)) then  -- 640 words per buffer
                         bufReadAddr_buf(i) <= std_logic_vector(to_unsigned(i*640,13)); -- wrap back to the start of the buffer
                     else
@@ -2097,7 +2102,7 @@ begin
                     
                     when rd_start => -- start of reading for a particular group of 4 channels.
                         -- wait until data is available in the buffer, and get the start address from the FIFOs
-                        if bufFIFOHalfFull = "1111" and delayFIFO_empty = "0000" then -- all four fifos have plenty of data; so readout won't result in underflow.
+                        if bufFIFOHalfFull = "111111111111" and delayFIFO_empty = "000000000000" then -- all four fifos have plenty of data; so readout won't result in underflow.
                             sof <= '1';
                             -- The buffer is 64 bytes wide, so to align the data 
                             -- we have to choose which of the 16 samples in a 64-byte word to start at
@@ -2105,6 +2110,14 @@ begin
                             rdOffset(1) <= bufFIFO_dout(1)(3 downto 0);
                             rdOffset(2) <= bufFIFO_dout(2)(3 downto 0);
                             rdOffset(3) <= bufFIFO_dout(3)(3 downto 0);
+                            rdOffset(4) <= bufFIFO_dout(4)(3 downto 0);
+                            rdOffset(5) <= bufFIFO_dout(5)(3 downto 0);
+                            rdOffset(6) <= bufFIFO_dout(6)(3 downto 0);
+                            rdOffset(7) <= bufFIFO_dout(7)(3 downto 0);
+                            rdOffset(8) <= bufFIFO_dout(8)(3 downto 0);
+                            rdOffset(9) <= bufFIFO_dout(9)(3 downto 0);
+                            rdOffset(10) <= bufFIFO_dout(10)(3 downto 0);
+                            rdOffset(11) <= bufFIFO_dout(11)(3 downto 0);
                             rd_fsm <= rd_bufX;
                         else
                             sof <= '0';
@@ -2136,13 +2149,18 @@ begin
                             rd_wait_count <= std_logic_vector(unsigned(rd_wait_count) - 1);
                         else
                             if (bufReadDone(11 downto 0) = "111111111111" and allPacketsSent = '1') then 
-                                -- Finished a full coarse channel (actually 4 coarse channels, since 4 channels are sent at a time).
+                                -- Finished a full set of 12 virtual channels
                                 -- Wait here until all the output packets have been sent so we can reset the output FIFOs before starting the next coarse channel.
                                 rd_fsm <= reset_output_fifos;
                             elsif ((rdStop(0) = '0' and bufReadDone(0) = '0') or (rdStop(1) = '0' and bufReadDone(1) = '0') or (rdStop(2) = '0' and bufReadDone(2) = '0') or 
                                    (rdStop(3) = '0' and bufReadDone(3) = '0') or (rdStop(4) = '0' and bufReadDone(4) = '0') or (rdStop(5) = '0' and bufReadDone(5) = '0') or
                                    (rdStop(6) = '0' and bufReadDone(6) = '0') or (rdStop(7) = '0' and bufReadDone(7) = '0') or (rdStop(8) = '0' and bufReadDone(8) = '0') or
-                                   (rdStop(9) = '0' and bufReadDone(9) = '0') or (rdStop(10) = '0' and bufReadDone(10) = '0') or (rdStop(11) = '0' and bufReadDone(11) = '0')) then  -- space is available in at least one of the output FIFOs
+                                   (rdStop(9) = '0' and bufReadDone(9) = '0') or (rdStop(10) = '0' and bufReadDone(10) = '0') or (rdStop(11) = '0' and bufReadDone(11) = '0')) then  
+                                   -- Space is available in at least one of the output FIFOs
+                                   -- We only pause reading if no space is available in any of the output FIFOs
+                                   -- rdStop has enough leeway that we can still write one word even if it says stop
+                                   -- The only difference in fill level between the different output FIFOs is caused by the different read start offset (due to different coarse delays).
+                                   -- 
                                 rd_fsm <= rd_bufX;
                             end if;
                         end if;
@@ -2202,7 +2220,7 @@ begin
             -- Wait until data has got into the final fifo and then start the readout to the filterbanks
             -- There are 
             -- = (g_LFAA_BLOCKS_PER_FRAME / 2 + 11) 4096-sample packets per frame (per channel)
-            if (rd_fsm = rd_start and bufFIFOHalfFull = "1111") then
+            if (rd_fsm = rd_start and bufFIFOHalfFull = "111111111111") then
                 readoutStart <= '1';
             else
                 readoutStart <= '0';
@@ -2334,12 +2352,12 @@ begin
             -- Data in from the buffer
             i_data => bufDout,           -- in (511:0);
             -- data in from the FIFO that shadows the buffer
-            i_rdOffset => rdOffset(i),   -- in (1:0);  Sample offset in the 128 bit word; 0 = use all 4 samples, "01" = Skip first sample, "10" = skip 2 samples, "11" = skip 3 samples; Only used on the first 128 bit word after i_rst.
-            i_valid    => bufRdValid(i), -- in std_logic; -- should go high no more than once every 4 clocks
+            i_rdOffset => rdOffset(i),   -- in (3:0); Sample offset in the 512 bit word; 0 = use all 16 samples, "0001" = Skip first sample, "0010" = ... ; Only used on the first 512 bit word after i_rst
+            i_valid    => bufRdValid(i), -- in std_logic; This should go high no more than once every 16 clocks. 64 byte input, 4 byte output, so on average 16 clocks to read each write.
             o_stop     => rdStop(i),     -- out std_logic;
             -- data out
             o_data    => readoutData_int(i), -- out (31:0); 
-            i_run     => readPacket,         -- in std_logic -- should go high for a burst of 64 clocks to output a packet.
+            i_run     => readPacket,         -- in std_logic; Should go high for a burst of 4096 clocks to output a packet.
             o_valid   => validOut(i)         -- out std_logic;
         );
     end generate;

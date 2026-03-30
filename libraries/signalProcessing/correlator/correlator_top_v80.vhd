@@ -123,7 +123,7 @@ use common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
 use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
-use spead_lib.spead_packet_pkg.ALL;
+--use spead_lib.spead_packet_pkg.ALL;
 use signal_processing_common.target_fpga_pkg.ALL;
 
 

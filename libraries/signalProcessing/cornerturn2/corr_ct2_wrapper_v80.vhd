@@ -40,7 +40,7 @@ entity corr_ct2_wrapper_v80 is
         i_integration  : in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      : in std_logic_vector(1 downto 0);  -- 283 ms frame within each integration interval
         i_virtualChannel : in t_slv_16_arr(11 downto 0);   -- 12 virtual channels, one for each of the data streams.
-        i_bad_poly     : in std_logic_vector(2 downto 0);  -- one signal for each group of 4 virtual channels
+        i_bad_poly     : in std_logic_vector(11 downto 0); -- One signal for each virtual channel
         i_lastChannel  : in std_logic;   -- last of the group of 4 channels
         i_demap_table_select : in std_logic;
         i_HeaderValid : in std_logic_vector(11 downto 0);
@@ -132,7 +132,7 @@ begin
         i_integration  => i_integration,      -- in (31:0); frame count is the same for all simultaneous output streams.
         i_ctFrame      => i_ctFrame,          -- in (1:0);  283 ms frame within each integration interval
         i_virtualChannel => i_virtualChannel, -- in t_slv_16_arr(11 downto 0); 12 virtual channels, one for each of the data streams.
-        i_bad_poly     => i_bad_poly,         -- in (2:0); one signal for each group of 4 virtual channels
+        i_bad_poly     => i_bad_poly,         -- in (11:0); one signal for each virtual channel
         i_lastChannel  => i_lastChannel,      -- in std_logic; last of the group of 4 channels
         i_demap_table_select => i_demap_table_select, -- in std_logic;
         i_HeaderValid => i_headerValid,       -- in (11:0);

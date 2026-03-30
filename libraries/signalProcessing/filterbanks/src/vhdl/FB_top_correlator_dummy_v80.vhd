@@ -53,7 +53,7 @@ entity FB_Top_correlator_dummy_v80 is
         o_integration    : out std_logic_vector(31 downto 0); -- integration in units of 849ms since epoch.
         o_ctFrame        : out std_logic_vector(1 downto 0); -- corner turn frame, 0, 1 or 2, units of 283ms relative to integration.
         o_virtualChannel : out t_slv_16_arr(11 downto 0); -- 12 virtual channels, one for each of the 12 data streams.
-        o_bad_poly       : out std_logic_vector(2 downto 0);
+        o_bad_poly       : out std_logic_vector(11 downto 0);
         --
         o_lastChannel    : out std_logic;  -- Last of the group of 4 channels
         o_demap_table_select : out std_logic;
@@ -100,7 +100,7 @@ architecture Behavioral of FB_Top_correlator_dummy_v80 is
     signal DataValid : std_logic;
     
     signal corFBDout0, corFBDout1, corFBDout2, corFBDout3, corFBDout4, corFBDout5, corFBDout6, corFBDout7, corFBDout8 : t_slv_16_arr(1 downto 0);
-    signal corMetaOut : std_logic_vector(619 downto 0);
+    signal corMetaOut : std_logic_vector(71 downto 0);
     
     signal corFBHeaderValid : std_logic;
     
@@ -146,7 +146,7 @@ architecture Behavioral of FB_Top_correlator_dummy_v80 is
     signal FD_virtualChannel0, FD_virtualChannel1, FD_virtualChannel2, FD_virtualChannel3 : t_slv_16_arr(18 downto 0);
     signal FD_integration : t_slv_32_arr(18 downto 0);
     signal FD_ctFrame : t_slv_2_arr(18 downto 0);
-    signal FD_bad_poly : t_slv_3_arr(18 downto 0);
+    signal FD_bad_poly : t_slv_12_arr(18 downto 0);
     signal FD_lastChannel, FD_demap_table_select : std_logic_vector(18 downto 0);
     
     signal virtualChannel : t_slv_16_arr(11 downto 0); -- 12 virtual channels, one for each of the 12 data streams.
@@ -227,9 +227,19 @@ begin
             FD_virtualChannel0(0) <= "0000" & corMetaOut(11 downto 0);
             FD_virtualChannel0(18 downto 1) <= FD_virtualChannel0(17 downto 0);
             
-            FD_bad_poly(0)(0) <= CorMetaOut(61) or CorMetaOut(60) or CorMetaOut(59) or CorMetaOut(58);
-            FD_bad_poly(0)(1) <= CorMetaOut(65) or CorMetaOut(64) or CorMetaOut(63) or CorMetaOut(62);
-            FD_bad_poly(0)(2) <= CorMetaOut(69) or CorMetaOut(68) or CorMetaOut(67) or CorMetaOut(66);
+            FD_bad_poly(0)(0) <= CorMetaOut(58);
+            FD_bad_poly(0)(1) <= CorMetaOut(59);
+            FD_bad_poly(0)(2) <= CorMetaOut(60);
+            FD_bad_poly(0)(3) <= CorMetaOut(61);
+            FD_bad_poly(0)(4) <= CorMetaOut(62);
+            FD_bad_poly(0)(5) <= CorMetaOut(63);
+            FD_bad_poly(0)(6) <= CorMetaOut(64);
+            FD_bad_poly(0)(7) <= CorMetaOut(65);
+            FD_bad_poly(0)(8) <= CorMetaOut(66);
+            FD_bad_poly(0)(9) <= CorMetaOut(67);
+            FD_bad_poly(0)(10) <= CorMetaOut(68);
+            FD_bad_poly(0)(11) <= CorMetaOut(69);
+            
             FD_bad_poly(18 downto 1) <= FD_bad_poly(17 downto 0);
             
             FD_lastChannel(0) <= CorMetaOut(70);

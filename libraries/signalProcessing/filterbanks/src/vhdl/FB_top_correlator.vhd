@@ -62,7 +62,7 @@ entity FB_Top_correlator is
         o_integration    : out std_logic_vector(31 downto 0); -- Which integration frame is this ? Units of 0.849 seconds since epoch.
         o_ctFrame        : out std_logic_vector(1 downto 0);  -- Which 283ms corner turn frame is this ? 
         o_virtualChannel : out t_slv_16_arr(11 downto 0); -- up to 12 virtual channels in parallel
-        o_bad_poly       : out std_logic_vector(2 downto 0);
+        o_bad_poly       : out std_logic_vector(11 downto 0);
         o_lastChannel    : out std_logic;  -- Last of the group of 4 channels
         o_demap_table_select : out std_logic;
         o_HeaderValid : out std_logic_vector(11 downto 0);
@@ -342,9 +342,19 @@ begin
     o_data <= FDdata;
     o_dataValid <= FDcorDataValid(0);  -- FDPSTDataValid(0) and (1), (2), (3) will be the same.
     
-    o_bad_poly(0) <= FDHeader(0).bad_poly or FDHeader(1).bad_poly or FDHeader(2).bad_poly or FDHeader(3).bad_poly;
-    o_bad_poly(1) <= FDHeader(4).bad_poly or FDHeader(5).bad_poly or FDHeader(6).bad_poly or FDHeader(7).bad_poly;
-    o_bad_poly(2) <= FDHeader(8).bad_poly or FDHeader(9).bad_poly or FDHeader(10).bad_poly or FDHeader(11).bad_poly;
+    o_bad_poly(0) <= FDHeader(0).bad_poly;
+    o_bad_poly(1) <= FDHeader(1).bad_poly;
+    o_bad_poly(2) <= FDHeader(2).bad_poly;
+    o_bad_poly(3) <= FDHeader(3).bad_poly;
+    o_bad_poly(4) <= FDHeader(4).bad_poly;
+    o_bad_poly(5) <= FDHeader(5).bad_poly;
+    o_bad_poly(6) <= FDHeader(6).bad_poly;
+    o_bad_poly(7) <= FDHeader(7).bad_poly;
+    o_bad_poly(8) <= FDHeader(8).bad_poly;
+    o_bad_poly(9) <= FDHeader(9).bad_poly;
+    o_bad_poly(10) <= FDHeader(10).bad_poly;
+    o_bad_poly(11) <= FDHeader(11).bad_poly;
+    
     o_lastChannel <= FDHeader(0).lastChannel;
     o_demap_table_select <= FDHeader(0).demap_table_select;
     
