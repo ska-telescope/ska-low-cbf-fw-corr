@@ -1598,14 +1598,14 @@ begin
             i_rst => AWFIFO_rst,
             o_rstActive => validMemRstActive,
             -- Set valid
-            i_setAddr   => validMemSetWrAddr(20 downto 0),  -- in(20:0)
+            i_setAddr   => validMemSetWrAddr(18 downto 0),  -- in(20:0)
             i_setValid  => validMemSetWrEn,    -- in std_logic;
             o_duplicate => duplicate,          -- out std_logic;
             -- clear valid
-            i_clearAddr => validMemWriteAddr(20 downto 0),  -- in(20:0)
+            i_clearAddr => validMemWriteAddr(18 downto 0),  -- in(20:0)
             i_clearValid => validMemWrEn,      -- in std_logic;
             -- Read contents
-            i_readAddr => validMemReadAddr(20 downto 0),    -- in(20:0)
+            i_readAddr => validMemReadAddr(18 downto 0),    -- in(20:0)
             o_readData => validMemReadData     -- out std_logic;
         );
 
