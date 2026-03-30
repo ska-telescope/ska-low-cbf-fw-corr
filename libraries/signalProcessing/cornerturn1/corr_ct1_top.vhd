@@ -1632,7 +1632,7 @@ begin
             o_delayTableAddr => poly_addr,   -- out (15:0);
             i_delayTableData => poly_rdData, -- in (63:0); -- Data from the delay table with 3 cycle latency. 
             -- RFI threshold for this channel.
-            o_RFI_rd_addr => RFI_rd_addr,    -- out (11:0);
+            o_RFI_rd_addr => RFI_rd_addr(9 downto 0),    -- out (11:0);
             i_RFI_rd_data => RFI_rd_data,    -- in (31:0);
             -- Read and write to the valid memory, to check the place we are reading from in the HBM has valid data
             o_validMemReadAddr => validMemReadAddr(18 downto 0),   -- out (20:0);   8192 bytes per LFAA packet, 1 GByte of memory, so 1Gbyte/8192 bytes = 2^30/2^13 = 2^17
@@ -1679,7 +1679,7 @@ begin
             o_dataMissing => dataMissing, -- out std_logic -- Read from a HBM address that we haven't written data to. Most reads are 8 beats = 8*64 = 512 bytes, so this will go high 16 times per missing LFAA packet.
             o_dbg_vec   => dbg_vec,       -- out std_logic_vector(255 downto 0);
             o_dbg_valid => dbg_vec_valid,  -- out std_logic
-            o_dFIFO_underflow => config_ro.dFIFO_underflow, --  out (11:0); Read of output fifos but they were empty
+            o_dFIFO_underflow => config_ro.dFIFO_underflow(3 downto 0), --  out (11:0); Read of output fifos but they were empty
             -- mismatch between output and expected when sending debug data inserted in lfaaIngest
             o_dbgCheckData0 => config_ro.dbgCheckData0, -- out (31:0);
             o_dbgCheckData1 => config_ro.dbgCheckData1, -- out (31:0);
