@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 1.0.2
+    * Fix for delay flags.
 * 1.0.1
     * SCAN ID added to SDP SPEAD Data packets for ADR-111.
     * Burst traffic fix on input module.
