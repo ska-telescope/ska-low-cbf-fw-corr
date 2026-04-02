@@ -5,7 +5,7 @@
 -- Create Date: 08/14/2023 10:14:24 PM
 -- Module Name: ct1_tb - Behavioral
 -- Description: 
---  Standalone testbench for correlator corner turn 1
+--  Standalone testbench for correlator corner turn 2
 -- 
 ----------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ entity ct2_tb is
         g_PACKET_GAP : integer := 4100; -- number of clocks from the start of one filterbank packet to the start of the next 
         g_VC_GAP : integer := 20000;   -- number of clocks idle between groups of 4 virtual channels from the filterbank
         g_MAX_CORRELATORS : integer := 2;
-        g_TEST_CASE : integer := 4 -- selects a set of register transactions and other configuration to use in the test.
+        g_TEST_CASE : integer := 5 -- selects a set of register transactions and other configuration to use in the test.
         -- 
     );
 end ct2_tb;
@@ -81,7 +81,7 @@ architecture Behavioral of ct2_tb is
     signal cor_tileLocation :  t_slv_10_arr(g_MAX_CORRELATORS-1 downto 0); -- bits 3:0 = tile column, bits 7:4 = tile row, bits 9:8 = "00";
     signal cor_tileChannel :  t_slv_24_arr(g_MAX_CORRELATORS-1 downto 0);
     signal cor_tileTotalTimes    :  t_slv_8_arr(g_MAX_CORRELATORS-1 downto 0); -- Number of time samples to integrate for this tile.
-    signal cor_tiletotalChannels :  t_slv_5_arr(g_MAX_CORRELATORS-1 downto 0); -- Number of frequency channels to integrate for this tile.
+    signal cor_tiletotalChannels :  t_slv_7_arr(g_MAX_CORRELATORS-1 downto 0); -- Number of frequency channels to integrate for this tile.
     signal cor_rowstations       :  t_slv_9_arr(g_MAX_CORRELATORS-1 downto 0); -- number of stations in the row memories to process; up to 256.
     signal cor_colstations       :  t_slv_9_arr(g_MAX_CORRELATORS-1 downto 0); -- number of stations in the col memories to process; up to 256.
     signal cor_totalStations     :  t_slv_16_arr(g_MAX_CORRELATORS-1 downto 0); -- Total number of stations being processing for this subarray-beam.
@@ -125,7 +125,7 @@ architecture Behavioral of ct2_tb is
     signal fb_vc0 : std_logic_vector(15 downto 0) := (others => '0');
     signal packets_sent : integer := 0;
     signal rst_n : std_logic;
-    signal fb_bad_poly : std_logic;
+    signal fb_bad_poly : std_logic_vector(3 downto 0);
     
     signal bad_poly_packets_sent : integer;
     signal bad_poly_integration : std_logic_vector(31 downto 0);
@@ -248,7 +248,7 @@ begin
             bad_poly_packets_sent <= 0;
             bad_poly_integration <= (others => '0');
             bad_poly_ctFrame <= "00";
-            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            -- virtual channel to label as having a bad polynomial
             bad_poly_vc <= x"0004";  -- bad poly is somewhere in the second subarray-beam
             
             -- select table 0
@@ -310,7 +310,7 @@ begin
             bad_poly_packets_sent <= 0;
             bad_poly_integration <= (others => '0');
             bad_poly_ctFrame <= "00";
-            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            -- virtual channel to label as having a bad polynomial
             bad_poly_vc <= x"0004";  -- bad poly is somewhere in the second subarray-beam
             
             -- select table 0
@@ -371,7 +371,7 @@ begin
             bad_poly_packets_sent <= 0;
             bad_poly_integration <= (others => '0');
             bad_poly_ctFrame <= "00";
-            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            -- virtual channel to label as having a bad polynomial
             bad_poly_vc <= x"0004";  -- bad poly is somewhere in the second subarray-beam
             
             -- select table 0
@@ -459,7 +459,7 @@ begin
             bad_poly_packets_sent <= 0;
             bad_poly_integration <= (others => '0');
             bad_poly_ctFrame <= "00";
-            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            -- virtual channel to label as having a bad polynomial
             bad_poly_vc <= x"0004";  -- bad poly is somewhere in the second subarray-beam
             
             -- select table 0
@@ -510,6 +510,68 @@ begin
             WAIT UNTIL RISING_EDGE(clk300);
             send_fb_data <= '0';
             WAIT UNTIL RISING_EDGE(clk300);
+            
+        elsif g_TEST_CASE = 5 then
+            -- 2 virtual channels, 1 subarray-beam, 1 channel, 2 stations
+            -- test bad poly behaviour
+            c_VIRTUAL_CHANNELS <= 2;
+            WAIT UNTIL RISING_EDGE(clk300);
+            virtual_channels <= std_logic_vector(to_unsigned(c_VIRTUAL_CHANNELS,11));
+            -- Set where bad poly will occur in the data stream.
+            bad_poly_packets_sent <= 0;
+            bad_poly_integration <= (others => '0');
+            bad_poly_ctFrame <= "00";
+            -- virtual channel to label as having a bad polynomial
+            bad_poly_vc <= x"0002";  -- virtual channel 2 has bad poly set. channels 0 and 1 are used, 2 is not, so should not propagate through.
+            
+            -- select table 0
+            fb_demap_table_select <= '0';
+            -- 1 subarray-beam in table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table0_address.base_address + c_statctrl_buf0_subarray_beams_table0_address.address, true, x"00000001");
+            -- 0 subarray-beams in table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf0_subarray_beams_table1_address.base_address + c_statctrl_buf0_subarray_beams_table1_address.address, true, x"00000000");
+            -- 1 subarray-beams for second correlator, table 0
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table0_address.base_address + c_statctrl_buf1_subarray_beams_table0_address.address, true, x"00000000");
+            -- 0 subarray-beams for second correlator, table 1
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_buf1_subarray_beams_table1_address.base_address + c_statctrl_buf1_subarray_beams_table1_address.address, true, x"00000000");
+            -- demap table
+            -- 2 words per group of 4 virtual channels :
+            --   Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table. Values of 0 to 127 are for the first correlator, 128 to 255 for the second correlator. 
+            --            bits(19:8) = (sub)station within this subarray.
+            --            bits(28:20) = channel frequency index 
+            --            bit(31) = 1 to indicate valid
+            --   word 1 : !!! This is for exporting the fine channel data on the 100GE port, bypassing the correlator. The functionality is not implemented in the firmware, and may never be.
+            --            bits(11:0) = start fine channel for forwarding on the 100GE port. (0)
+            --            bits(23:12) = End fine channel for forwarding on the 100GE port. (3455 = xD7F)
+            --            bits(31:24) = Forwarding address  (unused)
+            -- 1 virtual channels in this test case, so only 1 x 2 words needed in the demap table
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 0, true, x"86400000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, true, x"00000000");
+            -- subarray beam table
+            -- Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
+            --          bits(31:16) = starting coarse frequency channel, \
+            -- Word 1 : bits (15:0) = starting fine frequency channel \
+            -- Word 2 : bits (23:0) = Number of fine channels stored \
+            --          bits (29:24) = Fine channels per integration \
+            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, true, x"00640002");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, true, x"98000d80");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, true, x"00000000");
+            
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 0, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 1, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, true, x"00000000");
+            axi_lite_transaction(clk300, mc_lite_miso, mc_lite_mosi, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 3, true, x"00000000");
+            
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '1';
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '0';
+            WAIT UNTIL RISING_EDGE(clk300);         
         end if;
         
         wait;
@@ -629,7 +691,19 @@ begin
     fb_virtualChannel(1) <= std_logic_vector(unsigned(fb_vc0) + 1);
     fb_virtualChannel(2) <= std_logic_vector(unsigned(fb_vc0) + 2);
     fb_virtualChannel(3) <= std_logic_vector(unsigned(fb_vc0) + 3);
-    fb_bad_poly <= '1' when fb_dataValid = '1' and fb_vc0 = bad_poly_vc and fb_ctFrame = bad_poly_ctFrame and fb_integration = bad_poly_integration and packets_sent = bad_poly_packets_sent else '0';
+    fb_bad_poly(0) <= '1' when (fb_dataValid = '1' and 
+        ((fb_virtualChannel(0) = bad_poly_vc and fb_ctFrame = bad_poly_ctFrame and fb_integration = bad_poly_integration and packets_sent = bad_poly_packets_sent) or
+         (unsigned(fb_virtualChannel(0)) >= c_VIRTUAL_CHANNELS))) else '0';
+    fb_bad_poly(1) <= '1' when (fb_dataValid = '1' and 
+        ((fb_virtualChannel(1) = bad_poly_vc and fb_ctFrame = bad_poly_ctFrame and fb_integration = bad_poly_integration and packets_sent = bad_poly_packets_sent) or
+         (unsigned(fb_virtualChannel(1)) >= c_VIRTUAL_CHANNELS))) else '0';
+    fb_bad_poly(2) <= '1'; --when (fb_dataValid = '1' and 
+      --  ((fb_virtualChannel(2) = bad_poly_vc and fb_ctFrame = bad_poly_ctFrame and fb_integration = bad_poly_integration and packets_sent = bad_poly_packets_sent) or
+       --  (unsigned(fb_virtualChannel(2)) >= c_VIRTUAL_CHANNELS))) else '0';
+    fb_bad_poly(3) <= '1'; --when (fb_dataValid = '1' and 
+     --   ((fb_virtualChannel(3) = bad_poly_vc and fb_ctFrame = bad_poly_ctFrame and fb_integration = bad_poly_integration and packets_sent = bad_poly_packets_sent) or
+      --   (unsigned(fb_virtualChannel(3)) >= c_VIRTUAL_CHANNELS))) else '0';
+    
     fb_headerValid <= "1111" when fb_fsm = send_data0 else "0000"; --  -- in std_logic_vector(3 downto 0);
     -- in the data - fb_count = fine channel, 0 to 3455
     -- packet in frame, 0 to 63,
@@ -698,7 +772,7 @@ begin
         i_integration  => fb_integration, -- in std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
         i_ctFrame      => fb_ctFrame,     -- in std_logic_vector(1 downto 0); -- 283 ms frame within each integration interval
         i_virtualChannel => fb_virtualChannel, -- in t_slv_16_arr(3 downto 0);    -- 4 virtual channels, one for each of the data streams.
-        i_bad_poly       => fb_bad_poly,     -- in std_logic;
+        i_bad_poly       => fb_bad_poly,     -- in (3:0);
         i_lastChannel    => fb_lastChannel,  -- in std_logic;
         i_demap_table_select => fb_demap_table_select, -- in std_logic;
         i_HeaderValid => fb_headerValid,  -- in std_logic_vector(3 downto 0);
@@ -755,8 +829,9 @@ begin
         -- debug
         i_hbm_status => (others => (others => '0')),  -- in t_slv_8_arr(5 downto 0);
         i_hbm_reset_final => '0',                     -- in std_logic;
-        i_eth_disable_fsm_dbg => (others => '0'),     -- in std_logic_vector(4 downto 0);
-        i_hbm_rst_dbg  => (others => (others => '0')) -- in t_slv_32_arr(5 downto 0)
+        i_eth_disable_fsm_dbg => (others => '0'),      -- in std_logic_vector(4 downto 0);
+        i_hbm0_rst_dbg  => (others => '0'), -- in (31:0)
+        i_hbm1_rst_dbg  => (others => '0')
     );
     
     -- drive low once data is sent ?

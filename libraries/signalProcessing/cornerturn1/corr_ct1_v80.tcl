@@ -124,29 +124,80 @@ set_property -dict [list \
 ] [get_ips fp64_to_fp32]
 create_ip_run [get_ips fp64_to_fp32]
 
+# Replaced by custom filter that reduces DSP use per instance from 25 to 10.
+#create_ip -name fir_compiler -vendor xilinx.com -library ip -version 7.2 -module_name sps_flatten
+#set_property -dict [list \
+#  CONFIG.CoefficientVector \
+#{0,  0, 0,    0,  0,   0,   0,   0,  0,    0,   0,    0,   0,    0,   0,     0,    0,     0,    0,     0,    0,     0,    0,     0, 65536,     0,    0,     0,    0,     0,    0,     0,    0,     0,    0,    0,   0,    0,   0,    0,  0,   0,  0,   0,  0,   0,  0,  0, 0, \
+# 3, -6, 10, -16, 24, -34,  46, -61, 98, -128, 173, -229, 300, -387, 488,  -621, 1881, -1705, 2110, -2498, 2861, -3172, 3411, -3562, 69172, -3562, 3411, -3172, 2861, -2498, 2110, -1705, 1881,  -621,  488, -387, 300, -229, 173, -128, 98, -61, 46, -34, 24, -16, 10, -6, 3, \
+# 1, -2, 4,   -7, 12, -21,  36, -51, 78, -111, 155, -213, 284, -362, 652, -1263, 1209, -1653, 1944, -2288, 2583, -2843, 3040, -3165, 68751, -3165, 3040, -2843, 2583, -2288, 1944, -1653, 1209, -1263,  652, -362, 284, -213, 155, -111, 78, -51, 36, -21, 12,  -7,  4, -2, 1} \
+#  CONFIG.Coefficient_Fractional_Bits {0} \
+#  CONFIG.Coefficient_Sets {3} \
+#  CONFIG.Coefficient_Sign {Signed} \
+#  CONFIG.Coefficient_Structure {Inferred} \
+#  CONFIG.Coefficient_Width {18} \
+#  CONFIG.Component_Name {sps_flatten} \
+#  CONFIG.Data_Fractional_Bits {0} \
+#  CONFIG.Data_Width {8} \
+#  CONFIG.Output_Rounding_Mode {Full_Precision} \
+#  CONFIG.Quantization {Integer_Coefficients} \
+#  CONFIG.Clock_Frequency {300.0} \
+#  CONFIG.Sample_Frequency {300} \
+#  CONFIG.Filter_Architecture {Systolic_Multiply_Accumulate} \
+#  CONFIG.Output_Rounding_Mode {Convergent_Rounding_to_Even} \
+#  CONFIG.Output_Width {16} \
+#  CONFIG.M_DATA_Has_TUSER {User_Field} \
+#  CONFIG.S_DATA_Has_TUSER {User_Field} \
+#] [get_ips sps_flatten]
+#create_ip_run [get_ips sps_flatten]
 
-create_ip -name fir_compiler -vendor xilinx.com -library ip -version 7.2 -module_name sps_flatten
+create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name dsp_macro_AxB_plusC
 set_property -dict [list \
-  CONFIG.CoefficientVector \
-{0,  0, 0,    0,  0,   0,   0,   0,  0,    0,   0,    0,   0,    0,   0,     0,    0,     0,    0,     0,    0,     0,    0,     0, 65536,     0,    0,     0,    0,     0,    0,     0,    0,     0,    0,    0,   0,    0,   0,    0,  0,   0,  0,   0,  0,   0,  0,  0, 0, \
- 3, -6, 10, -16, 24, -34,  46, -61, 98, -128, 173, -229, 300, -387, 488,  -621, 1881, -1705, 2110, -2498, 2861, -3172, 3411, -3562, 69172, -3562, 3411, -3172, 2861, -2498, 2110, -1705, 1881,  -621,  488, -387, 300, -229, 173, -128, 98, -61, 46, -34, 24, -16, 10, -6, 3, \
- 1, -2, 4,   -7, 12, -21,  36, -51, 78, -111, 155, -213, 284, -362, 652, -1263, 1209, -1653, 1944, -2288, 2583, -2843, 3040, -3165, 68751, -3165, 3040, -2843, 2583, -2288, 1944, -1653, 1209, -1263,  652, -362, 284, -213, 155, -111, 78, -51, 36, -21, 12,  -7,  4, -2, 1} \
-  CONFIG.Coefficient_Fractional_Bits {0} \
-  CONFIG.Coefficient_Sets {3} \
-  CONFIG.Coefficient_Sign {Signed} \
-  CONFIG.Coefficient_Structure {Inferred} \
-  CONFIG.Coefficient_Width {18} \
-  CONFIG.Component_Name {sps_flatten} \
-  CONFIG.Data_Fractional_Bits {0} \
-  CONFIG.Data_Width {8} \
-  CONFIG.Output_Rounding_Mode {Full_Precision} \
-  CONFIG.Quantization {Integer_Coefficients} \
-  CONFIG.Clock_Frequency {300.0} \
-  CONFIG.Sample_Frequency {300} \
-  CONFIG.Filter_Architecture {Systolic_Multiply_Accumulate} \
-  CONFIG.Output_Rounding_Mode {Convergent_Rounding_to_Even} \
-  CONFIG.Output_Width {16} \
-  CONFIG.M_DATA_Has_TUSER {User_Field} \
-  CONFIG.S_DATA_Has_TUSER {User_Field} \
-] [get_ips sps_flatten]
-create_ip_run [get_ips sps_flatten]
+  CONFIG.a_binarywidth {0} \
+  CONFIG.a_width {9} \
+  CONFIG.areg_3 {true} \
+  CONFIG.areg_4 {false} \
+  CONFIG.breg_3 {true} \
+  CONFIG.breg_4 {false} \
+  CONFIG.c_width {48} \
+  CONFIG.creg_3 {true} \
+  CONFIG.creg_4 {false} \
+  CONFIG.creg_5 {true} \
+  CONFIG.has_pcout {true} \
+  CONFIG.mreg_5 {true} \
+  CONFIG.p_full_width {49} \
+  CONFIG.pipeline_options {Expert} \
+  CONFIG.preg_6 {true} \
+] [get_ips dsp_macro_AxB_plusC]
+create_ip_run [get_ips dsp_macro_AxB_plusC]
+
+create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name dsp_macro_AxB_plusPCIn
+set_property -dict [list \
+  CONFIG.a_binarywidth {0} \
+  CONFIG.a_width {9} \
+  CONFIG.areg_3 {true} \
+  CONFIG.areg_4 {false} \
+  CONFIG.b_binarywidth {0} \
+  CONFIG.b_width {18} \
+  CONFIG.breg_3 {true} \
+  CONFIG.breg_4 {false} \
+  CONFIG.c_binarywidth {0} \
+  CONFIG.c_width {48} \
+  CONFIG.concat_binarywidth {0} \
+  CONFIG.concat_width {48} \
+  CONFIG.creg_3 {false} \
+  CONFIG.creg_4 {false} \
+  CONFIG.creg_5 {false} \
+  CONFIG.d_width {18} \
+  CONFIG.has_pcout {true} \
+  CONFIG.instruction1 {A*B+PCIN} \
+  CONFIG.mreg_5 {true} \
+  CONFIG.p_binarywidth {0} \
+  CONFIG.p_full_width {58} \
+  CONFIG.p_width {58} \
+  CONFIG.pcin_binarywidth {0} \
+  CONFIG.pipeline_options {Expert} \
+  CONFIG.preg_6 {true} \
+] [get_ips dsp_macro_AxB_plusPCIn]
+create_ip_run [get_ips dsp_macro_AxB_plusPCIn]
+

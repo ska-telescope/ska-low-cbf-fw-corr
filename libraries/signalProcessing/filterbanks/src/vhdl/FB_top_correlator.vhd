@@ -26,59 +26,53 @@ use filterbanks_lib.cor_filterbanks_filterbanks_reg_pkg.ALL;
 use signal_processing_common.target_fpga_pkg.ALL;
 
 entity FB_Top_correlator is
+    generic(
+        -- For the U55, 4 parallel filterbanks, so filterbanks/2 = 2
+        -- For the V80, 12 parallel filterbanks, so filterbanks/2 = 6
+        g_FILTERBANKS_div2 : integer := 2
+    );
     port(
         i_data_rst  : in std_logic;
         -- AXI slave interface, 64k word block of space with the fir filter coefficients.
         i_axi_clk  : in std_logic;
+        i_axi_clk_2x : in std_logic;
         i_axi_rst  : in std_logic;
         i_axi_mosi  : in  t_axi4_lite_mosi;
         o_axi_miso  : out t_axi4_lite_miso;
         -- Configuration (on i_data_clk)
         i_fineDelayDisable : in std_logic;
         -----------------------------------------
-        -- data input, common valid signal, expects packets of 64 samples. 
-        -- Requires at least 2 clocks idle time between packets.
-        i_SOF    : in std_logic; 
-        i_data0  : in t_slv_16_arr(1 downto 0);  -- 6 Inputs, each complex data, 16 bit real, 16 bit imaginary.
-        i_data1  : in t_slv_16_arr(1 downto 0);
-        i_meta01 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data2  : in t_slv_16_arr(1 downto 0);
-        i_data3  : in t_slv_16_arr(1 downto 0);
-        i_meta23 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data4  : in t_slv_16_arr(1 downto 0);
-        i_data5  : in t_slv_16_arr(1 downto 0);
-        i_meta45 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data6  : in t_slv_16_arr(1 downto 0);
-        i_data7  : in t_slv_16_arr(1 downto 0);
-        i_meta67 : in t_CT1_META_out; -- .HDeltaP(31:0), .VDeltaP(31:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_lastChannel : in std_logic;
-        i_demap_table_select : in std_logic;
+        -- data input, common valid signal, expects packets of 4096 samples. 
+        -- Requires at least 2 clocks idle time between packets
+        i_sof     : in std_logic;   -- Start of frame, occurs for every new set of channels.
+        i_data    : in t_slv_32_arr(23 downto 0);  -- each 32-bit value has real in bits 15:0, imaginary in bits 31:16 
+        i_meta_delays         : in t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
+        i_meta_RFIThresholds  : in t_slv_32_arr(11 downto 0);
+        i_meta_integration    : in std_logic_vector(31 downto 0);
+        i_meta_ctFrame        : in std_logic_vector(1 downto 0);
+        i_meta_virtualChannel : in std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+        i_meta_valid          : in std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
+        i_lastChannel         : in std_logic; -- aligns with meta data, indicates this is the last group of channels to be processed in this frame.
+        -- o_demap_table_select will change just prior to the start of reading out of a new integration frame.
+        -- So it should be registered on the first output of a new integration frame in corner turn 2.
+        i_demap_table_select  : in std_logic;
         i_dataValid : in std_logic;
+        
         -- Correlator filterbank data output
         o_integration    : out std_logic_vector(31 downto 0); -- Which integration frame is this ? Units of 0.849 seconds since epoch.
         o_ctFrame        : out std_logic_vector(1 downto 0);  -- Which 283ms corner turn frame is this ? 
-        o_virtualChannel : out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-        o_bad_poly    : out std_logic;
+        o_virtualChannel : out t_slv_16_arr(11 downto 0); -- up to 12 virtual channels in parallel
+        o_bad_poly       : out std_logic_vector(11 downto 0);
         o_lastChannel    : out std_logic;  -- Last of the group of 4 channels
         o_demap_table_select : out std_logic;
-        o_HeaderValid : out std_logic_vector(3 downto 0);
-        o_Data        : out t_ctc_output_payload_arr(3 downto 0);
+        o_HeaderValid : out std_logic_vector(11 downto 0);
+        o_Data        : out t_ctc_output_payload_arr(11 downto 0);
         o_DataValid   : out std_logic;
         -- i_SOF delayed by 16384 clocks;
         -- i_sof occurs at the start of each new block of 4 virtual channels.
         -- Delay of 16384 is enough to ensure that o_sof falls in the gap
         -- between data packets at the filterbank output that occurs due to the filterbank preload.
-        o_sof : out std_logic;
-        -- Correlator filterbank output as packets
-        -- Each output packet contains all the data for:
-        --  - Single time step
-        --  - Single polarisation
-        --  - single coarse channel
-        -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
-        -- The data is transferred in bursts of 433 clocks.
-        o_packetData : out std_logic_vector(127 downto 0);
-        o_packetValid : out std_logic;
-        i_packetReady : in std_logic
+        o_sof : out std_logic
     );
 
     -- prevent optimisation across module boundaries.
@@ -89,7 +83,7 @@ end FB_Top_correlator;
 
 architecture Behavioral of FB_Top_correlator is
     
-    signal FDdata  : t_ctc_output_payload_arr(3 downto 0);
+    signal FDdata  : t_ctc_output_payload_arr(11 downto 0);
     
     signal firtap_addr : std_logic_vector(15 downto 0);
     --signal firtap_clk : std_logic;
@@ -98,26 +92,22 @@ architecture Behavioral of FB_Top_correlator is
     signal firtap_wr_data : std_logic_vector(17 downto 0);
     
     signal CorDin0, CorDin1, CorDin2, CorDin3 : t_slv_8_arr(1 downto 0);
-    signal CorrelatorMetaIn, corMetaOut : std_logic_vector(619 downto 0);
+    type t_slv_308_arr is array(5 downto 0) of std_logic_vector(307 downto 0);
+    signal CorrelatorMetaIn, corMetaOut : t_slv_308_arr;
     signal CorDout0, CorDout1, CorDout2, CorDout3 : t_slv_16_arr(1 downto 0);
-    signal CorValidOut, CorValidOutDel : std_logic;
+    signal CorValidOut, CorValidOutDel : std_logic_vector(11 downto 0);
     
-    signal data0, data1, data2, data3, data4, data5, data6, data7 : t_slv_16_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.  
+    signal FDcorDataValid : std_logic_vector(11 downto 0);
     
-    signal FDcorDataValid : std_logic_vector(3 downto 0);
+    signal corFBHeader : t_CT1_META_out_arr(11 downto 0);
+    signal corDout_arr : t_FB_output_payload_a(11 downto 0);
     
-    signal corFBHeader : t_CT1_META_out_arr(3 downto 0);
-    signal corDout_arr : t_FB_output_payload_a(3 downto 0);
-    
-    signal FDHeader : t_CT1_META_out_arr(3 downto 0);
+    signal FDHeader : t_CT1_META_out_arr(11 downto 0);
     signal DataValid : std_logic;
     
-    signal corFBDout0, corFBDout1, corFBDout2, corFBDout3, corFBDout4, corFBDout5, corFBDout6, corFBDout7, corFBDout8 : t_slv_16_arr(1 downto 0);
-    signal corFBHeaderValid : std_logic;
-    
-    signal captureCount : std_logic_vector(3 downto 0);
+    signal corFBDout : t_slv_32_arr(23 downto 0);
+    signal corFBHeaderValid : std_logic_vector(11 downto 0);
     signal FDcorDataValidDel1 : std_logic;
-    signal captureData : t_slv_256_arr(7 downto 0);
     
     signal triggerRdLow128bits : std_logic_vector(6 downto 0) := "0000000";
     signal triggerRdHigh128bits : std_logic_vector(6 downto 0) := "0000000";
@@ -136,23 +126,21 @@ architecture Behavioral of FB_Top_correlator is
 
     signal bufWrData, bufDout : std_logic_vector(127 downto 0);
     signal triggerSendTo100GE : std_logic;
-    signal vc_hold, vc_out : t_slv_16_arr(3 downto 0);
     signal integration_hold, integration_out : std_logic_vector(31 downto 0);
     signal bufWrAddr, bufRdAddr : std_logic_vector(12 downto 0);
     signal config_ro : t_config_ro;
     signal output_disable_i : t_config_output_disable_ram_in;
     signal output_disable_o : t_config_output_disable_ram_out;
-    signal tx_packet_count, tx_packet_count_ct : std_logic_vector(31 downto 0) := x"00000000";
-    signal packetValidDel1, packetValid, FDcorDataValidDel : std_logic;
+    signal tx_packet_count_ct : std_logic_vector(31 downto 0) := x"00000000";
+    signal FDcorDataValidDel : std_logic;
     signal output_disabled : std_logic;
     signal output_disable_addr : std_logic_vector(9 downto 0);
     signal reg_reset_del1, reg_reset : std_logic;
     signal config_rw : t_config_rw;
-    signal HeaderValid : std_logic_vector(3 downto 0);
+    signal HeaderValid : std_logic_vector(11 downto 0);
     signal sof_out, sof_del1 : std_logic := '0';
     signal sof_out_count : std_logic_vector(13 downto 0) := (others => '0');
     signal RFIScale : std_logic_vector(4 downto 0);
-    signal RFI_threshold : t_slv_32_arr(3 downto 0);
     
     signal noc_wren         : STD_LOGIC;
     signal noc_rden         : STD_LOGIC;
@@ -161,8 +149,10 @@ architecture Behavioral of FB_Top_correlator is
     signal noc_rd_adr       : STD_LOGIC_VECTOR(17 DOWNTO 0);
     signal noc_rd_dat       : STD_LOGIC_VECTOR(31 DOWNTO 0);
     signal noc_rd_dat_mux   : STD_LOGIC_VECTOR(31 DOWNTO 0);
-    signal markRFI : std_logic_vector(3 downto 0);
-    signal mark_RFI01, mark_RFI23, mark_RFI45, mark_RFI67 : std_logic;
+    signal mark_RFI : std_logic_vector(11 downto 0);
+    
+    signal dataIn :  t_slv_32_arr(23 downto 0);
+    signal RFIThresholds  : t_slv_32_arr(11 downto 0);
     
 begin
     
@@ -172,101 +162,31 @@ begin
     begin
         if rising_edge(i_axi_clk) then
 
-            CorrelatorMetaIn(31 downto 0) <= i_meta01.HDeltaP;
-            CorrelatorMetaIn(63 downto 32) <= i_meta01.VDeltaP;
-            CorrelatorMetaIn(95 downto 64) <= i_meta01.HOffsetP;
-            CorrelatorMetaIn(127 downto 96) <= i_meta01.VOffsetP;
-            CorrelatorMetaIn(143 downto 128) <= i_meta01.virtualChannel;
-            CorrelatorMetaIn(144) <= i_meta01.valid; -- note that .valid is just a qualifier for the meta data. The meta data is only valid if both this and i_datavalid are high.
+            for i in 0 to 5 loop
+                CorrelatorMetaIn(i)(31 downto 0) <= i_meta_delays(2*i+0).HDeltaP;
+                CorrelatorMetaIn(i)(63 downto 32) <= i_meta_delays(2*i+0).VDeltaP;
+                CorrelatorMetaIn(i)(95 downto 64) <= i_meta_delays(2*i+0).HOffsetP;
+                CorrelatorMetaIn(i)(127 downto 96) <= i_meta_delays(2*i+0).VOffsetP;
+                
+                CorrelatorMetaIn(i)(128+31 downto 128+0) <= i_meta_delays(2*i+1).HDeltaP;
+                CorrelatorMetaIn(i)(128+63 downto 128+32) <= i_meta_delays(2*i+1).VDeltaP;
+                CorrelatorMetaIn(i)(128+95 downto 128+64) <= i_meta_delays(2*i+1).HOffsetP;
+                CorrelatorMetaIn(i)(128+127 downto 128+96) <= i_meta_delays(2*i+1).VOffsetP;
+                
+                CorrelatorMetaIn(i)(267 downto 256) <= std_logic_vector(unsigned(i_meta_virtualChannel) + 2*i);
+                CorrelatorMetaIn(i)(268) <= i_meta_delays(2*i+0).bad_poly;
+                CorrelatorMetaIn(i)(269) <= i_meta_delays(2*i+1).bad_poly;
+                CorrelatorMetaIn(i)(271 downto 270) <= i_meta_ctFrame;
+                CorrelatorMetaIn(i)(303 downto 272) <= i_meta_integration;
+                CorrelatorMetaIn(i)(304) <= i_meta_valid(2*i+0); -- note that .valid is just a qualifier for the meta data. The meta data is only valid if both this and i_datavalid are high.
+                CorrelatorMetaIn(i)(305) <= i_meta_valid(2*i+1);
+                CorrelatorMetaIn(i)(306) <= i_lastChannel;
+                CorrelatorMetaIn(i)(307) <= i_demap_table_select;
+            end loop;
             
-            CorrelatorMetaIn(31+145 downto 0+145) <= i_meta23.HDeltaP;
-            CorrelatorMetaIn(63+145 downto 32+145) <= i_meta23.VDeltaP;
-            CorrelatorMetaIn(95+145 downto 64+145) <= i_meta23.HOffsetP;
-            CorrelatorMetaIn(127+145 downto 96+145) <= i_meta23.VOffsetP;
-            CorrelatorMetaIn(143+145 downto 128+145) <= i_meta23.virtualChannel;
-            CorrelatorMetaIn(144+145) <= i_meta23.valid;
-            
-            CorrelatorMetaIn(31+290 downto 0+290) <= i_meta45.HDeltaP;
-            CorrelatorMetaIn(63+290 downto 32+290) <= i_meta45.VDeltaP;
-            CorrelatorMetaIn(95+290 downto 64+290) <= i_meta45.HOffsetP;
-            CorrelatorMetaIn(127+290 downto 96+290) <= i_meta45.VOffsetP;
-            CorrelatorMetaIn(143+290 downto 128+290) <= i_meta45.virtualChannel;
-            CorrelatorMetaIn(144+290) <= i_meta45.valid;
-            
-            CorrelatorMetaIn(31+435 downto 0+435) <= i_meta67.HDeltaP;
-            CorrelatorMetaIn(63+435 downto 32+435) <= i_meta67.VDeltaP;
-            CorrelatorMetaIn(95+435 downto 64+435) <= i_meta67.HOffsetP;
-            CorrelatorMetaIn(127+435 downto 96+435) <= i_meta67.VOffsetP;
-            CorrelatorMetaIn(143+435 downto 128+435) <= i_meta67.virtualChannel;
-            CorrelatorMetaIn(144+435) <= i_meta67.valid;
-            
-            CorrelatorMetaIn(31+580 downto 0+580)  <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
-            CorrelatorMetaIn(33+580 downto 32+580) <= i_meta01.ctFrame;
-            
-            CorrelatorMetaIn(614) <= i_meta01.bad_poly;
-            CorrelatorMetaIn(615) <= i_meta23.bad_poly;
-            CorrelatorMetaIn(616) <= i_meta45.bad_poly;
-            CorrelatorMetaIn(617) <= i_meta67.bad_poly;
-            CorrelatorMetaIn(618) <= i_lastChannel;
-            CorrelatorMetaIn(619) <= i_demap_table_select;
-            
-            data0 <= i_data0;
-            data1 <= i_data1;
-            data2 <= i_data2;
-            data3 <= i_data3;
-            data4 <= i_data4;
-            data5 <= i_data5;
-            data6 <= i_data6;
-            data7 <= i_data7;
+            dataIn <= i_data;
+            RFIThresholds <= i_meta_RFIThresholds;
             DataValid <= i_DataValid;
-            
-            RFI_threshold(0) <= i_meta01.RFI_threshold;
-            RFI_threshold(1) <= i_meta23.RFI_threshold;
-            RFI_threshold(2) <= i_meta45.RFI_threshold;
-            RFI_threshold(3) <= i_meta67.RFI_threshold;
-            -- !!!! Just replace RFI with zeros; We also need to do something to flag the output of the filterbank if the input data was flagged. 
---            for i in 0 to 1 loop
---                if i_data0(i) = x"8000" then
---                    data0(i) <= x"0000";
---                else
---                    data0(i) <= i_data0(i);
---                end if;
---                if i_data1(i) = x"8000" then
---                    data1(i) <= x"0000";
---                else
---                    data1(i) <= i_data1(i);
---                end if;
---                if i_data2(i) = x"8000" then
---                    data2(i) <= x"0000";
---                else
---                    data2(i) <= i_data2(i);
---                end if;
---                if i_data3(i) = x"8000" then
---                    data3(i) <= x"0000";
---                else
---                    data3(i) <= i_data3(i);
---                end if;
---                if i_data4(i) = x"8000" then
---                    data4(i) <= x"0000";
---                else
---                    data4(i) <= i_data4(i);
---                end if;
---                if i_data5(i) = x"8000" then
---                    data5(i) <= x"0000";
---                else
---                    data5(i) <= i_data5(i);
---                end if;
---                if i_data6(i) = x"8000" then
---                    data6(i) <= x"0000";
---                else
---                    data6(i) <= i_data6(i);
---                end if;
---                if i_data7(i) = x"8000" then
---                    data7(i) <= x"0000";
---                else
---                    data7(i) <= i_data7(i);
---                end if;
---            end loop;
             
             -- Generate o_sof from i_sof, taking into account the latency of the filterbank processing.
             sof_del1 <= i_sof;
@@ -284,149 +204,82 @@ begin
         end if;
     end process;
     
+    
+    FBgen : for i in 0 to (g_FILTERBANKS_div2-1) generate
+    
+        -- Each instance of correlatorFBTop25 processes data for 2 virtual channels.
+        -- (2 Virtual channels) * (2 pol per channel) = 4 data inputs
+        corfbi : entity filterbanks_lib.correlatorFBTop25
+        generic map(
+            METABITS => 308,    -- Width in bits of the meta_i and meta_o ports.
+            FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
+        ) port map (
+            -- processing clock
+            clk     => i_axi_clk,
+            clk_2x  => i_axi_clk_2x,
+            rst     => i_SOF,
+            -- Data input, common valid signal, expects packets of 4096 samples. 
+            -- Requires at least 2 clocks idle time between packets.
+            i_data0 => dataIn(i*4+0), -- in (31:0);  4 Inputs, each complex data, 8 bit real, 8 bit imaginary.
+            i_data1 => dataIn(i*4+1), -- in (31:0);
+            i_data2 => dataIn(i*4+2), -- in (31:0);
+            i_data3 => dataIn(i*4+3), -- in (31:0);
+            i_RFI_threshold01 => RFIThresholds(i*2 + 0),
+            i_RFI_threshold23 => RFIThresholds(i*2 + 1),
+            meta_i  => correlatorMetaIn(i), -- in std_logic_vector((METABITS-1) downto 0);  -- Sampled on the first cycle of every third packet of valid_i. 
+            valid_i => DataValid,    -- in std_logic;
+            -- Data out; bursts of 216 clocks for each channel.
+            o_data0 => corFBDout(i*4+0), -- out (31:0);   -- 4 outputs, real and imaginary parts in bits 15:0 and 31:16 respectively;
+            o_data1 => corFBDout(i*4+1), -- out (31:0);
+            o_data2 => corFBDout(i*4+2), -- out (31:0);
+            o_data3 => corFBDout(i*4+3), -- out (31:0);
+            mark_RFI01_o => mark_RFI(i*2 + 0), -- out std_logic;
+            mark_RFI23_o => mark_RFI(i*2 + 1), -- out std_logic;
+            meta_o  => corMetaOut(i),  -- out std_logic_vector((METABITS-1) downto 0);
+            valid_o => corValidOut(i*2+0), -- out std_logic;
+            -- Writing FIR Taps
+            FIRTapData_i   => (others => '0'),  -- in (17:0);  For register writes of the filtertaps.
+            FIRTapData_o   => open,             -- out (17:0); For register reads of the filtertaps. 3 cycle latency from FIRTapAddr_i
+            FIRTapAddr_i   => (others => '0'),  -- in (15:0);  4096 * 12 filter taps = 49152 total.
+            FIRTapWE_i     => '0',              -- in std_logic;
+            FIRTapClk      => i_axi_clk         -- in std_logic;
+        );
+        corValidOut(i*2+1) <= corValidOut(i*2);
+        -- Pack 16 bit data into the structure that goes into the fine delay module.
+        corDout_arr(i*2+0).hpol.re <= corFBDout(i*4+0)(15 downto 0);
+        corDout_arr(i*2+0).hpol.im <= corFBDout(i*4+0)(31 downto 16);
+        corDout_arr(i*2+0).vpol.re <= corFBDout(i*4+1)(15 downto 0);
+        corDout_arr(i*2+0).vpol.im <= corFBDout(i*4+1)(31 downto 16);
+        corDout_arr(i*2+1).hpol.re <= corFBDout(i*4+2)(15 downto 0);
+        corDout_arr(i*2+1).hpol.im <= corFBDout(i*4+2)(31 downto 16);
+        corDout_arr(i*2+1).vpol.re <= corFBDout(i*4+3)(15 downto 0);
+        corDout_arr(i*2+1).vpol.im <= corFBDout(i*4+3)(31 downto 16);
         
-    corfbi : entity filterbanks_lib.correlatorFBTop25
-    generic map(
-        METABITS => 620, -- 361,    -- Width in bits of the meta_i and meta_o ports.
-        FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
-    ) port map (
-        -- processing clock
-        clk     => i_axi_clk,
-        rst     => i_SOF,
-        -- Data input, common valid signal, expects packets of 64 samples. 
-        -- Requires at least 2 clocks idle time between packets.
-        -- Due to oversampling, also requires on average 86 clocks between packets - specifically, no more than 3 packets in 258 clocks. 
-        data0_i => data0, -- in t_slv_8_arr(1 downto 0);  -- 4 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        data1_i => data1, -- in t_slv_8_arr(1 downto 0);
-        data2_i => data2, -- in t_slv_8_arr(1 downto 0);
-        data3_i => data3, -- in t_slv_8_arr(1 downto 0);
-        RFI_threshold01_i => RFI_threshold(0),
-        RFI_threshold23_i => RFI_threshold(1),
-        meta_i  => correlatorMetaIn, -- in std_logic_vector((METABITS-1) downto 0);  -- Sampled on the first cycle of every third packet of valid_i. 
-        valid_i => DataValid,    -- in std_logic;
-        -- Data out; bursts of 216 clocks for each channel.
-        data0_o => corFBDout0,    -- out t_slv_16_arr(1 downto 0);   -- 4 outputs, real and imaginary parts in (0) and (1) respectively;
-        data1_o => corFBDout1,    -- out t_slv_16_arr(1 downto 0);
-        data2_o => corFBDout2,    -- out t_slv_16_arr(1 downto 0);
-        data3_o => corFBDout3,    -- out t_slv_16_arr(1 downto 0);
-        mark_RFI01_o => mark_RFI01, -- out std_logic;
-        mark_RFI23_o => mark_RFI23, -- out std_logic;
-        meta_o  => corMetaOut,  -- out std_logic_vector((METABITS-1) downto 0);
-        valid_o => corValidOut, -- out std_logic;
-        -- Writing FIR Taps
-        FIRTapData_i   => (others => '0'),  -- in std_logic_vector(17 downto 0);  -- For register writes of the filtertaps.
-        FIRTapData_o   => open,             -- out std_logic_vector(17 downto 0); -- For register reads of the filtertaps. 3 cycle latency from FIRTapAddr_i
-        FIRTapAddr_i   => (others => '0'),  -- in std_logic_vector(15 downto 0);   -- 4096 * 12 filter taps = 49152 total.
-        FIRTapWE_i     => '0',              -- in std_logic;
-        FIRTapClk      => i_axi_clk         -- in std_logic;
-    );
+        corFBHeader(i*2+0).HDeltaP <= corMetaOut(i)(31 downto 0);
+        corFBHeader(i*2+0).VDeltaP <= corMetaOut(i)(63 downto 32);
+        corFBHeader(i*2+0).HOffsetP <= corMetaOut(i)(95 downto 64);
+        corFBHeader(i*2+0).VOffsetP <= corMetaOut(i)(127 downto 96);
+        corFBHeader(i*2+0).virtualChannel <= "0000" & corMetaOut(i)(267 downto 256);
+        corFBHeader(i*2+0).valid <= corMetaOut(i)(304);
+        corFBHeader(i*2+0).integration <= corMetaOut(i)(303 downto 272);
+        corFBHeader(i*2+0).ctFrame <= corMetaOut(i)(271 downto 270);
+        corFBHeader(i*2+0).bad_poly <= corMetaOut(i)(268);
+        corFBHeader(i*2+0).lastChannel <= corMetaOut(i)(306);
+        corFBHeader(i*2+0).demap_table_select <= corMetaOut(i)(307);
+        
+        corFBHeader(i*2+1).HDeltaP <= corMetaOut(i)(31+128 downto 128);
+        corFBHeader(i*2+1).VDeltaP <= corMetaOut(i)(63+128 downto 32+128);
+        corFBHeader(i*2+1).HOffsetP <= corMetaOut(i)(95+128 downto 64+128);
+        corFBHeader(i*2+1).VOffsetP <= corMetaOut(i)(127+128 downto 96+128);
+        corFBHeader(i*2+1).virtualChannel <= "0000" & std_logic_vector(unsigned(corMetaOut(i)(267 downto 256)) + 1);
+        corFBHeader(i*2+1).valid <= corMetaOut(i)(305);
+        corFBHeader(i*2+1).integration <= corMetaOut(i)(303 downto 272);
+        corFBHeader(i*2+1).ctFrame <= corMetaOut(i)(271 downto 270);
+        corFBHeader(i*2+1).bad_poly <= corMetaOut(i)(269);
+        corFBHeader(i*2+1).lastChannel <= corMetaOut(i)(306);
+        corFBHeader(i*2+1).demap_table_select <= corMetaOut(i)(307);
     
-    corfb2i : entity filterbanks_lib.correlatorFBTop25
-    generic map(
-        METABITS => 620,    -- Width in bits of the meta_i and meta_o ports.
-        FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
-    ) port map (
-        -- processing clock
-        clk     => i_axi_clk,
-        rst     => i_SOF,
-        -- Data input, common valid signal, expects packets of 64 samples. 
-        -- Requires at least 2 clocks idle time between packets.
-        -- Due to oversampling, also requires on average 86 clocks between packets - specifically, no more than 3 packets in 258 clocks. 
-        data0_i => data4, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        data1_i => data5, -- in t_slv_8_arr(1 downto 0);
-        data2_i => data6, -- in t_slv_8_arr(1 downto 0);
-        data3_i => data7, -- in t_slv_8_arr(1 downto 0);
-        RFI_threshold01_i => RFI_threshold(2),
-        RFI_threshold23_i => RFI_threshold(3),
-        meta_i  => correlatorMetaIn, -- in std_logic_vector((METABITS-1) downto 0);  -- Sampled on the first cycle of every third packet of valid_i. 
-        valid_i => DataValid,    -- in std_logic;
-        -- Data out; bursts of 216 clocks for each channel.
-        data0_o => corFBDout4,    -- out t_slv_16_arr(1 downto 0);   -- 6 outputs, real and imaginary parts in (0) and (1) respectively;
-        data1_o => corFBDout5,    -- out t_slv_16_arr(1 downto 0);
-        data2_o => corFBDout6,    -- out t_slv_16_arr(1 downto 0);
-        data3_o => corFBDout7,    -- out t_slv_16_arr(1 downto 0);
-        mark_RFI01_o => mark_RFI45, -- out std_logic;
-        mark_RFI23_o => mark_RFI67, -- out std_logic;
-        meta_o  => open,  -- out std_logic_vector((METABITS-1) downto 0);
-        valid_o => open,  -- out std_logic;
-        -- Writing FIR Taps
-        FIRTapData_i   => (others => '0'),  -- in std_logic_vector(17 downto 0);  -- For register writes of the filtertaps.
-        FIRTapData_o   => open,             -- out std_logic_vector(17 downto 0); -- For register reads of the filtertaps. 3 cycle latency from FIRTapAddr_i
-        FIRTapAddr_i   => (others => '0'),  -- in std_logic_vector(15 downto 0);   -- 4096 * 12 filter taps = 49152 total.
-        FIRTapWE_i     => '0',              -- in std_logic;
-        FIRTapClk      => i_axi_clk         -- in std_logic;
-    );
-    
-    -- Pack the filterbank output into a structure for input to the fine delay module.
-    corDout_arr(0).hpol.re <= corFBDout0(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(0).hpol.im <= corFBDout0(1);
-    corDout_arr(0).vpol.re <= corFBDout1(0);
-    corDout_arr(0).vpol.im <= corFBDout1(1);
-    corDout_arr(1).hpol.re <= corFBDout2(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(1).hpol.im <= corFBDout2(1);
-    corDout_arr(1).vpol.re <= corFBDout3(0);
-    corDout_arr(1).vpol.im <= corFBDout3(1);
-    corDout_arr(2).hpol.re <= corFBDout4(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(2).hpol.im <= corFBDout4(1);
-    corDout_arr(2).vpol.re <= corFBDout5(0);
-    corDout_arr(2).vpol.im <= corFBDout5(1);
-    corDout_arr(3).hpol.re <= corFBDout6(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(3).hpol.im <= corFBDout6(1);
-    corDout_arr(3).vpol.re <= corFBDout7(0);
-    corDout_arr(3).vpol.im <= corFBDout7(1);
-    
-    --o_CorDataValid <= CorValidOut;
-    corFBHeader(0).HDeltaP <= corMetaOut(31 downto 0);
-    corFBHeader(0).VDeltaP <= corMetaOut(63 downto 32);
-    corFBHeader(0).HOffsetP <= corMetaOut(95 downto 64);
-    corFBHeader(0).VOffsetP <= corMetaOut(127 downto 96);
-    corFBHeader(0).virtualChannel <= corMetaOut(143 downto 128);
-    corFBHeader(0).valid <= corMetaOut(144);
-    corFBHeader(0).integration <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(0).ctFrame <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(0).bad_poly <= corMetaOut(614);
-    corFBHeader(0).lastChannel <= corMetaOut(618);
-    corFBHeader(0).demap_table_select <= corMetaOut(619);
-    markRFI(0) <= mark_RFI01;
-    
-    corFBHeader(1).HDeltaP <= corMetaOut(31+145 downto 145+0);
-    corFBHeader(1).VDeltaP <= corMetaOut(63+145 downto 32+145);
-    corFBHeader(1).HOffsetP <= corMetaOut(95+145 downto 64+145);
-    corFBHeader(1).VOffsetP <= corMetaOut(127+145 downto 96+145);
-    corFBHeader(1).virtualChannel <= corMetaOut(143+145 downto 128+145);
-    corFBHeader(1).valid <= corMetaOut(144+145);
-    corFBHeader(1).integration <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(1).ctFrame <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(1).bad_poly <= corMetaOut(615);
-    corFBHeader(1).lastChannel <= corMetaOut(618);
-    corFBHeader(1).demap_table_select <= corMetaOut(619);
-    markRFI(1) <= mark_RFI23;
-    
-    corFBHeader(2).HDeltaP <= corMetaOut(31+290 downto 0+290);
-    corFBHeader(2).VDeltaP <= corMetaOut(63+290 downto 32+290);
-    corFBHeader(2).HOffsetP <= corMetaOut(95+290 downto 64+290);
-    corFBHeader(2).VOffsetP <= corMetaOut(127+290 downto 96+290);
-    corFBHeader(2).virtualChannel <= corMetaOut(143+290 downto 128+290);
-    corFBHeader(2).valid <= corMetaOut(144+290);
-    corFBHeader(2).integration <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(2).ctFrame <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(2).bad_poly <= corMetaOut(616);
-    corFBHeader(2).lastChannel <= corMetaOut(618);
-    corFBHeader(2).demap_table_select <= corMetaOut(619);
-    markRFI(2) <= mark_RFI45;
-    
-    corFBHeader(3).HDeltaP <= corMetaOut(31+435 downto 0+435);
-    corFBHeader(3).VDeltaP <= corMetaOut(63+435 downto 32+435);
-    corFBHeader(3).HOffsetP <= corMetaOut(95+435 downto 64+435);
-    corFBHeader(3).VOffsetP <= corMetaOut(127+435 downto 96+435);
-    corFBHeader(3).virtualChannel <= corMetaOut(143+435 downto 128+435);
-    corFBHeader(3).valid <= corMetaOut(144+435);
-    corFBHeader(3).integration <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(3).ctFrame <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(3).bad_poly <= corMetaOut(617);
-    corFBHeader(3).lastChannel <= corMetaOut(618);
-    corFBHeader(3).demap_table_select <= corMetaOut(619);
-    markRFI(3) <= mark_RFI67;
+    end generate;
     
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
@@ -437,25 +290,24 @@ begin
         end if;
     end process;
     
-    FDGen : for i in 0 to 3 generate 
+    FDGen : for i in 0 to (2*g_FILTERBANKS_DIV2 - 1) generate
+        -- one fineDelay module per virtual channel
         FineDelay : entity filterbanks_lib.fineDelay
         generic map (
             FBSELECTION => 2  -- 2 = Correlator
-        )
-        port map (
+        ) port map (
             i_clk  => i_axi_clk,
             -- data and header in
             i_data        => corDout_arr(i),    -- in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
-            i_markRFI     => markRFI(i),        -- in std_logic;
-            i_dataValid   => corValidOut,       -- in std_logic;
+            i_markRFI     => mark_RFI(i),       -- in std_logic;
+            i_dataValid   => corValidOut(i),    -- in std_logic;
             i_header      => corFBHeader(i),    -- .HDeltaP(31:0), .VDeltaP(31:0), .HOffsetP(31:0), .VOffsetP(31:0), integration(31:0), ctFrame(1:0), virtualChannel(15:0);
-            i_headerValid => corFBHeaderValid,  -- in std_logic;
+            i_headerValid => corFBHeaderValid(0),  -- in std_logic;
             -- Data and Header out
             o_data        => FDdata(i),         -- out t_ctc_output_payload;   -- 8 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
             o_dataValid   => FDcorDataValid(i), -- out std_logic;
             o_header      => FDHeader(i),       -- .HDeltaP(31:0), .VDeltaP(31:0), .HOffsetP(31:0), .VOffsetP(31:0), integration(31:0), ctFrame(1:0), virtualChannel(15:0);
             o_headerValid => headerValid(i),    -- out std_logic;
-    
             -------------------------------------------
             -- control and monitoring
             -- Disable the fine delay. Instead of multiplying by the output of the sin/cos lookup, just scale by unity.
@@ -482,14 +334,27 @@ begin
             o_virtualChannel => open, -- hist_virtualChannel(i), -- out(8:0);
             o_histogramValid => open  -- hist_valid(i) -- out std_logic -- indicates histogram data is valid.
         );
+        
+        o_virtualChannel(i) <= FDHeader(i).virtualChannel;
+        
     end generate;
+    
     o_data <= FDdata;
     o_dataValid <= FDcorDataValid(0);  -- FDPSTDataValid(0) and (1), (2), (3) will be the same.
-    o_virtualChannel(0) <= FDHeader(0).virtualChannel;
-    o_virtualChannel(1) <= FDHeader(1).virtualChannel;
-    o_virtualChannel(2) <= FDHeader(2).virtualChannel;
-    o_virtualChannel(3) <= FDHeader(3).virtualChannel;
-    o_bad_poly <= FDHeader(0).bad_poly or FDHeader(1).bad_poly or FDHeader(2).bad_poly or FDHeader(3).bad_poly;
+    
+    o_bad_poly(0) <= FDHeader(0).bad_poly;
+    o_bad_poly(1) <= FDHeader(1).bad_poly;
+    o_bad_poly(2) <= FDHeader(2).bad_poly;
+    o_bad_poly(3) <= FDHeader(3).bad_poly;
+    o_bad_poly(4) <= FDHeader(4).bad_poly;
+    o_bad_poly(5) <= FDHeader(5).bad_poly;
+    o_bad_poly(6) <= FDHeader(6).bad_poly;
+    o_bad_poly(7) <= FDHeader(7).bad_poly;
+    o_bad_poly(8) <= FDHeader(8).bad_poly;
+    o_bad_poly(9) <= FDHeader(9).bad_poly;
+    o_bad_poly(10) <= FDHeader(10).bad_poly;
+    o_bad_poly(11) <= FDHeader(11).bad_poly;
+    
     o_lastChannel <= FDHeader(0).lastChannel;
     o_demap_table_select <= FDHeader(0).demap_table_select;
     
@@ -499,64 +364,64 @@ begin
     ---------------------------------------------------------------
     -- Registers
     -- 
-
--- ARGS U55
-gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE 
-    filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_reg
-    port map(
-        MM_CLK              => i_axi_clk,   -- in  std_logic;
-        MM_RST              => i_axi_rst,   -- in  std_logic;
-        SLA_IN              => i_axi_mosi,  -- IN  t_axi4_lite_mosi;
-        SLA_OUT             => o_axi_miso,  -- OUT t_axi4_lite_miso;
-        CONFIG_FIELDS_RO	=> config_ro,   -- IN  t_config_ro;
-        CONFIG_FIELDS_RW    => config_rw,   -- out t_config_rw;
-        CONFIG_OUTPUT_DISABLE_IN  => output_disable_i, -- IN  t_config_output_disable_ram_in;
-        CONFIG_OUTPUT_DISABLE_OUT => output_disable_o  -- OUT t_config_output_disable_ram_out
-    );
-END GENERATE;
-
--- ARGS Gaskets for V80
-gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
-
-    i_fb_noc : entity noc_lib.args_noc
-    generic map (
-        G_DEBUG => FALSE
-    )
-    port map ( 
-        i_clk       => i_axi_clk,
-        i_rst       => i_axi_rst,
     
-        noc_wren    => noc_wren,
-        noc_rden    => noc_rden,
-        noc_wr_adr  => noc_wr_adr,
-        noc_wr_dat  => noc_wr_dat,
-        noc_rd_adr  => noc_rd_adr,
-        noc_rd_dat  => noc_rd_dat_mux
-    );
-
-    filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_versal
-    port map(
-        MM_CLK                  => i_axi_clk,   -- in  std_logic;
-        MM_RST                  => i_axi_rst,   -- in  std_logic;
-
-        noc_wren                => noc_wren,
-        noc_rden                => noc_rden,
-        noc_wr_adr              => noc_wr_adr,
-        noc_wr_dat              => noc_wr_dat,
-        noc_rd_adr              => noc_rd_adr,
-        noc_rd_dat              => noc_rd_dat_mux,
+    -- ARGS U55
+    gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE 
+        filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_reg
+        port map(
+            MM_CLK              => i_axi_clk,   -- in  std_logic;
+            MM_RST              => i_axi_rst,   -- in  std_logic;
+            SLA_IN              => i_axi_mosi,  -- IN  t_axi4_lite_mosi;
+            SLA_OUT             => o_axi_miso,  -- OUT t_axi4_lite_miso;
+            CONFIG_FIELDS_RO	=> config_ro,   -- IN  t_config_ro;
+            CONFIG_FIELDS_RW    => config_rw,   -- out t_config_rw;
+            CONFIG_OUTPUT_DISABLE_IN  => output_disable_i, -- IN  t_config_output_disable_ram_in;
+            CONFIG_OUTPUT_DISABLE_OUT => output_disable_o  -- OUT t_config_output_disable_ram_out
+        );
+    END GENERATE;
+    
+    -- ARGS Gaskets for V80
+    gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
+    
+        i_fb_noc : entity noc_lib.args_noc
+        generic map (
+            G_DEBUG => FALSE
+        )
+        port map ( 
+            i_clk       => i_axi_clk,
+            i_rst       => i_axi_rst,
         
-        CONFIG_FIELDS_RO        => config_ro,   -- IN  t_config_ro;
-        CONFIG_FIELDS_RW        => config_rw,   -- out t_config_rw;
-        CONFIG_OUTPUT_DISABLE_IN    => output_disable_i, -- IN  t_config_output_disable_ram_in;
-        CONFIG_OUTPUT_DISABLE_OUT   => output_disable_o  -- OUT t_config_output_disable_ram_out
-    );
-
-END GENERATE;
+            noc_wren    => noc_wren,
+            noc_rden    => noc_rden,
+            noc_wr_adr  => noc_wr_adr,
+            noc_wr_dat  => noc_wr_dat,
+            noc_rd_adr  => noc_rd_adr,
+            noc_rd_dat  => noc_rd_dat_mux
+        );
+    
+        filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_versal
+        port map(
+            MM_CLK                  => i_axi_clk,   -- in  std_logic;
+            MM_RST                  => i_axi_rst,   -- in  std_logic;
+    
+            noc_wren                => noc_wren,
+            noc_rden                => noc_rden,
+            noc_wr_adr              => noc_wr_adr,
+            noc_wr_dat              => noc_wr_dat,
+            noc_rd_adr              => noc_rd_adr,
+            noc_rd_dat              => noc_rd_dat_mux,
+            
+            CONFIG_FIELDS_RO        => config_ro,   -- IN  t_config_ro;
+            CONFIG_FIELDS_RW        => config_rw,   -- out t_config_rw;
+            CONFIG_OUTPUT_DISABLE_IN    => output_disable_i, -- IN  t_config_output_disable_ram_in;
+            CONFIG_OUTPUT_DISABLE_OUT   => output_disable_o  -- OUT t_config_output_disable_ram_out
+        );
+    
+    END GENERATE;
 
 
     config_ro.status <= x"00000000";
-    config_ro.txCount_eth <= tx_packet_count;
+    config_ro.txCount_eth <= (others => '0');
     config_ro.txcount_corner_turn <= tx_packet_count_ct;
     
     process(i_axi_clk)
@@ -565,13 +430,6 @@ END GENERATE;
             RFIScale <= config_rw.scaling(4 downto 0);
             reg_reset <= config_rw.config(0);
             reg_reset_del1 <= reg_reset;
-            
-            -- count of ethernet packet going out.
-            if reg_reset = '1' and reg_reset_del1 = '0' then
-                tx_packet_count <= (others => '0');
-            elsif packetValid = '1' and packetValidDel1 = '0' then
-                tx_packet_count <= std_logic_vector(unsigned(tx_packet_count) + 1);
-            end if;
             
             -- count of packets going out to the corner turn.
             FDcorDataValidDel <= FDcorDataValid(0);
@@ -590,300 +448,5 @@ END GENERATE;
     output_disable_i.rd_en <= '1';
     output_disable_i.clk <= i_axi_clk;
     output_disable_i.rst <= '0';
-    
-    --------------------------------------------------------------
-    -- Packets of samples to go to the 100G
-    -- Each output packet contains : 
-    --  16 byte header : 
-    --    5 bytes = 40 bits : framecount
-    --    2 bytes = 16 bits : virtual channel
-    --    1 byte  = 8  bits : Polarisation (either 0 or 1)
-    --    8 bytes           : unused.
-    --  Data : 
-    --    8+8 bit complex data for 3456 fine channels.
-    --    = 6912 bytes of data.
-    
-    -- Buffer : The output from the fine delay arrives as a burst, with
-    --  16 bytes wide; 3456 clocks long.
-    -- This double buffers the data so that we can output packets with data for a single
-    -- coarse channel and polarisation in a single packet.
-    -- The buffer is split into 16 x (512 deep) pages, 2 buffers for each of
-    --  coarse 0, pol 0, 
-    --  coarse 0, pol 1,
-    --  coarse 1, pol 0,
-    --  coarse 1, pol 1,
-    --  coarse 2, pol 0, 
-    --  coarse 2, pol 1,
-    --  coarse 3, pol 0, 
-    --  coarse 3, pol 1,
-    process(i_axi_clk)
-    begin
-        if rising_edge(i_axi_clk) then
-            -- Capture the data from the fine delay module into 128 bit words for each channel and polarisation
-            -- Each captureData(i) is 256 bits wide, with 128 bits loaded every 8 clocks.
-            for i in 0 to 3 loop
-                captureData(2*i)((16*to_integer(unsigned(captureCount)) + 7) downto (16*to_integer(unsigned(captureCount)) + 0)) <= FDdata(i).Hpol.re;
-                captureData(2*i)((16*to_integer(unsigned(captureCount)) + 15) downto (16*to_integer(unsigned(captureCount)) + 8)) <= FDdata(i).hpol.im;
-                captureData(2*i + 1)((16*to_integer(unsigned(captureCount)) + 7) downto (16*to_integer(unsigned(captureCount)) + 0)) <= FDdata(i).vpol.re;
-                captureData(2*i + 1)((16*to_integer(unsigned(captureCount)) + 15) downto (16*to_integer(unsigned(captureCount)) + 8)) <= FDdata(i).vpol.im;
-            end loop;
-            FDcorDataValidDel1 <= FDcorDataValid(0);
-            if FDcorDataValid(0) = '0' then
-                captureCount <= "0000";
-            else
-                captureCount <= std_logic_vector(unsigned(captureCount) + 1);
-            end if;
-            if captureCount = "0000" and FDcorDataValid(0) = '1' then
-                triggerRdLow128bits(0) <= '1'; -- Currently writing to the start of the low 128 bits in the captureData vectors, so in 8 clocks time we will have to copy to the ultraRAM buffer.
-            else
-                triggerRdLow128bits(0) <= '0';
-            end if;
-            if captureCount = "1000" and FDcorDataValid(0) = '1' then
-                triggerRdHigh128bits(0) <= '1'; -- Currently writing to the start of the high 128 bits in the captureData vectors, so in 8 clocks time we will have to copy to the ultraRAM buffer.
-            else
-                triggerRdHigh128bits(0) <= '0';
-            end if;
-            
-            triggerRdLow128bits(6 downto 1) <= triggerRdLow128bits(5 downto 0);
-            triggerRdHigh128bits(6 downto 1) <= triggerRdHigh128bits(5 downto 0);
-            
-            if triggerRdLow128bits(6) = '1' then
-                copyToUramCount <= "000";
-                copyToUramValidHigh <= '0';
-                copyToUramValidLow <= '1';
-            elsif triggerRdHigh128bits(6) = '1' then
-                copyToUramCount <= "000";
-                copyToUramValidHigh <= '1';
-                copyToUramValidLow <= '0';
-            elsif (copyToUramValidLow = '1' or copyToUramValidHigh = '1') then
-                copyToUramCount <= std_logic_vector(unsigned(copyToUramCount) + 1);
-                if copyToUramCount = "111" then
-                    copyToUramValidLow <= '0';
-                    copyToUramValidHigh <= '0';
-                end if;
-            else
-                copyToUramValidLow <= '0';
-                copyToUramValidHigh <= '0';
-            end if;
-            
-            if (FDcorDataValid(0) = '1' and FDcorDataValidDel1 = '0') then
-                -- Total 13 bits of address
-                bufWrAddrDoubleBufferSelect <= not bufWrAddrDoubleBufferSelect;  -- data is double buffered in the uram;
-                bufWrAddrBufferAdv <= "000";      -- Four different virtual channel, 2 polarisations = 8 buffers.
-            elsif copyToUramValidLow = '1' then -- write the low 128 bits of capture data to the uram buffer.
-                bufWrData <= captureData(to_integer(unsigned(copyToUramCount)))(127 downto 0);
-                bufWrAddrBufferAdv <= std_logic_vector(unsigned(bufWrAddrBufferAdv) + 1);  -- capture data contains data for all 8 buffers; Step through each one.
-                bufWE(0) <= '1';
-            elsif copyToUramValidHigh = '1' then  -- write the top 128 bits of captureData to the uram buffer.
-                bufWrData <= captureData(to_integer(unsigned(copyToUramCount)))(255 downto 128);
-                bufWrAddrBufferAdv <= std_logic_vector(unsigned(bufWrAddrBufferAdv) + 1);
-                bufWE(0) <= '1';
-            else
-                bufWE(0) <= '0';
-            end if;
-            bufWrAddrBuffer <= bufWrAddrBufferAdv;
-            
-            copyToUramValidLowDel1 <= copyToUramValidLow;
-            copyToUramValidHighDel1 <= copyToUramValidHigh;
-            
-            if (FDcorDataValid(0) = '1' and FDcorDataValidDel1 = '0') then
-                bufWrAddrWord <= "000000000";  -- Each buffer is 512 words deep; actual used part is 3456 fine channels / 8 = 432 words.
-            elsif ((copyToUramValidLow = '0' and copyToUramValidLowDel1 = '1') or
-                   (copyToUramValidHigh = '0' and copyToUramValidHighDel1 = '1')) then
-                bufWrAddrWord <= std_logic_vector(unsigned(bufWrAddrWord) + 1);
-            end if;
-            
-            
-            if FDcorDataValid(0) = '0' and FDcorDataValidDel1 = '1' then 
-                -- End of a packet from the fine delay module, now copy the data out to the 100G
-                triggerSendTo100GE <= '1';
-            else
-                triggerSendTo100GE <= '0';
-            end if;
-            
-            -- Get the meta data for the packet headers
-            if headerValid(0) = '1' then
-                vc_hold(0) <= FDHeader(0).virtualChannel;
-                vc_hold(1) <= FDHeader(1).virtualChannel;
-                vc_hold(2) <= FDHeader(2).virtualChannel;
-                vc_hold(3) <= FDHeader(3).virtualChannel;
-                integration_hold <= FDHeader(0).integration;
-            end if;
-            
-            -- fsm to send packets of data to the 100GE
-            if triggerSendTo100GE = '1' then
-                sendTo100GE_fsm <= start;
-            else
-                case sendTo100GE_fsm is
-                    when start =>
-                        vc_out(0) <= vc_hold(0);
-                        vc_out(1) <= vc_hold(1);
-                        vc_out(2) <= vc_hold(2);
-                        vc_out(3) <= vc_hold(3);
-                        integration_out <= integration_hold;
-                        bufRdAddrDoubleBufferSelect <= bufWrAddrDoubleBufferSelect;  -- Read the buffer that just got written.
-                        bufRdAddrBuffer <= "000";
-                        bufRdAddrWord <= "000000000";
-                        sendTo100GE_fsm <= checkEnableWait0;
-                    
-                    when checkEnableWait0 =>
-                        -- wait to read the memory in the registers to see if this output channel is enabled for output to the 100GE
-                        sendTo100GE_fsm <= checkEnableWait1;
-                    
-                    when checkEnableWait1 =>
-                        sendTo100GE_fsm <= checkEnableWait2;
-                    
-                    when checkEnableWait2 =>
-                        sendTo100GE_fsm <= checkEnableWait3;
-                    
-                    when checkEnableWait3 =>
-                        sendTo100GE_fsm <= checkEnable;                 
-                    
-                    when checkEnable =>
-                        -- Check the registers to see if this virtual channel should be sent out.
-                        if output_disabled = '0' then
-                            sendTo100GE_fsm <= waitReady;
-                        else
-                            sendTo100GE_fsm <= nextBuffer;
-                        end if;
-                        
-                    when waitReady => 
-                        -- Wait for the 100GE interface module to be ready to receive data.
-                        if i_packetReady = '1' then
-                            sendTo100GE_fsm <= sendHeader;
-                        end if;
-                        
-                    when sendHeader =>
-                        sendTo100GE_fsm <= sendData;
-                     
-                    when sendData => 
-                        bufRdAddrWord <= std_logic_vector(unsigned(bufRdAddrWord) + 1);
-                        if (unsigned(bufRdAddrWord) = 431) then
-                            sendTo100GE_fsm <= nextBuffer;
-                        end if;
-                        
-                    when nextBuffer =>
-                        bufRdAddrBuffer <= std_logic_vector(unsigned(bufRdAddrBuffer) + 1);
-                        bufRdAddrWord <= (others => '0');
-                        if (bufRdAddrBuffer = "111") then
-                            sendTo100GE_fsm <= done;
-                        else
-                            sendTo100GE_fsm <= checkEnable;
-                        end if;
-                    
-                    when done =>
-                        -- Just wait here until the fsm is triggered again by "triggerSendTo100GE"
-                        sendTo100GE_fsm <= done;
-                    
-                    when others =>
-                end case;
-            end if;
-            
-            case bufRdAddrBuffer(2 downto 1) is 
-                when "00"   => output_disable_addr <= vc_out(0)(9 downto 0);
-                when "01"   => output_disable_addr <= vc_out(1)(9 downto 0);
-                when "10"   => output_disable_addr <= vc_out(2)(9 downto 0);
-                when others => output_disable_addr <= vc_out(3)(9 downto 0);
-            end case;
-            
-            output_disabled <= output_disable_o.rd_dat(0);
-            
-            -- Reading from the ultraRAM buffer memory has a three cycle latency.
-            sendTo100GE_fsm_del1 <= sendTo100GE_fsm;
-            bufRdAddrBufferDel1 <= bufRdAddrBuffer;
-            
-            sendTo100GE_fsm_del2 <= sendTo100GE_fsm_del1;
-            bufRdAddrBufferDel2 <= bufRdAddrBufferDel1;
-            
-            sendTo100GE_fsm_del3 <= sendTo100GE_fsm_del2;
-            bufRdAddrBufferDel3 <= bufRdAddrBufferDel2;
-            
-            if (sendTo100GE_fsm_del3 = sendHeader) then
-                o_packetData(39 downto 0) <= "00000000" & integration_out;
-                o_packetData(63 downto 40) <= x"000000";
-                case bufRdAddrBufferDel3(2 downto 1) is
-                    when "00"   => o_packetData(79 downto 64) <= vc_out(0);
-                    when "01"   => o_packetData(79 downto 64) <= vc_out(1);
-                    when "10"   => o_packetData(79 downto 64) <= vc_out(2);
-                    when others => o_packetData(79 downto 64) <= vc_out(3);
-                end case;
-                o_packetData(80) <= bufRdAddrBufferDel3(0); -- bit 0 of the buffer selects the polarisation
-                o_packetData(87 downto 81) <= "0000000";
-                o_packetData(95 downto 88) <= x"00";
-                o_packetData(127 downto 96) <= x"C0EAF11E"; -- magic word, something like C0rrElAtorF1nE
-            else
-                o_packetData <= bufDout;
-            end if;
-            
-            if (sendTo100GE_fsm_del3 = sendHeader) or (sendTo100GE_fsm_del3 = sendData) then
-                packetValid <= '1';
-            else
-                packetValid <= '0';
-            end if;
-            
-            packetValidDel1 <= packetValid;
-            
-        end if;
-    end process;
-    
-    o_packetValid <= packetValid;
-    
-    bufWrAddr(12) <= bufWrAddrDoubleBufferSelect;
-    bufWrAddr(11 downto 9) <= bufWrAddrBuffer;
-    bufWrAddr(8 downto 0) <= bufWrAddrWord;
-    
-    bufRdAddr(12) <= bufRdAddrDoubleBufferSelect;
-    bufRdAddr(11 downto 9) <= bufRdAddrBuffer;
-    bufRdAddr(8 downto 0) <= bufRdAddrWord;
-    
-    buffer_to_100G_inst : xpm_memory_sdpram
-    generic map (    
-        -- Common module generics
-        MEMORY_SIZE             => 1048576,        -- Total memory size in bits; 8192 x 128 = 1048576
-        MEMORY_PRIMITIVE        => "ultra",        --string; "auto", "distributed", "block" or "ultra" ;
-        CLOCKING_MODE           => "common_clock", --string; "common_clock", "independent_clock" 
-        MEMORY_INIT_FILE        => "none",         --string; "none" or "<filename>.mem" 
-        MEMORY_INIT_PARAM       => "",             --string;
-        USE_MEM_INIT            => 0,              --integer; 0,1
-        WAKEUP_TIME             => "disable_sleep",--string; "disable_sleep" or "use_sleep_pin" 
-        MESSAGE_CONTROL         => 0,              --integer; 0,1
-        ECC_MODE                => "no_ecc",       --string; "no_ecc", "encode_only", "decode_only" or "both_encode_and_decode" 
-        AUTO_SLEEP_TIME         => 0,              --Do not Change
-        USE_EMBEDDED_CONSTRAINT => 0,              --integer: 0,1
-        MEMORY_OPTIMIZATION     => "true",         --string; "true", "false" 
-    
-        -- Port A module generics
-        WRITE_DATA_WIDTH_A      => 128,            --positive integer
-        BYTE_WRITE_WIDTH_A      => 128,            --integer; 8, 9, or WRITE_DATA_WIDTH_A value
-        ADDR_WIDTH_A            => 13,             --positive integer
-    
-        -- Port B module generics
-        READ_DATA_WIDTH_B       => 128,            --positive integer
-        ADDR_WIDTH_B            => 13,             --positive integer
-        READ_RESET_VALUE_B      => "0",            --string
-        READ_LATENCY_B          => 3,              --non-negative integer
-        WRITE_MODE_B            => "read_first")    --string; "write_first", "read_first", "no_change" 
-    port map (
-        -- Common module ports
-        sleep                   => '0',
-        -- Port A (Write side)
-        clka                    => i_axi_clk,  -- clock for the shared memory, 300 MHz
-        ena                     => '1',
-        wea                     => bufWE,
-        addra                   => bufWrAddr,
-        dina                    => bufWrData,
-        injectsbiterra          => '0',
-        injectdbiterra          => '0',
-        -- Port B (read side)
-        clkb                    => i_axi_clk,  -- Filterbank clock, also 300 MHz.
-        rstb                    => '0',
-        enb                     => '1',
-        regceb                  => '1',
-        addrb                   => bufRdAddr,
-        doutb                   => bufDout,
-        sbiterrb                => open,
-        dbiterrb                => open
-    );
-    
     
 end Behavioral;
