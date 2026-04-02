@@ -136,24 +136,29 @@ entity poly_eval is
         -- Number of virtual channels to generate in at a time, code supports up to 16
         -- Code assumes at least 4, otherwise it would need extra delays to wait for data to return from the memory. 
         g_VIRTUAL_CHANNELS : integer range 4 to 16 := 4;
-        g_VC_LOG2 : integer := 2
+        -- Offset into the configuration memory for the second buffer.
+        -- Must be set to the number of virtual channels supported * 10
+        g_BUFFER_OFFSET : integer := 10240
     );
     port(
         clk : in std_logic;
         -- First output after a reset will reset the data generation
         i_rst : in std_logic;
         -- Control
-        i_start            : in std_logic; -- start on a batch of 4 polynomials
-        i_virtual_channels : in t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0); -- List of virtual channels to evaluate; this maps to the address in the lookup table.
-        i_integration      : in std_logic_vector(31 downto 0); -- which integration is this for ?
-        i_ct_frame         : in std_logic_vector(1 downto 0);     -- 3 corner turn frames per integration
-        o_idle             : out std_logic;
+        i_start                 : in std_logic; -- start on a batch of 4 polynomials
+        -- First virtual channels to evaluate; this maps to the address in the lookup table. 
+        -- Other channels are i_first_virtual_channel + 1, i_virtual_channel + 2 etc up to g_VIRTUAL_CHANNELS 
+        i_first_virtual_channel : in std_logic_vector(15 downto 0); 
+        i_integration           : in std_logic_vector(31 downto 0); -- which integration is this for ?
+        i_ct_frame              : in std_logic_vector(1 downto 0);  -- 3 corner turn frames per integration
+        o_idle                  : out std_logic;
         
-        -- read the config memory (to get polynomial coefficients)
+        -- Read the config memory (to get polynomial coefficients)
         -- Block ram interface for access by the rest of the module
-        -- Memory is 20480 x 8 byte words = (2 buffers) x (10240 words) = (1024 virtual channels) x (10 words)
+        -- Memory is 20480 x 8 byte words = (2 buffers) x [(10240 words) = (1024 virtual channels) x (10 words)]
+        -- Memory is 61440 x 8 byte words = (2 buffers) x [(30720 words) = (3072 virtual channels) x (10 words)]
         -- read latency 3 clocks
-        o_rd_addr  : out std_logic_vector(14 downto 0);
+        o_rd_addr  : out std_logic_vector(15 downto 0);
         i_rd_data  : in std_logic_vector(63 downto 0);  -- 3 clock latency.
 
         -----------------------------------------------------------------------
@@ -171,6 +176,7 @@ entity poly_eval is
         --  - bufVpolDeltaP : 16 bits. Delay as a phase step across the coarse channel
         --  - bufVpolPhase  : 16 bits. Phase offset for V pol
         o_vc : out std_logic_vector(15 downto 0);
+        o_vcCount : out std_logic_vector(3 downto 0); -- which virtual channel in the current batch, 0 to (g_VIRTUAL_CHANNELS - 1)
         o_packet : out std_logic_vector(15 downto 0);
         --
         o_sample_offset : out std_logic_vector(11 downto 0); -- Number of whole 1080ns samples to delay by.
@@ -292,12 +298,13 @@ architecture Behavioral of poly_eval is
     signal poly_fsm : poly_fsm_type := wait_new_vc;
     type t_poly_fsm_del is array(47 downto 0) of poly_fsm_type;
     signal poly_fsm_del : t_poly_fsm_del;
+    signal first_virtual_channel : std_logic_vector(15 downto 0);
     signal virtual_channels : t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     signal virtual_channels_x10, virtual_channels_x8, virtual_channels_x2, vc_base_addr : t_slv_20_arr((g_VIRTUAL_CHANNELS-1) downto 0);
     signal integration : std_logic_vector(31 downto 0);
     signal ct_frame : std_logic_vector(1 downto 0);
-    signal vc_count : std_logic_vector((g_VC_LOG2-1) downto 0);
-    signal vc_count_del : t_slv_2_arr(47 downto 0);
+    signal vc_count : std_logic_vector(3 downto 0);
+    signal vc_count_del : t_slv_4_arr(47 downto 0);
     signal no_valid_buffer_count : std_logic_vector(15 downto 0) := x"0000";
     signal state_count : std_logic_vector(7 downto 0);
     
@@ -315,16 +322,16 @@ architecture Behavioral of poly_eval is
     
     signal poly_rd_addr : std_logic_vector(19 downto 0);
     signal uptime : std_logic_vector(47 downto 0) := x"000000000000";
-    signal bad_poly : std_logic := '0';
+    signal bad_poly : std_logic_vector(15 downto 0) := (others => '0');
     
 begin
     
-    o_rd_addr <= poly_rd_addr(14 downto 0);
+    o_rd_addr <= poly_rd_addr(15 downto 0);
     
     vc_gen : for i in 0 to (g_VIRTUAL_CHANNELS-1) generate
         -- Processing for each of the virtual channels.
         -- 
-        
+        virtual_channels(i) <= std_logic_vector(unsigned(first_virtual_channel) + i);
         virtual_channels_x8(i) <= '0' & virtual_channels(i) & "000";
         virtual_channels_x2(i) <= "000" & virtual_channels(i) & '0';
         
@@ -336,7 +343,7 @@ begin
                 if buffer_select(i) = '0' then
                     vc_base_addr(i) <= virtual_channels_x10(i);
                 else
-                    vc_base_addr(i) <= std_logic_vector(unsigned(virtual_channels_x10(i)) + 10240);
+                    vc_base_addr(i) <= std_logic_vector(unsigned(virtual_channels_x10(i)) + g_BUFFER_OFFSET);
                 end if; 
                 
                 -- Current time for each virtual channel
@@ -484,7 +491,7 @@ begin
                 case poly_fsm is
                     when start =>
                         poly_fsm <= wait_x10;
-                        virtual_channels <= i_virtual_channels;
+                        first_virtual_channel <= i_first_virtual_channel;
                         integration <= i_integration;
                         ct_frame <= i_ct_frame;
                     
@@ -627,9 +634,11 @@ begin
                     when add_packet_time =>
                         -- For each new time sample within a corner turn frame, 
                         --  add (4096*1080e-9) = 4.4368 ms = 0.004423680 seconds
-                        vc_count <= std_logic_vector(unsigned(vc_count) + 1);
                         if (unsigned(vc_count) = (g_VIRTUAL_CHANNELS-1)) then
                             poly_fsm <= wait_add_packet_time;
+                            vc_count <= (others => '0');
+                        else
+                            vc_count <= std_logic_vector(unsigned(vc_count) + 1);
                         end if;
                         state_count <= (others => '0');
                     
@@ -891,13 +900,14 @@ begin
             
             if poly_fsm = send_values then
                 o_vc <= virtual_channels(to_integer(unsigned(vc_count)));
+                o_vcCount <= vc_count;
                 o_packet <= x"00" & packets_sent; -- out std_logic_vector(15 downto 0);
                 o_sample_offset  <= sample_offset(to_integer(unsigned(vc_count)))(11 downto 0); -- Number of whole 1080ns samples to delay by.
                 o_Hpol_deltaP <= Hpol_deltaP(to_integer(unsigned(vc_count))); -- out std_logic_vector(15 downto 0);
                 o_Hpol_phase  <= Hpol_phase(to_integer(unsigned(vc_count)));
                 o_Vpol_deltaP <= Vpol_deltaP(to_integer(unsigned(vc_count)));
                 o_Vpol_phase <= Vpol_phase(to_integer(unsigned(vc_count)));
-                o_bad_poly <= bad_poly;
+                o_bad_poly <= bad_poly(to_integer(unsigned(vc_count)));
                 o_valid <= '1';
                 -- debug data
                 o_poly_result <= cur_poly_state(to_integer(unsigned(vc_count)));
@@ -908,6 +918,7 @@ begin
                 o_uptime <= uptime;   -- 48 bits, count of 300 MHz clocks.
             else
                 o_vc <= (others => '0');
+                o_vcCount <= (others => '0');
                 o_packet <= (others => '0'); -- out std_logic_vector(15 downto 0);
                 o_sample_offset <= (others => '0'); -- Number of whole 1080ns samples to delay by.
                 o_Hpol_deltaP <= (others => '0');
@@ -923,7 +934,7 @@ begin
             elsif poly_fsm = get_validity_buf1 then
                 -- read validity info for the second buffer for each virtual channel
                 -- validity = offset 7 within set of 10 words, second buffer = offset 10240
-                poly_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + 10240 + 9);
+                poly_rd_addr <= std_logic_vector(unsigned(virtual_channels_x10(to_integer(unsigned(vc_count)))) + g_BUFFER_OFFSET + 9);
             elsif (poly_fsm_del(9) = calc_t_start) then
                 -- Fetch from configuration memory the offset in seconds from the integration to the 
                 -- start of validity for the polynomial (word 7).
@@ -1013,9 +1024,9 @@ begin
             end if;
             
             if poly_fsm_del(7) = start then
-                bad_poly <= '0';
+                bad_poly(15 downto 0) <= (others => '0');
             elsif poly_fsm_del(7) = get_validity_buf1 and buf0_ok_del7 = '0' and buf1_ok_del7 = '0' then
-                bad_poly <= '1';
+                bad_poly(to_integer(unsigned(vc_count_del(7)))) <= '1';
             end if;
             
             

@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="ct2_tb_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="axi4_full_pkg" />
+            <top_module name="axi4_lite_pkg" />
+            <top_module name="axi4_stream_pkg" />
+            <top_module name="common_mem_pkg" />
+            <top_module name="common_pkg" />
+            <top_module name="corr_ct2_reg_pkg" />
+            <top_module name="ct2_tb" />
+            <top_module name="dsp_top_pkg" />
+            <top_module name="glbl" />
+            <top_module name="target_fpga_pkg" />
+            <top_module name="tech_memory_component_pkg" />
+            <top_module name="technology_pkg" />
+            <top_module name="technology_select_pkg" />
+            <top_module name="vcomponents" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="999,989 ps"></ZoomStartTime>
+      <ZoomEndTime time="1,000,003 ps"></ZoomEndTime>
+      <Cursor1Time time="1,000,000 ps"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="535"></NameColumnWidth>
+      <ValueColumnWidth column_width="244"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="108" />
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_aw">
+      <obj_property name="ElementShortName">logic_HBM_axi_aw[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_aw[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_aw">
+      <obj_property name="ElementShortName">HBM_axi_aw[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_aw[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_awready">
+      <obj_property name="ElementShortName">logic_HBM_axi_awready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_awready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awready">
+      <obj_property name="ElementShortName">HBM_axi_awready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_w">
+      <obj_property name="ElementShortName">logic_HBM_axi_w[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_w[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_w">
+      <obj_property name="ElementShortName">HBM_axi_w[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_w[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_wready">
+      <obj_property name="ElementShortName">logic_HBM_axi_wready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_wready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_wready">
+      <obj_property name="ElementShortName">HBM_axi_wready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_wready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_b">
+      <obj_property name="ElementShortName">logic_HBM_axi_b[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_b[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_b">
+      <obj_property name="ElementShortName">HBM_axi_b[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_b[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_ar">
+      <obj_property name="ElementShortName">logic_HBM_axi_ar[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_ar[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_ar">
+      <obj_property name="ElementShortName">HBM_axi_ar[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_ar[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_arready">
+      <obj_property name="ElementShortName">logic_HBM_axi_arready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_arready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arready">
+      <obj_property name="ElementShortName">HBM_axi_arready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_r">
+      <obj_property name="ElementShortName">logic_HBM_axi_r[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_r[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_r">
+      <obj_property name="ElementShortName">HBM_axi_r[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_r[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/logic_HBM_axi_rready">
+      <obj_property name="ElementShortName">logic_HBM_axi_rready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">logic_HBM_axi_rready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_rready">
+      <obj_property name="ElementShortName">HBM_axi_rready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_rready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_data">
+      <obj_property name="ElementShortName">cor_data[1:0][255:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_data[1:0][255:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_time">
+      <obj_property name="ElementShortName">cor_time[1:0][7:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_time[1:0][7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_station">
+      <obj_property name="ElementShortName">cor_station[1:0][11:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_station[1:0][11:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_valid">
+      <obj_property name="ElementShortName">cor_valid[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_valid[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_frameCount">
+      <obj_property name="ElementShortName">cor_frameCount[1:0][31:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_frameCount[1:0][31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_last">
+      <obj_property name="ElementShortName">cor_last[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_last[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_final">
+      <obj_property name="ElementShortName">cor_final[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_final[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_tileType">
+      <obj_property name="ElementShortName">cor_tileType[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_tileType[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_first">
+      <obj_property name="ElementShortName">cor_first[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_first[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_badPoly">
+      <obj_property name="ElementShortName">cor_badPoly[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_badPoly[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_tileLocation">
+      <obj_property name="ElementShortName">cor_tileLocation[1:0][9:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_tileLocation[1:0][9:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_tileChannel">
+      <obj_property name="ElementShortName">cor_tileChannel[1:0][23:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_tileChannel[1:0][23:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_tileTotalTimes">
+      <obj_property name="ElementShortName">cor_tileTotalTimes[1:0][7:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_tileTotalTimes[1:0][7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_tiletotalChannels">
+      <obj_property name="ElementShortName">cor_tiletotalChannels[1:0][6:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_tiletotalChannels[1:0][6:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_rowstations">
+      <obj_property name="ElementShortName">cor_rowstations[1:0][8:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_rowstations[1:0][8:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_colstations">
+      <obj_property name="ElementShortName">cor_colstations[1:0][8:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_colstations[1:0][8:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_totalStations">
+      <obj_property name="ElementShortName">cor_totalStations[1:0][15:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_totalStations[1:0][15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_subarrayBeam">
+      <obj_property name="ElementShortName">cor_subarrayBeam[1:0][7:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_subarrayBeam[1:0][7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/mc_lite_mosi">
+      <obj_property name="ElementShortName">mc_lite_mosi</obj_property>
+      <obj_property name="ObjectShortName">mc_lite_mosi</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/mc_lite_miso">
+      <obj_property name="ElementShortName">mc_lite_miso</obj_property>
+      <obj_property name="ObjectShortName">mc_lite_miso</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/send_fb_data">
+      <obj_property name="ElementShortName">send_fb_data</obj_property>
+      <obj_property name="ObjectShortName">send_fb_data</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/fb_fsm">
+      <obj_property name="ElementShortName">fb_fsm</obj_property>
+      <obj_property name="ObjectShortName">fb_fsm</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/fb_sof">
+      <obj_property name="ElementShortName">fb_sof</obj_property>
+      <obj_property name="ObjectShortName">fb_sof</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/fb_dataValid">
+      <obj_property name="ElementShortName">fb_dataValid</obj_property>
+      <obj_property name="ObjectShortName">fb_dataValid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_headerValid">
+      <obj_property name="ElementShortName">fb_headerValid[3:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_headerValid[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_virtualChannel">
+      <obj_property name="ElementShortName">fb_virtualChannel[3:0][15:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_virtualChannel[3:0][15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_count_slv">
+      <obj_property name="ElementShortName">fb_count_slv[15:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_count_slv[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/packets_sent_slv">
+      <obj_property name="ElementShortName">packets_sent_slv[15:0]</obj_property>
+      <obj_property name="ObjectShortName">packets_sent_slv[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_data">
+      <obj_property name="ElementShortName">fb_data[3:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_data[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/cor_ready">
+      <obj_property name="ElementShortName">cor_ready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">cor_ready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/hbm_reset_final">
+      <obj_property name="ElementShortName">hbm_reset_final</obj_property>
+      <obj_property name="ObjectShortName">hbm_reset_final</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/hbm_status">
+      <obj_property name="ElementShortName">hbm_status[1:0][7:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_status[1:0][7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/hbm_rst_dbg">
+      <obj_property name="ElementShortName">hbm_rst_dbg[1:0][31:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_rst_dbg[1:0][31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awsize">
+      <obj_property name="ElementShortName">HBM_axi_awsize[1:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awsize[1:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arprot">
+      <obj_property name="ElementShortName">HBM_axi_arprot[1:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arprot[1:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awprot">
+      <obj_property name="ElementShortName">HBM_axi_awprot[1:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awprot[1:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awburst">
+      <obj_property name="ElementShortName">HBM_axi_awburst[1:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awburst[1:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_bready">
+      <obj_property name="ElementShortName">HBM_axi_bready[1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_bready[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_wstrb">
+      <obj_property name="ElementShortName">HBM_axi_wstrb[1:0][63:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_wstrb[1:0][63:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arsize">
+      <obj_property name="ElementShortName">HBM_axi_arsize[1:0][2:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arsize[1:0][2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arburst">
+      <obj_property name="ElementShortName">HBM_axi_arburst[1:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arburst[1:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arlock">
+      <obj_property name="ElementShortName">HBM_axi_arlock[1:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arlock[1:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awlock">
+      <obj_property name="ElementShortName">HBM_axi_awlock[1:0][1:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awlock[1:0][1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awcache">
+      <obj_property name="ElementShortName">HBM_axi_awcache[1:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awcache[1:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awqos">
+      <obj_property name="ElementShortName">HBM_axi_awqos[1:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awqos[1:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arqos">
+      <obj_property name="ElementShortName">HBM_axi_arqos[1:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arqos[1:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arregion">
+      <obj_property name="ElementShortName">HBM_axi_arregion[1:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arregion[1:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awregion">
+      <obj_property name="ElementShortName">HBM_axi_awregion[1:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awregion[1:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arcache">
+      <obj_property name="ElementShortName">HBM_axi_arcache[1:0][3:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arcache[1:0][3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_awid">
+      <obj_property name="ElementShortName">HBM_axi_awid[1:0][0:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_awid[1:0][0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_arid">
+      <obj_property name="ElementShortName">HBM_axi_arid[1:0][0:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_arid[1:0][0:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/HBM_axi_bid">
+      <obj_property name="ElementShortName">HBM_axi_bid[1:0][0:0]</obj_property>
+      <obj_property name="ObjectShortName">HBM_axi_bid[1:0][0:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/clk300">
+      <obj_property name="ElementShortName">clk300</obj_property>
+      <obj_property name="ObjectShortName">clk300</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/clk300_rst">
+      <obj_property name="ElementShortName">clk300_rst</obj_property>
+      <obj_property name="ObjectShortName">clk300_rst</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/data_rst">
+      <obj_property name="ElementShortName">data_rst</obj_property>
+      <obj_property name="ObjectShortName">data_rst</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/virtual_channels">
+      <obj_property name="ElementShortName">virtual_channels[10:0]</obj_property>
+      <obj_property name="ObjectShortName">virtual_channels[10:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/write_HBM_to_disk2">
+      <obj_property name="ElementShortName">write_HBM_to_disk2</obj_property>
+      <obj_property name="ObjectShortName">write_HBM_to_disk2</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/init_mem2">
+      <obj_property name="ElementShortName">init_mem2</obj_property>
+      <obj_property name="ObjectShortName">init_mem2</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/fb_count">
+      <obj_property name="ElementShortName">fb_count</obj_property>
+      <obj_property name="ObjectShortName">fb_count</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_integration">
+      <obj_property name="ElementShortName">fb_integration[31:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_integration[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_ctFrame">
+      <obj_property name="ElementShortName">fb_ctFrame[1:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_ctFrame[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_vc0">
+      <obj_property name="ElementShortName">fb_vc0[15:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_vc0[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/packets_sent">
+      <obj_property name="ElementShortName">packets_sent</obj_property>
+      <obj_property name="ObjectShortName">packets_sent</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/rst_n">
+      <obj_property name="ElementShortName">rst_n</obj_property>
+      <obj_property name="ObjectShortName">rst_n</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/fb_bad_poly">
+      <obj_property name="ElementShortName">fb_bad_poly[3:0]</obj_property>
+      <obj_property name="ObjectShortName">fb_bad_poly[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/bad_poly_packets_sent">
+      <obj_property name="ElementShortName">bad_poly_packets_sent</obj_property>
+      <obj_property name="ObjectShortName">bad_poly_packets_sent</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/bad_poly_integration">
+      <obj_property name="ElementShortName">bad_poly_integration[31:0]</obj_property>
+      <obj_property name="ObjectShortName">bad_poly_integration[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/bad_poly_ctFrame">
+      <obj_property name="ElementShortName">bad_poly_ctFrame[1:0]</obj_property>
+      <obj_property name="ObjectShortName">bad_poly_ctFrame[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/bad_poly_vc">
+      <obj_property name="ElementShortName">bad_poly_vc[15:0]</obj_property>
+      <obj_property name="ObjectShortName">bad_poly_vc[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/c_VIRTUAL_CHANNELS">
+      <obj_property name="ElementShortName">c_VIRTUAL_CHANNELS</obj_property>
+      <obj_property name="ObjectShortName">c_VIRTUAL_CHANNELS</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/fb_lastChannel">
+      <obj_property name="ElementShortName">fb_lastChannel</obj_property>
+      <obj_property name="ObjectShortName">fb_lastChannel</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/fb_demap_table_select">
+      <obj_property name="ElementShortName">fb_demap_table_select</obj_property>
+      <obj_property name="ObjectShortName">fb_demap_table_select</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/g_PACKET_GAP">
+      <obj_property name="ElementShortName">g_PACKET_GAP</obj_property>
+      <obj_property name="ObjectShortName">g_PACKET_GAP</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/g_VC_GAP">
+      <obj_property name="ElementShortName">g_VC_GAP</obj_property>
+      <obj_property name="ObjectShortName">g_VC_GAP</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/g_MAX_CORRELATORS">
+      <obj_property name="ElementShortName">g_MAX_CORRELATORS</obj_property>
+      <obj_property name="ObjectShortName">g_MAX_CORRELATORS</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/g_TEST_CASE">
+      <obj_property name="ElementShortName">g_TEST_CASE</obj_property>
+      <obj_property name="ObjectShortName">g_TEST_CASE</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/ct2_tb/HBM_DATA_WIDTH">
+      <obj_property name="ElementShortName">HBM_DATA_WIDTH</obj_property>
+      <obj_property name="ObjectShortName">HBM_DATA_WIDTH</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/i_bad_poly">
+      <obj_property name="ElementShortName">i_bad_poly[3:0]</obj_property>
+      <obj_property name="ObjectShortName">i_bad_poly[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/i_ctFrame">
+      <obj_property name="ElementShortName">i_ctFrame[1:0]</obj_property>
+      <obj_property name="ObjectShortName">i_ctFrame[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/i_data">
+      <obj_property name="ElementShortName">i_data[3:0]</obj_property>
+      <obj_property name="ObjectShortName">i_data[3:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/ct2i/i_dataValid">
+      <obj_property name="ElementShortName">i_dataValid</obj_property>
+      <obj_property name="ObjectShortName">i_dataValid</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/ct2i/i_demap_table_select">
+      <obj_property name="ElementShortName">i_demap_table_select</obj_property>
+      <obj_property name="ObjectShortName">i_demap_table_select</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/i_integration">
+      <obj_property name="ElementShortName">i_integration[31:0]</obj_property>
+      <obj_property name="ObjectShortName">i_integration[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/ct2i/i_lastChannel">
+      <obj_property name="ElementShortName">i_lastChannel</obj_property>
+      <obj_property name="ObjectShortName">i_lastChannel</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/ct2_tb/ct2i/i_sof">
+      <obj_property name="ElementShortName">i_sof</obj_property>
+      <obj_property name="ObjectShortName">i_sof</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/o_cor_badPoly">
+      <obj_property name="ElementShortName">o_cor_badPoly[1:0]</obj_property>
+      <obj_property name="ObjectShortName">o_cor_badPoly[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/o_cor_data">
+      <obj_property name="ElementShortName">o_cor_data[1:0][255:0]</obj_property>
+      <obj_property name="ObjectShortName">o_cor_data[1:0][255:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/o_cor_first">
+      <obj_property name="ElementShortName">o_cor_first[1:0]</obj_property>
+      <obj_property name="ObjectShortName">o_cor_first[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/o_cor_last">
+      <obj_property name="ElementShortName">o_cor_last[1:0]</obj_property>
+      <obj_property name="ObjectShortName">o_cor_last[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/ct2_tb/ct2i/o_cor_valid">
+      <obj_property name="ElementShortName">o_cor_valid[1:0]</obj_property>
+      <obj_property name="ObjectShortName">o_cor_valid[1:0]</obj_property>
+   </wvobject>
+</wave_config>
