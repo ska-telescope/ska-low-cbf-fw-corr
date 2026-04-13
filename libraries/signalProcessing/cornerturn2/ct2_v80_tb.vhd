@@ -167,9 +167,9 @@ architecture Behavioral of ct2_v80_tb is
     signal cor_cfg_valid : std_logic_vector(5 downto 0);
     signal clk400_rst : std_logic := '0';
     
-    signal ro_FIFO_din : std_logic_vector(127 downto 0);
-    signal ro_FIFO_wrEn : std_logic;
-    signal ro_stall : std_logic;
+    signal ro_FIFO_din : t_slv_128_arr(5 downto 0);
+    signal ro_FIFO_wrEn : std_logic_vector(5 downto 0);
+    signal ro_stall : std_logic_vector(5 downto 0);
     
 begin
     
@@ -269,12 +269,12 @@ begin
             --          bits(31:16) = starting coarse frequency channel, \
             -- Word 1 : bits (15:0) = starting fine frequency channel \
             -- Word 2 : bits (23:0) = Number of fine channels stored \
-            --          bits (29:24) = Fine channels per integration \
-            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            --          bits (30:24) = Fine channels per integration \
+            --          bit  (31) = integration time; 0 = 283 ms, 1 = 849 ms \
             -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, x"01900008");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, x"00000000");
             
             WAIT UNTIL RISING_EDGE(clk300);
@@ -326,17 +326,17 @@ begin
             --          bits(31:16) = starting coarse frequency channel, \
             -- Word 1 : bits (15:0) = starting fine frequency channel \
             -- Word 2 : bits (23:0) = Number of fine channels stored \
-            --          bits (29:24) = Fine channels per integration \
-            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            --          bits (30:24) = Fine channels per integration \
+            --          bit  (31) = integration time; 0 = 283 ms, 1 = 849 ms \
             -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, x"01900004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, x"00000000");
             -- configure second correlator
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 0, x"01910004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 512 + 3, x"00000000");
             
             WAIT UNTIL RISING_EDGE(clk300);
@@ -389,17 +389,17 @@ begin
             --          bits(31:16) = starting coarse frequency channel, \
             -- Word 1 : bits (15:0) = starting fine frequency channel \
             -- Word 2 : bits (23:0) = Number of fine channels stored \
-            --          bits (29:24) = Fine channels per integration \
-            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            --          bits (30:24) = Fine channels per integration \
+            --          bit  (31) = integration time; 0 = 283 ms, 1 = 849 ms \
             -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, x"01900004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, x"00000000");
             -- configure second subarray beam (still for first correlator)
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 0, x"01910004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 3, x"00000000");
             
             WAIT UNTIL RISING_EDGE(clk300);
@@ -451,17 +451,17 @@ begin
             --          bits(31:16) = starting coarse frequency channel, \
             -- Word 1 : bits (15:0) = starting fine frequency channel \
             -- Word 2 : bits (23:0) = Number of fine channels stored \
-            --          bits (29:24) = Fine channels per integration \
-            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            --          bits (30:24) = Fine channels per integration \
+            --          bit  (31) = integration time; 0 = 283 ms, 1 = 849 ms \
             -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, x"01900004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, x"00000000");
             -- configure second subarray beam (still for first correlator)
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 0, x"01910004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 3, x"00000000");
             
             WAIT UNTIL RISING_EDGE(clk300);
@@ -481,12 +481,12 @@ begin
             
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 0, x"01900004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 3, x"00000000");
             -- configure second subarray beam (still for first correlator)
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 4 + 0, x"01910004");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 4 + 1, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 4 + 2, x"58000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 4 + 2, x"98000D80");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4096 + 4 + 3, x"00000000");
             
             -- 2 subarray-beams in table 1
@@ -537,12 +537,12 @@ begin
             --          bits(31:16) = starting coarse frequency channel, \
             -- Word 1 : bits (15:0) = starting fine frequency channel \
             -- Word 2 : bits (23:0) = Number of fine channels stored \
-            --          bits (29:24) = Fine channels per integration \
-            --          bits (31:30) = integration time; 0 = 283 ms, 1 = 849 ms, others invalid \
+            --          bits (30:24) = Fine channels per integration \
+            --          bit  (31) = integration time; 0 = 283 ms, 1 = 849 ms \
             -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, x"00640001");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, x"000006BA");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"4200000C");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"8200000C");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, x"00000000");
             -- configure second subarray beam (still for first correlator)
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 0, x"00000000");
@@ -832,9 +832,9 @@ begin
             i_HBM_axi_b       => HBM_axi_vis_b(i),       -- in  t_axi4_full_b; -- write response bus (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
             ---------------------------------------------------------------
             -- Readout bus tells the packetiser what to do
-            o_ro_data  => ro_FIFO_din,  -- out std_logic_vector(127 downto 0);
-            o_ro_valid => ro_FIFO_wrEn, -- out std_logic;
-            i_ro_stall => ro_stall,     -- in std_logic;
+            o_ro_data  => ro_FIFO_din(i),  -- out std_logic_vector(127 downto 0);
+            o_ro_valid => ro_FIFO_wrEn(i), -- out std_logic;
+            i_ro_stall => ro_stall(i),     -- in std_logic;
             ---------------------------------------------------------------
             -- Copy of the bus taking data to be written to the HBM,
             -- for the first correlator instance.
@@ -849,6 +849,9 @@ begin
             -- an old debug trigger I think
             o_freq_index0_repeat => open --: out std_logic
         );
+        
+        -- ro_stall comes from fifo half full in the full design
+        ro_stall(i) <= '0';
         
         HBM1G_VIS : entity correlator_lib.HBM_axi_tbModel
         generic map (

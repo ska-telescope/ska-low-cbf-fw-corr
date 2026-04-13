@@ -486,7 +486,7 @@ begin
                     
                     when set_ar =>
                         ar_fsm_dbg <= "0100";
-                        -- This sets the HBM address for the first 512 byte block in a group of 4 blocks
+                        -- This sets the HBM address for the first 256 byte block in a group of 4 blocks
                         clear_hold <= '1';
                         o_SB_req <= '0';
                         if HBM_addr_valid = '1' then
@@ -911,8 +911,8 @@ begin
                             readoutBadPoly <= arFIFO_dout(133);
                             
                             if (arFIFO_dout(39 downto 38) = "00") then
-                                if (unsigned(dataFIFO_rdCount) >= 64) then
-                                    -- each ar request is for 32 x 64-byte words = 2048 bytes; at the read side of the data fifo this is 64 words.
+                                if (unsigned(dataFIFO_rdCount) >= 8) then
+                                    -- Each ar request is for 8 x 32-byte words = 256 bytes
                                     readout_fsm <= send_data;
                                 else
                                     readout_fsm <= wait_data;
@@ -925,7 +925,7 @@ begin
                         
                     when wait_data =>
                         readout_fsm_dbg <= "0001";
-                        if (unsigned(dataFIFO_rdCount) >= 16) then
+                        if (unsigned(dataFIFO_rdCount) >= 8) then
                             readout_fsm <= send_data;
                         end if;
                         sendCount <= (others => '0');
@@ -933,7 +933,7 @@ begin
                     when send_data =>
                         readout_fsm_dbg <= "0010";
                         sendCount <= std_logic_vector(unsigned(sendCount) + 1);
-                        if unsigned(sendCount) = 15 then
+                        if unsigned(sendCount) = 7 then
                             readout_fsm <= idle;
                         end if;
                     
@@ -968,7 +968,6 @@ begin
                 end case;
             end if;
             
-            
             -- Pipeline stage to ensure data output comes from a register
             if (readout_fsm = send_data) then  -- fifo read enable is high in the send_data state, so dataFIFO_dout will be high one clock later.
                 cor_valid <= '1';
@@ -979,7 +978,8 @@ begin
             o_cor_data <= dataFIFO_dout;
             
             sendCountDel1 <= sendCount;
-            o_cor_time <= readoutTimeGroup(2 downto 0) & sendCountDel1(3 downto 0) & '0'; -- 8 bit output; time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+            -- 8 bit output; time samples runs from 0 to 190, in steps of 2. 192 time samples per 849ms integration interval; 2 time samples in each 256 bit data word.
+            o_cor_time <= readoutTimeGroup(3 downto 0) & sendCountDel1(2 downto 0) & '0';
             o_cor_station <= readoutVCx16 & readoutStationOffset & "00"; -- 12 bit output; first of the 4 stations in o_cor_data
             o_cor_tileChannel <= readoutFineChannel; -- 24 bit output; Which 226 Hz fine channel is this relative to the start of the subarray-beam buffer.
             o_cor_tile_location <= "00" & readoutTileLocation;  

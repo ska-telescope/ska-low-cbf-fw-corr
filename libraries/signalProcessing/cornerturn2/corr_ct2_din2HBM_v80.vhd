@@ -56,13 +56,11 @@
 --                            The address is in units of 4 bytes, so 32 bit address is sufficient for 16 GBytes of memory.
 --     * i_SB_valid
 -- We then have to calculate the address of each 256 byte data block.
--- Data is stored in a 3-D array indexed by [time,fine_channel,(demap_station/4)]
+-- Data is stored in a 3-D array indexed by [fine_channel, time, (demap_station/4)]
 -- grouped by station first, then fine_channel and lastly time sample block, so:
 -- 
 --  HBM address (in bytes) = 
---   i_SB_HBM_base_Addr + 256 * [(demap_station/4) +
---                               (fine_channel - (i_SB_coarseStart * 3456 + i_SB_fineStart)) * i_SB_stations + 
---                               time * i_SB_N_fine * i_SB_stations]
+--    i_SB_HBM_base_addr + 256 * [fine_channel * 12 * ceil(i_SB_stations/4) + i_time_block * ceil(i_SB_stations/4) + station]
 --  where:
 --   fine_channel = demap_skyFrequency + 0:3455
 --           time = 0 to 11, for 12 blocks of 16 time samples each (there are 16 time samples in a 256 byte block written to the HBM).

@@ -227,7 +227,7 @@ architecture Behavioral of correlator_top_v80 is
     
     signal cfg_mem_select_wr : std_logic := '0';
     signal cfg_mem_select_rd : std_logic := '0';
-    signal cfg_wr_addr : std_logic_vector(10 downto 0);
+    signal cfg_wr_addr, cfg_wr_addr_del1 : std_logic_vector(10 downto 0);
     signal SB_wr_addr : std_logic_vector(9 downto 0);
     
     signal total_subarray_beams_hold : std_logic_vector(7 downto 0);
@@ -321,6 +321,7 @@ begin
             else
                 cfg_word_wr_en(0) <= '0';
             end if;
+            cfg_wr_addr_del1 <= cfg_wr_addr;
             
             if i_cor_cfg_valid = '1' and i_cor_cfg_last = '1' then
                 -- trigger readout 
@@ -337,7 +338,7 @@ begin
     end process;
     
     SB_wr_addr(9) <= cfg_mem_select_wr;
-    SB_wr_addr(8 downto 0) <= cfg_wr_addr(10 downto 2);
+    SB_wr_addr(8 downto 0) <= cfg_wr_addr_del1(10 downto 2);
     -- memory to hold the configuration data
     -- 2 buffers * 128 entries * 4 words each = 1024 deep (x 32 bits wide)
     -- xpm_memory_sdpram: Simple Dual Port RAM
