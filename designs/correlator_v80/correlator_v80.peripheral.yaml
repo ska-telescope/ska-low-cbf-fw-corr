@@ -64,7 +64,7 @@ peripherals:
           - - field_name        : Firmware_Patch_Version
               width             : 16
               access_mode       : RO
-              reset_value       : 0x2
+              reset_value       : 0x3
               field_description : "Patch version number"
           #################################
           - - field_name        : Firmware_Label
