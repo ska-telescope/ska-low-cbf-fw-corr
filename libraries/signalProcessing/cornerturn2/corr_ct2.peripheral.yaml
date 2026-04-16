@@ -213,7 +213,7 @@ peripherals:
               number_of_fields  : 4096
               field_description : "Virtual Channel demapping table. \
                                    For U55, address is 10 bits, Double buffered, 256 entries, 2 words per entry. Index into the table is 2*floor(virtual_channel/4). Total depth is 1024 words, using the first 1024 words. \
-                                   For V80, address is 12 bits. Double buffered, 1024 entries, 2 words per entry. The total depty is 4096 words. \
+                                   For V80, address is 12 bits. Double buffered, 1024 entries, 2 words per entry. The total depth is 4096 words. \
                                    Table returns the subarray and channel for each virtual channel. \
                                    The table select register in CT1 selects which double buffered version of this table to use.  \
                                     Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table (low 8 bits), \
