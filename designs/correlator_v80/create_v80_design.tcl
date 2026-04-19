@@ -786,6 +786,9 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
     exit
   }
 
+  set_property strategy Flow_PerfOptimized_high [get_runs synth_1]
+  set_property strategy Performance_ExtraTimingOpt [get_runs impl_1]
+
   set_property -dict { used_in_synthesis false    processing_order NORMAL } [get_files *impl.xdc]
   set_property -dict { used_in_synthesis false    processing_order NORMAL } [get_files *impl.pins.xdc]
 
@@ -794,9 +797,6 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
   set_property STEPS.WRITE_DEVICE_IMAGE.TCL.PRE  [get_files *write_device_image.pre.tcl]  [get_runs impl_1]
 
   set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]
-
-  set_property strategy Flow_PerfOptimized_high [get_runs synth_1]
-  set_property strategy Performance_ExtraTimingOpt [get_runs impl_1]
   
   #set_property STEPS.OPT_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
   #set_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE AggressiveExplore [get_runs impl_1]
