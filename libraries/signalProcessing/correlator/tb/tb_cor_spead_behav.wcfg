@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="1,677,126.330 ns"></ZoomStartTime>
-      <ZoomEndTime time="1,678,371.331 ns"></ZoomEndTime>
-      <Cursor1Time time="1,677,990.330 ns"></Cursor1Time>
+      <ZoomStartTime time="412.562750 us"></ZoomStartTime>
+      <ZoomEndTime time="1,041.062751 us"></ZoomEndTime>
+      <Cursor1Time time="694.062750 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="273"></NameColumnWidth>
-      <ValueColumnWidth column_width="121"></ValueColumnWidth>
+      <ValueColumnWidth column_width="109"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="657" />
+   <WVObjectSize size="690" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -1373,6 +1373,137 @@
       <obj_property name="ElementShortName">pack_wr</obj_property>
       <obj_property name="ObjectShortName">pack_wr</obj_property>
    </wvobject>
+   <wvobject fp_name="divider1579" type="divider">
+      <obj_property name="label">half_prec_packer</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/i_sorted_data">
+      <obj_property name="ElementShortName">i_sorted_data[271:0]</obj_property>
+      <obj_property name="ObjectShortName">i_sorted_data[271:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/i_sorted_data_wr">
+      <obj_property name="ElementShortName">i_sorted_data_wr</obj_property>
+      <obj_property name="ObjectShortName">i_sorted_data_wr</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/o_data_out">
+      <obj_property name="ElementShortName">o_data_out[511:0]</obj_property>
+      <obj_property name="ObjectShortName">o_data_out[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/o_data_valid">
+      <obj_property name="ElementShortName">o_data_valid</obj_property>
+      <obj_property name="ObjectShortName">o_data_valid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/i_heap_size">
+      <obj_property name="ElementShortName">i_heap_size[31:0]</obj_property>
+      <obj_property name="ObjectShortName">i_heap_size[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/o_total_bytes_added_to_heap">
+      <obj_property name="ElementShortName">o_total_bytes_added_to_heap[31:0]</obj_property>
+      <obj_property name="ObjectShortName">o_total_bytes_added_to_heap[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/trigger_final_drain">
+      <obj_property name="ElementShortName">trigger_final_drain</obj_property>
+      <obj_property name="ObjectShortName">trigger_final_drain</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/sample_per_output_tracker">
+      <obj_property name="ElementShortName">sample_per_output_tracker[1:0]</obj_property>
+      <obj_property name="ObjectShortName">sample_per_output_tracker[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/sorted_data">
+      <obj_property name="ElementShortName">sorted_data[255:0]</obj_property>
+      <obj_property name="ObjectShortName">sorted_data[255:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/sorted_data_wr">
+      <obj_property name="ElementShortName">sorted_data_wr</obj_property>
+      <obj_property name="ObjectShortName">sorted_data_wr</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/reset_int">
+      <obj_property name="ElementShortName">reset_int</obj_property>
+      <obj_property name="ObjectShortName">reset_int</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/half_p_data">
+      <obj_property name="ElementShortName">half_p_data[127:0]</obj_property>
+      <obj_property name="ObjectShortName">half_p_data[127:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/half_p_valid">
+      <obj_property name="ElementShortName">half_p_valid[7:0]</obj_property>
+      <obj_property name="ObjectShortName">half_p_valid[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/meta_data_pipe">
+      <obj_property name="ElementShortName">meta_data_pipe[7:0][15:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_pipe[7:0][15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/half_p_pipe">
+      <obj_property name="ElementShortName">half_p_pipe[5:0][143:0]</obj_property>
+      <obj_property name="ObjectShortName">half_p_pipe[5:0][143:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/packed_wr">
+      <obj_property name="ElementShortName">packed_wr</obj_property>
+      <obj_property name="ObjectShortName">packed_wr</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/bytes_in_pipeline_tracker">
+      <obj_property name="ElementShortName">bytes_in_pipeline_tracker[7:0]</obj_property>
+      <obj_property name="ObjectShortName">bytes_in_pipeline_tracker[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/gearbox_position">
+      <obj_property name="ElementShortName">gearbox_position[7:0]</obj_property>
+      <obj_property name="ObjectShortName">gearbox_position[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider2372" type="divider">
+      <obj_property name="label">f2f</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/i_valid">
+      <obj_property name="ElementShortName">i_valid</obj_property>
+      <obj_property name="ObjectShortName">i_valid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/i_data_in">
+      <obj_property name="ElementShortName">i_data_in[31:0]</obj_property>
+      <obj_property name="ObjectShortName">i_data_in[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/o_valid">
+      <obj_property name="ElementShortName">o_valid</obj_property>
+      <obj_property name="ObjectShortName">o_valid</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/o_data_out">
+      <obj_property name="ElementShortName">o_data_out[15:0]</obj_property>
+      <obj_property name="ObjectShortName">o_data_out[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/data_in">
+      <obj_property name="ElementShortName">data_in[31:0]</obj_property>
+      <obj_property name="ObjectShortName">data_in[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/data_del1">
+      <obj_property name="ElementShortName">data_del1[31:0]</obj_property>
+      <obj_property name="ObjectShortName">data_del1[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/data_del2">
+      <obj_property name="ElementShortName">data_del2[31:0]</obj_property>
+      <obj_property name="ObjectShortName">data_del2[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/float_conv_q">
+      <obj_property name="ElementShortName">float_conv_q[15:0]</obj_property>
+      <obj_property name="ObjectShortName">float_conv_q[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/\gen_converter(0)\/i_f_to_f/data_valid">
+      <obj_property name="ElementShortName">data_valid[7:0]</obj_property>
+      <obj_property name="ObjectShortName">data_valid[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_cor_spead/DUT/i_half_p_packer/cycles_from_input">
+      <obj_property name="ElementShortName">cycles_from_input</obj_property>
+      <obj_property name="ObjectShortName">cycles_from_input</obj_property>
+   </wvobject>
+   <wvobject type="other" fp_name="/tb_cor_spead/DUT/i_half_p_packer/half_p_steps">
+      <obj_property name="ElementShortName">half_p_steps</obj_property>
+      <obj_property name="ObjectShortName">half_p_steps</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider1580" type="divider">
+      <obj_property name="label">full_prec_packer</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/trigger_final_write">
       <obj_property name="ElementShortName">trigger_final_write</obj_property>
       <obj_property name="ObjectShortName">trigger_final_write</obj_property>
@@ -1511,6 +1642,10 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_wr_pipe">
       <obj_property name="ElementShortName">packed_fifo_wr_pipe[7:0]</obj_property>
       <obj_property name="ObjectShortName">packed_fifo_wr_pipe[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/aligned_packed_wr_d">
+      <obj_property name="ElementShortName">aligned_packed_wr_d</obj_property>
+      <obj_property name="ObjectShortName">aligned_packed_wr_d</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/spead_data_pending">
       <obj_property name="ElementShortName">spead_data_pending</obj_property>
@@ -2340,68 +2475,6 @@
       <obj_property name="ElementShortName">to_spead_pack[1:0]</obj_property>
       <obj_property name="ObjectShortName">to_spead_pack[1:0]</obj_property>
       <obj_property name="isExpanded"></obj_property>
-      <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[1]">
-         <obj_property name="ElementShortName">[1]</obj_property>
-         <obj_property name="ObjectShortName">[1]</obj_property>
-      </wvobject>
-      <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0]">
-         <obj_property name="ElementShortName">[0]</obj_property>
-         <obj_property name="ObjectShortName">[0]</obj_property>
-         <obj_property name="isExpanded"></obj_property>
-         <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0].spead_data">
-            <obj_property name="ElementShortName">.spead_data[511:0]</obj_property>
-            <obj_property name="ObjectShortName">.spead_data[511:0]</obj_property>
-         </wvobject>
-         <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0].current_array">
-            <obj_property name="ElementShortName">.current_array[7:0]</obj_property>
-            <obj_property name="ObjectShortName">.current_array[7:0]</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].spead_data_rdy">
-            <obj_property name="ElementShortName">.spead_data_rdy</obj_property>
-            <obj_property name="ObjectShortName">.spead_data_rdy</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].spead_data_pending">
-            <obj_property name="ElementShortName">.spead_data_pending</obj_property>
-            <obj_property name="ObjectShortName">.spead_data_pending</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].hbm_readout_complete">
-            <obj_property name="ElementShortName">.hbm_readout_complete</obj_property>
-            <obj_property name="ObjectShortName">.hbm_readout_complete</obj_property>
-         </wvobject>
-         <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0].byte_count">
-            <obj_property name="ElementShortName">.byte_count[13:0]</obj_property>
-            <obj_property name="ObjectShortName">.byte_count[13:0]</obj_property>
-            <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-         </wvobject>
-         <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0].freq_index">
-            <obj_property name="ElementShortName">.freq_index[16:0]</obj_property>
-            <obj_property name="ObjectShortName">.freq_index[16:0]</obj_property>
-         </wvobject>
-         <wvobject type="array" fp_name="/tb_cor_spead/to_spead_pack[0].time_ref">
-            <obj_property name="ElementShortName">.time_ref[63:0]</obj_property>
-            <obj_property name="ObjectShortName">.time_ref[63:0]</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].valid_del_poly">
-            <obj_property name="ElementShortName">.valid_del_poly</obj_property>
-            <obj_property name="ObjectShortName">.valid_del_poly</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].statically_flagged">
-            <obj_property name="ElementShortName">.statically_flagged</obj_property>
-            <obj_property name="ObjectShortName">.statically_flagged</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].dynamically_flagged">
-            <obj_property name="ElementShortName">.dynamically_flagged</obj_property>
-            <obj_property name="ObjectShortName">.dynamically_flagged</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].table_select">
-            <obj_property name="ElementShortName">.table_select</obj_property>
-            <obj_property name="ObjectShortName">.table_select</obj_property>
-         </wvobject>
-         <wvobject type="logic" fp_name="/tb_cor_spead/to_spead_pack[0].trigger_end_packets">
-            <obj_property name="ElementShortName">.trigger_end_packets</obj_property>
-            <obj_property name="ObjectShortName">.trigger_end_packets</obj_property>
-         </wvobject>
-      </wvobject>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT_2/pending_packet">
       <obj_property name="ElementShortName">pending_packet[1:0]</obj_property>

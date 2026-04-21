@@ -37,7 +37,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := FALSE;
+constant USE_TEST_CASE      : BOOLEAN := TRUE;
 constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
@@ -381,26 +381,26 @@ begin
 
             if USE_TEST_CASE = TRUE AND (GEN_DATA_END = TRUE) then
                 tb_300_rst      <= '0';
---                if testCount_300 = 1000 then 
---                    -- META DATA FROM CORRELATOR SIM
---                    row             <= 13D"0";
---                    row_count       <= 9D"253";
---                    data_valid      <= '1';
---                    --stim_table_select   <= '1';
---                    stim_freq_index <= 17D"0";
---                    stim_sub_array  <= 8D"68";      --0x44
---                    hbm_start_addr  <= x"00000000";
---                end if;
                 if testCount_300 = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"64";
+                    row_count       <= 9D"253";
                     data_valid      <= '1';
                     --stim_table_select   <= '1';
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"63";      --0x44
+                    stim_sub_array  <= 8D"68";      --0x44
                     hbm_start_addr  <= x"00000000";
                 end if;
+--                if testCount_300 = 1000 then 
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"64";
+--                    data_valid      <= '1';
+--                    --stim_table_select   <= '1';
+--                    stim_freq_index <= 17D"0";
+--                    stim_sub_array  <= 8D"63";      --0x44
+--                    hbm_start_addr  <= x"00000000";
+--                end if;
                 
                     
                 if testCount_300 = 150000 then 
