@@ -82,6 +82,12 @@ peripherals:
         slave_description : "Registers associated with LFAA Decode"
         dual_clock        : false
         fields:
+          - - field_name        : max_vc_supported
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0C00
+              field_description : "Maximum number of virtual channels supported by the virtual channel table"
+          #################################
           - - field_name        : total_stations_table0
               width             : 16
               access_mode       : RW

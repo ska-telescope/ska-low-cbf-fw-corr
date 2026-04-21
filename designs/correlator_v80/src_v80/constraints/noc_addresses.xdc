@@ -32,26 +32,27 @@ set dcmac_nsu [get_noc_interfaces "i_dcmac_wrapper/i_port_0_stats/i_dcmac_noc/xp
 # correlator ARGs
 #    Including slave ports for correlator_v80: 
 # ------------------------------------------------------------------------------------------
-#  !! OUT of Date info in comments below
-#    system_system at 0x0                       0 - 0x0_FFFF
-#    lfaadecode100g_vcstats_ram at 0x4000       1 - 0x1_FFFF
-#    lfaadecode100g_statctrl at 0x8000          2 - 0x2_FFFF
-#    corr_ct1_polynomial_ram_ram at 0x10000 
-#    corr_ct1_config at 0x20000 
-#    filterbanks_config at 0x22000 
-#    corr_ct2_statctrl at 0x24000 
-#    config_setup at 0x26000 
-#    spead_sdp_spead_params_ram at 0x28000 
-#    spead_sdp_spead_ctrl at 0x2C000 
-#    spead_sdp_2_spead_params_ram at 0x30000 
-#    spead_sdp_2_spead_ctrl at 0x34000 
-#    hbm_rd_debug_hbm_rd_debug at 0x36000 
-#    hbm_rd_debug_2_hbm_rd_debug at 0x38000 
-# ------------------------------------------------------------------------------------------
-#
-# use the above list just for ordering of the NSUs
-#
-
+#    system_system                0x0
+#    lfaadecode100g_vcstats_ram   0x200000
+#    lfaadecode100g_statctrl      0x280000
+#    corr_ct1_polynomial_ram_ram  0x400000 
+#    corr_ct1_config              0x480000 
+#    filterbanks_config           0x600000 
+#    corr_ct2_statctrl            0x800000 
+#    hbm_rd_debug                 0xA00000
+#    SPEAD_sdp ram                0xC00000
+#    SPEAD_dsp registers          0xC80000
+#    SPEAD_sdp_2 ram              0xE00000
+#    SPEAD_dsp_2 registers        0xE80000
+#    SPEAD_sdp_3 ram             0x1000000
+#    SPEAD_dsp_3 registers       0x1080000
+#    SPEAD_sdp_4 ram             0x1200000
+#    SPEAD_dsp_4 registers       0x1280000
+#    SPEAD_sdp_5 ram             0x1400000
+#    SPEAD_dsp_5 registers       0x1480000
+#    SPEAD_sdp_6 ram             0x1600000
+#    SPEAD_dsp_6 registers       0x1680000
+#    DCMAC                       0x1800000
 ########################
 # System peripheral = 64K address space
 set_property APERTURES [list {0x201_1000_0000:0x201_1001_FFFF}] $system_nsu
@@ -60,67 +61,58 @@ set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 
 ########################
 # LFAA is entry 2 and 3 on the list, 128K between NoCs so starts at 128K and covers up to 256K from the base address.
 # two 64K addresses, assign 128K
-set_property APERTURES [list {0x201_1010_0000:0x201_1017_FFFF}] $lfaa_1_nsu
+set_property APERTURES [list {0x201_1020_0000:0x201_102F_FFFF}] $lfaa_1_nsu
 set lfaa_1_conn [create_noc_connection -source $nmu_0 -target $lfaa_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $lfaa_1_conn
 ########################
 # CT_1
-set_property APERTURES [list {0x201_1020_0000:0x201_1027_FFFF}] $ct_1_nsu
+set_property APERTURES [list {0x201_1040_0000:0x201_104F_FFFF}] $ct_1_nsu
 set ct_1_conn [create_noc_connection -source $nmu_0 -target $ct_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $ct_1_conn
 ########################
 # Filterbank
-set_property APERTURES [list {0x201_1030_0000:0x201_1037_FFFF}] $fb_nsu
+set_property APERTURES [list {0x201_1060_0000:0x201_106F_FFFF}] $fb_nsu
 set fb_conn [create_noc_connection -source $nmu_0 -target $fb_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $fb_conn
 ########################
 # CT_2
-set_property APERTURES [list {0x201_1040_0000:0x201_1047_FFFF}] $ct_2_nsu
+set_property APERTURES [list {0x201_1080_0000:0x201_108F_FFFF}] $ct_2_nsu
 set ct_2_conn [create_noc_connection -source $nmu_0 -target $ct_2_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $ct_2_conn
 ########################
-# Correlator
-#set_property APERTURES [list {0x201_1050_0000:0x201_1057_FFFF}] $corr_nsu
-#
-#set corr_conn [create_noc_connection -source $nmu_0 -target $corr_nsu]
-#set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $corr_conn
-
-########################
 # Spead HBM read
-set_property APERTURES [list {0x201_1050_0000:0x201_1057_FFFF}] $spead_hbmrd_nsu
-
+set_property APERTURES [list {0x201_10A0_0000:0x201_10AF_FFFF}] $spead_hbmrd_nsu
 set spead_hbm_conn [create_noc_connection -source $nmu_0 -target $spead_hbmrd_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_hbm_conn
-
 ########################
 # SPEAD packetiser 
-set_property APERTURES [list {0x201_1060_0000:0x201_1067_FFFF}] $spead_0_nsu
+set_property APERTURES [list {0x201_10C0_0000:0x201_10CF_FFFF}] $spead_0_nsu
 set spead_0_conn [create_noc_connection -source $nmu_0 -target $spead_0_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_0_conn
 
-set_property APERTURES [list {0x201_1070_0000:0x201_1077_FFFF}] $spead_1_nsu
+set_property APERTURES [list {0x201_10E0_0000:0x201_10EF_FFFF}] $spead_1_nsu
 set spead_1_conn [create_noc_connection -source $nmu_0 -target $spead_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_1_conn
 
-set_property APERTURES [list {0x201_1080_0000:0x201_1087_FFFF}] $spead_2_nsu
+set_property APERTURES [list {0x201_1100_0000:0x201_110F_FFFF}] $spead_2_nsu
 set spead_2_conn [create_noc_connection -source $nmu_0 -target $spead_2_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_2_conn
 
-set_property APERTURES [list {0x201_1090_0000:0x201_1097_FFFF}] $spead_3_nsu
+set_property APERTURES [list {0x201_1120_0000:0x201_112F_FFFF}] $spead_3_nsu
 set spead_3_conn [create_noc_connection -source $nmu_0 -target $spead_3_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_3_conn
 
-set_property APERTURES [list {0x201_10A0_0000:0x201_10A7_FFFF}] $spead_4_nsu
+set_property APERTURES [list {0x201_1140_0000:0x201_114F_FFFF}] $spead_4_nsu
 set spead_4_conn [create_noc_connection -source $nmu_0 -target $spead_4_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_4_conn
 
-set_property APERTURES [list {0x201_10B0_0000:0x201_10B7_FFFF}] $spead_5_nsu
+set_property APERTURES [list {0x201_1160_0000:0x201_116F_FFFF}] $spead_5_nsu
 set spead_5_conn [create_noc_connection -source $nmu_0 -target $spead_5_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $spead_5_conn
 
 #########################
 # DCMAC
-set_property APERTURES [list {0x201_10C0_0000:0x201_10C7_FFFF}] $dcmac_nsu
+set_property APERTURES [list {0x201_1180_0000:0x201_118F_FFFF}] $dcmac_nsu
 set dcmac_conn [create_noc_connection -source $nmu_0 -target $dcmac_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $dcmac_conn
 

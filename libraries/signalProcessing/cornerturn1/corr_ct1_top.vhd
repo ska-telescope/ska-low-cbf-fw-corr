@@ -542,8 +542,9 @@ begin
         args_reg_wren   <= noc_wren when noc_wr_adr(17) = '1' else '0';
         args_poly_wren  <= noc_wren when noc_wr_adr(17) = '0' else '0';
         
-        noc_rd_dat_mux  <=  args_rd_data        when bram_addr_d2(17 downto 16) = "01"  else    -- 64k split
-                            args_poly_rd_data;
+        noc_rd_dat_mux <= 
+            args_rd_data  when bram_addr_d2(17) = '0' else  -- 128kword = 512KByte boundary between sub-peripherals
+            args_poly_rd_data;
     
         bram_return_data_proc : process(i_shared_clk)
         begin
