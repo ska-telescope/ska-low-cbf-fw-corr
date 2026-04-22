@@ -299,7 +299,11 @@ begin
 
 
     LFAAin : entity LFAADecode100G_lib.LFAADecodeTop100G
-    port map(
+    generic map (
+        -- Number of virtual channels supported, in units of 1024 virtual channels
+        -- correlator supports 3072 virtual channels
+        g_MAX_VC  => "0011"
+    ) port map(
         -- Data in from the 100GE MAC
         i_axis_tdata     => i_axis_tdata, --  in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
         i_axis_tkeep     => i_axis_tkeep, --  in (63:0);  one bit per byte in i_axi_tdata

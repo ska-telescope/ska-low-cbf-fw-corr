@@ -14,7 +14,7 @@ peripherals:
         number_of_slaves  : 1
         slave_description : " VC_STATS
                               This address space arrangement has been optimised for all 3 SPEAD formats, some fields return 0 when not used.
-                              Base Address 0, range 32768
+                              Base Address 0, range 65536 words
                               Status for each virtual channel. 8 words per virtual channel. Each group of 8 words has
                               (1) most recent logical channel in bits(15:0), most recent nof_contributing_antennas in bits(31:16),
                               (2) most recent SPEAD timestamp bits(31:0) for V1 and V2, 0 for v3 
@@ -26,8 +26,8 @@ peripherals:
                               (8) most recent SPEAD sync time, bits(47:32) for V1 and V2, 0 for v3.
 
                               VC_TABLE
-                              Base Address 32768, range 16384
-                              Virtual channel table. Two copies in addresses 0-8191 and 8192-16383. The table used is determined by a control register in corner turn 1. \
+                              Base Address 65536 words, range 32768
+                              Virtual channel table. Two copies in addresses 0-16383 and 16384-32767. The table used is determined by a control register in corner turn 1. \
                               The maximum number of virtual channels supported in the correlator is 3072 \
                                    Each entry has 2 words :\
                                     First word : \

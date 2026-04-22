@@ -462,8 +462,7 @@ architecture Behavioral of corr_ct1_top is
     signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
 
     signal awfifo_addr_4k : std_logic_vector(20 downto 0);
-
-
+    
 begin
     
     ------------------------------------------------------------------------------------
@@ -543,7 +542,7 @@ begin
         args_poly_wren  <= noc_wren when noc_wr_adr(17) = '0' else '0';
         
         noc_rd_dat_mux <= 
-            args_rd_data  when bram_addr_d2(17) = '0' else  -- 128kword = 512KByte boundary between sub-peripherals
+            args_rd_data  when bram_addr_d2(17) = '1' else  -- 128kword = 512KByte boundary between sub-peripherals
             args_poly_rd_data;
     
         bram_return_data_proc : process(i_shared_clk)
