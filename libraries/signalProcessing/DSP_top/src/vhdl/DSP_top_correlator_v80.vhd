@@ -123,7 +123,7 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     ---------------------------------------------------------------------------
     -- SIGNAL DECLARATIONS  --
     ---------------------------------------------------------------------------   
-    signal LFAADecode_dbg : std_logic_vector(13 downto 0);
+    signal LFAADecode_dbg : std_logic_vector(22 downto 0);
     signal gnd : std_logic_vector(199 downto 0);
     
     signal clk_LFAA40GE_wallTime : t_wall_time;
