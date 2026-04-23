@@ -58,6 +58,7 @@ entity DSP_top_correlator_v80 is
     port (
         -----------------------------------------------------------------------
         -- Received data from 100GE
+        -- Note this uses i_MACE_clk
         i_axis_tdata   : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
         i_axis_tkeep   : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
         i_axis_tlast   : in std_logic;                      
@@ -69,12 +70,10 @@ entity DSP_top_correlator_v80 is
         o_data_to_player_wr     : OUT STD_LOGIC;
         i_data_to_player_rdy    : IN STD_LOGIC;
         --
-        i_clk_100GE         : in std_logic;
         i_eth100G_locked    : in std_logic;
         -----------------------------------------------------------------------
         -- Other processing clocks.
         i_clk425 : in std_logic; -- 425 MHz
-        i_clk400 : in std_logic; -- 400 MHz
         -----------------------------------------------------------------------
         -- Debug signal used in the testbench.
         o_validMemRstActive : out std_logic;  -- reset of the valid memory is in progress.
@@ -304,13 +303,14 @@ begin
         -- correlator supports 3072 virtual channels
         g_MAX_VC  => "0011"
     ) port map(
+        -- single clock domain
+        i_clk => i_MACE_clk,
         -- Data in from the 100GE MAC
         i_axis_tdata     => i_axis_tdata, --  in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
         i_axis_tkeep     => i_axis_tkeep, --  in (63:0);  one bit per byte in i_axi_tdata
         i_axis_tlast     => i_axis_tlast, --  in std_logic;                      
         i_axis_tuser     => i_axis_tuser, --  in (79:0);  -- Timestamp for the packet, from the PTP core
         i_axis_tvalid    => i_axis_tvalid, -- in std_logic;
-        i_100GE_clk      => i_clk_100GE,   -- 322 MHz from the 100GE MAC; note 512 bits x 322 MHz = 165 Mbit/sec, so even full rate traffic will have .valid low 1/3rd of the time.
         i_100GE_rst      => eth100G_rst,
         --i_data_rst       => '0',            -- in std_logic;
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
@@ -332,7 +332,6 @@ begin
         -- AXI lite Interface, not used for V80, registers are connected to the NOC at a lower level
         i_s_axi_mosi  => c_axi4_lite_mosi_rst, -- in t_axi4_lite_mosi;
         o_s_axi_miso  => open, -- out t_axi4_lite_miso;
-        i_s_axi_clk   => i_MACE_clk,         
         i_s_axi_rst   => i_MACE_rst,
         -- registers AXI Full interface
         i_vcstats_MM_IN  => c_axi4_full_mosi_null, -- in  t_axi4_full_mosi;
@@ -781,7 +780,7 @@ begin
         i_packetiser_table_select => packetiser_table_select, -- in std_logic;
         i_table_add_remove        => table_add_remove,        -- in std_logic;
         -- streaming AXI to CMAC
-        i_cmac_clk          => i_clk_100GE,
+        i_cmac_clk          => i_MACE_clk,
         i_cmac_clk_rst      => eth100G_rst,
         o_bytes_to_transmit  => o_bytes_to_transmit,
         o_data_to_player     => o_data_to_player,
@@ -791,9 +790,9 @@ begin
         i_debug             => (others => '0')
     );
     
-    CMAC_100G_reset_proc : process(i_clk_100GE)
+    CMAC_100G_reset_proc : process(i_MACE_clk)
     begin
-        if rising_edge(i_clk_100GE) then
+        if rising_edge(i_MACE_clk) then
             eth100G_rst     <= NOT i_eth100G_locked;
         end if;
     end process;

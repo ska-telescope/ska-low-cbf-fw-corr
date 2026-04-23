@@ -14,21 +14,16 @@ peripherals:
         number_of_slaves  : 1
         slave_description : " VC_STATS
                               This address space arrangement has been optimised for all 3 SPEAD formats, some fields return 0 when not used.
-                              Base Address 0, range 65536 words
-                              Status for each virtual channel. 8 words per virtual channel. Each group of 8 words has
-                              (1) most recent logical channel in bits(15:0), most recent nof_contributing_antennas in bits(31:16),
-                              (2) most recent SPEAD timestamp bits(31:0) for V1 and V2, 0 for v3 
-                              (3) bits(31:28) = 4 bit count of packets with out of order packet numbers (wraps on overflow), bits(27:0) = PTP uptime fractional second (31 -> 4), units of 16ns
-                              (4) PTP uptime whole seconds (Bits 64 -> 32) of the 80 bit timestamp.
-                              (5) latest packet number bits(31:0),
-                              (6) latest packet number bits(47:32), 
-                              (7) most recent SPEAD sync time, bits(31:0) for V1 and V2, 0 for v3 
-                              (8) most recent SPEAD sync time, bits(47:32) for V1 and V2, 0 for v3.
+                              Base Address 0, range 16384 words
+                              2 words per virtual channel, for up to 8192 virtual channels
+                              first word = latest packet number, bits (31:0)
+                              second word = latest packet number, bits (47:32)
 
                               VC_TABLE
-                              Base Address 65536 words, range 32768
+                              Base Address 32768 words, range 32768
                               Virtual channel table. Two copies in addresses 0-16383 and 16384-32767. The table used is determined by a control register in corner turn 1. \
-                              The maximum number of virtual channels supported in the correlator is 3072 \
+                              The table has enough address space to support up to 8192 virtual channels, \
+                              but the maximum number of virtual channels supported in the correlator is 3072 \
                                    Each entry has 2 words :\
                                     First word : \
                                       bits 7:0   = substation_id, \
@@ -232,6 +227,18 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "This is has a max value of 4096."
+          #################################
+          - - field_name        : max_uram_buffer_level
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "high water mark for the uram buffer level. This is has a max value of 16383."
+          #################################
+          - - field_name        : buffer_full_discard_count
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "count of packets discarded due to buffer being full"              
           #################################
           - - field_name        : uram_buffer_fill_warn
               width             : 16

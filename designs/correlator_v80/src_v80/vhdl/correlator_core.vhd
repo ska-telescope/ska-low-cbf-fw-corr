@@ -696,7 +696,9 @@ begin
        g_USE_DUMMY_FB          => g_USE_DUMMY_FB,
        g_INCLUDE_SPS_MONITOR   => g_INCLUDE_SPS_MONITOR
    ) port map (
+       ----------------------------------------------------------------------
        -- Received data from 100GE
+       -- Uses i_MACE_clk
        i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
        i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
        i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
@@ -707,12 +709,11 @@ begin
        o_data_to_player        => data_to_player,
        o_data_to_player_wr     => data_to_player_wr,
        i_data_to_player_rdy    => data_to_player_rdy,
-        
-       i_clk_100GE         => clk_300,          -- CDC from 195 to 300 one level up.
+       --
        i_eth100G_locked    => i_dcmac_locked_300m,
-       -- Filterbank processing clock, 450 MHz
+       -----------------------------------------------------------------------
+       -- correlator processing clock, 425 MHz
        i_clk425            => clk425,  -- in std_logic;
-       i_clk400            => clk400,  -- in std_logic;
        -----------------------------------------------------------------------
        -- reset of the valid memory is in progress.
        o_validMemRstActive => o_validMemRstActive,
