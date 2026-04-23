@@ -229,8 +229,6 @@ begin
             aligned_data    <= half_p_pipe(3)(79 downto 0) & half_p_pipe(2) & half_p_pipe(1) & half_p_pipe(0);
         end if;
 
-
-
     end if;
 end process;
 

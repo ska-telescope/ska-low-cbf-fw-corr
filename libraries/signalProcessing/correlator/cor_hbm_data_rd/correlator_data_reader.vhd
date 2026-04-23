@@ -386,6 +386,8 @@ signal debug_vec_from_packet    : std_logic_vector(31 downto 0);
 signal full_half_precision      : std_logic := '1';
 
 signal packed_final_notify      : std_logic;
+signal hp_pack_final_notify     : std_logic;
+signal fp_pack_final_notify     : std_logic;
 
 signal packer_reset             : std_logic;
 
@@ -426,7 +428,9 @@ begin
     meta_reg_proc : process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            bytes_in_heap           <= unsigned(i_from_spead_pack.bytes_in_heap);
+            bytes_in_heap(31)           <= '0';
+            bytes_in_heap(30 downto 0)  <= unsigned(i_from_spead_pack.bytes_in_heap(30 downto 0));
+            full_half_precision         <= i_from_spead_pack.bytes_in_heap(31);
 
             if testmode_select = '0' then
                 meta_cache_fifo_wr      <= i_data_valid;
@@ -927,159 +931,47 @@ begin
     end if;
 end process;
 
-i_half_p_packer : entity correlator_lib.half_precision_packer
-    port map (
-        clk                 => i_axi_clk,
-        reset               => packer_reset,
+    i_half_p_packer : entity correlator_lib.half_precision_packer
+        port map (
+            clk                 => i_axi_clk,
+            reset               => packer_reset,
 
-        i_heap_size         => bytes_in_heap,
-        o_finished_pack     => packed_final_notify,
-        ------------------------------------------------------
-        -- data from the picker FSM
-        i_sorted_data       => picked_fifo_data,
-        i_sorted_data_wr    => picked_fifo_wr,
+            i_heap_size         => bytes_in_heap,
+            o_finished_pack     => hp_pack_final_notify,
+            ------------------------------------------------------
+            -- data from the picker FSM
+            i_sorted_data       => picked_fifo_data,
+            i_sorted_data_wr    => picked_fifo_wr,
 
-        o_data_out          => half_precision_data,
-        o_data_valid        => half_precision_data_wr
-    );
+            o_data_out          => half_precision_data,
+            o_data_valid        => half_precision_data_wr
+        );
 
----------------------------------------------------------------------------
+    i_full_p_packer : entity correlator_lib.full_precision_packer
+        port map (
+            clk                 => i_axi_clk,
+            reset               => packer_reset,
+
+            i_heap_size         => bytes_in_heap,
+            o_finished_pack     => fp_pack_final_notify,
+            ------------------------------------------------------
+            -- data from the picker FSM
+            i_sorted_data       => picked_fifo_data,
+            i_sorted_data_wr    => picked_fifo_wr,
+
+            o_data_out          => aligned_packed_fifo_data_d,
+            o_data_valid        => aligned_packed_wr_d
+        );
+
+        ---------------------------------------------------------------------------
 
 packed_fifo_wr          <= aligned_packed_wr_d          when full_half_precision = '0' else half_precision_data_wr;
 
 packed_fifo_data        <= aligned_packed_fifo_data_d   when full_half_precision = '0' else half_precision_data;
 
+packed_final_notify     <= fp_pack_final_notify         when full_half_precision = '0' else hp_pack_final_notify;
+
 ---------------------------------------------------------------------------
-
--- -- align the data to 64bytes, from 2 x 34 bytes
-
--- align_64b_proc : process(i_axi_clk)
--- begin
---     if rising_edge(i_axi_clk) then
---         if cor_triangle_fsm = idle OR reset = '1' then
---             pack_counter                <= x"01";
-
---             packed_fifo_data_d1         <= (others => '0');
---             packed_fifo_data_d2         <= (others => '0');
---             packed_fifo_data_d3         <= (others => '0');
---             aligned_packed_fifo_data_d  <= (others => '0');
---             packed_wr_enable            <= "00";
-
---             aligned_packed_wr_d         <= '0';
---             pack_byte_tracker           <= x"00";
---         else
---             if packed_fifo_wr = '1' or (packed_wr_enable(1) = '1') then
---                 packed_fifo_data_d1     <= packed_fifo_data;
---                 packed_fifo_data_d2     <= packed_fifo_data_d1;
---                 packed_fifo_data_d3     <= packed_fifo_data_d2;
---             end if;
-
-
---             ---------------------------
---             -- push the remaining sub 64 byte data along.
---             if matrix_packed(1) = '1' and pack_byte_tracker >= 30 then
---                 packed_wr_enable    <= "10";
---             elsif matrix_packed(1) = '1' and pack_byte_tracker >= 1 then
---                 packed_wr_enable    <= "11";
---             else
---                 packed_wr_enable    <= packed_wr_enable(0) & '0';    
---             end if;
-
-            
-
-
---             if (packed_fifo_wr = '1' or (packed_wr_enable(1) = '1')) AND (pack_wr = '1') then
---                 -- adding 34 bytes and subtracting 64 so -30
---                 pack_byte_tracker   <= pack_byte_tracker - 30;
---             elsif (packed_fifo_wr = '1' or (packed_wr_enable(1) = '1')) then
---                 pack_byte_tracker   <=  pack_byte_tracker + 34;
---             elsif (pack_wr = '1') then
---                 pack_byte_tracker   <= pack_byte_tracker -  64;
---             end if;
-
---             if pack_byte_tracker >= 64 then
---                 if pack_counter = 17 then
---                     pack_counter    <= x"01";
---                 else
---                     pack_counter    <= pack_counter + 1;
---                 end if;
-
---             end if;
-
---             aligned_packed_wr_d         <= aligned_packed_wr;
---             aligned_packed_fifo_data_d  <= aligned_packed_fifo_data;
---         end if;
---     end if;
--- end process;
-
--- pack_wr   <= '1' when (pack_byte_tracker >= 64) else '0';
-
--- reg_512_align_proc : process(i_axi_clk)
--- begin
---     if rising_edge(i_axi_clk) then
---         if reset = '1' then
---             aligned_packed_wr               <= '0';
---             aligned_packed_fifo_data        <= (others => '0');
---         else
---             aligned_packed_wr               <= pack_wr;
-
---             if (pack_counter(4 downto 0) = 1) then
---                 aligned_packed_fifo_data    <=                                       packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 32);
---             end if;
---             if (pack_counter(4 downto 0) = 2) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(31 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 64);
---             end if;
---             if (pack_counter(4 downto 0) = 3) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(63 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 96);
---             end if;
---             if (pack_counter(4 downto 0) = 4) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(95 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 128);
---             end if;
---             if (pack_counter(4 downto 0) = 5) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(127 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 160);
---             end if;
---             if (pack_counter(4 downto 0) = 6) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(159 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 192);
---             end if;
---             if (pack_counter(4 downto 0) = 7) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(191 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 224);
---             end if;
---             if (pack_counter(4 downto 0) = 8) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(223 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 256);
---             end if;
---             if (pack_counter(4 downto 0) = 9) then
---                 aligned_packed_fifo_data    <=                                         packed_fifo_data_d2(255 downto 0)   & packed_fifo_data_d1(271 downto 16);
---             end if;
---             if (pack_counter(4 downto 0) = 10) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(15 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 48);
---             end if;
---             if (pack_counter(4 downto 0) = 11) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(47 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 80);
---             end if;
---             if (pack_counter(4 downto 0) = 12) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(79 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 112);
---             end if;
---             if (pack_counter(4 downto 0) = 13) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(111 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 144);
---             end if;
---             if (pack_counter(4 downto 0) = 14) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(143 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 176);
---             end if;
---             if (pack_counter(4 downto 0) = 15) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(175 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 208);
---             end if;
---             if (pack_counter(4 downto 0) = 16) then
---                 aligned_packed_fifo_data    <= packed_fifo_data_d3(207 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 240);
---             end if;
---             if (pack_counter(4 downto 0) = 17) then
---                 aligned_packed_fifo_data    <=                                      packed_fifo_data_d2(239 downto 0)   & packed_fifo_data_d1;
---             end if;
---         end if;
---     end if;
--- end process;
-
-
-    ---------------------------------------------------------------------------
 
     packed_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper
     Generic map (
