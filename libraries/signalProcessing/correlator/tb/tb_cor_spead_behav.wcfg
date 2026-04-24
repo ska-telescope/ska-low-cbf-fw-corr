@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="126.500001 us"></ZoomEndTime>
-      <Cursor1Time time="9.289598 us"></Cursor1Time>
+      <ZoomStartTime time="61.082000 us"></ZoomStartTime>
+      <ZoomEndTime time="124.732001 us"></ZoomEndTime>
+      <Cursor1Time time="90.532000 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="273"></NameColumnWidth>
-      <ValueColumnWidth column_width="101"></ValueColumnWidth>
+      <ValueColumnWidth column_width="93"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="721" />
+   <WVObjectSize size="724" />
    <wvobject type="logic" fp_name="/tb_cor_spead/clock_300">
       <obj_property name="ElementShortName">clock_300</obj_property>
       <obj_property name="ObjectShortName">clock_300</obj_property>
@@ -1393,22 +1393,31 @@
       <obj_property name="ElementShortName">o_data_valid</obj_property>
       <obj_property name="ObjectShortName">o_data_valid</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/total_bytes_added_to_heap">
+      <obj_property name="ElementShortName">total_bytes_added_to_heap[31:0]</obj_property>
+      <obj_property name="ObjectShortName">total_bytes_added_to_heap[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/output_writes_required">
+      <obj_property name="ElementShortName">output_writes_required[31:0]</obj_property>
+      <obj_property name="ObjectShortName">output_writes_required[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/enable_check">
+      <obj_property name="ElementShortName">enable_check</obj_property>
+      <obj_property name="ObjectShortName">enable_check</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/i_heap_size">
       <obj_property name="ElementShortName">i_heap_size[31:0]</obj_property>
       <obj_property name="ObjectShortName">i_heap_size[31:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/trigger_final_drain">
-      <obj_property name="ElementShortName">trigger_final_drain</obj_property>
-      <obj_property name="ObjectShortName">trigger_final_drain</obj_property>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/trigger_final_drain">
+      <obj_property name="ElementShortName">trigger_final_drain[1:0]</obj_property>
+      <obj_property name="ObjectShortName">trigger_final_drain[1:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_half_p_packer/o_finished_pack">
       <obj_property name="ElementShortName">o_finished_pack</obj_property>
       <obj_property name="ObjectShortName">o_finished_pack</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/sample_per_output_tracker">
-      <obj_property name="ElementShortName">sample_per_output_tracker[1:0]</obj_property>
-      <obj_property name="ObjectShortName">sample_per_output_tracker[1:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_half_p_packer/sorted_data">
       <obj_property name="ElementShortName">sorted_data[255:0]</obj_property>
@@ -1522,11 +1531,24 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/i_heap_size">
       <obj_property name="ElementShortName">i_heap_size[31:0]</obj_property>
       <obj_property name="ObjectShortName">i_heap_size[31:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_full_p_packer/o_finished_pack">
       <obj_property name="ElementShortName">o_finished_pack</obj_property>
       <obj_property name="ObjectShortName">o_finished_pack</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_full_p_packer/enable_check">
+      <obj_property name="ElementShortName">enable_check</obj_property>
+      <obj_property name="ObjectShortName">enable_check</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/output_writes_required">
+      <obj_property name="ElementShortName">output_writes_required[31:0]</obj_property>
+      <obj_property name="ObjectShortName">output_writes_required[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/total_bytes_added_to_heap">
+      <obj_property name="ElementShortName">total_bytes_added_to_heap[31:0]</obj_property>
+      <obj_property name="ObjectShortName">total_bytes_added_to_heap[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/sorted_data">
       <obj_property name="ElementShortName">sorted_data[271:0]</obj_property>
@@ -1560,6 +1582,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/bytes_in_pipeline_tracker">
       <obj_property name="ElementShortName">bytes_in_pipeline_tracker[7:0]</obj_property>
       <obj_property name="ObjectShortName">bytes_in_pipeline_tracker[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/gearbox_position">
       <obj_property name="ElementShortName">gearbox_position[7:0]</obj_property>
@@ -1574,18 +1597,9 @@
       <obj_property name="ElementShortName">aligned_data_wr</obj_property>
       <obj_property name="ObjectShortName">aligned_data_wr</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/total_bytes_added_to_heap">
-      <obj_property name="ElementShortName">total_bytes_added_to_heap[31:0]</obj_property>
-      <obj_property name="ObjectShortName">total_bytes_added_to_heap[31:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_full_p_packer/trigger_final_drain">
-      <obj_property name="ElementShortName">trigger_final_drain</obj_property>
-      <obj_property name="ObjectShortName">trigger_final_drain</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/i_full_p_packer/sample_per_output_tracker">
-      <obj_property name="ElementShortName">sample_per_output_tracker</obj_property>
-      <obj_property name="ObjectShortName">sample_per_output_tracker</obj_property>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/trigger_final_drain">
+      <obj_property name="ElementShortName">trigger_final_drain[1:0]</obj_property>
+      <obj_property name="ObjectShortName">trigger_final_drain[1:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_full_p_packer/finished_pack">
       <obj_property name="ElementShortName">finished_pack[3:0]</obj_property>

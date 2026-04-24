@@ -63,8 +63,6 @@ signal reset_int        : std_logic;
 signal half_p_data      : std_logic_vector(127 downto 0);
 signal half_p_valid     : std_logic_vector(7 downto 0);
 
-signal valid_del        : std_logic_vector(7 downto 0);
-
 constant cycles_from_input : INTEGER := 8;
 signal meta_data_pipe   : t_slv_16_arr((cycles_from_input-1) downto 0);
 
@@ -81,12 +79,13 @@ signal aligned_data     : std_logic_vector(511 downto 0) := (others => '0');
 signal aligned_data_wr  : std_logic := '0';
 
 signal total_bytes_added_to_heap    : unsigned(31 downto 0) := x"00000000";
+signal output_writes_required       : unsigned(31 downto 0) := x"00000000";
 
-signal trigger_final_drain  : std_logic := '0';
+signal trigger_final_drain          : std_logic_vector(1 downto 0) := "00";
 
-signal sample_per_output_tracker    : unsigned(1 downto 0) := "00";
+signal enable_check         : std_logic;
 
-signal finished_pack        : std_logic_vector(3 downto 0) := x"0";
+signal finished_pack        : std_logic_vector(7 downto 0) := x"00";
 
 begin
 
@@ -103,7 +102,7 @@ begin
         o_data_out      <= aligned_data;
         o_data_valid    <= aligned_data_wr;
 
-        o_finished_pack <= finished_pack(3);
+        o_finished_pack <= finished_pack(7);
 
 
         meta_data_pipe(0)                               <= i_sorted_data(15 downto 0);
@@ -113,7 +112,7 @@ begin
         -- add data to the packing pipeline after it has been through the f_to_f and gate that on writes.
 
         -- create pipeline post f_to_f converter for packing logic
-        if half_p_valid(1) = '1' OR (trigger_final_drain = '1') then
+        if half_p_valid(1) = '1' OR (trigger_final_drain(1) = '1') then
             half_p_pipe(0)                          <= (half_p_data & meta_data_pipe(cycles_from_input-1));
             half_p_pipe((half_p_steps-1) downto 1)  <= half_p_pipe((half_p_steps-2) downto 0);
         end if;
@@ -122,11 +121,11 @@ begin
         -- add 18 bytes per input
         -- subtract 64 when packed vector writen
         -- subtract 46 when input and vector written occur same cycle.
-        if ((half_p_valid(0) = '1') OR (trigger_final_drain = '1')) AND (packed_wr = '1') then
+        if ((half_p_valid(0) = '1') OR (trigger_final_drain(1) = '1')) AND (packed_wr = '1') then
             bytes_in_pipeline_tracker   <= bytes_in_pipeline_tracker - 46;
         elsif (packed_wr = '1') then
             bytes_in_pipeline_tracker   <= bytes_in_pipeline_tracker - 64;
-        elsif ((half_p_valid(0) = '1') OR (trigger_final_drain = '1')) then
+        elsif ((half_p_valid(0) = '1') OR (trigger_final_drain(1) = '1')) then
             bytes_in_pipeline_tracker   <= bytes_in_pipeline_tracker + 18;
         end if;
 
@@ -142,36 +141,36 @@ begin
         -- this will be matched against the programmed heap size
         -- and when that is true, any transfers less than the 8192
         -- or less than 64 byte transfers will be pushed through.
-        valid_del   <= valid_del(6 downto 0) & half_p_valid(2);
-        if half_p_valid(2) = '1' then
+
+        if half_p_valid(2) = '1'  OR (trigger_final_drain(1) = '1') then
             total_bytes_added_to_heap   <= total_bytes_added_to_heap + 18;
+            enable_check                <= '1';
         end if;
 
-        -- total number of visibility bytes packed matches the programmed size,
+        output_writes_required  <= i_heap_size;
+
         -- need to flush out an aligned vector.
-        if half_p_valid(3) = '1' then
-            sample_per_output_tracker   <= sample_per_output_tracker + 1;
-        elsif (total_bytes_added_to_heap >= i_heap_size) then
+        if (total_bytes_added_to_heap(31 downto 6) = output_writes_required(31 downto 6)) AND (enable_check = '1') then
             -- allow a few cycles to flush final data if not 64 byte aligned 
             -- when packed onto vector
             -- there are 4 x 18 byte vectors per.
             finished_pack(0)    <= '1';
-            if (sample_per_output_tracker /= "00") then
-                trigger_final_drain <= '1';
-                sample_per_output_tracker   <= sample_per_output_tracker + 1;
-            else
-                trigger_final_drain <= '0';
+
+            if (i_heap_size(5 downto 0) /= "000000") then
+                trigger_final_drain <= trigger_final_drain(0) & (NOT trigger_final_drain(0));
             end if;
         end if;
 
-        finished_pack(3 downto 1)   <= finished_pack(2 downto 0);
+        finished_pack(7 downto 1)   <= finished_pack(6 downto 0);
 
         if reset_int = '1' then
             gearbox_position            <= x"01";
             total_bytes_added_to_heap   <= x"00000000";
-            trigger_final_drain         <= '0';
-            sample_per_output_tracker   <= "00";
-            finished_pack               <= x"0";
+            trigger_final_drain         <= "01";
+            finished_pack               <= x"00";
+            bytes_in_pipeline_tracker   <= x"00";
+            enable_check                <= '0';
+            output_writes_required      <= x"00000000";
         end if;
     end if;
 end process;

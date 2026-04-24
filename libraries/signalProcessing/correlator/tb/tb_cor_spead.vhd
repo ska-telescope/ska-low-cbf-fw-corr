@@ -512,11 +512,11 @@ begin
                 elsif stim_count = 13000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"5";
+                    row_count       <= 9D"6";
                     data_valid      <= '1';
     
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"4";
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"5";
                     
                     stim_time_ref(31 downto 0)  <= 32D"4";
                     stim_time_ref(33 downto 32) <= "00";
