@@ -35,7 +35,7 @@ use xpm.vcomponents.all;
 
 entity float32_to_float16 is
     generic (
-        g_SIM               : BOOLEAN := TRUE
+        g_SIM               : BOOLEAN := FALSE
     );
     port (
         clk                 : in STD_LOGIC;
@@ -111,7 +111,7 @@ begin
     end if;
 end process;
 
-gen_conv : if (NOT g_SIM) GENERATE
+--gen_conv : if (NOT g_SIM) GENERATE
     i_float_conv : float32_float16_ip
         PORT MAP (
             aclk                    => clk,
@@ -120,7 +120,7 @@ gen_conv : if (NOT g_SIM) GENERATE
             m_axis_result_tvalid    => data_valid(3),
             m_axis_result_tdata     => float_conv_q
         );
-END GENERATE;
+--END GENERATE;
 
 gen_sim_conv : if (g_SIM) GENERATE
 
