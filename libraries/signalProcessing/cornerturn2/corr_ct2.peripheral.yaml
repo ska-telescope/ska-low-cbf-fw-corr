@@ -194,6 +194,26 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "CT2 debug status"
+          - - field_name        : status1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "CT2 debug status"
+          - - field_name        : status2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "CT2 debug status"
+          - - field_name        : status3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "CT2 debug status"
+          - - field_name        : status4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "CT2 debug status"
           #################################
           - - field_name        : din_status1
               width             : 32
@@ -257,6 +277,7 @@ peripherals:
                                              bits (31) = integration time; 0 = 283 ms, 1 = 849 ms \
                                     Word 3 : bits (31:0) = Original - Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
                                                            v80 - Base address in HBM in units of 4 byte words, out of a unified 9 GByte address space for all correlator cores \
+                                                           This value needs to be 256 byte aligned \
                                    Memory layout (Original) - \
                                     Data is written to the HBM in blocks of 512 bytes. \
                                     The 512 byte blocks are arranged in a 3-D array (fine_channel, i_time_block, station) \

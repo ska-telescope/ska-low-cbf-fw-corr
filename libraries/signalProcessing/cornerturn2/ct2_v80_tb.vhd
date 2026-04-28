@@ -26,8 +26,10 @@ entity ct2_v80_tb is
     generic(
         g_PACKET_GAP : integer := 4100; -- number of clocks from the start of one filterbank packet to the start of the next 
         g_VC_GAP : integer := 20000;   -- number of clocks idle between groups of 12 virtual channels from the filterbank
-        g_CORRELATOR_CORES : integer := 1;
-        g_TEST_CASE : integer := 4 -- selects a set of register transactions and other configuration to use in the test.
+        --g_CORRELATOR_CORES : integer := 1;
+        --g_TEST_CASE : integer := 4 -- selects a set of register transactions and other configuration to use in the test.
+        g_CORRELATOR_CORES : integer := 0;
+        g_TEST_CASE : integer := 5 -- selects a set of register transactions and other configuration to use in the test.
         -- 
     );
 end ct2_v80_tb;
@@ -549,6 +551,62 @@ begin
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 1, x"00000000");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 2, x"00000000");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 4 + 3, x"00000000");
+            
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '1';
+            WAIT UNTIL RISING_EDGE(clk300);
+            send_fb_data <= '0';
+            WAIT UNTIL RISING_EDGE(clk300);
+            
+        elsif g_TEST_CASE = 5 then
+            -- 12 virtual channel, 1 subarray-beam
+            c_VIRTUAL_CHANNELS <= 12;
+            WAIT UNTIL RISING_EDGE(clk300);
+            virtual_channels <= std_logic_vector(to_unsigned(c_VIRTUAL_CHANNELS,11));
+            -- Set where bad poly will occur in the data stream.
+            bad_poly_packets_sent <= 0;
+            bad_poly_integration <= (others => '0');
+            bad_poly_ctFrame <= "00";
+            -- note bad poly vc only works on blocks of 4 channels, so bad_poly_vc needs to be a multiple of 4.
+            bad_poly_vc <= x"FFFF";  -- no bad polynomials for this test case
+            
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_buf0_subarray_beams_table0_address.base_address + c_statctrl_buf0_subarray_beams_table0_address.address, x"00000001");
+            -- 1 subarray-beams in table 1
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_buf0_subarray_beams_table1_address.base_address + c_statctrl_buf0_subarray_beams_table1_address.address, x"00000001");
+            -- 1 subarray-beams for second correlator, table 0
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_buf1_subarray_beams_table0_address.base_address + c_statctrl_buf1_subarray_beams_table0_address.address, x"00000000");
+            -- 0 subarray-beams for second correlator, table 1
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_buf1_subarray_beams_table1_address.base_address + c_statctrl_buf1_subarray_beams_table1_address.address, x"00000000");
+            -- demap table
+            -- 2 words per group of 4 virtual channels :
+            --   Word 0 : bits(7:0) = subarray-beam id, index into the subarray_beam table. Values of 0 to 127 are for the first correlator, 128 to 255 for the second correlator. 
+            --            bits(19:8) = (sub)station within this subarray.
+            --            bits(28:20) = channel frequency index 
+            --            bit(31) = 1 to indicate valid
+            --   word 1 : !!! This is for exporting the fine channel data on the 100GE port, bypassing the correlator. The functionality is not implemented in the firmware, and may never be.
+            --            bits(11:0) = start fine channel for forwarding on the 100GE port. (0)
+            --            bits(23:12) = End fine channel for forwarding on the 100GE port. (3455 = xD7F)
+            --            bits(31:24) = Forwarding address  (unused)
+            -- 1 virtual channels in this test case, so only 1 x 2 words needed in the demap table
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 0, x"8c800000");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 1, x"00000000");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, x"8c800400");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, x"00000000");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, x"8c800800");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, x"00000000");
+            
+            -- subarray beam table
+            -- Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
+            --          bits(31:16) = starting coarse frequency channel, \
+            -- Word 1 : bits (15:0) = starting fine frequency channel \
+            -- Word 2 : bits (23:0) = Number of fine channels stored \
+            --          bits (30:24) = Fine channels per integration \
+            --          bit  (31) = integration time; 0 = 283 ms, 1 = 849 ms \
+            -- Word 3 : bits (31:0) = Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 0, x"00C8000C");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 1, x"00000000");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 2, x"98000D80");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_subarray_beam_address.base_address + c_statctrl_subarray_beam_address.address + 3, x"00000000");
             
             WAIT UNTIL RISING_EDGE(clk300);
             send_fb_data <= '1';

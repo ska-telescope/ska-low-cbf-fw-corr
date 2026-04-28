@@ -337,6 +337,10 @@ architecture Behavioral of corr_ct2_top_v80 is
     signal readout_pending : std_logic := '0';
     signal dout_SB_entry_del2, dout_SB_entry_del3, dout_SB_entry_del1, dout_SB_entry : std_logic_vector(8 downto 0);
     
+    signal aw_count, w_count : std_logic_vector(31 downto 0);
+    signal aw_last_addr : std_logic_vector(31 downto 0);
+    signal status1, status2, status3, status4 : std_logic_vector(31 downto 0);
+    
 begin
     
     dataValid <= i_dataValid and module_enable;
@@ -456,6 +460,26 @@ begin
                 readoutBursts <= std_logic_vector(unsigned(readoutBursts) + 1);
             end if;
             
+            -- HBM transactions
+           -- HBM_axi_aw      : out t_axi4_full_addr_arr(1 downto 0); -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
+           -- i_HBM_axi_awready
+            if HBM_axi_aw(0).valid = '1' and i_HBM_axi_awready(0) = '1' then
+                aw_count <= std_logic_vector(unsigned(aw_count) + 1);
+                aw_last_addr <= HBM_axi_aw(0).addr(31 downto 0);
+            end if;
+            if HBM_axi_w(0).valid = '1' and i_HBM_axi_wready(0) = '1' then
+                w_count <= std_logic_vector(unsigned(w_count) + 1);
+            end if;
+            
+            status1 <= aw_count;
+            status2 <= w_count;
+            status3 <= aw_last_addr;
+            status4(0) <= HBM_axi_aw(0).valid;
+            status4(1) <= i_HBM_axi_awready(0);
+            status4(2) <= HBM_axi_w(0).valid;
+            status4(3) <= i_HBM_axi_wready(0);
+            status4(31 downto 4) <= HBM_axi_aw(0).addr(31 downto 4);
+            
             -- General status
             cur_status0(0) <= i_rst;
             cur_status0(1) <= i_dataValid;
@@ -485,6 +509,11 @@ begin
     statctrl_ro.status0  <= cur_status0;
     statctrl_ro.din_status1 <= din_status1_del1;
     statctrl_ro.din_status2 <= din_status2_del1;
+    
+    statctrl_ro.status1 <= status1;
+    statctrl_ro.status2 <= status2;
+    statctrl_ro.status3 <= status3;
+    statctrl_ro.status4 <= status4;
     
     -- corr_ct2_din has buffers and logic for 1024 virtual channels = two correlator cells.
     din_inst : entity ct_lib.corr_ct2_din_v80
