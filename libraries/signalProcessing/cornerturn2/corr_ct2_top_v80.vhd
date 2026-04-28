@@ -510,6 +510,7 @@ begin
     statctrl_ro.din_status1 <= din_status1_del1;
     statctrl_ro.din_status2 <= din_status2_del1;
     
+    -- status registers to check HBM interface
     statctrl_ro.status1 <= status1;
     statctrl_ro.status2 <= status2;
     statctrl_ro.status3 <= status3;
