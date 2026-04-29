@@ -592,8 +592,8 @@ begin
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 1, x"00000000");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, x"8c800400");
             noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, x"00000000");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 2, x"8c800800");
-            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 3, x"00000000");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 4, x"8c800800");
+            noc_write(clk300, noc_wren, noc_wr_adr, noc_wr_dat, c_statctrl_vc_demap_address.base_address + c_statctrl_vc_demap_address.address + 5, x"00000000");
             
             -- subarray beam table
             -- Word 0 : bits(15:0) = number of (sub)stations in this subarray-beam, \
@@ -1037,9 +1037,9 @@ begin
         MIN_LAG => 60,  -- integer := 80   
         INCLUDE_PROTOCOL_CHECKER => TRUE,
         RANDSEED => 43526, -- : natural := 12345;
-        LATENCY_LOW_PROBABILITY => 95,  --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+        LATENCY_LOW_PROBABILITY => 99,  --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
         LATENCY_ZERO_PROBABILITY => 80, -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
-        LATENCY_LOW_PROBABILITY2 => 97, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
+        LATENCY_LOW_PROBABILITY2 => 99, --  natural := 95;   -- probability, as a percentage, that non-zero gaps between read beats will be small (i.e. < 3 clocks)
         LATENCY_ZERO_PROBABILITY2 => 82 -- natural := 80   -- probability, as a percentage, that the gap between read beats will be zero.
     ) Port map (
         i_clk => clk300,

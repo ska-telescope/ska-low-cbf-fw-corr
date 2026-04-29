@@ -38,7 +38,7 @@ USE common_lib.common_pkg.all;
 
 entity get_ct2_HBM_addr_v80 is
     generic(
-        g_BUFFER_OFFSET : std_logic_vector(35 downto 0) := x"240000000"  -- Each half of the buffer in the v80 is 9 Gbytes; 
+        g_BUFFER_OFFSET : std_logic_vector(35 downto 0) := x"200000000"  -- Each half of the buffer in the v80 is 8 Gbytes; 
     );
     port(
         i_axi_clk : in std_logic;

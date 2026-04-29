@@ -50,8 +50,9 @@ entity DSP_top_correlator_v80 is
         g_USE_META               : boolean := FALSE;  -- Put meta data into the memory in place of the actual data, to make it easier to find bugs in the corner turn. 
         -- There are 34 bytes per sample : 4 x 8 byte visibilites, + 1 byte TCI + 1 byte DV
         g_PACKET_SAMPLES_DIV16   : integer := 64;  -- Actual number of samples in a correlator SPEAD packet is this value x 16; each sample is 34 bytes; default value => 64*34 = 2176 bytes of data per packet.
-        g_CORRELATORS            : integer := 6;
-        g_MAX_CORRELATORS        : integer := 6;
+        g_CORRELATORS            : integer := 6;   -- Number of correlator cores that are actually implemented
+        g_PACKETISERS            : integer := 6;   -- Number of packetisers to instantiate; needs to match the number of NOC instances defined in the constraints. Having more packetisers than correlators does no harm.
+        g_MAX_CORRELATORS        : integer := 6;   -- maximum number of correlator cores supported. This value must match with the number of NOC instances defined in the constraints
         g_USE_DUMMY_FB           : boolean := FALSE;
         g_INCLUDE_SPS_MONITOR    : boolean  --  If sps monitor is included, HBM ILA is removed
     );
@@ -737,10 +738,11 @@ begin
    
     -- Correlator instances
     
-    correlator_geni : for i in 0 to (g_CORRELATORS-1) generate
+    correlator_geni : for i in 0 to (g_MAX_CORRELATORS-1) generate
         correlator_wrapperi : entity correlator_lib.correlator_wrapper_v80
         generic map(
-            g_CORRELATOR_INSTANCE => i --  integer; unique ID for this correlator instance
+            g_CORRELATOR_INSTANCE => i, --  integer; unique ID for this correlator instance
+            g_CORRELATORS => g_CORRELATORS
         ) port map (
             -- clock used for all data input and output from this module (300 MHz)
             i_axi_clk => i_MACE_clk, -- in std_logic;
@@ -768,7 +770,7 @@ begin
     
     spead_packetiser_top : entity spead_lib.spead_top_cor_v80 
     generic map ( 
-        g_CORRELATORS       => g_CORRELATORS,
+        g_CORRELATORS       => g_PACKETISERS,
         g_DEBUG_ILA         => FALSE
     ) port map ( 
         -- clock used for all data input and output from this module (300 MHz)

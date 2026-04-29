@@ -139,9 +139,9 @@ peripherals:
           - - field_name        : output_cycles
               width             : 16
               access_mode       : RW
-              reset_value       : 0x1004
+              reset_value       : 0x10D0
               field_description : "Number of clock cycles from the start of one output packet to the start of the next packet.\
-                                   Actual packet length is 4096 clocks. Default is 4100."
+                                   Actual packet length is 4096 clocks. Default is 4304, corresponding to a minimum clock rate of 294 MHz."
               
           - - field_name        : framecount_start
               width             : 7

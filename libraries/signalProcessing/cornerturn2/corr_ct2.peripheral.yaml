@@ -276,7 +276,7 @@ peripherals:
                                              bits (30:24) = Fine channels per integration \
                                              bits (31) = integration time; 0 = 283 ms, 1 = 849 ms \
                                     Word 3 : bits (31:0) = Original - Base Address in HBM within a 1.5 Gbyte block to store channelised source data for this subarray-beam \
-                                                           v80 - Base address in HBM in units of 4 byte words, out of a unified 9 GByte address space for all correlator cores \
+                                                           v80 - Base address in HBM in units of 4 byte words, out of a unified 8 GByte address space for all correlator cores \
                                                            This value needs to be 256 byte aligned \
                                    Memory layout (Original) - \
                                     Data is written to the HBM in blocks of 512 bytes. \

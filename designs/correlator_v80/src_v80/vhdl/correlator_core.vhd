@@ -63,7 +63,7 @@ ENTITY correlator_core IS
         g_HBM_AXI_ID_WIDTH   : integer := 1;
         -- Number of correlator blocks to instantiate.
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
-        g_CORRELATORS        : integer := 6;  -- 1 to 6
+        g_CORRELATORS        : integer := 1;  -- 1 to 6
         g_INCLUDE_SPS_MONITOR : boolean := TRUE;
         g_USE_DUMMY_FB       : boolean := FALSE -- Should be FALSE for normal operation.
     );
@@ -328,24 +328,6 @@ ARCHITECTURE structure OF correlator_core IS
     
     constant HBM_GASKET_NO_OF_STATUS    : INTEGER := 5;
     signal HBM_gasket_stat  : t_slv_32_matrix((g_HBM_INTERFACES-1) downto 0, (HBM_GASKET_NO_OF_STATUS-1) downto 0);
-    
-    -- V80 contains 32GB of HBM
-    -- Base address for this is 0x40_0000_0000
-    -- Biggest HBM block in Correlator is 4GB
-    constant HBM_base_addr  : t_slv_64_arr(g_HBM_interfaces-1 downto 0) := ( x"0000004600000000",   -- Base         
-                                                                             x"0000004500000000",   -- +4GB addr
-                                                                             x"0000004400000000",   -- +4GB addr
-                                                                             x"0000004200000000",   -- +4GB addr
-                                                                             x"0000004100000000",   -- +4GB addr
-                                                                             x"0000004700000000"    -- +4GB addr    -- LFAA
-                                                                            );
--- From Xilinx Doc PG313
--- Base address 0 - LFAA    - HBM14_PORT0_hbmc  - 0x47_0000_0000
--- Base address 1 - CT2_1   - HBM2_PORT0_hbmc   - 0x41_0000_0000
--- Base address 2 - CT2_2   - HBM4_PORT0_hbmc   - 0x42_0000_0000
--- Base address 3 - Corr_1  - HBM8_PORT0_hbmc   - 0x44_0000_0000
--- Base address 4 - Corr_2  - HBM10_PORT0_hbmc  - 0x45_0000_0000
--- Base address 5 - ILA     - HBM12_PORT0_hbmc  - 0x46_0000_0000
 
     signal axi_dbg : std_logic_vector(127 downto 0);
     signal axi_dbg_valid : std_logic;

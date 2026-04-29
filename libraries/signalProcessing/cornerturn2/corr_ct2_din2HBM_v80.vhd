@@ -135,7 +135,7 @@ end corr_ct2_din2HBM_v80;
 architecture Behavioral of corr_ct2_din2HBM_v80 is
     
     
-    type  aw_fsm_t is (get_addr0, get_Addr1, get_addr2, wait_addr0, addr1, addr2, done);
+    type  aw_fsm_t is (get_addr0, get_Addr1, get_addr2, wait_addr0, addr1, addr2, check_space_available, done);
     signal aw_fsm, aw_fsm_del1 : aw_fsm_t := done;
     
     type wdataCopy_fsm_t is (idle, copyData, wait_FIFO);
@@ -198,7 +198,7 @@ begin
     
     hbm_addri : entity ct_lib.get_ct2_HBM_addr_v80
     generic map (
-        g_BUFFER_OFFSET => x"240000000"  -- Each half of the buffer in the v80 is 9 Gbytes; 
+        g_BUFFER_OFFSET => x"200000000"  -- Each half of the buffer in the v80 is 8 Gbytes; 
     ) port map (
         i_axi_clk => i_axi_clk, --  in std_logic;
         -- Values from the Subarray-beam table
@@ -332,6 +332,10 @@ begin
                         else
                             awFIFO_wrEn <= '0';
                         end if;
+                        aw_fsm <= check_space_available;
+                        aw_fsm_dbg <= "0110";
+                    
+                    when check_space_available =>
                         if aw_fifo_space_available = '1' and wcopy_fifo_space_available = '1' then
                             if unsigned(uram_fine) = 1727 then
                                 aw_fsm <= done;
@@ -340,12 +344,13 @@ begin
                                 aw_fsm <= get_addr0;
                             end if;
                         end if;
+                        awFIFO_wrEn <= '0';
                         get_addr <= '0';
-                        aw_fsm_dbg <= "0110";
+                        aw_fsm_dbg <= "0111";
                         
                     when done =>
                         aw_fsm <= done;
-                        aw_fsm_dbg <= "0111";
+                        aw_fsm_dbg <= "1000";
                         
                     when others => 
                         aw_fsm <= done;

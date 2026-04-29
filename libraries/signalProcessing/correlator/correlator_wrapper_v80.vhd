@@ -25,8 +25,11 @@ use signal_processing_common.target_fpga_pkg.ALL;
 
 entity correlator_wrapper_v80 is
     generic (
-        g_USE_VNOC : boolean := False;   -- if true, instantiate HBM NOC component instead of VNOC component for the HBM interface
-        g_CORRELATOR_INSTANCE : integer   -- unique ID for this correlator instance
+        g_CORRELATOR_INSTANCE : integer;   -- unique ID for this correlator instance
+        -- Total number of correlator cores to instantiate
+        -- This module will only instantiate the correlator core if 
+        -- g_CORRELATOR_INSTANCE < g_CORRELATORS
+        g_CORRELATORS : integer
     );
     port (
         -- clock used for all data input and output from this module (300 MHz)
@@ -81,54 +84,73 @@ architecture Behavioral of correlator_wrapper_v80 is
     
 begin
     
-    cori : entity correlator_lib.correlator_top_v80
-    generic map (
-        g_CORRELATOR_INSTANCE => g_CORRELATOR_INSTANCE -- integer; unique ID for this correlator instance
-    ) port map (
-        -- clock used for all data input and output from this module (300 MHz)
-        i_axi_clk => i_axi_clk, -- in std_logic;
-        i_axi_rst => i_axi_rst, -- in std_logic;
-        -- Processing clock used for the correlation (>412.5 MHz)
-        i_cor_clk => i_cor_clk, -- in std_logic;
-        i_cor_rst => i_cor_rst, -- in std_logic;
-        ---------------------------------------------------------------------------
-        -- AXI stream input with packets of control data from corner turn 2
-        i_cor_cfg_data  => i_cor_cfg_data,  -- in (7:0);  8 bit wide bus
-        i_cor_cfg_first => i_cor_cfg_first, -- in std_logic;
-        i_cor_cfg_last  => i_cor_cfg_last,  -- in std_logic;
-        i_cor_cfg_valid => i_cor_cfg_valid, -- in std_logic;
-        ---------------------------------------------------------------------------
-        -- 256 bit wide memory interface
-        -- Read from HBM to go to the correlator
-        o_HBM_axi_ar      => HBM_axi_ar, -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_arready => HBM_axi_arready, -- in  std_logic;
-        i_HBM_axi_r       => HBM_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_rready  => HBM_axi_rready,  -- out std_logic;
-        -- write to HBM at the output of the correlator
-        o_HBM_axi_aw      => HBM_axi_aw,      -- out t_axi4_full_addr; -- write address bus (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready => HBM_axi_awready, -- in  std_logic;
-        o_HBM_axi_w       => HBM_axi_w,       -- out t_axi4_full_data; -- w data bus (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  => HBM_axi_wready,  -- in  std_logic;
-        i_HBM_axi_b       => HBM_axi_b,       -- in  t_axi4_full_b; -- write response bus (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        ---------------------------------------------------------------
-        -- Readout bus tells the packetiser what to do
-        o_ro_data  => ro_FIFO_din,  -- out std_logic_vector(127 downto 0);
-        o_ro_valid => ro_FIFO_wrEn, -- out std_logic;
-        i_ro_stall => ro_stall,     -- in std_logic;
-        ---------------------------------------------------------------
-        -- Copy of the bus taking data to be written to the HBM,
-        -- for the first correlator instance.
-        -- Used for simulation only, to check against the model data.
-        o_tb_data      => open, -- out std_logic_vector(255 downto 0);
-        o_tb_visValid  => open, -- out std_logic; -- o_tb_data is valid visibility data
-        o_tb_TCIvalid  => open, -- out std_logic; -- i_data is valid TCI & DV data
-        o_tb_dcount    => open, -- out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
-        o_tb_cell      => open, -- out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
-        o_tb_tile      => open, -- out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   => open, -- out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
-        -- an old debug trigger I think
-        o_freq_index0_repeat => open --: out std_logic
-    );
+    include_cori : if g_CORRELATOR_INSTANCE < g_CORRELATORS generate
+        cori : entity correlator_lib.correlator_top_v80
+        generic map (
+            g_CORRELATOR_INSTANCE => g_CORRELATOR_INSTANCE -- integer; unique ID for this correlator instance
+        ) port map (
+            -- clock used for all data input and output from this module (300 MHz)
+            i_axi_clk => i_axi_clk, -- in std_logic;
+            i_axi_rst => i_axi_rst, -- in std_logic;
+            -- Processing clock used for the correlation (>412.5 MHz)
+            i_cor_clk => i_cor_clk, -- in std_logic;
+            i_cor_rst => i_cor_rst, -- in std_logic;
+            ---------------------------------------------------------------------------
+            -- AXI stream input with packets of control data from corner turn 2
+            i_cor_cfg_data  => i_cor_cfg_data,  -- in (7:0);  8 bit wide bus
+            i_cor_cfg_first => i_cor_cfg_first, -- in std_logic;
+            i_cor_cfg_last  => i_cor_cfg_last,  -- in std_logic;
+            i_cor_cfg_valid => i_cor_cfg_valid, -- in std_logic;
+            ---------------------------------------------------------------------------
+            -- 256 bit wide memory interface
+            -- Read from HBM to go to the correlator
+            o_HBM_axi_ar      => HBM_axi_ar, -- out t_axi4_full_addr; -- read address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+            i_HBM_axi_arready => HBM_axi_arready, -- in  std_logic;
+            i_HBM_axi_r       => HBM_axi_r,       -- in  t_axi4_full_data; -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
+            o_HBM_axi_rready  => HBM_axi_rready,  -- out std_logic;
+            -- write to HBM at the output of the correlator
+            o_HBM_axi_aw      => HBM_axi_aw,      -- out t_axi4_full_addr; -- write address bus (.valid, .addr(39:0), .len(7:0))
+            i_HBM_axi_awready => HBM_axi_awready, -- in  std_logic;
+            o_HBM_axi_w       => HBM_axi_w,       -- out t_axi4_full_data; -- w data bus (.valid, .data(511:0), .last, .resp(1:0))
+            i_HBM_axi_wready  => HBM_axi_wready,  -- in  std_logic;
+            i_HBM_axi_b       => HBM_axi_b,       -- in  t_axi4_full_b; -- write response bus (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+            ---------------------------------------------------------------
+            -- Readout bus tells the packetiser what to do
+            o_ro_data  => ro_FIFO_din,  -- out std_logic_vector(127 downto 0);
+            o_ro_valid => ro_FIFO_wrEn, -- out std_logic;
+            i_ro_stall => ro_stall,     -- in std_logic;
+            ---------------------------------------------------------------
+            -- Copy of the bus taking data to be written to the HBM,
+            -- for the first correlator instance.
+            -- Used for simulation only, to check against the model data.
+            o_tb_data      => open, -- out std_logic_vector(255 downto 0);
+            o_tb_visValid  => open, -- out std_logic; -- o_tb_data is valid visibility data
+            o_tb_TCIvalid  => open, -- out std_logic; -- i_data is valid TCI & DV data
+            o_tb_dcount    => open, -- out std_logic_vector(7 downto 0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+            o_tb_cell      => open, -- out std_logic_vector(7 downto 0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+            o_tb_tile      => open, -- out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+            o_tb_channel   => open, -- out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
+            -- an old debug trigger I think
+            o_freq_index0_repeat => open --: out std_logic
+        );
+    end generate;
+    
+    no_cori : if g_CORRELATOR_INSTANCE >= g_CORRELATORS generate
+        -- tie off the outputs from correlator_top_v80
+        ro_FIFO_din <= (others => '0');
+        ro_FIFO_wrEn <= '0';
+        HBM_axi_ar.valid <= '0';
+        HBM_axi_ar.addr <= (others => '0');
+        HBM_axi_ar.len <= (others => '0');
+        HBM_axi_rready <= '1';
+        HBM_axi_aw.valid <= '0';
+        HBM_axi_aw.addr <= (others => '0');
+        HBM_axi_aw.len <= (others => '0');
+        HBM_axi_w.valid <= '0';
+        HBM_axi_w.data <= (others => '0');
+        HBM_axi_w.last <= '0';
+        HBM_axi_w.resp <= (others => '0');
+    end generate;
     
     ------------------------------------------------------------------
     -- Instantiate HBM interfaces
