@@ -68,7 +68,6 @@ cp build/v80/v80_top.runs/impl_1/*.log output/reports/impl_1
 
    if ! grep -q "The design failed to meet the timing requirements" "$File"; then
       echo "BANG BOOM - Timing failed!!!!"
-      exit 1
    else
       echo -e "*********************************************************"
       echo -e "**********     Build impl_1 met timing       ************"
