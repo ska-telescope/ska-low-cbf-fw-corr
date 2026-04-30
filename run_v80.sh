@@ -54,3 +54,23 @@ cp build/ARGS/py/correlator_v80/fpgamap_*.py output/
 echo -e "*********************************************************"
 echo -e "**********        Files in Output Dir           *********"
 echo -e "*********************************************************"
+
+# Harvest the logs from the build and check timing
+mkdir -p output/reports
+
+# Make dir for implementation reports
+mkdir -p output/reports/impl_1
+cp build/v80/v80_top.runs/impl_1/*.rpt output/reports/impl_1
+cp build/v80/v80_top.runs/impl_1/*.log output/reports/impl_1
+
+# check timing in runme.log
+   File=output/reports/impl_1/runme.log
+
+   if ! grep -q "The design failed to meet the timing requirements" "$File"; then
+      echo "BANG BOOM - Timing failed!!!!"
+      exit 1
+   else
+      echo -e "*********************************************************"
+      echo -e "**********     Build impl_1 met timing       ************"
+      echo -e "*********************************************************"
+   fi
