@@ -55,6 +55,7 @@ set corstat_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/correlator_geni[
 #    SPEAD_sdp_6 ram             0x1600000
 #    SPEAD_dsp_6 registers       0x1680000
 #    DCMAC                       0x1800000
+#    cor_status                  0x1A00000
 ########################
 # System peripheral = 64K address space
 set_property APERTURES [list {0x201_1000_0000:0x201_1001_FFFF}] $system_nsu
