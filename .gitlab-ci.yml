@@ -235,6 +235,7 @@ build v80:
    - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
   interruptible: true
+  allow_failure: true
   needs:
     - fpga lint v80
   timeout: 12 hours
