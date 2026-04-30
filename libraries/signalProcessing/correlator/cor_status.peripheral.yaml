@@ -1,0 +1,69 @@
+schema_name   : args
+schema_version: 1.0
+schema_type   : peripheral
+
+hdl_library_name       : cor_status
+hdl_library_description: "Correlator status"
+
+peripherals:
+
+
+  - peripheral_name        : cor_status
+    peripheral_description : "Correlator status"
+
+    slave_ports:
+      - slave_name        : cor_status
+        slave_type        : reg
+        number_of_slaves  : 1
+        slave_description : "Correlator status"
+        fields:
+          - - field_name        : fsm_status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "correlator fsm status"
+
+          - - field_name        : fifo_status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "correlator fifo status"
+              
+          - - field_name        : recent_start_gap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "start gap"
+
+          - - field_name        : recent_readout_time
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "readout time"
+
+          - - field_name        : min_start_gap
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "min start gap"
+          
+          - - field_name        : cfg_dbg
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "cfg status"
+              
+          - - field_name        : cfg_count
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "count of cfg commands"
+              
+          - - field_name        : ro_status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "readout status"
+              
+              
+              

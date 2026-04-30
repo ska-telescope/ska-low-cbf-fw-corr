@@ -600,9 +600,8 @@ set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing
   puts "Add Correlator files ..."
 
 add_files -fileset sources_1 [glob \
-  $ARGS_PATH/cor/config/cor_config_reg_pkg.vhd \
-  $ARGS_PATH/cor/config/cor_config_reg.vhd \
-  $ARGS_PATH/cor/config/cor_config_reg_versal.vhd \
+  $ARGS_PATH/cor_status/cor_status/cor_status_reg_pkg.vhd \
+  $ARGS_PATH/cor_status/cor_status/cor_status_reg_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/correlator_wrapper_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/correlator_top_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/single_correlator_v80.vhd \
@@ -636,9 +635,8 @@ add_files -fileset sources_1 [glob \
 ]
 
 set_property library correlator_lib [get_files {\
-  *cor/config/cor_config_reg_pkg.vhd \
-  *cor/config/cor_config_reg.vhd \
-  *cor/config/cor_config_reg_versal.vhd \
+  *cor_status/cor_status/cor_status_reg_pkg.vhd \
+  *cor_status/cor_status/cor_status_reg_versal.vhd \
   *libraries/signalProcessing/correlator/correlator_wrapper_v80.vhd \
   *libraries/signalProcessing/correlator/correlator_top_v80.vhd \
   *libraries/signalProcessing/correlator/single_correlator_v80.vhd \

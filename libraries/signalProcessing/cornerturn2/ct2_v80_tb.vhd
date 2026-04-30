@@ -28,7 +28,7 @@ entity ct2_v80_tb is
         g_VC_GAP : integer := 20000;   -- number of clocks idle between groups of 12 virtual channels from the filterbank
         --g_CORRELATOR_CORES : integer := 1;
         --g_TEST_CASE : integer := 4 -- selects a set of register transactions and other configuration to use in the test.
-        g_CORRELATOR_CORES : integer := 0;
+        g_CORRELATOR_CORES : integer := 1;
         g_TEST_CASE : integer := 5 -- selects a set of register transactions and other configuration to use in the test.
         -- 
     );

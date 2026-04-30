@@ -14,7 +14,7 @@ library axi4_lib, DSP_top_lib, noc_lib, signal_processing_common;
 
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
---use correlator_lib.cor_config_reg_pkg.ALL;
+use correlator_lib.cor_status_reg_pkg.ALL;
 use common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
 use axi4_lib.axi4_lite_pkg.ALL;
@@ -82,6 +82,26 @@ architecture Behavioral of correlator_wrapper_v80 is
     signal ro_tlast : std_logic;
     signal ro_stall : std_logic;
     
+    signal noc_wren                 : STD_LOGIC;
+    signal noc_rden                 : STD_LOGIC;
+    signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_wr_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal noc_rd_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
+    signal noc_rd_dat               : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    signal dout_ar_fsm_dbg       : std_logic_vector(3 downto 0);
+    signal dout_readout_fsm_dbg  : std_logic_vector(3 downto 0);
+    signal dout_arFIFO_wr_count  : std_logic_vector(6 downto 0);
+    signal dout_dataFIFO_wrCount : std_logic_vector(9 downto 0);
+    signal dout_readout_error    : std_logic;
+    signal dout_recent_start_gap : std_logic_vector(31 downto 0);
+    signal dout_recent_readout_time : std_logic_vector(31 downto 0);
+    signal dout_min_start_gap    : std_logic_vector(31 downto 0);
+    signal cfg_dbg               : std_logic_vector(31 downto 0);
+    signal cfg_count             : std_logic_Vector(31 downto 0) := x"00000000";
+    signal ro_count : std_logic_vector(15 downto 0) := x"0000";
+    signal ro_status : std_logic_vector(31 downto 0);
+    signal cor_status_ro : t_cor_status_ro;
+    
 begin
     
     include_cori : if g_CORRELATOR_INSTANCE < g_CORRELATORS generate
@@ -131,7 +151,18 @@ begin
             o_tb_tile      => open, -- out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
             o_tb_channel   => open, -- out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
             -- an old debug trigger I think
-            o_freq_index0_repeat => open --: out std_logic
+            o_freq_index0_repeat => open, --: out std_logic
+            
+            -- data out to registers
+            o_dout_ar_fsm_dbg       => dout_ar_fsm_dbg, --  out std_logic_vector(3 downto 0);
+            o_dout_readout_fsm_dbg  => dout_readout_fsm_dbg, --  out std_logic_vector(3 downto 0);
+            o_dout_arFIFO_wr_count  => dout_arFIFO_wr_count, --  out std_logic_vector(6 downto 0);
+            o_dout_dataFIFO_wrCount => dout_dataFIFO_wrCount, --  out std_logic_vector(9 downto 0);
+            o_dout_readout_error    => dout_readout_error, --  out std_logic;
+            o_dout_recent_start_gap => dout_recent_start_gap, --  out std_logic_vector(31 downto 0);
+            o_dout_recent_readout_time => dout_recent_readout_time, --  out std_logic_vector(31 downto 0);
+            o_dout_min_start_gap    => dout_min_start_gap, --  out std_logic_vector(31 downto 0)
+            o_cfg_dbg               => cfg_dbg             -- out std_logic_vector(31 downto 0)
         );
     end generate;
     
@@ -304,10 +335,84 @@ begin
     ro_tid <= std_logic_vector(to_unsigned(g_CORRELATOR_INSTANCE,6));
     ro_tdest <= "0000";
     
---    ----------------------------------------------------------------
---    -- Registers
---    --
-
+    ----------------------------------------------------------------
+    -- Registers
+    --
+    cor_regi : if g_CORRELATOR_INSTANCE = 0 generate
+        -- Only instantiate registers for one instance of the correlator
+        
+        args_noci : entity noc_lib.args_noc
+        generic map (
+            G_DEBUG => FALSE
+        )  port map ( 
+            i_clk       => i_axi_clk,
+            i_rst       => i_axi_rst,
+            noc_wren    => noc_wren,
+            noc_rden    => noc_rden,
+            noc_wr_adr  => noc_wr_adr,
+            noc_wr_dat  => noc_wr_dat,
+            noc_rd_adr  => noc_rd_adr,
+            noc_rd_dat  => noc_rd_dat
+        );
+        
+        args_register_correlator : entity correlator_lib.cor_status_versal
+        PORT MAP (
+            -- AXI Lite signals, 300 MHz Clock domain
+            MM_CLK                  => i_axi_clk,
+            MM_RST                  => i_axi_rst,
+            noc_wren                => noc_wren,
+            noc_rden                => noc_rden,
+            noc_wr_adr              => noc_wr_adr,
+            noc_wr_dat              => noc_wr_dat,
+            noc_rd_adr              => noc_rd_adr,
+            noc_rd_dat              => noc_rd_dat,
+            COR_STATUS_FIELDS_RO    => cor_status_ro --  IN  t_cor_status_ro
+        );    
+        
+        process(i_axi_clk)
+        begin
+            if rising_edge(i_axi_clk) then
+                
+                cor_status_ro.fsm_status(7 downto 0) <= "0000" & dout_ar_fsm_dbg;
+                cor_status_ro.fsm_status(15 downto 8) <= "0000" & dout_readout_fsm_dbg;
+                cor_status_ro.fsm_status(23 downto 16) <= "0000000" & dout_readout_error;
+                cor_status_ro.fsm_status(31 downto 24) <= x"00";
+                
+                cor_status_ro.fifo_status(15 downto 0) <= x"00" & '0' & dout_arFIFO_wr_count;
+                cor_status_ro.fifo_status(31 downto 16) <= "000000" & dout_dataFIFO_wrCount;
+                
+                cor_status_ro.recent_start_gap <= dout_recent_start_gap;
+                
+                cor_status_ro.recent_readout_time <= dout_recent_readout_time;
+                cor_status_ro.min_start_gap <= dout_min_start_gap;
+                
+                cor_status_ro.cfg_dbg <= cfg_dbg;
+                
+                if i_cor_cfg_valid = '1' and i_cor_cfg_first = '1' then
+                    cfg_count <= std_logic_vector(unsigned(cfg_count) + 1);
+                end if;
+                cor_status_ro.cfg_count <= cfg_count;
+                
+                ro_status(7 downto 0) <= "000" & ro_FIFO_wr_count;
+                ro_status(8) <= ro_FIFO_valid;
+                ro_status(9) <= ro_FIFO_full;
+                ro_status(10) <= ro_tready;
+                ro_status(11) <= ro_reg_used;
+                ro_status(12) <= ro_stall;
+                ro_status(13) <= ro_fifo_wren;
+                ro_status(15 downto 14) <= "00";
+                ro_status(31 downto 16) <= ro_count;
+                
+                if ro_fifo_wren = '1' then
+                    ro_count <= std_logic_vector(unsigned(ro_count) + 1);
+                end if;
+                
+                cor_status_ro.ro_status <= ro_status;
+                
+            end if;
+        end process;        
+        
+    end generate;
 
 --    -- ARGS Gaskets for V80
 --    i_cor_noc : entity noc_lib.args_noc

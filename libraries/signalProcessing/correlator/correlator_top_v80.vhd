@@ -174,8 +174,17 @@ entity correlator_top_v80 is
         o_tb_tile      : out std_logic_vector(9 downto 0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
         o_tb_channel   : out std_logic_vector(23 downto 0); -- first fine channel index for this correlation.
         --
-        o_freq_index0_repeat : out std_logic
-        
+        o_freq_index0_repeat : out std_logic;
+        -- data out to registers
+        o_dout_ar_fsm_dbg : out std_logic_vector(3 downto 0);
+        o_dout_readout_fsm_dbg : out std_logic_vector(3 downto 0);
+        o_dout_arFIFO_wr_count : out std_logic_vector(6 downto 0);
+        o_dout_dataFIFO_wrCount : out std_logic_vector(9 downto 0);
+        o_dout_readout_error  : out std_logic;
+        o_dout_recent_start_gap : out std_logic_vector(31 downto 0);
+        o_dout_recent_readout_time : out std_logic_vector(31 downto 0);
+        o_dout_min_start_gap : out std_logic_vector(31 downto 0);
+        o_cfg_dbg : out std_logic_vector(31 downto 0)
     );
 end correlator_top_v80;
 
@@ -256,14 +265,6 @@ architecture Behavioral of correlator_top_v80 is
     signal dout_SB_HBM_base_addr : std_logic_vector(31 downto 0);
     signal dout_SB_bad_poly : std_logic;
     
-    signal dout_ar_fsm_dbg : std_logic_vector(3 downto 0);
-    signal dout_readout_fsm_dbg : std_logic_vector(3 downto 0);
-    signal dout_arFIFO_wr_count : std_logic_vector(6 downto 0);
-    signal dout_dataFIFO_wrCount : std_logic_vector(9 downto 0);
-    signal dout_readout_error  : std_logic;
-    signal dout_recent_start_gap : std_logic_vector(31 downto 0);
-    signal dout_recent_readout_time : std_logic_vector(31 downto 0);
-    signal dout_min_start_gap : std_logic_vector(31 downto 0);
     signal packet_first_bytes_count : std_logic_vector(2 downto 0);
     signal readout_buffer_hold, readout_buffer : std_logic;
     signal readout_frameCount_hold, readout_frameCount : std_logic_vector(31 downto 0);
@@ -333,6 +334,8 @@ begin
             else
                 readout_start <= '0';
             end if;
+            
+            o_cfg_dbg <= readout_framecount(15 downto 0) & "000000" & readout_buffer & readout_tableSelect & total_subarray_beams;
             
         end if;
     end process;
@@ -561,14 +564,14 @@ begin
         o_HBM_axi_rready  => o_HBM_axi_rready,    -- out std_logic
         ----------------------------------------------------------------
         -- debug info, could be connected to an ILA
-        o_ar_fsm_dbg      => dout_ar_fsm_dbg,        -- out (3:0);
-        o_readout_fsm_dbg => dout_readout_fsm_dbg,   -- out (3:0);
-        o_arFIFO_wr_count => dout_arFIFO_wr_count,   -- out (6:0);
-        o_dataFIFO_wrCount => dout_dataFIFO_wrCount, -- out (9:0);
-        o_readout_error       => dout_readout_error,    -- out std_logic;
-        o_recent_start_gap    => dout_recent_start_gap,    -- out (31:0);
-        o_recent_readout_time => dout_recent_readout_time, -- out (31:0);
-        o_min_start_gap       => dout_min_start_gap        -- out (31:0)
+        o_ar_fsm_dbg      => o_dout_ar_fsm_dbg,        -- out (3:0);
+        o_readout_fsm_dbg => o_dout_readout_fsm_dbg,   -- out (3:0);
+        o_arFIFO_wr_count => o_dout_arFIFO_wr_count,   -- out (6:0);
+        o_dataFIFO_wrCount => o_dout_dataFIFO_wrCount, -- out (9:0);
+        o_readout_error       => o_dout_readout_error,    -- out std_logic;
+        o_recent_start_gap    => o_dout_recent_start_gap,    -- out (31:0);
+        o_recent_readout_time => o_dout_recent_readout_time, -- out (31:0);
+        o_min_start_gap       => o_dout_min_start_gap        -- out (31:0)
     );
     
     -- Correlator instance

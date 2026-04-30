@@ -24,3 +24,4 @@ peripherals:
   - peripheral_name        : spead/spead_sdp_5
   - peripheral_name        : spead/spead_sdp_6
   - peripheral_name        : DCMAC/DCMAC
+  - peripheral_name        : cor_status/cor_status
