@@ -265,6 +265,7 @@ build v80:
     paths:
       #- build/
       - output/
+    when: always
 
 publish v80 package:
   stage: publish
