@@ -383,39 +383,42 @@ begin
     -- ARGS Gaskets for V80
     gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
     
-        i_fb_noc : entity noc_lib.args_noc
-        generic map (
-            G_DEBUG => FALSE
-        )
-        port map ( 
-            i_clk       => i_axi_clk,
-            i_rst       => i_axi_rst,
+--        i_fb_noc : entity noc_lib.args_noc
+--        generic map (
+--            G_DEBUG => FALSE
+--        )
+--        port map ( 
+--            i_clk       => i_axi_clk,
+--            i_rst       => i_axi_rst,
         
-            noc_wren    => noc_wren,
-            noc_rden    => noc_rden,
-            noc_wr_adr  => noc_wr_adr,
-            noc_wr_dat  => noc_wr_dat,
-            noc_rd_adr  => noc_rd_adr,
-            noc_rd_dat  => noc_rd_dat_mux
-        );
+--            noc_wren    => noc_wren,
+--            noc_rden    => noc_rden,
+--            noc_wr_adr  => noc_wr_adr,
+--            noc_wr_dat  => noc_wr_dat,
+--            noc_rd_adr  => noc_rd_adr,
+--            noc_rd_dat  => noc_rd_dat_mux
+--        );
     
-        filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_versal
-        port map(
-            MM_CLK                  => i_axi_clk,   -- in  std_logic;
-            MM_RST                  => i_axi_rst,   -- in  std_logic;
+--        filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_versal
+--        port map(
+--            MM_CLK                  => i_axi_clk,   -- in  std_logic;
+--            MM_RST                  => i_axi_rst,   -- in  std_logic;
     
-            noc_wren                => noc_wren,
-            noc_rden                => noc_rden,
-            noc_wr_adr              => noc_wr_adr,
-            noc_wr_dat              => noc_wr_dat,
-            noc_rd_adr              => noc_rd_adr,
-            noc_rd_dat              => noc_rd_dat_mux,
+--            noc_wren                => noc_wren,
+--            noc_rden                => noc_rden,
+--            noc_wr_adr              => noc_wr_adr,
+--            noc_wr_dat              => noc_wr_dat,
+--            noc_rd_adr              => noc_rd_adr,
+--            noc_rd_dat              => noc_rd_dat_mux,
             
-            CONFIG_FIELDS_RO        => config_ro,   -- IN  t_config_ro;
-            CONFIG_FIELDS_RW        => config_rw,   -- out t_config_rw;
-            CONFIG_OUTPUT_DISABLE_IN    => output_disable_i, -- IN  t_config_output_disable_ram_in;
-            CONFIG_OUTPUT_DISABLE_OUT   => output_disable_o  -- OUT t_config_output_disable_ram_out
-        );
+--            CONFIG_FIELDS_RO        => config_ro,   -- IN  t_config_ro;
+--            CONFIG_FIELDS_RW        => config_rw,   -- out t_config_rw;
+--            CONFIG_OUTPUT_DISABLE_IN    => output_disable_i, -- IN  t_config_output_disable_ram_in;
+--            CONFIG_OUTPUT_DISABLE_OUT   => output_disable_o  -- OUT t_config_output_disable_ram_out
+--        );
+    
+        -- If no NOC module, then just set the scaling to the default value
+        config_rw.scaling(4 downto 0) <= "10000";
     
     END GENERATE;
 

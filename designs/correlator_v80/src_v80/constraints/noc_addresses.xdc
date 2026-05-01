@@ -15,7 +15,7 @@ set nmu_0 [get_noc_interfaces "i_v80_board/top_i/axi_noc_cips/S00_AXI_nmu"]
 set system_nsu [get_noc_interfaces "i_correlator_core/i_system_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set lfaa_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/LFAAin/gen_v80_args.i_lfaa_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set ct_1_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/LFAA_FB_CT/gen_v80_args.v80_nosim_geni.i_ct1_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
-set fb_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/FBreali.corFB_i/gen_v80_args.i_fb_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
+#set fb_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/FBreali.corFB_i/gen_v80_args.i_fb_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set ct_2_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/ct_cor_out_inst/i_ct2_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 # correlator instances do not have registers instantiated
 #set corr_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/correlator_inst/gen_v80_args.i_cor_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
@@ -74,9 +74,14 @@ set ct_1_conn [create_noc_connection -source $nmu_0 -target $ct_1_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $ct_1_conn
 ########################
 # Filterbank
-set_property APERTURES [list {0x201_1060_0000:0x201_106F_FFFF}] $fb_nsu
-set fb_conn [create_noc_connection -source $nmu_0 -target $fb_nsu]
-set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $fb_conn
+#set_property APERTURES [list {0x201_1060_0000:0x201_106F_FFFF}] $fb_nsu
+#set fb_conn [create_noc_connection -source $nmu_0 -target $fb_nsu]
+#set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $fb_conn
+
+# correlator status
+set_property APERTURES [list {0x201_1060_0000:0x201_106F_FFFF}] $corstat_nsu
+set corstat_conn [create_noc_connection -source $nmu_0 -target $corstat_nsu]
+set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $corstat_conn
 ########################
 # CT_2
 set_property APERTURES [list {0x201_1080_0000:0x201_108F_FFFF}] $ct_2_nsu
@@ -119,11 +124,6 @@ set_property APERTURES [list {0x201_1180_0000:0x201_118F_FFFF}] $dcmac_nsu
 set dcmac_conn [create_noc_connection -source $nmu_0 -target $dcmac_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $dcmac_conn
 
-# correlator status
-set_property APERTURES [list {0x201_11A0_0000:0x201_11AF_FFFF}] $corstat_nsu
-set corstat_conn [create_noc_connection -source $nmu_0 -target $corstat_nsu]
-set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $corstat_conn
-
 ###############################################
 # Connect streaming AXI interface from the correlators to the spead packetiser
 #  i_correlator_core/dsp_topi/spead_packetiser_top/xpm_nsu_strm_inst/M_AXIS_nsu
@@ -154,6 +154,7 @@ set_property -dict [list WRITE_BANDWIDTH 10 WRITE_AVERAGE_BURST 16] $cor4_pkt_co
 set cor5_pkt_con [create_noc_connection -source $cor5_pkt_axis_tx -target $spead_pkt_axis_rx]
 set_property -dict [list WRITE_BANDWIDTH 10 WRITE_AVERAGE_BURST 16] $cor5_pkt_con
 
+set_property TDEST_ID 0x0:0x0 $spead_pkt_axis_rx
 ###############################################
 
 # ADDRESS SPACE TO BE AWARE OF IN TOP BD
