@@ -28,7 +28,7 @@ set spead_4_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/spead_packetiser
 set spead_5_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[5].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set dcmac_nsu [get_noc_interfaces "i_dcmac_wrapper/i_port_0_stats/i_dcmac_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 
-set corstat_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/correlator_geni[0].correlator_wrapperi/cor_regi.args_noci/xpm_nsu_mm_inst/M_AXI_nsu"]
+#set corstat_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/correlator_geni[0].correlator_wrapperi/cor_regi.args_noci/xpm_nsu_mm_inst/M_AXI_nsu"]
 
 # Base address for the PL region and this is also mapped to BAR 0 - 0x201_0000_0000
 # correlator ARGs
@@ -120,9 +120,9 @@ set dcmac_conn [create_noc_connection -source $nmu_0 -target $dcmac_nsu]
 set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $dcmac_conn
 
 # correlator status
-set_property APERTURES [list {0x201_11A0_0000:0x201_11AF_FFFF}] $corstat_nsu
-set corstat_conn [create_noc_connection -source $nmu_0 -target $corstat_nsu]
-set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $corstat_conn
+#set_property APERTURES [list {0x201_11A0_0000:0x201_11AF_FFFF}] $corstat_nsu
+#set corstat_conn [create_noc_connection -source $nmu_0 -target $corstat_nsu]
+#set_property -dict [list READ_BANDWIDTH 40 READ_AVERAGE_BURST 4 WRITE_BANDWIDTH 40 WRITE_AVERAGE_BURST 4] $corstat_conn
 
 ###############################################
 # Connect streaming AXI interface from the correlators to the spead packetiser
