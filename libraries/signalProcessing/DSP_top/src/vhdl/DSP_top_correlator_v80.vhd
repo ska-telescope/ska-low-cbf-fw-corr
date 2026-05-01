@@ -265,6 +265,8 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     signal HBM_ILA_axi_arready : std_logic;
     signal HBM_ILA_axi_r : t_axi4_full_data;
     signal HBM_ILA_axi_rready : std_logic;
+   
+    signal FB_scaling : std_logic_vector(4 downto 0);
     
 begin
     
@@ -443,6 +445,7 @@ begin
         o_meta_virtualChannel => FB_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
         o_meta_valid          => FB_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
         o_lastChannel         => FB_lastChannel,         -- out std_logic; -- aligns with meta data, indicates this is the last group of channels to be processed in this frame.
+        o_scaling     => FB_scaling, --  out std_logic_vector(4 downto 0);  -- scale factor applied in the filterbanks
         -- o_demap_table_select will change just prior to the start of reading out of a new integration frame.
         -- So it should be registered on the first output of a new integration frame in corner turn 2.
         o_demap_table_select => FB_demap_table_select,   -- out std_logic;
@@ -600,7 +603,7 @@ begin
             -- So it should be registered on the first output of a new integration frame in corner turn 2.
             i_demap_table_select  => FB_demap_table_select, -- in std_logic;
             i_dataValid           => FB_valid,              -- in std_logic;
-            
+            i_scaling             => FB_scaling, --  in std_logic_vector(4 downto 0);  -- scale factor applied in the filterbanks
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
             o_integration    => FD_integration,    -- out (31:0); Frame count is the same for all simultaneous output streams.

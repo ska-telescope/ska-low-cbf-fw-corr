@@ -338,7 +338,7 @@ begin
     ----------------------------------------------------------------
     -- Registers
     --
-    cor_regi : if g_CORRELATOR_INSTANCE = 0 generate
+    cor_regi : if g_CORRELATOR_INSTANCE = 50 generate
         -- Only instantiate registers for one instance of the correlator
         
         args_noci : entity noc_lib.args_noc

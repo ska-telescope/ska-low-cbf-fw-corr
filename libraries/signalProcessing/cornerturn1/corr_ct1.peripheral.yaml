@@ -199,6 +199,14 @@ peripherals:
               reset_value       : 0x0
               field_description : "Reset search for mismatched data. Write high then low to reset."
 
+          - - field_name        : scaling
+              width             : 6
+              access_mode       : RW
+              reset_value       : 0x10
+              field_description : "right bit shift used to convert 16 bit filterbank output to 8 bit data stored in HBM. \
+                                   Default is 0x10, which is appropriate for wideband noise. \
+                                   Use larger values to accomodate data with large dynamic range in the fine channels."
+
           - - field_name        : mismatch_set
               width             : 12
               access_mode       : RO

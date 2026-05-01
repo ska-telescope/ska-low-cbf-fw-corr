@@ -212,6 +212,7 @@ entity corr_ct1_top is
         o_meta_virtualChannel : out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
         o_meta_valid          : out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
         o_lastChannel : out std_logic; -- aligns with meta data, indicates this is the last group of channels to be processed in this frame.
+        o_scaling     : out std_logic_vector(4 downto 0);  -- scale factor applied in the filterbanks
         -- o_demap_table_select will change just prior to the start of reading out of a new integration frame.
         -- So it should be registered on the first output of a new integration frame in corner turn 2.
         o_demap_table_select : out std_logic;
@@ -713,6 +714,8 @@ begin
             end if;
             
             framecount_start <= config_rw.framecount_start(6 downto 0);
+            
+            o_scaling <= config_rw.scaling(4 downto 0);
             
         end if;
     end process;
