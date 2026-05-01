@@ -184,7 +184,15 @@ entity correlator_top_v80 is
         o_dout_recent_start_gap : out std_logic_vector(31 downto 0);
         o_dout_recent_readout_time : out std_logic_vector(31 downto 0);
         o_dout_min_start_gap : out std_logic_vector(31 downto 0);
-        o_cfg_dbg : out std_logic_vector(31 downto 0)
+        o_cfg_dbg : out std_logic_vector(31 downto 0);
+        --
+        o_HBM_end      : out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
+        o_HBM_errors   : out std_logic_vector(3 downto 0);
+        o_HBM_curr_rd_base : out std_logic_vector(31 downto 0);
+        -- current state 
+        o_readout_dbg0 : out std_logic_vector(31 downto 0);
+        o_readout_dbg1 : out std_logic_vector(31 downto 0);
+        o_readout_dbg2 : out std_logic_vector(31 downto 0)
     );
 end correlator_top_v80;
 
@@ -193,16 +201,16 @@ architecture Behavioral of correlator_top_v80 is
     --signal config_rw : t_setup_rw;
     --signal config_ro : t_setup_ro;
     
-    signal cor0_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
-    signal cor0_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-    signal cor0_HBM_cells : std_logic_vector(15 downto 0);
-    signal cor1_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
-    signal cor1_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
-    signal cor1_HBM_cells : std_logic_vector(15 downto 0);
-    signal cor0_HBM_errors, cor1_HBM_errors : std_logic_vector(3 downto 0);
+    --signal cor0_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
+    --signal cor0_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
+    --signal cor0_HBM_cells : std_logic_vector(15 downto 0);
+    --signal cor1_HBM_start : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer starts.
+    --signal cor1_HBM_end   : std_logic_vector(31 downto 0); -- byte address offset into the HBM buffer where the visibility circular buffer ends.
+    --signal cor1_HBM_cells : std_logic_vector(15 downto 0);
+    --signal cor0_HBM_errors, cor1_HBM_errors : std_logic_vector(3 downto 0);
 
-    signal cor0_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
-    signal cor1_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
+    --signal cor0_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
+    --signal cor1_HBM_curr_rd_base    : std_logic_vector(31 downto 0);
     
     signal noc_wren                 : STD_LOGIC;
     signal noc_rden                 : STD_LOGIC;
@@ -269,6 +277,7 @@ architecture Behavioral of correlator_top_v80 is
     signal readout_buffer_hold, readout_buffer : std_logic;
     signal readout_frameCount_hold, readout_frameCount : std_logic_vector(31 downto 0);
     signal axi_rst_del2, axi_rst_del1 : std_logic;
+    signal cor_valid_count : std_logic_vector(31 downto 0);
     
 begin
     
@@ -336,6 +345,21 @@ begin
             end if;
             
             o_cfg_dbg <= readout_framecount(15 downto 0) & "000000" & readout_buffer & readout_tableSelect & total_subarray_beams;
+            
+            -- output to debug registers
+            o_readout_dbg0(0) <= cor_ready;
+            o_readout_dbg0(1) <= cor_valid;
+            o_readout_dbg0(2) <= cor_last;
+            o_readout_dbg0(3) <= cor_final;
+            o_readout_dbg0(4) <= cor_first;
+            o_readout_dbg0(7 downto 5) <= "000";
+            o_readout_dbg0(15 downto 8) <= cor_totalStations(7 downto 0);
+            o_readout_dbg0(31 downto 16) <= cor_frameCount(15 downto 0);
+            if cor_valid = '1' then
+                cor_valid_count <= std_logic_vector(unsigned(cor_valid_count) + 1);
+            end if;
+            o_readout_dbg1 <= cor_valid_count;
+            o_readout_dbg2 <= cor_subarrayBeam & cor_tileChannel;
             
         end if;
     end process;
@@ -644,9 +668,9 @@ begin
         o_ro_valid => o_ro_valid, -- out std_logic;
         i_ro_stall => i_ro_stall, -- in std_logic;
         -- Registers
-        o_HBM_end           => cor0_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
-        o_HBM_errors        => cor0_HBM_errors, -- out (3:0)  -- Number of cells currently in the circular buffer.
-        o_HBM_curr_rd_addr  => cor0_HBM_curr_rd_base,
+        o_HBM_end           => o_HBM_end,    -- out (31:0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
+        o_HBM_errors        => o_HBM_errors, -- out (3:0);
+        o_HBM_curr_rd_addr  => o_HBM_curr_rd_base, -- out (31:0);
         ---------------------------------------------------------------
         -- copy of the bus taking data to be written to the HBM.
         -- Used for simulation only, to check against the model data.

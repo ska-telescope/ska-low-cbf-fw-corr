@@ -102,6 +102,13 @@ architecture Behavioral of correlator_wrapper_v80 is
     signal ro_status : std_logic_vector(31 downto 0);
     signal cor_status_ro : t_cor_status_ro;
     
+    signal HBM_end : std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
+    signal HBM_errors : std_logic_vector(3 downto 0);
+    signal HBM_curr_rd_base : std_logic_vector(31 downto 0);
+    signal aw_count : std_logic_vector(15 downto 0);
+    signal w_count : std_logic_vector(15 downto 0);
+    signal readout_dbg0, readout_dbg1, readout_dbg2 : std_logic_vector(31 downto 0);
+    
 begin
     
     include_cori : if g_CORRELATOR_INSTANCE < g_CORRELATORS generate
@@ -162,7 +169,13 @@ begin
             o_dout_recent_start_gap => dout_recent_start_gap, --  out std_logic_vector(31 downto 0);
             o_dout_recent_readout_time => dout_recent_readout_time, --  out std_logic_vector(31 downto 0);
             o_dout_min_start_gap    => dout_min_start_gap, --  out std_logic_vector(31 downto 0)
-            o_cfg_dbg               => cfg_dbg             -- out std_logic_vector(31 downto 0)
+            o_cfg_dbg               => cfg_dbg,            -- out std_logic_vector(31 downto 0)
+            o_HBM_end      => HBM_end, --  out std_logic_vector(31 downto 0); -- Byte address offset into the HBM buffer where the visibility circular buffer ends.
+            o_HBM_errors   => HBM_errors, -- out std_logic_vector(3 downto 0);
+            o_HBM_curr_rd_base => HBM_curr_rd_base, -- out std_logic_vector(31 downto 0)
+            o_readout_dbg0 => readout_dbg0, -- out std_logic_vector(31 downto 0);
+            o_readout_dbg1 => readout_dbg1, -- out std_logic_vector(31 downto 0);
+            o_readout_dbg2 => readout_dbg2  -- out std_logic_vector(31 downto 0)
         );
     end generate;
     
@@ -409,53 +422,30 @@ begin
                 
                 cor_status_ro.ro_status <= ro_status;
                 
+                cor_status_ro.HBM_end <= HBM_end;
+                cor_status_ro.HBM_status(3 downto 0) <= HBM_errors;
+                cor_status_ro.HBM_status(4) <= HBM_axi_aw.valid;
+                cor_status_ro.HBM_status(5) <= HBM_axi_awready;
+                cor_status_ro.HBM_status(6) <= HBM_axi_w.valid;
+                cor_status_ro.HBM_status(7) <= HBM_axi_wready;
+                cor_status_ro.HBM_status(23 downto 8) <= aw_count(15 downto 0);
+                cor_status_ro.HBM_status(31 downto 24) <= w_count(7 downto 0);
+                if HBM_axi_aw.valid = '1' and HBM_axi_awready = '1' then
+                    aw_count <= std_logic_vector(unsigned(aw_count) + 1);
+                end if;
+                if HBM_axi_w.valid = '1' and HBM_axi_wready = '1' then
+                    w_count <= std_logic_vector(unsigned(w_count) + 1);
+                end if;
+                
+                cor_status_ro.HBM_curr_rd_base <= HBM_curr_rd_base;
+                
+                cor_status_ro.readout_dbg0 <= readout_dbg0; -- out std_logic_vector(31 downto 0);
+                cor_status_ro.readout_dbg1 <= readout_dbg1; -- out std_logic_vector(31 downto 0);
+                cor_status_ro.readout_dbg2 <= readout_dbg2;  -- out std_logic_vector(31 downto 0)
+                
             end if;
-        end process;        
+        end process;
         
     end generate;
-
---    -- ARGS Gaskets for V80
---    i_cor_noc : entity noc_lib.args_noc
---    generic map (
---        G_DEBUG => FALSE
---    ) port map ( 
---        i_clk       => i_axi_clk,
---        i_rst       => i_axi_rst,
-    
---        noc_wren    => noc_wren,
---        noc_rden    => noc_rden,
---        noc_wr_adr  => noc_wr_adr,
---        noc_wr_dat  => noc_wr_dat,
---        noc_rd_adr  => noc_rd_adr,
---        noc_rd_dat  => noc_rd_dat_mux
---    );
-
---    i_cor_args : entity correlator_lib.cor_config_versal
---    port map (
---        MM_CLK          => i_axi_clk,  -- in std_logic;
---        MM_RST          => i_axi_rst,  -- in std_logic;
-        
---        noc_wren        => noc_wren,
---        noc_rden        => noc_rden,
---        noc_wr_adr      => noc_wr_adr,
---        noc_wr_dat      => noc_wr_dat,
---        noc_rd_adr      => noc_rd_adr,
---        noc_rd_dat      => noc_rd_dat_mux,
-        
---        SETUP_FIELDS_RW => config_rw,  -- out t_setup_rw;
---        SETUP_FIELDS_RO => config_ro   -- in  t_setup_ro
---    );
-    
---END GENERATE;
-    
---    config_ro.cor0_HBM_start <= cor0_HBM_curr_rd_base; --(others => '0'); -- TODO - should come from the SPEAD packet readout module
---    config_ro.cor0_HBM_end <= cor0_HBM_end;
---    config_ro.cor0_HBM_size <= (others => '0'); -- TODO - calculate from cor0_HBM_end and cor0_HBM_start
-    
---    config_ro.cor1_HBM_start <= cor1_HBM_curr_rd_base; --(others => '0'); -- TODO - should come from the SPEAD packet readout module
---    config_ro.cor1_HBM_end <= cor1_HBM_end;
---    config_ro.cor1_HBM_size <= (others => '0'); -- TODO - calculate from cor0_HBM_end and cor0_HBM_start
-    
---    dummy <= config_rw.full_reset;
     
 end Behavioral;

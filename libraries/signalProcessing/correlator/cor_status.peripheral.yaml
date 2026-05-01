@@ -65,5 +65,38 @@ peripherals:
               reset_value       : 0x0
               field_description : "readout status"
               
+          - - field_name        : HBM_end
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "wr hbm address"
               
+          - - field_name        : HBM_status
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "wr HBM status"
               
+          - - field_name        : HBM_curr_rd_base
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "wr HBM base address"
+
+          - - field_name        : readout_dbg0
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "readout to correlator dbg"
+              
+          - - field_name        : readout_dbg1
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "readout to correlator dbg"
+              
+          - - field_name        : readout_dbg2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "readout to correlator dbg"        
