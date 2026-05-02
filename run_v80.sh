@@ -66,8 +66,10 @@ cp build/v80/v80_top.runs/impl_1/*.log output/reports/impl_1
 # check timing in runme.log
    File=output/reports/impl_1/runme.log
 
-   if ! grep -q "The design failed to meet the timing requirements" "$File"; then
-      echo "BANG BOOM - Timing failed!!!!"
+   if grep -q "The design failed to meet the timing requirements" "$File"; then
+      echo -e "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo -e "!!!!!!!!!!! BANG BOOM - Timing failed  !!!!!!!!!!!!!!!!!!"
+      echo -e "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
    else
       echo -e "*********************************************************"
       echo -e "**********     Build impl_1 met timing       ************"
