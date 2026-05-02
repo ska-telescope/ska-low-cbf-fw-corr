@@ -247,7 +247,7 @@ begin
         i_HBM_axi_rready => HBM_axi_ready_dummy -- in std_logic
     );
     
-    HBM_axi_bready <= '0';
+    HBM_axi_bready <= '1';
     HBM_axi_ready_dummy <= '1';
     HBM_axi_addr_dummy.valid <= '0';
     HBM_axi_addr_dummy.addr <= (others => '0');
