@@ -463,6 +463,8 @@ architecture Behavioral of corr_ct1_top is
     signal bram_addr_d2             : STD_LOGIC_VECTOR(17 DOWNTO 0);
 
     signal awfifo_addr_4k : std_logic_vector(20 downto 0);
+    signal status2 : std_logic_vector(31 downto 0);
+    signal ar_fsm_dbg : std_logic_vector(4 downto 0);
     
 begin
     
@@ -632,7 +634,7 @@ begin
     config_ro.duplicates_count <= duplicate_count;
     config_ro.missing_count <= "0000" & missing_count(31 downto 4); -- Drop low 4 bits since each missing block is reported 16 times.
     config_ro.input_packets <= input_packets;
-    config_ro.status <= status;
+    
     config_ro.buffers_sent_count <= buffers_sent_count;
     -- registers to note if something terrible happened.
     config_ro.error_input_overflow <= aw_overflow; -- std_logic;
@@ -688,8 +690,21 @@ begin
             status(20 downto 11) <= awfifo_hwm;
             status(21) <= '0';
             status(22) <= readOverflow_set;
-            status(31 downto 23) <= "000000000";
+            status(23) <= m01_axi_ar.valid;
+            status(24) <= i_m01_axi_arready;
+            status(25) <= m02_axi_ar.valid;
+            status(26) <= i_m02_axi_arready;
+            status(27) <= m01_axi_rready;
+            status(28) <= m02_axi_rready;
+            status(29) <= i_m01_axi_r.valid;
+            status(30) <= i_m02_axi_r.valid;
+            status(31) <= '0';
             
+            status2 <= m01_axi_ar.addr(39 downto 8);
+            
+            config_ro.status <= status;
+            config_ro.status2(31 downto 5) <= status2(31 downto 5);
+            config_ro.status2(4 downto 0) <= ar_fsm_dbg;
             if data_rst = '1' then
                 aw_overflow <= '0';
                 awfifo_hwm <= (others => '0'); -- high water mark for the aw fifo
@@ -1687,7 +1702,8 @@ begin
             o_dbgCheckData => dbgCheckData,  -- out t_slv_32_arr(11:0)
             o_dbgBadData   => dbgBadData,     -- out t_slv_32_arr(11:0)
             o_mismatch_set => config_ro.mismatch_set(11 downto 0),  -- out 11:0;
-            i_reset_mismatch => config_rw.reset_mismatch -- in std_logic        
+            i_reset_mismatch => config_rw.reset_mismatch, -- in std_logic
+            o_ar_fsm_dbg => ar_fsm_dbg --  out std_logic_vector(4 downto 0)
         );
         config_ro.dbgCheckData0 <= dbgCheckData(0);
         config_ro.dbgCheckData1 <= dbgCheckData(1);

@@ -191,7 +191,8 @@ entity corr_ct1_readout_v80 is
         o_dbgCheckData : out t_slv_32_arr(11 downto 0);  -- expected
         o_dbgBadData   : out t_slv_32_arr(11 downto 0);  -- actual first time it doesnt match expected
         o_mismatch_set : out std_logic_vector(11 downto 0);
-        i_reset_mismatch : in std_logic        
+        i_reset_mismatch : in std_logic;
+        o_ar_fsm_dbg : out std_logic_vector(4 downto 0)
     );
 end corr_ct1_readout_v80;
 
@@ -435,6 +436,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal RFI_rd_addr : std_logic_vector(11 downto 0);
     signal RFI_rds : std_logic_vector(3 downto 0);
     signal delay_vcCount : std_logic_vector(3 downto 0);
+    signal ar_fsm_dbg : std_logic_vector(4 downto 0);
     
 begin
     
@@ -767,7 +769,7 @@ begin
             rstInternal <= rstDel2;
             rstFIFOs <= rstDel1;
             rstFIFOsDel1 <= rstFIFOs;
-            
+            o_ar_fsm_dbg <= ar_fsm_dbg;
             --
             if rstInternal = '1' then
                 ar_fsm <= done;
@@ -797,6 +799,7 @@ begin
                 ar_clocksPerPacket <= i_clocksPerPacket;
                 axi_arvalid0 <= '0';
                 axi_arvalid2 <= '0';
+                ar_fsm_dbg <= "00000";
             else
                 case ar_fsm is
                     ---------------------------------------------------------------------------
@@ -806,14 +809,17 @@ begin
                         -- wait until the coarse and fine delay signals are valid
                         -- This will take a few hundred clocks for the first set of virtual channels at the start of the readout of a corner turn frame,
                         -- but for the remaining virtual channels the data should already be in the FIFO at this point.
+                        ar_fsm_dbg <= "00001";
                         if coarseFIFO_empty = "000000000000" then
                             ar_fsm <= getCoarseDelays0;
                         end if;
                     
                     when getCoarseDelays0 =>
+                        ar_fsm_dbg <= "00010";
                         ar_fsm <= getCoarseDelays1;
                         
                     when getCoarseDelays1 =>
+                        ar_fsm_dbg <= "00011";
                         ar_fsm <= getDataIdle;
                         ar_virtualChannel <= std_logic_vector(unsigned(ar_virtualChannel) + 12);
                     
@@ -840,6 +846,7 @@ begin
                     --    [  - bits 31:30 = buffer selection                                                   ]
                     
                     when getDataIdle =>
+                        ar_fsm_dbg <= "00100";
                         -- Check there is space available in the buffers (buffers are 1024 words), and if so then get more data for the buffer with the least amount of data
                         if space_available /= "000000000000" then
                             ar_fsm <= getBufData;
@@ -849,6 +856,7 @@ begin
                         axi_arvalid2 <= '0';
                     
                     when getBufData =>
+                        ar_fsm_dbg <= "00101";
                         axi_araddr(35 downto 31) <= "00000";
                         axi_araddr_buffer <= bufBuffer(to_integer(unsigned(ar_fsm_buffer))); -- which HBM buffer
                         axi_araddr(30 downto 19) <= bufVirtualChannel(to_integer(unsigned(ar_fsm_buffer)));
@@ -861,6 +869,7 @@ begin
                         ar_fsm <= set_araddr;
                         
                     when set_araddr =>
+                        ar_fsm_dbg <= "00110";
                         if axi_araddr_buffer = "00" then
                             axi_araddr0 <= axi_araddr;
                             -- Get the address in the valid memory that corresponds to axi_araddr0
@@ -887,6 +896,7 @@ begin
                         ar_fsm <= waitARReady_both;
                     
                     when waitARReady_both =>
+                        ar_fsm_dbg <= "00111";
                         -- Requests go out on both interfaces
                         -- In this state, we are waiting on both interfaces to be ready
                         if i_axi_arready = '1' and i_axi2_arready = '1' then
@@ -906,6 +916,7 @@ begin
                         end if;
                     
                     when wait_axi_ARReady =>
+                        ar_fsm_dbg <= "01000";
                         -- axi2_arready has already happened, just waiting for axi_arready
                         if i_axi_arready = '1' then
                             axi_arvalid0 <= '0';
@@ -914,6 +925,7 @@ begin
                         end if;
                     
                     when wait_axi2_ARReady =>
+                        ar_fsm_dbg <= "01001";
                         -- axi_arready has already happened, just waiting for axi2_arready
                         if i_axi2_arready = '1' then
                             axi_arvalid0 <= '0';
@@ -922,21 +934,26 @@ begin
                         end if;
                     
                     when checkDone_wait0 =>
+                        ar_fsm_dbg <= "01010";
                         -- checkDone_waitX states delay for four extra clocks,
                         -- to make sure that bufMaxUsed and bufHasMoreSamples are updated 
                         -- prior to using them to work out which buffer to read next
                         ar_fsm <= checkDone_wait1;
                     
                     when checkDone_wait1 =>
+                        ar_fsm_dbg <= "01011";
                         ar_fsm <= checkDone_wait2;
                     
                     when checkDone_wait2 =>
+                        ar_fsm_dbg <= "01100";
                         ar_fsm <= checkDone_wait3;
                     
                     when checkDone_wait3 =>
+                        ar_fsm_dbg <= "01101";
                         ar_fsm <= checkDone;
                     
                     when checkDone => -- check if we have more data to get for each virtual channel
+                        ar_fsm_dbg <= "01110";
                         if bufHasMoreSamples /= "000000000000" then
                             ar_fsm <= getDataIdle;
                             ar_fsm_buffer <= "0000";
@@ -945,6 +962,7 @@ begin
                         end if; 
                     
                     when checkAllVirtualChannelsDone =>
+                        ar_fsm_dbg <= "01111";
                         if (unsigned(ar_NChannels) > unsigned(ar_virtualChannel)) then
                             -- Note at this point ar_virtualChannel has already been incremented by 12,
                             -- so it points to the next set of virtual channels we are about to start reading.
@@ -955,12 +973,14 @@ begin
                         end if;
                     
                     when waitAllDone =>
+                        ar_fsm_dbg <= "10000";
                         -- Wait until the ar_fifo is empty, since we should flag an error is we start up again without draining the fifo.
                         if (ARFIFO_WrDataCount = x"00") and (ARFIFO2_WrDataCount = x"00") then 
                             ar_fsm <= done;
                         end if;
                         
                     when done =>
+                        ar_fsm_dbg <= "10001";
                         ar_fsm <= done;
                         axi_arvalid0 <= '0';
                         axi_arvalid2 <= '0';
@@ -1161,9 +1181,9 @@ begin
             ARFIFO_dinDel7(16) <= i_validMemReadData;
             ARFIFO_wrEnDel7 <= ARFIFO_wrEnDel6;
             
-            if i_validMemReadData = '0' and ARFIFO_wrEnDel5 = '1' then
+            if i_validMemReadData = '0' and ARFIFO_wrEnDel6 = '1' then
                 -- 5 cycle latency to read the valid memory;
-                -- Read address is taken from HBM read address, valid when ARFIFO_wrEn = '1'
+                -- Read address is taken from HBM read address, valid when ARFIFO_wrEn_del1 = '1'
                 o_dataMissing <= '1'; -- we are reading from somewhere in memory that we haven't written data to.
             else
                 o_dataMissing <= '0';

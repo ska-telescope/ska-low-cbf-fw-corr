@@ -26,46 +26,45 @@ USE UNISIM.vcomponents.all;
 
 entity ct1_v80_tb is
     generic(
-        -- Number of virtual channels to generate input data for
-        g_VIRTUAL_CHANNELS : integer := 8; -- 8
+--            -- Number of virtual channels to generate input data for
+--            g_VIRTUAL_CHANNELS : integer := 8; -- 8
+--            -- Number of virtual channels configured in the ingest module for each set of tables.
+--            g_CT1_VIRTUAL_CHANNELS0 : integer := 8; -- 8
+--            g_CT1_VIRTUAL_CHANNELS1 : integer := 8; -- 8
+--            -- Number of 300 MHz clocks between packets arriving
+--            -- A few numbers : 
+--            --   Minimum number of clocks to write a packet to HBM = 128  (128 words * 32 bytes/word * 2 interfaces = 8192 bytes = length of an SPS packet)
+--            --   128 clocks @ 300MHz = input data rate of 153 Gbit/sec (note this mean 200Gb/sec ethernet input needs a 400MHz clock)
+--            --   200 clocks @ 300MHz = 100 Gbit/sec data rate
+--            -- Processing time for a filterbank frame in 300 MHz clocks is : 
+--            --  ceil(virtual channels/12) * 4100 * (75 FFTs) = 307500 clocks (for virtual channels <= 12)
+--            -- Number of clocks for a filterbank frames worth of input data is 
+--            --  virtual_channels * (128 SPS packets) * g_PACKET_GAP
+            
+--            g_PACKET_GAP : integer := 310;
+            
+--            -- 
+--            g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+--            g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
+--            g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out_v80.txt";
+--            g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_fb_out_v80.txt";
+--            g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
+--            g_USE_FILTERBANK : std_logic := '1';
+--            g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data 
+        
+        g_VIRTUAL_CHANNELS : integer := 13; -- 
         -- Number of virtual channels configured in the ingest module for each set of tables.
-        g_CT1_VIRTUAL_CHANNELS0 : integer := 8; -- 8
-        g_CT1_VIRTUAL_CHANNELS1 : integer := 8; -- 8
-        -- Number of 300 MHz clocks between packets arriving
-        -- A few numbers : 
-        --   Minimum number of clocks to write a packet to HBM = 128  (128 words * 32 bytes/word * 2 interfaces = 8192 bytes = length of an SPS packet)
-        --   128 clocks @ 300MHz = input data rate of 153 Gbit/sec (note this mean 200Gb/sec ethernet input needs a 400MHz clock)
-        --   200 clocks @ 300MHz = 100 Gbit/sec data rate
-        -- Processing time for a filterbank frame in 300 MHz clocks is : 
-        --  ceil(virtual channels/12) * 4100 * (75 FFTs) = 307500 clocks (for virtual channels <= 12)
-        -- Number of clocks for a filterbank frames worth of input data is 
-        --  virtual_channels * (128 SPS packets) * g_PACKET_GAP
-        
-        g_PACKET_GAP : integer := 310;
-        
-        -- 
+        g_CT1_VIRTUAL_CHANNELS0 : integer := 13; -- 
+        g_CT1_VIRTUAL_CHANNELS1 : integer := 13; -- 
+        g_PACKET_GAP : integer := 480;
         g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3.txt";
-        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_ct1_out_v80.txt";
-        g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test3_fb_out_v80.txt";
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13.txt";
+        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_ct1_out_v80.txt";
+        g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_fb_out_v80.txt";
         g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
-        g_USE_FILTERBANK : std_logic := '1';
-        g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data 
+        g_USE_FILTERBANK : std_logic := '0';
+        g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data         
         
-        --x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
-        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2.txt";
-        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test2_ct1_out.txt"
-        
-        -- x000000EC8F40 = 64 packets prior to the first valid integration in delays1080_8vc.txt
-        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"000000EC8F40"; -- x"03421AFE0350";
-        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/delays1080_8vc.txt";
-        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/delays1080_ct1_out.txt"
-        
-        -- x104E = 4174; 4174/384 = 10.8 integrations in; so first integration to be used for readout will be 11.
-        --g_PACKET_COUNT_START : std_logic_Vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        --g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1.txt";
-        --g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test1_ct1_out.txt"
     );
 end ct1_v80_tb;
 
@@ -317,7 +316,7 @@ architecture Behavioral of ct1_v80_tb is
     signal fb5_demap_table_select : std_logic;
     signal flag_rfi, flag_rfi2 : std_logic;
     signal FD_lastChannel, FD_demap_table_select : std_logic_vector(3 downto 0) := "0000";
-    signal FD_bad_poly : std_logic_vector(3 downto 0) := "0000"; 
+    signal FD_bad_poly : std_logic_vector(11 downto 0) := "000000000000"; 
     signal fb_data, fb_data_del1, fb_data_del2, fb_data_del3, fb_data_del4 : t_slv_32_arr(23 downto 0);
     
     signal fb_meta_delays, fb_meta_delays_del1, fb_meta_delays_del2, fb_meta_delays_del3, fb_meta_delays_del4 : t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
@@ -336,7 +335,7 @@ architecture Behavioral of ct1_v80_tb is
     signal noc_wr_dat : std_logic_vector(31 downto 0);
     signal noc_rd_adr : std_logic_vector(17 downto 0);
     signal noc_rd_dat : std_logic_vector(31 downto 0);
-    
+    signal fb_scaling : std_logic_vector(4 downto 0);
     
 begin
     
@@ -784,6 +783,7 @@ begin
         o_meta_virtualChannel => fb_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
         o_meta_valid          => fb_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
         o_lastChannel         => fb_lastChannel,         -- out std_logic; -- aligns with meta data, indicates this is the last group of channels to be processed in this frame.
+        o_scaling             => fb_scaling,             -- out std_logic_vector(4 downto 0);  -- scale factor applied in the filterbanks
         -- o_demap_table_select will change just prior to the start of reading out of a new integration frame.
         -- So it should be registered on the first output of a new integration frame in corner turn 2.
         o_demap_table_select => fb_demap_table_select, --  out std_logic;
@@ -1251,13 +1251,13 @@ begin
             -- So it should be registered on the first output of a new integration frame in corner turn 2.
             i_demap_table_select  => fb5_demap_table_select,      -- in std_logic;
             i_dataValid => FB5_valid,                             -- in std_logic;
-            
+            i_scaling   => FB_scaling,                            -- in std_logic_vector(4 downto 0);  -- scale factor applied in the filterbanks
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
             o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(11 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-            o_bad_poly       => FD_bad_poly(2 downto 0),  -- out (2:0);
+            o_bad_poly       => FD_bad_poly(11 downto 0),  -- out (11:0);
             o_lastChannel    => FD_lastChannel(0), -- out std_logic;  -- Last of the group of 4 channels
             o_demap_table_select => FD_demap_table_select(0), --  out std_logic;
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(11 downto 0);
@@ -1299,7 +1299,7 @@ begin
                         hwrite(line_out,FD_virtualChannel(9),RIGHT,5);
                         hwrite(line_out,FD_virtualChannel(10),RIGHT,5);
                         hwrite(line_out,FD_virtualChannel(11),RIGHT,5);
-                        hwrite(line_out,FD_bad_poly,RIGHT,3);
+                        hwrite(line_out,FD_bad_poly,RIGHT,4);
                         hwrite(line_out,FD_lastChannel,RIGHT,3);
                         hwrite(line_out,FD_demap_table_select,RIGHT,3);
                         writeline(fb_logfile,line_out);
@@ -1401,7 +1401,7 @@ begin
             o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.
             o_ctFrame        => FD_ctFrame,        -- out (1:0);
             o_virtualChannel => FD_virtualChannel, -- out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-            o_bad_poly       => FD_bad_poly(2 downto 0),  -- out (2:0);
+            o_bad_poly       => FD_bad_poly(11 downto 0),  -- out (11:0);
             o_lastChannel    => FD_lastChannel(0), -- out std_logic;  -- Last of the group of 4 channels
             o_demap_table_select => FD_demap_table_select(0), --  out std_logic;
             o_HeaderValid    => FD_headerValid,    -- out std_logic_vector(3 downto 0);
