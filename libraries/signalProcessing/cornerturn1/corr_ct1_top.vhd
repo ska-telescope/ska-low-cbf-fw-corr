@@ -465,6 +465,7 @@ architecture Behavioral of corr_ct1_top is
     signal awfifo_addr_4k : std_logic_vector(20 downto 0);
     signal status2 : std_logic_vector(31 downto 0);
     signal ar_fsm_dbg : std_logic_vector(4 downto 0);
+    signal poly_dbg0, poly_dbg1 : std_logic_vector(31 downto 0);
     
 begin
     
@@ -705,6 +706,9 @@ begin
             config_ro.status <= status;
             config_ro.status2(31 downto 5) <= status2(31 downto 5);
             config_ro.status2(4 downto 0) <= ar_fsm_dbg;
+            config_ro.status3 <= poly_dbg0;
+            config_ro.status4 <= poly_dbg1;
+            
             if data_rst = '1' then
                 aw_overflow <= '0';
                 awfifo_hwm <= (others => '0'); -- high water mark for the aw fifo
@@ -1703,7 +1707,9 @@ begin
             o_dbgBadData   => dbgBadData,     -- out t_slv_32_arr(11:0)
             o_mismatch_set => config_ro.mismatch_set(11 downto 0),  -- out 11:0;
             i_reset_mismatch => config_rw.reset_mismatch, -- in std_logic
-            o_ar_fsm_dbg => ar_fsm_dbg --  out std_logic_vector(4 downto 0)
+            o_ar_fsm_dbg => ar_fsm_dbg, --  out std_logic_vector(4 downto 0)
+            o_poly_dbg0 => poly_dbg0, -- out std_logic_vector(31 downto 0);
+            o_poly_dbg1 => poly_dbg1  -- out std_logic_vector(31 downto 0)
         );
         config_ro.dbgCheckData0 <= dbgCheckData(0);
         config_ro.dbgCheckData1 <= dbgCheckData(1);

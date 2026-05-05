@@ -88,6 +88,16 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "more status"
+          - - field_name        : status3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "more status"
+          - - field_name        : status4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "more status"
           - - field_name        : recent_readout_gap
               width             : 32
               access_mode       : RO

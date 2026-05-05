@@ -192,7 +192,9 @@ entity corr_ct1_readout_v80 is
         o_dbgBadData   : out t_slv_32_arr(11 downto 0);  -- actual first time it doesnt match expected
         o_mismatch_set : out std_logic_vector(11 downto 0);
         i_reset_mismatch : in std_logic;
-        o_ar_fsm_dbg : out std_logic_vector(4 downto 0)
+        o_ar_fsm_dbg : out std_logic_vector(4 downto 0);
+        o_poly_dbg0 : out std_logic_vector(31 downto 0);
+        o_poly_dbg1 : out std_logic_vector(31 downto 0)
     );
 end corr_ct1_readout_v80;
 
@@ -437,6 +439,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal RFI_rds : std_logic_vector(3 downto 0);
     signal delay_vcCount : std_logic_vector(3 downto 0);
     signal ar_fsm_dbg : std_logic_vector(4 downto 0);
+    signal poly_fsm_dbg : std_logic_vector(3 downto 0);
     
 begin
     
@@ -530,32 +533,38 @@ begin
             
             if rstInternal = '1' then
                 poly_fsm <= done;
+                poly_fsm_dbg <= "0000";
             elsif i_readStart = '1' then
                 poly_fsm <= start;
                 poly_vc_base <= x"0000"; -- first of 12 consecutive virtual channels that are calculated in parallel
                 poly_integration <= i_integration; -- in std_logic_vector(31 downto 0); Which integration is this for ?
                 poly_ct_frame <= i_currentBuffer;
                 Nchannels <= i_Nchannels;
+                poly_fsm_dbg <= "0001";
             else
                 case poly_fsm is
                     when start =>
                         poly_start <= '1'; -- Start on a batch of 4 polynomials
                         poly_fsm <= wait_done0;
+                        poly_fsm_dbg <= "0010";
                         
                     -- three wait states so that poly_idle can go low in response to poly_start. 
                     when wait_done0 =>
                         poly_start <= '0';
                         poly_fsm <= wait_done1;
+                        poly_fsm_dbg <= "0011";
                         
                     when wait_done1 =>
                         poly_start <= '0';
                         poly_fsm <= wait_done2;
+                        poly_fsm_dbg <= "0100";
                     
                     when wait_done2 =>
                         poly_start <= '0';
                         if poly_idle = '1' then
                             poly_fsm <= check_fifos;
                         end if;
+                        poly_fsm_dbg <= "0101";
                     
                     when check_fifos =>
                         -- fine delay FIFOs are 1024 deep.
@@ -567,11 +576,13 @@ begin
                             poly_fsm <= update_vc;
                         end if;
                         poly_start <= '0';
+                        poly_fsm_dbg <= "0110";
                         
                     when update_vc =>
                         poly_vc_base <= std_logic_vector(unsigned(poly_vc_base) + 12);
                         poly_fsm <= check_vc;
                         poly_start <= '0';
+                        poly_fsm_dbg <= "0111";
                         
                     when check_vc =>
                         if (unsigned(poly_vc_base) < unsigned(Nchannels)) then
@@ -580,10 +591,12 @@ begin
                             poly_fsm <= done;
                         end if;
                         poly_start <= '0';
+                        poly_fsm_dbg <= "1000";
                     
                     when done =>
                         poly_fsm <= done;
                         poly_start <= '0';
+                        poly_fsm_dbg <= "1001";
                         
                 end case;
             end if;
@@ -594,7 +607,15 @@ begin
                 o_bad_readstart <= '0';
             end if;
             
-            
+            o_poly_dbg0(3 downto 0) <= poly_fsm_dbg;
+            o_poly_dbg0(14 downto 4) <= delayFIFO_wrDataCount(0);
+            o_poly_dbg0(15) <= '0';
+            o_poly_dbg0(21 downto 16) <= coarseFIFO_wrDataCount(0);
+            o_poly_dbg0(31 downto 22) <= poly_vc_base(9 downto 0);
+            o_poly_dbg1(11 downto 0) <= Nchannels;
+            o_poly_dbg1(23 downto 12) <= coarseFIFO_empty;
+            o_poly_dbg1(28 downto 24) <= ar_fsm_dbg;
+            o_poly_dbg1(31 downto 29) <= "000";
             -------------------------------------------------------------------------
             -- Work out which virtual channel to fetch data from HBM for next.
             -- Find the channel with the most free space in the buffer
