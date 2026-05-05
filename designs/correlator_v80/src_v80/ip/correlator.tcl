@@ -14,6 +14,10 @@ create_ip -name axis_ila -vendor xilinx.com -library ip -version 1.3 -module_nam
 set_property -dict [list CONFIG.C_PROBE0_WIDTH {120} CONFIG.C_DATA_DEPTH {16384}] [get_ips ila_120_16k]
 create_ip_run [get_ips ila_120_16k]
 
+create_ip -name axis_ila -vendor xilinx.com -library ip -version 1.3 -module_name ila_64_64k
+set_property -dict [list CONFIG.C_PROBE0_WIDTH {64} CONFIG.C_DATA_DEPTH {65536}  CONFIG.C_MEMORY_TYPE {1}] [get_ips ila_64_64k]
+create_ip_run [get_ips ila_64_64k]
+
 create_ip -name clk_wizard -vendor xilinx.com -library ip -version 1.0 -module_name clk_mmcm_425
 set_property -dict [list \
   CONFIG.CLKOUT_DRIVES {BUFG,BUFG,BUFG,BUFG,BUFG,BUFG,BUFG} \

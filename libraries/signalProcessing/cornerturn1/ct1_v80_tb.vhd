@@ -760,7 +760,7 @@ begin
         -- This should be valid before coming out of reset.
         i_totalChannelsTable0 => virtual_channels_table0, -- in std_logic_vector(11 downto 0); -- total virtual channels in table 0
         i_totalChannelsTable1 => virtual_channels_table1, -- in std_logic_vector(11 downto 0); -- total virtual channels in table 1
-        i_rst             => data_rst,         -- in std_logic;   -- While in reset, process nothing.
+        i_rst             => '0', -- data_rst,         -- in std_logic;   -- While in reset, process nothing.
         -- o_rst            : out std_logic;   -- Reset is now driven from the LFAA ingest module.
         --o_validMemRstActive => rst_active,     -- out std_logic;  -- reset is in progress, don't send data; Only used in the testbench. Reset takes about 20us.
         -- Headers for each valid packet received by the LFAA ingest.
