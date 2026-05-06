@@ -343,7 +343,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
     component ila_128_16k
     port (
         clk : in std_logic;
-        probe0 : in std_logic_vector(63 downto 0)); 
+        probe0 : in std_logic_vector(127 downto 0)); 
     end component;
     
     -- VERSAL
