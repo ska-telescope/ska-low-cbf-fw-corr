@@ -2581,7 +2581,6 @@ begin
             bufCoarseDelay11_ila <= bufCoarseDelay(11)(3 downto 0);
             
             packetsRemaining_ila <= packetsRemaining(7 downto 0);
-            allPacketsSent_ila <= allPacketsSent;
             bufFIFO_rdEn_ila <= bufFIFO_rdEn;
             bufWordsRemaining0_ila <= bufWordsRemaining(0);  -- 16 bit
             bufWordsRemaining1_ila <= bufWordsRemaining(1);  -- 16 bit
