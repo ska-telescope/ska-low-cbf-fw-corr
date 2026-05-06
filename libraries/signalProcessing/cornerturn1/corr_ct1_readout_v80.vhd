@@ -340,7 +340,7 @@ architecture Behavioral of corr_ct1_readout_v80 is
         probe0 : in std_logic_vector(119 downto 0)); 
     end component;
     
-    component ila_64_64k
+    component ila_128_16k
     port (
         clk : in std_logic;
         probe0 : in std_logic_vector(63 downto 0)); 
@@ -449,6 +449,13 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal delay_packet_ila : std_logic_vector(7 downto 0);
     signal sof_ila, sof_full_ila, valid_ila : std_logic;
     signal virtualChannel_ila : std_logic_vector(1 downto 0);
+    
+    signal rd_fsm_dbg, rd_fsm_dbg_ila : std_logic_vector(4 downto 0);
+    signal bufReadDone_ila, rdStop_ila, bufFIFO_rdEn_ila, bufFIFO_empty_ila : std_logic_vector(11 downto 0);
+    signal bufCoarseDelay0_ila, bufCoarseDelay1_ila, bufCoarseDelay2_ila, bufCoarseDelay3_ila, bufCoarseDelay4_ila, bufCoarseDelay5_ila : std_logic_vector(3 downto 0);
+    signal bufCoarseDelay6_ila, bufCoarseDelay7_ila, bufCoarseDelay8_ila, bufCoarseDelay9_ila, bufCoarseDelay10_ila, bufCoarseDelay11_ila : std_logic_vector(3 downto 0);
+    signal packetsRemaining_ila : std_logic_vector(7 downto 0);
+    signal bufWordsRemaining0_ila, bufWordsRemaining1_ila : std_logic_vector(15 downto 0);
     
 begin
     
@@ -2124,12 +2131,10 @@ begin
                 channelCount <= (others => '0');
                 rd_fsm <= idle;
                 bufRdEnable <= (others => '0');
-                bufFIFO_rdEn(0) <= '0';
-                bufFIFO_rdEn(1) <= '0';
-                bufFIFO_rdEn(2) <= '0';
-                bufFIFO_rdEn(3) <= '0';
+                bufFIFO_rdEn <= (others => '0');
                 sof <= '0';
                 sofFull <= '0';
+                rd_fsm_dbg <= "00000";
             elsif shared_to_FB_valid_del1 = '1' then
                 -- Start reading out the data from the buffer.
                 -- This occurs once per frame (i.e. every 283 ms).
@@ -2137,11 +2142,9 @@ begin
                 channelCount <= (others => '0');
                 rd_fsm <= reset_output_fifos_start;
                 bufRdEnable <= (others => '0');
-                bufFIFO_rdEn(0) <= '0';
-                bufFIFO_rdEn(1) <= '0';
-                bufFIFO_rdEn(2) <= '0';
-                bufFIFO_rdEn(3) <= '0';
+                bufFIFO_rdEn <= (others => '0');
                 sofFull <= '1';
+                rd_fsm_dbg <= "00001";
             else
                 case rd_fsm is
                     when idle =>
@@ -2149,6 +2152,7 @@ begin
                         bufRdEnable <= (others => '0');
                         sof <= '0';
                         sofFull <= '0';
+                        rd_fsm_dbg <= "00010";
                     
                     when rd_start => -- start of reading for a particular group of 4 channels.
                         -- wait until data is available in the buffer, and get the start address from the FIFOs
@@ -2174,6 +2178,7 @@ begin
                         end if;
                         buf_to_read <= "0000";
                         bufRdEnable <= (others => '0');
+                        rd_fsm_dbg <= "00011";
                     
                     when rd_bufX =>
                         -- Step through and read one word from each of the 12 buffers for the 12 parallel data streams
@@ -2189,6 +2194,7 @@ begin
                         sof <= '0';
                         sofFull <= '0';
                         rd_wait_count <= "0011";
+                        rd_fsm_dbg <= "00100";
                     
                     when rd_wait => 
                         -- Tightest loop involves rd_buf0 -> rd_buf1 -> rd_buf2 -> rd_buf3 -> rd_wait -> rd_buf0 ... .
@@ -2215,6 +2221,7 @@ begin
                             end if;
                         end if;
                         bufRdEnable <= (others => '0');
+                        rd_fsm_dbg <= "00101";
                     
                     when reset_output_fifos =>
                         sof <= '0';
@@ -2222,20 +2229,24 @@ begin
                         rd_fsm <= reset_output_fifos_wait1;
                         channelCount <= std_logic_vector(unsigned(channelCount) + 12);
                         bufRdEnable <= (others => '0');
+                        rd_fsm_dbg <= "00110";
                     
                     when reset_output_fifos_start => -- this is just for the first group of 4 channels that are read out from the buffer. 
                         rd_fsm <= reset_output_fifos_wait1;
+                        rd_fsm_dbg <= "00111";
                     
                     when reset_output_fifos_wait1 =>
                         rd_fsm <= reset_output_fifos_wait2;
                         bufRdEnable <= (others => '0');
                         sof <= '0';
+                        rd_fsm_dbg <= "01000";
                         
                     when reset_output_fifos_wait2 =>
                         rd_fsm <= reset_output_fifos_wait;
                         bufRdEnable <= (others => '0');
                         sof <= '0';
-                                            
+                        rd_fsm_dbg <= "01001";
+                    
                     when reset_output_fifos_wait =>
                         -- wait until the output fifos have finished reset.
                         if rstBusy = "000000000000" then
@@ -2247,9 +2258,11 @@ begin
                         end if;
                         bufRdEnable <= (others => '0');
                         sof <= '0';
+                        rd_fsm_dbg <= "01010";
                         
                     when others =>
                         rd_fsm <= idle;
+                        rd_fsm_dbg <= "01011";
                 end case;
                 
                 -- Read the fifos whenever we read from the associated buffer.
@@ -2548,30 +2561,79 @@ begin
             sof_full_ila <= soffull;
             valid_ila <= validOut(0);
             virtualChannel_ila <= meta0VirtualChannel(3 downto 2);
+            
+            
+            rd_fsm_dbg_ila <= rd_fsm_dbg;
+            bufReadDone_ila <= bufReadDone;
+            rdStop_ila <= rdStop;
+            
+            bufCoarseDelay0_ila <= bufCoarseDelay(0)(3 downto 0);
+            bufCoarseDelay1_ila <= bufCoarseDelay(1)(3 downto 0);
+            bufCoarseDelay2_ila <= bufCoarseDelay(2)(3 downto 0);
+            bufCoarseDelay3_ila <= bufCoarseDelay(3)(3 downto 0);
+            bufCoarseDelay4_ila <= bufCoarseDelay(4)(3 downto 0);
+            bufCoarseDelay5_ila <= bufCoarseDelay(5)(3 downto 0);
+            bufCoarseDelay6_ila <= bufCoarseDelay(6)(3 downto 0);
+            bufCoarseDelay7_ila <= bufCoarseDelay(7)(3 downto 0);
+            bufCoarseDelay8_ila <= bufCoarseDelay(8)(3 downto 0);
+            bufCoarseDelay9_ila <= bufCoarseDelay(9)(3 downto 0);
+            bufCoarseDelay10_ila <= bufCoarseDelay(10)(3 downto 0);
+            bufCoarseDelay11_ila <= bufCoarseDelay(11)(3 downto 0);
+            
+            packetsRemaining_ila <= packetsRemaining(7 downto 0);
+            allPacketsSent_ila <= allPacketsSent;
+            bufFIFO_rdEn_ila <= bufFIFO_rdEn;
+            bufWordsRemaining0_ila <= bufWordsRemaining(0);  -- 16 bit
+            bufWordsRemaining1_ila <= bufWordsRemaining(1);  -- 16 bit
+            bufFIFO_empty_ila <= bufFIFO_empty;
+            
         end if;
     end process;
     
-    debug_ila : ila_64_64k
+    
+    debug_ila : ila_128_16k
     PORT MAP (
         clk                => shared_clk,
         probe0(3 downto 0) => poly_fsm_ila, 
         probe0(7 downto 4) => coarseFIFO_empty_ila,
         probe0(11 downto 8) => Nchannels_ila,
-        probe0(15 downto 12) => delay_vcCount_ila,
-        probe0(19 downto 16) => delayFIFO_wrEn_ila,
-        probe0(30 downto 20) => delayFIFO_wrDataCount_ila,
-        probe0(36 downto 31) => coarseFIFO_wrDataCount_ila,
-        probe0(41 downto 37) => poly_vc_base_ila, 
-        probe0(46 downto 42) => ar_fsm_dbg_ila,
-        probe0(47) => i_readstart_ila,
-        probe0(48) => rstInternal_ila,
-        probe0(49) => poly_idle_ila,
-        probe0(50) => delay_valid_ila,
-        probe0(58 downto 51) =>  delay_packet_ila,
-        probe0(59) => sof_ila,
-        probe0(60) => sof_full_ila,
-        probe0(61) => valid_ila,
-        probe0(63 downto 62) => virtualChannel_ila
+        probe0(16 downto 12) => rd_fsm_dbg_ila,
+        probe0(28 downto 17) => bufReadDone_ila,
+        probe0(40 downto 29) => rdStop_ila,
+        probe0(44 downto 41) => bufCoarseDelay0_ila,
+        probe0(48 downto 45) => bufCoarseDelay1_ila,
+        probe0(52 downto 49) => bufCoarseDelay2_ila,
+        probe0(56 downto 53) => bufCoarseDelay3_ila,
+        probe0(60 downto 57) => bufCoarseDelay4_ila,
+        probe0(65 downto 61) => ar_fsm_dbg_ila,
+        probe0(73 downto 66) => packetsRemaining_ila,
+        probe0(74) => valid_ila,
+        probe0(86 downto 75) => bufFIFO_rdEn_ila,
+        probe0(102 downto 87) => bufWordsRemaining0_ila,
+        probe0(118 downto 103) => bufWordsRemaining1_ila,
+        probe0(119) => sof_ila,
+        probe0(120) => sof_full_ila,
+        probe0(121) => i_readstart_ila,
+        probe0(122) => rstInternal_ila,
+        probe0(127 downto 123) => bufFIFO_empty_ila(4 downto 0)
+--        probe0(3 downto 0) => poly_fsm_ila, 
+--        probe0(7 downto 4) => coarseFIFO_empty_ila,
+--        probe0(11 downto 8) => Nchannels_ila,
+--        probe0(15 downto 12) => delay_vcCount_ila,
+--        probe0(19 downto 16) => delayFIFO_wrEn_ila,
+--        probe0(30 downto 20) => delayFIFO_wrDataCount_ila,
+--        probe0(36 downto 31) => coarseFIFO_wrDataCount_ila,
+--        probe0(41 downto 37) => poly_vc_base_ila, 
+--        probe0(46 downto 42) => ar_fsm_dbg_ila,
+--        probe0(47) => i_readstart_ila,
+--        probe0(48) => rstInternal_ila,
+--        probe0(49) => poly_idle_ila,
+--        probe0(50) => delay_valid_ila,
+--        probe0(58 downto 51) =>  delay_packet_ila,
+--        probe0(59) => sof_ila,
+--        probe0(60) => sof_full_ila,
+--        probe0(61) => valid_ila,
+--        probe0(63 downto 62) => virtualChannel_ila
     );
     
    
