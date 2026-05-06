@@ -115,6 +115,11 @@ signal stim_count               : integer := 0;
 
 signal interrupt_hbm_rd         : std_logic := '0';
 
+signal f2f_data_out             : std_logic_vector(15 downto 0);
+signal f2f_valid_out            : std_logic;
+signal f2f_data_in              : std_logic_vector(31 downto 0);
+signal f2f_valid_in             : std_logic;
+
 constant DEBUG_VEC_SIZE         : integer := 11;
 signal tb_debug                 : std_logic_vector((DEBUG_VEC_SIZE-1) downto 0);
 
@@ -306,6 +311,9 @@ begin
             no_of_283s      <= "00";
             time_of_int     <= '0';
             stim_time_ref   <= (others => '0');
+            
+            f2f_data_in     <= x"00000000";
+            f2f_valid_in    <= '0';
         else
             stim_table_select   <= '0';
             tb_debug(4)        <= '1';  -- END target sub array dummy value
@@ -319,7 +327,16 @@ begin
                 init_mem    <= '0';
             end if;
 
-            
+            --f2f_data_out
+            --f2f_valid_out
+
+            if testCount_300 = 50 then
+                f2f_data_in     <= x"4f979f4b"; --x"4b9f974f";
+                f2f_valid_in    <= '1';
+            else
+                f2f_data_in     <= x"00000000";
+                f2f_valid_in    <= '0';
+            end if;
 
             if testCount_300 = 50 then
                 row         <= 5D"0" & zero_byte;
@@ -778,5 +795,21 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_spead_full_axi_mosi   => i_spead_full_axi_mosi,
         o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
+
+
+DUT_f2f : entity correlator_lib.float32_to_float16
+    port map (
+        clk                 => clock_300,
+        reset               => clock_300_rst,
+        
+        i_valid             => f2f_valid_in,
+        i_data_in           => f2f_data_in,
+
+        ------------------------------------------------------
+
+        o_valid             => f2f_valid_out,
+        o_data_out          => f2f_data_out
+    );
+    
 
 end Behavioral;

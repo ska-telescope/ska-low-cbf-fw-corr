@@ -61,6 +61,7 @@ signal sorted_data_wr   : std_logic;
 signal reset_int        : std_logic;
 
 signal half_p_data      : std_logic_vector(127 downto 0);
+signal half_p_data_le   : std_logic_vector(127 downto 0);
 signal half_p_valid     : std_logic_vector(7 downto 0);
 
 constant cycles_from_input : INTEGER := 8;
@@ -113,7 +114,7 @@ begin
 
         -- create pipeline post f_to_f converter for packing logic
         if half_p_valid(1) = '1' OR (trigger_final_drain(1) = '1') then
-            half_p_pipe(0)                          <= (half_p_data & meta_data_pipe(cycles_from_input-1));
+            half_p_pipe(0)                          <= (half_p_data_le & meta_data_pipe(cycles_from_input-1));
             half_p_pipe((half_p_steps-1) downto 1)  <= half_p_pipe((half_p_steps-2) downto 0);
         end if;
 
@@ -248,5 +249,14 @@ gen_converter : for i in 0 to 7 generate
     );
 
 end generate;
+
+half_p_data_le  <=  half_p_data(7 downto 0)     &   half_p_data(15 downto 8)    &
+                    half_p_data(23 downto 16)   &   half_p_data(31 downto 24)   & 
+                    half_p_data(39 downto 32)   &   half_p_data(47 downto 40)   &      
+                    half_p_data(55 downto 48)   &   half_p_data(63 downto 56)   & 
+                    half_p_data(71 downto 64)   &   half_p_data(79 downto 72)   &
+                    half_p_data(87 downto 80)   &   half_p_data(95 downto 88)   & 
+                    half_p_data(103 downto 96)  &   half_p_data(111 downto 104) &
+                    half_p_data(119 downto 112) &   half_p_data(127 downto 120); 
 
 end Behavioral;

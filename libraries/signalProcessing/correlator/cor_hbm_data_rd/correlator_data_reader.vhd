@@ -180,6 +180,8 @@ signal packed_fifo_holdd    : std_logic;
 signal picked_fifo_wr       : std_logic;
 signal picked_fifo_data     : std_logic_vector(271 downto 0);
 
+signal picked_hp_fifo_data  : std_logic_vector(271 downto 0);
+
 signal packed_fifo_wr_pipe  : std_logic_vector(7 downto 0) := x"00";
 
 signal packed_fifo_wr_cnt_reg : unsigned(((ceil_log2(packed_depth))) downto 0);
@@ -904,7 +906,7 @@ begin
         end if;
     end process;
 
-    --picked_fifo_data    <= hbm_data_cache & meta_data_cache;
+    picked_hp_fifo_data <= hbm_data_cache & meta_data_cache;
     picked_fifo_data    <= hbm_data_cache_le & meta_data_cache;
 ---------------------------------------------------------------------------
 -- LE swapping of the vis_data
@@ -940,7 +942,7 @@ end process;
             o_finished_pack     => hp_pack_final_notify,
             ------------------------------------------------------
             -- data from the picker FSM
-            i_sorted_data       => picked_fifo_data,
+            i_sorted_data       => picked_hp_fifo_data,
             i_sorted_data_wr    => picked_fifo_wr,
 
             o_data_out          => half_precision_data,
