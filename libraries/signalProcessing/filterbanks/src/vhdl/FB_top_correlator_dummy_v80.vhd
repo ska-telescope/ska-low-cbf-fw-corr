@@ -24,7 +24,7 @@ Library xpm;
 use xpm.vcomponents.all;
 USE filterbanks_lib.cor_filterbanks_filterbanks_reg_pkg.ALL;
 
-entity FB_Top_correlator_dummy is
+entity FB_Top_correlator_dummy_v80 is
     port(
         i_data_rst  : in std_logic;
         -- AXI slave interface, 64k word block of space with the fir filter coefficients.
@@ -70,11 +70,11 @@ entity FB_Top_correlator_dummy is
     
     -- prevent optimisation across module boundaries.
     attribute keep_hierarchy : string;
-    attribute keep_hierarchy of FB_Top_correlator_dummy : entity is "yes";
+    attribute keep_hierarchy of FB_Top_correlator_dummy_v80 : entity is "yes";
     
-end FB_Top_correlator_dummy;
+end FB_Top_correlator_dummy_v80;
 
-architecture Behavioral of FB_Top_correlator_dummy is
+architecture Behavioral of FB_Top_correlator_dummy_v80 is
     
     signal FDdata  : t_ctc_output_payload_arr(3 downto 0);
     

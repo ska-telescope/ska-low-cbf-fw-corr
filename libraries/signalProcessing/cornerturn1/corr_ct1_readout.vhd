@@ -116,8 +116,7 @@ entity corr_ct1_readout is
         --
         g_RIPPLE_PRELOAD : integer := 15;
         g_RIPPLE_POSTLOAD : integer := 15;
-
-        g_GENERATE_ILA      : BOOLEAN := TRUE
+        g_GENERATE_ILA    : BOOLEAN := False
     );
     Port(
         shared_clk : in std_logic; -- Shared memory clock
@@ -130,7 +129,7 @@ entity corr_ct1_readout is
         i_clocksPerPacket : in std_logic_vector(15 downto 0);  -- Number of clocks per output, connect to register "output_cycles"
         -- Reading Coarse and fine delay info from the registers
         -- In the registers, word 0, bits 15:0  = Coarse delay, word 0 bits 31:16 = Hpol DeltaP, word 1 bits 15:0 = Vpol deltaP, word 1 bits 31:16 = deltaDeltaP
-        o_delayTableAddr : out std_logic_vector(14 downto 0);  -- 2 buffers, 10 words per buffer, 1024 virtual channels = 20480 words
+        o_delayTableAddr : out std_logic_vector(15 downto 0);  -- 2 buffers, 10 words per buffer, 1024 virtual channels = 20480 words; 16 bits for compatibility with the v80 version.
         i_delayTableData : in std_logic_vector(63 downto 0);   -- Data from the delay table with 3 cycle latency. 
         -- RFI threshold for this channel.
         o_RFI_rd_addr : out std_logic_vector(9 downto 0);
@@ -150,10 +149,13 @@ entity corr_ct1_readout is
         o_sof   : out std_logic; -- start of frame for a particular set of 4 virtual channels.
         o_sofFull : out std_logic; -- start of a full frame, i.e. 283 ms of data.
         o_readoutData : out t_slv_32_arr(3 downto 0);
-        o_meta0 : out t_CT1_META_out;  -- defined in DSP_top_pkg.vhd;
-        o_meta1 : out t_CT1_META_out;
-        o_meta2 : out t_CT1_META_out;
-        o_meta3 : out t_CT1_META_out;
+        
+        o_meta_delays : out t_CT1_META_delays_arr(3 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
+        o_meta_RFIThresholds  : out t_slv_32_arr(3 downto 0);
+        o_meta_integration    : out std_logic_vector(31 downto 0);
+        o_meta_ctFrame        : out std_logic_vector(1 downto 0); 
+        o_meta_virtualChannel : out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+        o_meta_valid : out std_logic_vector(3 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
         o_lastChannel : out std_logic; -- Aligns with o_metaX
         o_valid : out std_logic;
         -- AXI read address and data input buses
@@ -354,7 +356,6 @@ architecture Behavioral of corr_ct1_readout is
     signal Nchannels : std_logic_vector(11 downto 0);
     signal poly_start : std_logic := '0';
     signal poly_idle : std_logic;
-    signal poly_vc : t_slv_16_arr(3 downto 0);
     signal delayFIFO_wrDataCount : t_slv_11_arr(3 downto 0);
     signal delayFIFO_rdDataCount : t_slv_11_arr(3 downto 0);
     signal coarseFIFO_din : std_logic_vector(31 downto 0);
@@ -1391,25 +1392,23 @@ begin
 
     --------------------------------------------------------------------------------------------
     --------------------------------------------------------------------------------------------
-    -- Evaluation of the polynomials to get the delays 
-    poly_vc(0) <= poly_vc_base; -- in t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0); List of virtual channels to evaluate; this maps to the address in the lookup table.
-    poly_vc(1) <= poly_vc_base(15 downto 2) & "01";
-    poly_vc(2) <= poly_vc_base(15 downto 2) & "10";
-    poly_vc(3) <= poly_vc_base(15 downto 2) & "11";
-    
+    -- Evaluation of the polynomials to get the delays     
     
     poly_delays : entity ct_lib.poly_eval
     generic map (
         -- Number of virtual channels to generate in at a time, code supports up to 16
         -- Code assumes at least 4, otherwise it would need extra delays to wait for data to return from the memory. 
-        g_VIRTUAL_CHANNELS => 4 -- : integer range 4 to 16 := 4 
+        g_VIRTUAL_CHANNELS => 4,  -- integer range 4 to 16 := 4 
+        -- Offset into the configuration memory for the second buffer.
+        -- Must be set to the number of virtual channels supported * 10
+        g_BUFFER_OFFSET => 10240   -- 1024 virtual channels supported for the U55c version
     ) port map (
         clk  => shared_clk, -- in std_logic;
         -- First output after a reset will reset the data generation
         i_rst => rstInternal, --  in std_logic;
         -- Control
         i_start            => poly_start, -- in std_logic; Start on a batch of 4 polynomials
-        i_virtual_channels => poly_vc, -- in t_slv_16_arr((g_VIRTUAL_CHANNELS-1) downto 0); List of virtual channels to evaluate; this maps to the address in the lookup table.
+        i_first_virtual_channel => poly_vc_base, -- in (15:0); First in the set of g_VIRTUAL_CHANNELS to evaluate; this maps to the address in the lookup table.
         i_integration      => poly_integration, -- in std_logic_vector(31 downto 0); Which integration is this for ?
         i_ct_frame         => poly_ct_frame, -- in std_logic_vector(1 downto 0);  3 corner turn frames per integration
         o_idle             => poly_idle, -- out std_logic;
@@ -1418,7 +1417,7 @@ begin
         -- Block ram interface for access by the rest of the module
         -- Memory is 20480 x 8 byte words = (2 buffers) x (10240 words) = (1024 virtual channels) x (10 words)
         -- read latency 3 clocks
-        o_rd_addr  => o_delayTableAddr, -- out (14:0);
+        o_rd_addr  => o_delayTableAddr, -- out (15:0);
         i_rd_data  => i_delayTableData, -- in (63:0);  -- 3 clock latency.
         
         -----------------------------------------------------------------------
@@ -1968,33 +1967,33 @@ begin
                 clockCountZero <= '1';
                 delayFIFO_rden <= "0000";
 
-                o_meta0.HDeltaP <= delayFIFO_dout(0)(31 downto 0);
-                o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
-                o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
-                o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
-                o_meta0.bad_poly <= delayFIFO_dout(0)(128);
-                o_meta0.RFI_threshold <= RFI_threshold(0);  -- Only assign this here (on readoutStartDel(27)), so it is stable for the full frame for a particular virtual channel.
+                o_meta_delays(0).HDeltaP <= delayFIFO_dout(0)(31 downto 0);
+                o_meta_delays(0).VDeltaP <= delayFIFO_dout(0)(63 downto 32);
+                o_meta_delays(0).HoffsetP <= delayFIFO_dout(0)(95 downto 64);
+                o_meta_delays(0).VoffsetP <= delayFIFO_dout(0)(127 downto 96);
+                o_meta_delays(0).bad_poly <= delayFIFO_dout(0)(128);
+                o_meta_RFIthresholds(0) <= RFI_threshold(0);  -- Only assign this here (on readoutStartDel(27)), so it is stable for the full frame for a particular virtual channel.
                     
-                o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
-                o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
-                o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
-                o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
-                o_meta1.bad_poly <= delayFIFO_dout(1)(128);
-                o_meta1.RFI_threshold <= RFI_threshold(1);
-                    
-                o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
-                o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
-                o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
-                o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
-                o_meta2.bad_poly <= delayFIFO_dout(2)(128);
-                o_meta2.RFI_threshold <= RFI_threshold(2);
-                  
-                o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
-                o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
-                o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
-                o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);  
-                o_meta3.bad_poly <= delayFIFO_dout(3)(128);
-                o_meta3.RFI_threshold <= RFI_threshold(3);
+                o_meta_delays(1).HDeltaP <= delayFIFO_dout(1)(31 downto 0);
+                o_meta_delays(1).VDeltaP <= delayFIFO_dout(1)(63 downto 32);
+                o_meta_delays(1).HoffsetP <= delayFIFO_dout(1)(95 downto 64);
+                o_meta_delays(1).VoffsetP <= delayFIFO_dout(1)(127 downto 96);
+                o_meta_delays(1).bad_poly <= delayFIFO_dout(1)(128);
+                o_meta_RFIthresholds(1) <= RFI_threshold(1);
+                
+                o_meta_delays(2).HDeltaP <= delayFIFO_dout(2)(31 downto 0);
+                o_meta_delays(2).VDeltaP <= delayFIFO_dout(2)(63 downto 32);
+                o_meta_delays(2).HoffsetP <= delayFIFO_dout(2)(95 downto 64);
+                o_meta_delays(2).VoffsetP <= delayFIFO_dout(2)(127 downto 96);
+                o_meta_delays(2).bad_poly <= delayFIFO_dout(2)(128);
+                o_meta_RFIthresholds(2) <= RFI_threshold(2);
+                
+                o_meta_delays(3).HDeltaP <= delayFIFO_dout(3)(31 downto 0);
+                o_meta_delays(3).VDeltaP <= delayFIFO_dout(3)(63 downto 32);
+                o_meta_delays(3).HoffsetP <= delayFIFO_dout(3)(95 downto 64);
+                o_meta_delays(3).VoffsetP <= delayFIFO_dout(3)(127 downto 96);
+                o_meta_delays(3).bad_poly <= delayFIFO_dout(3)(128);
+                o_meta_RFIthresholds(3) <= RFI_threshold(3);
                 
             elsif (unsigned(packetsRemaining) > 0) then
                 -- Changed to improve timing, was : if (unsigned(clockCount) < (unsigned(FBClocksPerPacketMinusOne))) then
@@ -2005,30 +2004,30 @@ begin
                 else
                     clockCount <= (others => '0');
                     clockCountZero <= '1';
+                    
+                    o_meta_delays(0).HDeltaP <= delayFIFO_dout(0)(31 downto 0);
+                    o_meta_delays(0).VDeltaP <= delayFIFO_dout(0)(63 downto 32);
+                    o_meta_delays(0).HoffsetP <= delayFIFO_dout(0)(95 downto 64);
+                    o_meta_delays(0).VoffsetP <= delayFIFO_dout(0)(127 downto 96);
+                    o_meta_delays(0).bad_poly <= delayFIFO_dout(0)(128);
                        
-                    o_meta0.HDeltaP <= delayFIFO_dout(0)(31 downto 0);
-                    o_meta0.VDeltaP <= delayFIFO_dout(0)(63 downto 32);
-                    o_meta0.HoffsetP <= delayFIFO_dout(0)(95 downto 64);
-                    o_meta0.VoffsetP <= delayFIFO_dout(0)(127 downto 96);
-                    o_meta0.bad_poly <= delayFIFO_dout(0)(128);
+                    o_meta_delays(1).HDeltaP <= delayFIFO_dout(1)(31 downto 0);
+                    o_meta_delays(1).VDeltaP <= delayFIFO_dout(1)(63 downto 32);
+                    o_meta_delays(1).HoffsetP <= delayFIFO_dout(1)(95 downto 64);
+                    o_meta_delays(1).VoffsetP <= delayFIFO_dout(1)(127 downto 96);
+                    o_meta_delays(1).bad_poly <= delayFIFO_dout(1)(128);
                     
-                    o_meta1.HDeltaP <= delayFIFO_dout(1)(31 downto 0);
-                    o_meta1.VDeltaP <= delayFIFO_dout(1)(63 downto 32);
-                    o_meta1.HoffsetP <= delayFIFO_dout(1)(95 downto 64);
-                    o_meta1.VoffsetP <= delayFIFO_dout(1)(127 downto 96);
-                    o_meta1.bad_poly <= delayFIFO_dout(1)(128);
+                    o_meta_delays(2).HDeltaP <= delayFIFO_dout(2)(31 downto 0);
+                    o_meta_delays(2).VDeltaP <= delayFIFO_dout(2)(63 downto 32);
+                    o_meta_delays(2).HoffsetP <= delayFIFO_dout(2)(95 downto 64);
+                    o_meta_delays(2).VoffsetP <= delayFIFO_dout(2)(127 downto 96);
+                    o_meta_delays(2).bad_poly <= delayFIFO_dout(2)(128);
                     
-                    o_meta2.HDeltaP <= delayFIFO_dout(2)(31 downto 0);
-                    o_meta2.VDeltaP <= delayFIFO_dout(2)(63 downto 32);
-                    o_meta2.HoffsetP <= delayFIFO_dout(2)(95 downto 64);
-                    o_meta2.VoffsetP <= delayFIFO_dout(2)(127 downto 96);
-                    o_meta2.bad_poly <= delayFIFO_dout(2)(128);
-                    
-                    o_meta3.HDeltaP <= delayFIFO_dout(3)(31 downto 0);
-                    o_meta3.VDeltaP <= delayFIFO_dout(3)(63 downto 32);
-                    o_meta3.HoffsetP <= delayFIFO_dout(3)(95 downto 64);
-                    o_meta3.VoffsetP <= delayFIFO_dout(3)(127 downto 96);
-                    o_meta3.bad_poly <= delayFIFO_dout(3)(128);                    
+                    o_meta_delays(3).HDeltaP <= delayFIFO_dout(3)(31 downto 0);
+                    o_meta_delays(3).VDeltaP <= delayFIFO_dout(3)(63 downto 32);
+                    o_meta_delays(3).HoffsetP <= delayFIFO_dout(3)(95 downto 64);
+                    o_meta_delays(3).VoffsetP <= delayFIFO_dout(3)(127 downto 96);
+                    o_meta_delays(3).bad_poly <= delayFIFO_dout(3)(128);
                     
                     packetsRemaining <= packetsRemaining_minus1;
                     firstPacket <= '0';
@@ -2071,24 +2070,24 @@ begin
             meta3VirtualChannel <= std_logic_vector(unsigned(channelCount) + 3);
             
             if (unsigned(meta0VirtualChannel) < unsigned(FBNChannels)) then
-                o_meta0.valid <= '1';
+                o_meta_valid(0) <= '1';
             else
-                o_meta0.valid <= '0';
+                o_meta_valid(0) <= '0';
             end if;
             if (unsigned(meta1VirtualChannel) < unsigned(FBNChannels)) then
-                o_meta1.valid <= '1';
+                o_meta_valid(1) <= '1';
             else
-                o_meta1.valid <= '0';
+                o_meta_valid(1) <= '0';
             end if;
             if (unsigned(meta2VirtualChannel) < unsigned(FBNChannels)) then
-                o_meta2.valid <= '1';
+                o_meta_valid(2) <= '1';
             else
-                o_meta2.valid <= '0';
+                o_meta_valid(2) <= '0';
             end if;
             if (unsigned(meta3VirtualChannel) < unsigned(FBNChannels)) then
-                o_meta3.valid <= '1';
+                o_meta_valid(3) <= '1';
             else
-                o_meta3.valid <= '0';
+                o_meta_valid(3) <= '0';
             end if;
             if ((unsigned(meta3VirtualChannel)+1) >= unsigned(FBNChannels)) then
                 o_lastChannel <= '1';
@@ -2124,21 +2123,9 @@ begin
     o_readoutData <= readoutData_int;
     o_valid <= validOut(0);
     
-    o_meta0.integration <= FBintegration; -- (31:0); integration in units of 849ms relative to the epoch.
-    o_meta0.ctFrame <= FBctFrame;
-    o_meta0.virtualChannel <= meta0VirtualChannel;     -- virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
-    
-    o_meta1.integration <= FBintegration;
-    o_meta1.ctFrame <= FBctFrame;
-    o_meta1.virtualChannel <= meta1VirtualChannel;
-   
-    o_meta2.integration <= FBintegration;
-    o_meta2.ctFrame <= FBctFrame;
-    o_meta2.virtualChannel <= meta2VirtualChannel;
-    
-    o_meta3.integration <= FBintegration;
-    o_meta3.ctFrame <= FBctFrame;
-    o_meta3.virtualChannel <= meta3VirtualChannel;
+    o_meta_integration <= FBintegration; -- (31:0); integration in units of 849ms relative to the epoch.
+    o_meta_ctFrame <= FBctFrame;
+    o_meta_virtualChannel <= meta0VirtualChannel(11 downto 0);     -- virtualChannel(15:0) = Virtual channels are processed in order, so this just counts.
     
     ----------------------------------------------------------------
     -- Check output against meta data that can optionally be inserted in the input
