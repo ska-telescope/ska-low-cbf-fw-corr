@@ -2105,7 +2105,8 @@ begin
                     else -- Not a whole number of 64-byte words, need to round up for the ceiling operation.
                         bufWordsRemaining(i) <= std_logic_vector(unsigned(rdBufSamplesRemaining(i)(19 downto 4)) + 1);
                     end if;
-                elsif ((rd_fsm = rd_bufX) and (rdStop(i) = '0') and (bufReadDone(i) = '0') and (unsigned(buf_to_read) = i)) then
+                elsif ((rd_fsm = rd_bufX) and (unsigned(buf_to_read) = i)) then
+                -- elsif ((rd_fsm = rd_bufX) and (rdStop(i) = '0') and (bufReadDone(i) = '0') and (unsigned(buf_to_read) = i)) then
                     bufWordsRemaining(i) <= std_logic_vector(unsigned(bufWordsRemaining(i)) - 1);
                 end if;
                 
