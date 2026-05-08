@@ -2541,100 +2541,100 @@ begin
         
     END GENERATE;
     
-    process(shared_clk)
-    begin
-        if rising_edge(shared_clk) then
-            poly_fsm_ila <= poly_fsm_dbg(3 downto 0);
-            delayFIFO_wrDataCount_ila <= delayFIFO_wrDataCount(0)(10 downto 0);
-            coarseFIFO_wrDataCount_ila <= coarseFIFO_wrDataCount(0)(5 downto 0);
-            coarseFIFO_empty_ila <= coarseFIFO_empty(3 downto 0);
-            poly_vc_base_ila <= poly_vc_base(4 downto 0);
-            i_readstart_ila <= i_readStart;
-            rstInternal_ila <= rstInternal;
-            Nchannels_ila <= Nchannels(3 downto 0);
-            poly_idle_ila <= poly_idle;
-            ar_fsm_dbg_ila <= ar_fsm_dbg(4 downto 0);
-            delay_valid_ila <= delay_valid;
-            delay_vcCount_ila <= delay_vcCount(3 downto 0);
-            delayFIFO_wrEn_ila <= delayFIFO_wrEn(3 downto 0);
-            delay_packet_ila <= delay_packet(7 downto 0);
-            sof_ila <= sof;
-            sof_full_ila <= soffull;
-            valid_ila <= validOut(0);
-            virtualChannel_ila <= meta0VirtualChannel(3 downto 2);
+--    process(shared_clk)
+--    begin
+--        if rising_edge(shared_clk) then
+--            poly_fsm_ila <= poly_fsm_dbg(3 downto 0);
+--            delayFIFO_wrDataCount_ila <= delayFIFO_wrDataCount(0)(10 downto 0);
+--            coarseFIFO_wrDataCount_ila <= coarseFIFO_wrDataCount(0)(5 downto 0);
+--            coarseFIFO_empty_ila <= coarseFIFO_empty(3 downto 0);
+--            poly_vc_base_ila <= poly_vc_base(4 downto 0);
+--            i_readstart_ila <= i_readStart;
+--            rstInternal_ila <= rstInternal;
+--            Nchannels_ila <= Nchannels(3 downto 0);
+--            poly_idle_ila <= poly_idle;
+--            ar_fsm_dbg_ila <= ar_fsm_dbg(4 downto 0);
+--            delay_valid_ila <= delay_valid;
+--            delay_vcCount_ila <= delay_vcCount(3 downto 0);
+--            delayFIFO_wrEn_ila <= delayFIFO_wrEn(3 downto 0);
+--            delay_packet_ila <= delay_packet(7 downto 0);
+--            sof_ila <= sof;
+--            sof_full_ila <= soffull;
+--            valid_ila <= validOut(0);
+--            virtualChannel_ila <= meta0VirtualChannel(3 downto 2);
             
             
-            rd_fsm_dbg_ila <= rd_fsm_dbg;
-            bufReadDone_ila <= bufReadDone;
-            rdStop_ila <= rdStop;
+--            rd_fsm_dbg_ila <= rd_fsm_dbg;
+--            bufReadDone_ila <= bufReadDone;
+--            rdStop_ila <= rdStop;
             
-            bufCoarseDelay0_ila <= bufCoarseDelay(0)(3 downto 0);
-            bufCoarseDelay1_ila <= bufCoarseDelay(1)(3 downto 0);
-            bufCoarseDelay2_ila <= bufCoarseDelay(2)(3 downto 0);
-            bufCoarseDelay3_ila <= bufCoarseDelay(3)(3 downto 0);
-            bufCoarseDelay4_ila <= bufCoarseDelay(4)(3 downto 0);
-            bufCoarseDelay5_ila <= bufCoarseDelay(5)(3 downto 0);
-            bufCoarseDelay6_ila <= bufCoarseDelay(6)(3 downto 0);
-            bufCoarseDelay7_ila <= bufCoarseDelay(7)(3 downto 0);
-            bufCoarseDelay8_ila <= bufCoarseDelay(8)(3 downto 0);
-            bufCoarseDelay9_ila <= bufCoarseDelay(9)(3 downto 0);
-            bufCoarseDelay10_ila <= bufCoarseDelay(10)(3 downto 0);
-            bufCoarseDelay11_ila <= bufCoarseDelay(11)(3 downto 0);
+--            bufCoarseDelay0_ila <= bufCoarseDelay(0)(3 downto 0);
+--            bufCoarseDelay1_ila <= bufCoarseDelay(1)(3 downto 0);
+--            bufCoarseDelay2_ila <= bufCoarseDelay(2)(3 downto 0);
+--            bufCoarseDelay3_ila <= bufCoarseDelay(3)(3 downto 0);
+--            bufCoarseDelay4_ila <= bufCoarseDelay(4)(3 downto 0);
+--            bufCoarseDelay5_ila <= bufCoarseDelay(5)(3 downto 0);
+--            bufCoarseDelay6_ila <= bufCoarseDelay(6)(3 downto 0);
+--            bufCoarseDelay7_ila <= bufCoarseDelay(7)(3 downto 0);
+--            bufCoarseDelay8_ila <= bufCoarseDelay(8)(3 downto 0);
+--            bufCoarseDelay9_ila <= bufCoarseDelay(9)(3 downto 0);
+--            bufCoarseDelay10_ila <= bufCoarseDelay(10)(3 downto 0);
+--            bufCoarseDelay11_ila <= bufCoarseDelay(11)(3 downto 0);
             
-            packetsRemaining_ila <= packetsRemaining(7 downto 0);
-            bufFIFO_rdEn_ila <= bufFIFO_rdEn;
-            bufWordsRemaining0_ila <= bufWordsRemaining(0);  -- 16 bit
-            bufWordsRemaining1_ila <= bufWordsRemaining(1);  -- 16 bit
-            bufFIFO_empty_ila <= bufFIFO_empty;
+--            packetsRemaining_ila <= packetsRemaining(7 downto 0);
+--            bufFIFO_rdEn_ila <= bufFIFO_rdEn;
+--            bufWordsRemaining0_ila <= bufWordsRemaining(0);  -- 16 bit
+--            bufWordsRemaining1_ila <= bufWordsRemaining(1);  -- 16 bit
+--            bufFIFO_empty_ila <= bufFIFO_empty;
             
-        end if;
-    end process;
+--        end if;
+--    end process;
     
     
-    debug_ila : ila_128_16k
-    PORT MAP (
-        clk                => shared_clk,
-        probe0(3 downto 0) => poly_fsm_ila, 
-        probe0(7 downto 4) => coarseFIFO_empty_ila,
-        probe0(11 downto 8) => Nchannels_ila,
-        probe0(16 downto 12) => rd_fsm_dbg_ila,
-        probe0(28 downto 17) => bufReadDone_ila,
-        probe0(40 downto 29) => rdStop_ila,
-        probe0(44 downto 41) => bufCoarseDelay0_ila,
-        probe0(48 downto 45) => bufCoarseDelay1_ila,
-        probe0(52 downto 49) => bufCoarseDelay2_ila,
-        probe0(56 downto 53) => bufCoarseDelay3_ila,
-        probe0(60 downto 57) => bufCoarseDelay4_ila,
-        probe0(65 downto 61) => ar_fsm_dbg_ila,
-        probe0(73 downto 66) => packetsRemaining_ila,
-        probe0(74) => valid_ila,
-        probe0(86 downto 75) => bufFIFO_rdEn_ila,
-        probe0(102 downto 87) => bufWordsRemaining0_ila,
-        probe0(118 downto 103) => bufWordsRemaining1_ila,
-        probe0(119) => sof_ila,
-        probe0(120) => sof_full_ila,
-        probe0(121) => i_readstart_ila,
-        probe0(122) => rstInternal_ila,
-        probe0(127 downto 123) => bufFIFO_empty_ila(4 downto 0)
+--    debug_ila : ila_128_16k
+--    PORT MAP (
+--        clk                => shared_clk,
 --        probe0(3 downto 0) => poly_fsm_ila, 
 --        probe0(7 downto 4) => coarseFIFO_empty_ila,
 --        probe0(11 downto 8) => Nchannels_ila,
---        probe0(15 downto 12) => delay_vcCount_ila,
---        probe0(19 downto 16) => delayFIFO_wrEn_ila,
---        probe0(30 downto 20) => delayFIFO_wrDataCount_ila,
---        probe0(36 downto 31) => coarseFIFO_wrDataCount_ila,
---        probe0(41 downto 37) => poly_vc_base_ila, 
---        probe0(46 downto 42) => ar_fsm_dbg_ila,
---        probe0(47) => i_readstart_ila,
---        probe0(48) => rstInternal_ila,
---        probe0(49) => poly_idle_ila,
---        probe0(50) => delay_valid_ila,
---        probe0(58 downto 51) =>  delay_packet_ila,
---        probe0(59) => sof_ila,
---        probe0(60) => sof_full_ila,
---        probe0(61) => valid_ila,
---        probe0(63 downto 62) => virtualChannel_ila
-    );
+--        probe0(16 downto 12) => rd_fsm_dbg_ila,
+--        probe0(28 downto 17) => bufReadDone_ila,
+--        probe0(40 downto 29) => rdStop_ila,
+--        probe0(44 downto 41) => bufCoarseDelay0_ila,
+--        probe0(48 downto 45) => bufCoarseDelay1_ila,
+--        probe0(52 downto 49) => bufCoarseDelay2_ila,
+--        probe0(56 downto 53) => bufCoarseDelay3_ila,
+--        probe0(60 downto 57) => bufCoarseDelay4_ila,
+--        probe0(65 downto 61) => ar_fsm_dbg_ila,
+--        probe0(73 downto 66) => packetsRemaining_ila,
+--        probe0(74) => valid_ila,
+--        probe0(86 downto 75) => bufFIFO_rdEn_ila,
+--        probe0(102 downto 87) => bufWordsRemaining0_ila,
+--        probe0(118 downto 103) => bufWordsRemaining1_ila,
+--        probe0(119) => sof_ila,
+--        probe0(120) => sof_full_ila,
+--        probe0(121) => i_readstart_ila,
+--        probe0(122) => rstInternal_ila,
+--        probe0(127 downto 123) => bufFIFO_empty_ila(4 downto 0)
+----        probe0(3 downto 0) => poly_fsm_ila, 
+----        probe0(7 downto 4) => coarseFIFO_empty_ila,
+----        probe0(11 downto 8) => Nchannels_ila,
+----        probe0(15 downto 12) => delay_vcCount_ila,
+----        probe0(19 downto 16) => delayFIFO_wrEn_ila,
+----        probe0(30 downto 20) => delayFIFO_wrDataCount_ila,
+----        probe0(36 downto 31) => coarseFIFO_wrDataCount_ila,
+----        probe0(41 downto 37) => poly_vc_base_ila, 
+----        probe0(46 downto 42) => ar_fsm_dbg_ila,
+----        probe0(47) => i_readstart_ila,
+----        probe0(48) => rstInternal_ila,
+----        probe0(49) => poly_idle_ila,
+----        probe0(50) => delay_valid_ila,
+----        probe0(58 downto 51) =>  delay_packet_ila,
+----        probe0(59) => sof_ila,
+----        probe0(60) => sof_full_ila,
+----        probe0(61) => valid_ila,
+----        probe0(63 downto 62) => virtualChannel_ila
+--    );
     
    
     
