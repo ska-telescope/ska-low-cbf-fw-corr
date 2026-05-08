@@ -1,5 +1,8 @@
 ### Changelog
 ## Correlator Personality
+* 1.0.3
+    * Requires Processor 0.23.3+
+    * Half precision (16-bit) Visibility data available for SPEAD DATA packets.
 * 1.0.2
     * Requires Processor 0.23.0+
     * Fix for delay flags.
