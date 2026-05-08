@@ -72,7 +72,7 @@ entity corr_ct2_din is
         i_frameCount_mod3 : in std_logic_vector(1 downto 0);  -- which of the three first corner turn frames is this, out of the 3 that make up a 849 ms integration. "00", "01", or "10".
         i_frameCount_849ms : in std_logic_vector(31 downto 0); -- which 849 ms integration is this ?
         i_virtualChannel  : in t_slv_16_arr(3 downto 0); -- 4 virtual channels, one for each of the filterbank data streams.
-        i_bad_poly        : in std_logic;
+        i_bad_poly        : in std_logic_vector(3 downto 0);
         i_lastChannel     : in std_logic;
         i_HeaderValid     : in std_logic_vector(3 downto 0);
         i_data            : in t_ctc_output_payload_arr(3 downto 0); -- 8 bit data; fields are Hpol.re, .Hpol.im, .Vpol.re, .Vpol.im, for each of i_data(0), i_data(1), i_data(2), i_data(3)
@@ -241,7 +241,8 @@ architecture Behavioral of corr_ct2_din is
     signal bp_addr0, bp_addr1 : std_logic_vector(6 downto 0);
     type t_bad_poly_fsm is (clear_memory, check_bad, set_bad, idle, wait_check_bad);
     signal bad_poly_fsm : t_bad_poly_fsm := idle;
-    signal bp_wr_en0, bp_wr_en1, bp_wr_data0, bp_wr_data1, bad_poly_del1, bad_poly : std_logic;
+    signal bp_wr_en0, bp_wr_en1, bp_wr_data0, bp_wr_data1 : std_logic;
+    signal bad_poly_del1, bad_poly : std_logic_vector(3 downto 0);
     signal bad_poly_wait_count : std_logic_vector(7 downto 0);
     
     signal max_copyAW_time : std_logic_vector(31 downto 0); -- time required to put out all the addresses
@@ -250,6 +251,7 @@ architecture Behavioral of corr_ct2_din is
     signal wr_overflow : std_logic_vector(31 downto 0);
     signal copyAW_time, copydata_readout_time, time_between_wr_triggers : std_logic_vector(31 downto 0);
     signal insert_dbg : std_logic;
+    signal vc1_valid, vc2_valid, vc3_valid : std_logic;
     
 begin
     
@@ -295,6 +297,22 @@ begin
             -- the corresponding subarray-beam. 
             bad_poly_del1 <= i_bad_poly;
             
+            if unsigned(SB_stations) > (unsigned(demap_station) + 1) then
+                vc1_valid <= '1';
+            else
+                vc1_valid <= '0';
+            end if;
+            if unsigned(SB_stations) > (unsigned(demap_station) + 2) then
+                vc2_valid <= '1';
+            else
+                vc2_valid <= '0';
+            end if;
+            if unsigned(SB_stations) > (unsigned(demap_station) + 3) then
+                vc3_valid <= '1';
+            else
+                vc3_valid <= '0';
+            end if;
+            
             if sof_hold = '1' and dataValidDel1 = '1' and i_frameCount_mod3 = "00" and unsigned(virtualChannel0Del1) = 0 then
                 -- first data in first 283ms frame (out of an 849ms frame) for the first virtual channel, clear the bad_poly memory
                 bad_poly_fsm <= clear_memory;
@@ -321,7 +339,11 @@ begin
                         end if;
                         
                     when check_bad =>
-                        if demap_valid = '1' and bad_poly = '1' then
+                        if (demap_valid = '1' and 
+                            ((bad_poly(0) = '1') or 
+                             (bad_poly(1) = '1' and vc1_valid = '1') or 
+                             (bad_poly(2) = '1' and vc2_valid = '1') or
+                             (bad_poly(3) = '1' and vc3_valid = '1'))) then
                             bad_poly_fsm <= set_bad;
                         else
                             bad_poly_fsm <= idle;
