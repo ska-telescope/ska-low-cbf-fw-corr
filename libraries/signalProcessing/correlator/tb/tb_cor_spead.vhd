@@ -37,7 +37,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
-constant USE_TEST_CASE      : BOOLEAN := TRUE;
+constant USE_TEST_CASE      : BOOLEAN := FALSE;
 constant GEN_DATA_END       : BOOLEAN := TRUE;
 
 constant HBM_addr_width         : integer := 32;
@@ -75,6 +75,18 @@ signal HBM_axi_arready          : std_logic;
 signal HBM_axi_r                : t_axi4_full_data;                 -- r data bus : in t_axi4_full_data (.valid, .data(511:0), .last, .resp(1:0))
 signal HBM_axi_rready           : std_logic;
 
+signal o_bytes_to_transmit      : STD_LOGIC_VECTOR(13 downto 0);
+signal bytes_to_transmit_cache  : STD_LOGIC_VECTOR(13 downto 0);
+
+signal o_data_to_player         : STD_LOGIC_VECTOR(511 downto 0);
+signal o_data_to_player_wr      : STD_LOGIC;
+signal data_to_player_wr_cache  : STD_LOGIC;
+signal i_data_to_player_rdy     : STD_LOGIC;
+
+signal check_wr_to_cmac_cnt     : UNSIGNED(15 downto 0) := x"0000";
+signal check_wr_to_cmac_cnt_last: UNSIGNED(15 downto 0) := x"0000";
+
+signal bytes_to_cmac_corr       : BOOLEAN := FALSE;     
 -- SPEAD Signals
 signal from_spead_pack          : t_spead_to_hbm_bus_array(1 downto 0);
 signal to_spead_pack            : t_hbm_to_spead_bus_array(1 downto 0);
@@ -102,6 +114,11 @@ signal data_valid               : std_logic := '0';
 signal stim_count               : integer := 0;
 
 signal interrupt_hbm_rd         : std_logic := '0';
+
+signal f2f_data_out             : std_logic_vector(15 downto 0);
+signal f2f_valid_out            : std_logic;
+signal f2f_data_in              : std_logic_vector(31 downto 0);
+signal f2f_valid_in             : std_logic;
 
 constant DEBUG_VEC_SIZE         : integer := 11;
 signal tb_debug                 : std_logic_vector((DEBUG_VEC_SIZE-1) downto 0);
@@ -294,6 +311,9 @@ begin
             no_of_283s      <= "00";
             time_of_int     <= '0';
             stim_time_ref   <= (others => '0');
+            
+            f2f_data_in     <= x"00000000";
+            f2f_valid_in    <= '0';
         else
             stim_table_select   <= '0';
             tb_debug(4)        <= '1';  -- END target sub array dummy value
@@ -307,7 +327,16 @@ begin
                 init_mem    <= '0';
             end if;
 
-            
+            --f2f_data_out
+            --f2f_valid_out
+
+            if testCount_300 = 50 then
+                f2f_data_in     <= x"4f979f4b"; --x"4b9f974f";
+                f2f_valid_in    <= '1';
+            else
+                f2f_data_in     <= x"00000000";
+                f2f_valid_in    <= '0';
+            end if;
 
             if testCount_300 = 50 then
                 row         <= 5D"0" & zero_byte;
@@ -320,7 +349,12 @@ begin
             end if;
             
             stim_time_ref   <= (others => '0');
-
+            
+            if testCount_300 = 73650 then
+                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+            
             -- using defaul values send end packets.
             if testCount_300 = 51500 then
                 tb_debug(3)        <= '0';  -- trigger END
@@ -329,13 +363,21 @@ begin
             if testCount_300 = 56500 then
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
-
+            
+            if testCount_300 = 80500 then
+                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
             if testCount_300 = 81000 then
                 tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
             
-            if testCount_300 = 118000 then
+            if testCount_300 = 149500 then
+                tb_debug(2)        <= '0';  -- trigger INIT
+                tb_debug(3)        <= '0';  -- trigger END
+            end if;
+            if testCount_300 = 150000 then
                 tb_debug(2)        <= '0';  -- trigger INIT
                 tb_debug(3)        <= '0';  -- trigger END
             end if;
@@ -361,11 +403,21 @@ begin
                     row             <= 13D"0";
                     row_count       <= 9D"253";
                     data_valid      <= '1';
-                    stim_table_select   <= '1';
+                    --stim_table_select   <= '1';
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"68";
+                    stim_sub_array  <= 8D"68";      --0x44
                     hbm_start_addr  <= x"00000000";
                 end if;
+--                if testCount_300 = 1000 then 
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"64";
+--                    data_valid      <= '1';
+--                    --stim_table_select   <= '1';
+--                    stim_freq_index <= 17D"0";
+--                    stim_sub_array  <= 8D"63";      --0x44
+--                    hbm_start_addr  <= x"00000000";
+--                end if;
                 
                     
                 if testCount_300 = 150000 then 
@@ -374,7 +426,7 @@ begin
                     row_count       <= 9D"254";
                     data_valid      <= '1';
     
-                    stim_table_select   <= '0';
+                    --stim_table_select   <= '0';
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"69";
                     hbm_start_addr  <= x"00000000";
@@ -390,7 +442,7 @@ begin
                     row_count       <= 9D"255";
                     data_valid      <= '1';
     
-                    stim_table_select   <= '1';
+                    --stim_table_select   <= '1';
                     stim_freq_index <= 17D"0";
                     stim_sub_array  <= 8D"70";
                     hbm_start_addr  <= x"00000000";
@@ -421,18 +473,6 @@ begin
             if USE_TEST_CASE = FALSE AND (GEN_DATA_END = TRUE) then
 -- HEAP data size rams
 -- ADDR    Config      Value(inc Epoch offset)
--- 0       6x6         722         0x2d2
--- 1       8x8         1232        0x4d0
--- 2       12x12       2660        0xa64
--- 3       16x16       4632        0x1218
--- 4       18x18       5822        0x16be
--- 5       20x20       7148        0x1bec
--- 6       22x22       8610        0x21a2
--- 7       24x24       10208       0x27e0
--- 8       26x26       11942       0x2ea6
--- 9       28x28       13812       0x35f4
--- 
--- 
 -- 
 -- 64	    249	        1058258	    0x1025D2
 -- 65	    250	        1066758	    0x104706
@@ -455,11 +495,11 @@ begin
                 if stim_count = 1000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"2";
+                    row_count       <= 9D"1";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= x"0D"; --8D"0";
+                    stim_sub_array  <= x"00"; --8D"0";
     
                 elsif stim_count = 4000 then
                     -- META DATA FROM CORRELATOR SIM
@@ -468,71 +508,71 @@ begin
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"1";
-                    stim_sub_array  <= x"0C"; --8D"0";
+                    stim_sub_array  <= x"00"; --8D"0";
                     
                 elsif stim_count = 7000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"1";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"2";
+                    stim_sub_array  <= 8D"0";
+                elsif stim_count = 10000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"5";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"4";
+                elsif stim_count = 13000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"6";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"0";
-                elsif stim_count = 10000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"16";
-                    data_valid      <= '1';
-    
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"3";
-                elsif stim_count = 13000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"18";
-                    data_valid      <= '1';
-    
-                    stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"4";
+                    stim_sub_array  <= 8D"5";
                     
                     stim_time_ref(31 downto 0)  <= 32D"4";
                     stim_time_ref(33 downto 32) <= "00";
                     stim_time_ref(34)           <= '1';
-                elsif stim_count = 17000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"20";
-                    data_valid      <= '1';
+--                elsif stim_count = 17000 then
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"20";
+--                    data_valid      <= '1';
     
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"5";
+--                    stim_freq_index <= 17D"1";
+--                    stim_sub_array  <= 8D"5";
                     
-                    stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "01";
-                    stim_time_ref(34)           <= '1';
-                elsif stim_count = 21000 then
-                    -- META DATA FROM CORRELATOR SIM
-                    row             <= 13D"0";
-                    row_count       <= 9D"22";
-                    data_valid      <= '1';
+--                    stim_time_ref(31 downto 0)  <= 32D"3";
+--                    stim_time_ref(33 downto 32) <= "01";
+--                    stim_time_ref(34)           <= '1';
+--                elsif stim_count = 21000 then
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"22";
+--                    data_valid      <= '1';
     
-                    stim_freq_index <= 17D"1";
-                    stim_sub_array  <= 8D"6";
+--                    stim_freq_index <= 17D"1";
+--                    stim_sub_array  <= 8D"6";
                     
-                    stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "10";
-                    stim_time_ref(34)           <= '1';
+--                    stim_time_ref(31 downto 0)  <= 32D"3";
+--                    stim_time_ref(33 downto 32) <= "10";
+--                    stim_time_ref(34)           <= '1';
     
                 elsif stim_count = 25000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"50";
+                    row_count       <= 9D"32";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"11";
+                    stim_sub_array  <= 8D"31";
                     
-                    stim_table_select  <= '1';
+                    --stim_table_select  <= '1';
     
                     stim_time_ref(31 downto 0)  <= 32D"3";
                     stim_time_ref(33 downto 32) <= "00";
@@ -566,6 +606,35 @@ begin
         end if;
     end if;
 end process;
+
+check_writes_to_cmac_proc : process (clock_300)
+begin
+    if rising_edge(clock_300) then
+        data_to_player_wr_cache <= o_data_to_player_wr;
+        
+        if data_to_player_wr_cache = '0' and o_data_to_player_wr = '1' then
+            bytes_to_transmit_cache <= o_bytes_to_transmit;
+        end if;
+        
+        if o_data_to_player_wr = '1' then
+            check_wr_to_cmac_cnt <= check_wr_to_cmac_cnt + 64;
+        elsif o_data_to_player_wr = '0' AND data_to_player_wr_cache = '1' then
+            check_wr_to_cmac_cnt        <= x"0000";
+            check_wr_to_cmac_cnt_last   <= check_wr_to_cmac_cnt;
+            if check_wr_to_cmac_cnt >= unsigned(o_bytes_to_transmit) then
+                bytes_to_cmac_corr <= TRUE;
+            elsif check_wr_to_cmac_cnt >= 9000 then
+                bytes_to_cmac_corr <= FALSE;
+            else
+                bytes_to_cmac_corr <= FALSE;
+            end if;
+        end if;
+
+--i_data_to_player_rdy
+
+    end if;
+end process;
+
 
 
 DUT : entity correlator_lib.correlator_data_reader generic map ( 
@@ -707,9 +776,9 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_cmac_clk          => clock_322,
         i_cmac_clk_rst      => clock_322_rst,
 
-        o_bytes_to_transmit     => open,
-        o_data_to_player        => open,
-        o_data_to_player_wr     => open,
+        o_bytes_to_transmit     => o_bytes_to_transmit,
+        o_data_to_player        => o_data_to_player,
+        o_data_to_player_wr     => o_data_to_player_wr,
         i_data_to_player_rdy    => cmac_ready,
 
         -- Packed up Correlator Data.
@@ -726,5 +795,21 @@ DUT_2 : entity spead_lib.spead_top generic map (
         i_spead_full_axi_mosi   => i_spead_full_axi_mosi,
         o_spead_full_axi_miso   => o_spead_full_axi_miso
     );  
+
+
+DUT_f2f : entity correlator_lib.float32_to_float16
+    port map (
+        clk                 => clock_300,
+        reset               => clock_300_rst,
+        
+        i_valid             => f2f_valid_in,
+        i_data_in           => f2f_data_in,
+
+        ------------------------------------------------------
+
+        o_valid             => f2f_valid_out,
+        o_data_out          => f2f_data_out
+    );
+    
 
 end Behavioral;

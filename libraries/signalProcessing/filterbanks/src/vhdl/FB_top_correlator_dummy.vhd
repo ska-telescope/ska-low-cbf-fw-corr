@@ -37,53 +37,37 @@ entity FB_Top_correlator_dummy is
         -----------------------------------------
         -- data input, common valid signal, expects packets of 64 samples. 
         -- Requires at least 2 clocks idle time between packets.
-        i_SOF    : in std_logic; 
-        i_data0  : in t_slv_16_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
-        i_data1  : in t_slv_16_arr(1 downto 0);
-        i_meta01 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data2  : in t_slv_16_arr(1 downto 0);
-        i_data3  : in t_slv_16_arr(1 downto 0);
-        i_meta23 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data4  : in t_slv_16_arr(1 downto 0);
-        i_data5  : in t_slv_16_arr(1 downto 0);
-        i_meta45 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
-        i_data6  : in t_slv_16_arr(1 downto 0);
-        i_data7  : in t_slv_16_arr(1 downto 0);
-        i_meta67 : in t_CT1_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(31:0), virtualChannel(15:0), .valid
+        i_SOF  : in std_logic;
+        i_data : in t_slv_32_arr(23 downto 0);  -- each 32-bit value has real in bits 15:0, imaginary in bits 31:16 
+        i_meta_delays         : in t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
+        i_meta_RFIThresholds  : in t_slv_32_arr(11 downto 0);
+        i_meta_integration    : in std_logic_vector(31 downto 0);
+        i_meta_ctFrame        : in std_logic_vector(1 downto 0);
+        i_meta_virtualChannel : in std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+        i_meta_valid          : in std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
         --
         i_lastChannel : in std_logic;
         i_demap_table_select : in std_logic;
-        --
         i_DataValid : in std_logic;
         -- Correlator filterbank data output
         o_integration    : out std_logic_vector(31 downto 0); -- integration in units of 849ms since epoch.
         o_ctFrame        : out std_logic_vector(1 downto 0); -- corner turn frame, 0, 1 or 2, units of 283ms relative to integration.
-        o_virtualChannel : out t_slv_16_arr(3 downto 0); -- 3 virtual channels, one for each of the PST data streams.
-        o_bad_poly       : out std_logic;
+        o_virtualChannel : out t_slv_16_arr(11 downto 0); -- 12 virtual channels, one for each of the 12 data streams.
+        o_bad_poly       : out std_logic_vector(11 downto 0);
         --
         o_lastChannel    : out std_logic;  -- Last of the group of 4 channels
         o_demap_table_select : out std_logic;
         --
-        o_HeaderValid : out std_logic_vector(3 downto 0);
-        o_Data        : out t_ctc_output_payload_arr(3 downto 0);
+        o_HeaderValid : out std_logic_vector(11 downto 0);
+        o_Data        : out t_ctc_output_payload_arr(11 downto 0);
         o_DataValid   : out std_logic;
         -- i_SOF delayed by 16384 clocks;
         -- i_sof occurs at the start of each new block of 4 virtual channels.
         -- Delay of 16384 is enough to ensure that o_sof falls in the gap
         -- between data packets at the filterbank output that occurs due to the filterbank preload.
-        o_sof : out std_logic;
-        -- Correlator filterbank output as packets
-        -- Each output packet contains all the data for:
-        --  - Single time step
-        --  - Single polarisation
-        --  - single coarse channel
-        -- This is 3456 * 2 (re+im) bytes, plus 16 bytes of header.
-        -- The data is transferred in bursts of 433 clocks.
-        o_packetData : out std_logic_vector(127 downto 0);
-        o_packetValid : out std_logic;
-        i_packetReady : in std_logic
+        o_sof : out std_logic
     );
-
+    
     -- prevent optimisation across module boundaries.
     attribute keep_hierarchy : string;
     attribute keep_hierarchy of FB_Top_correlator_dummy : entity is "yes";
@@ -101,7 +85,7 @@ architecture Behavioral of FB_Top_correlator_dummy is
     signal firtap_wr_data : std_logic_vector(17 downto 0);
     
     signal CorDin0, CorDin1, CorDin2, CorDin3 : t_slv_8_arr(1 downto 0);
-    signal CorrelatorMetaIn, CorrelatorMetaOut : std_logic_vector(619 downto 0);
+    signal CorrelatorMetaIn, CorrelatorMetaOut : std_logic_vector(71 downto 0);
     signal CorDout0, CorDout1, CorDout2, CorDout3 : t_slv_16_arr(1 downto 0);
     signal CorValidOut, CorValidOutDel : std_logic;
     
@@ -116,7 +100,7 @@ architecture Behavioral of FB_Top_correlator_dummy is
     signal DataValid : std_logic;
     
     signal corFBDout0, corFBDout1, corFBDout2, corFBDout3, corFBDout4, corFBDout5, corFBDout6, corFBDout7, corFBDout8 : t_slv_16_arr(1 downto 0);
-    signal corMetaOut : std_logic_vector(619 downto 0);
+    signal corMetaOut : std_logic_vector(71 downto 0);
     
     signal corFBHeaderValid : std_logic;
     
@@ -162,7 +146,10 @@ architecture Behavioral of FB_Top_correlator_dummy is
     signal FD_virtualChannel0, FD_virtualChannel1, FD_virtualChannel2, FD_virtualChannel3 : t_slv_16_arr(18 downto 0);
     signal FD_integration : t_slv_32_arr(18 downto 0);
     signal FD_ctFrame : t_slv_2_arr(18 downto 0);
-    signal FD_bad_poly, FD_lastChannel, FD_demap_table_select : std_logic_vector(18 downto 0);
+    signal FD_bad_poly : t_slv_12_arr(18 downto 0);
+    signal FD_lastChannel, FD_demap_table_select : std_logic_vector(18 downto 0);
+    
+    signal virtualChannel : t_slv_16_arr(11 downto 0); -- 12 virtual channels, one for each of the 12 data streams.
     
 begin
     
@@ -171,43 +158,24 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            CorrelatorMetaIn(31 downto 0)               <= i_meta01.HDeltaP;
-            CorrelatorMetaIn(63 downto 32)              <= i_meta01.VDeltaP;
-            CorrelatorMetaIn(95 downto 64)              <= i_meta01.HOffsetP;
-            CorrelatorMetaIn(127 downto 96)             <= i_meta01.VOffsetP;
-            CorrelatorMetaIn(143 downto 128)            <= i_meta01.virtualChannel;
-            CorrelatorMetaIn(144)                       <= i_meta01.valid; -- note that .valid is just a qualifier for the meta data. The meta data is only valid if both this and i_datavalid are high.
-            
-            CorrelatorMetaIn(31+145 downto 0+145)       <= i_meta23.HDeltaP;
-            CorrelatorMetaIn(63+145 downto 32+145)      <= i_meta23.VDeltaP;
-            CorrelatorMetaIn(95+145 downto 64+145)      <= i_meta23.HOffsetP;
-            CorrelatorMetaIn(127+145 downto 96+145)     <= i_meta23.VOffsetP;
-            CorrelatorMetaIn(143+145 downto 128+145)    <= i_meta23.virtualChannel;
-            CorrelatorMetaIn(144+145)                   <= i_meta23.valid;
-            
-            CorrelatorMetaIn(31+290 downto 0+290)       <= i_meta45.HDeltaP;
-            CorrelatorMetaIn(63+290 downto 32+290)      <= i_meta45.VDeltaP;
-            CorrelatorMetaIn(95+290 downto 64+290)      <= i_meta45.HOffsetP;
-            CorrelatorMetaIn(127+290 downto 96+290)     <= i_meta45.VOffsetP;
-            CorrelatorMetaIn(143+290 downto 128+290)    <= i_meta45.virtualChannel;
-            CorrelatorMetaIn(144+290)                   <= i_meta45.valid;
-
-            CorrelatorMetaIn(31+435 downto 0+435)       <= i_meta67.HDeltaP;
-            CorrelatorMetaIn(63+435 downto 32+435)      <= i_meta67.VDeltaP;
-            CorrelatorMetaIn(95+435 downto 64+435)      <= i_meta67.HOffsetP;
-            CorrelatorMetaIn(127+435 downto 96+435)     <= i_meta67.VOffsetP;
-            CorrelatorMetaIn(143+435 downto 128+435)    <= i_meta67.virtualChannel;
-            CorrelatorMetaIn(144+435)                   <= i_meta67.valid;
-            
-            CorrelatorMetaIn(31+580 downto 0+580)       <= i_meta01.integration;  -- framecount is the same for all input headers. Total of 32+4*81 = 356 header bits.
-            CorrelatorMetaIn(33+580 downto 32+580)      <= i_meta01.ctFrame;
-            
-            CorrelatorMetaIn(614) <= i_meta01.bad_poly;
-            CorrelatorMetaIn(615) <= i_meta23.bad_poly;
-            CorrelatorMetaIn(616) <= i_meta45.bad_poly;
-            CorrelatorMetaIn(617) <= i_meta67.bad_poly;
-            CorrelatorMetaIn(618) <= i_lastChannel;
-            CorrelatorMetaIn(619) <= i_demap_table_select;
+            CorrelatorMetaIn(11 downto 0) <= i_meta_virtualChannel;
+            CorrelatorMetaIn(23 downto 12) <= i_meta_valid;
+            CorrelatorMetaIn(25 downto 24) <= i_meta_ctFrame;
+            CorrelatorMetaIn(57 downto 26) <= i_meta_integration;
+            CorrelatorMetaIn(58) <= i_meta_delays(0).bad_poly;
+            CorrelatorMetaIn(59) <= i_meta_delays(1).bad_poly;
+            CorrelatorMetaIn(60) <= i_meta_delays(2).bad_poly;
+            CorrelatorMetaIn(61) <= i_meta_delays(3).bad_poly;
+            CorrelatorMetaIn(62) <= i_meta_delays(4).bad_poly;
+            CorrelatorMetaIn(63) <= i_meta_delays(5).bad_poly;
+            CorrelatorMetaIn(64) <= i_meta_delays(6).bad_poly;
+            CorrelatorMetaIn(65) <= i_meta_delays(7).bad_poly;
+            CorrelatorMetaIn(66) <= i_meta_delays(8).bad_poly;
+            CorrelatorMetaIn(67) <= i_meta_delays(9).bad_poly;
+            CorrelatorMetaIn(68) <= i_meta_delays(10).bad_poly;
+            CorrelatorMetaIn(69) <= i_meta_delays(11).bad_poly;
+            CorrelatorMetaIn(70) <= i_lastChannel;
+            CorrelatorMetaIn(71) <= i_demap_table_select;
             DataValid <= i_DataValid;
             
             -- Generate o_sof from i_sof, taking into account the latency of the filterbank processing.
@@ -226,46 +194,12 @@ begin
         end if;
     end process;
     
-    
---    corfbi : entity filterbanks_lib.correlatorFBTop25
---    generic map(
---        METABITS => 361,    -- Width in bits of the meta_i and meta_o ports.
---        FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
---    ) port map (
---        -- processing clock
---        clk     => i_axi_clk,
---        rst     => i_SOF,
---        -- Data input, common valid signal, expects packets of 64 samples. 
---        -- Requires at least 2 clocks idle time between packets.
---        -- Due to oversampling, also requires on average 86 clocks between packets - specifically, no more than 3 packets in 258 clocks. 
---        data0_i => data0, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
---        data1_i => data1, -- in t_slv_8_arr(1 downto 0);
---        data2_i => data2, -- in t_slv_8_arr(1 downto 0);
---        data3_i => data3, -- in t_slv_8_arr(1 downto 0);
---        meta_i  => correlatorMetaIn, -- in std_logic_vector((METABITS-1) downto 0);  -- Sampled on the first cycle of every third packet of valid_i. 
---        valid_i => DataValid,    -- in std_logic;
---        -- Data out; bursts of 216 clocks for each channel.
---        data0_o => corFBDout0,    -- out t_slv_16_arr(1 downto 0);   -- 6 outputs, real and imaginary parts in (0) and (1) respectively;
---        data1_o => corFBDout1,    -- out t_slv_16_arr(1 downto 0);
---        data2_o => corFBDout2,    -- out t_slv_16_arr(1 downto 0);
---        data3_o => corFBDout3,    -- out t_slv_16_arr(1 downto 0);
-        
---        meta_o  => corMetaOut,  -- out std_logic_vector((METABITS-1) downto 0);
---        valid_o => corValidOut, -- out std_logic;
---        -- Writing FIR Taps
---        FIRTapData_i   => (others => '0'),  -- in std_logic_vector(17 downto 0);  -- For register writes of the filtertaps.
---        FIRTapData_o   => open,             -- out std_logic_vector(17 downto 0); -- For register reads of the filtertaps. 3 cycle latency from FIRTapAddr_i
---        FIRTapAddr_i   => (others => '0'),  -- in std_logic_vector(15 downto 0);   -- 4096 * 12 filter taps = 49152 total.
---        FIRTapWE_i     => '0',              -- in std_logic;
---        FIRTapClk      => i_axi_clk         -- in std_logic;
---    );
-    
     corfbi : entity filterbanks_lib.correlatorFBTop_dummy
     generic map(
-        METABITS => 620,    -- Width in bits of the meta_i and meta_o ports.
+        METABITS => 72,     -- Width in bits of the meta_i and meta_o ports.
         FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
     ) port map (
-        -- clock, target is 380 MHz
+        -- clock
         clk  => i_axi_clk, -- in std_logic;
         rst  => i_SOF,     -- in std_logic;
         -- Data input, common valid signal, expects packets of 4096 samples. Requires at least 2 clocks idle time between packets.
@@ -277,107 +211,6 @@ begin
         valid_o => corValidOut
     );
     
-    
---    corfb2i : entity filterbanks_lib.correlatorFBTop25
---    generic map(
---        METABITS => 361,    -- Width in bits of the meta_i and meta_o ports.
---        FRAMESTODROP => 11  -- Number of output frames to drop after a reset (to account for initialisation of the filterbank)
---    ) port map (
---        -- processing clock
---        clk     => i_axi_clk,
---        rst     => i_SOF,
---        -- Data input, common valid signal, expects packets of 64 samples. 
---        -- Requires at least 2 clocks idle time between packets.
---        -- Due to oversampling, also requires on average 86 clocks between packets - specifically, no more than 3 packets in 258 clocks. 
---        data0_i => data4, -- in t_slv_8_arr(1 downto 0);  -- 6 Inputs, each complex data, 8 bit real, 8 bit imaginary.
---        data1_i => data5, -- in t_slv_8_arr(1 downto 0);
---        data2_i => data6, -- in t_slv_8_arr(1 downto 0);
---        data3_i => data7, -- in t_slv_8_arr(1 downto 0);
---        meta_i  => correlatorMetaIn, -- in std_logic_vector((METABITS-1) downto 0);  -- Sampled on the first cycle of every third packet of valid_i. 
---        valid_i => DataValid,    -- in std_logic;
---        -- Data out; bursts of 216 clocks for each channel.
---        data0_o => corFBDout4,    -- out t_slv_16_arr(1 downto 0);   -- 6 outputs, real and imaginary parts in (0) and (1) respectively;
---        data1_o => corFBDout5,    -- out t_slv_16_arr(1 downto 0);
---        data2_o => corFBDout6,    -- out t_slv_16_arr(1 downto 0);
---        data3_o => corFBDout7,    -- out t_slv_16_arr(1 downto 0);
-        
---        meta_o  => open,  -- out std_logic_vector((METABITS-1) downto 0);
---        valid_o => open,  -- out std_logic;
---        -- Writing FIR Taps
---        FIRTapData_i   => (others => '0'),  -- in std_logic_vector(17 downto 0);  -- For register writes of the filtertaps.
---        FIRTapData_o   => open,             -- out std_logic_vector(17 downto 0); -- For register reads of the filtertaps. 3 cycle latency from FIRTapAddr_i
---        FIRTapAddr_i   => (others => '0'),  -- in std_logic_vector(15 downto 0);   -- 4096 * 12 filter taps = 49152 total.
---        FIRTapWE_i     => '0',              -- in std_logic;
---        FIRTapClk      => i_axi_clk         -- in std_logic;
---    );
-    
-    -- Pack the filterbank output into a structure for input to the fine delay module.
-    corDout_arr(0).vpol.re <= corFBDout0(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(0).vpol.im <= corFBDout0(1);
-    corDout_arr(0).hpol.re <= corFBDout1(0);
-    corDout_arr(0).hpol.im <= corFBDout1(1);
-    corDout_arr(1).vpol.re <= corFBDout2(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(1).vpol.im <= corFBDout2(1);
-    corDout_arr(1).hpol.re <= corFBDout3(0);
-    corDout_arr(1).hpol.im <= corFBDout3(1);
-    corDout_arr(2).vpol.re <= corFBDout4(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(2).vpol.im <= corFBDout4(1);
-    corDout_arr(2).hpol.re <= corFBDout5(0);
-    corDout_arr(2).hpol.im <= corFBDout5(1);
-    corDout_arr(3).vpol.re <= corFBDout6(0);  -- 16 bit data into the fine delay module.
-    corDout_arr(3).vpol.im <= corFBDout6(1);
-    corDout_arr(3).hpol.re <= corFBDout7(0);
-    corDout_arr(3).hpol.im <= corFBDout7(1);
-    
-    --o_CorDataValid <= CorValidOut;
-    corFBHeader(0).HDeltaP          <= corMetaOut(31 downto 0);
-    corFBHeader(0).VDeltaP          <= corMetaOut(63 downto 32);
-    corFBHeader(0).HOffsetP         <= corMetaOut(95 downto 64);
-    corFBHeader(0).VOffsetP         <= corMetaOut(127 downto 96);
-    corFBHeader(0).virtualChannel   <= corMetaOut(143 downto 128);
-    corFBHeader(0).valid            <= corMetaOut(144);
-    corFBHeader(0).integration      <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(0).ctFrame          <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(0).bad_poly <= corMetaOut(614);
-    corFBHeader(0).lastChannel <= corMetaOut(618);
-    corFBHeader(0).demap_table_select <= corMetaOut(619);
-    
-    corFBHeader(1).HDeltaP          <= corMetaOut(31+145 downto 0+145);
-    corFBHeader(1).VDeltaP          <= corMetaOut(63+145 downto 32+145);
-    corFBHeader(1).HOffsetP         <= corMetaOut(95+145 downto 64+145);
-    corFBHeader(1).VOffsetP         <= corMetaOut(127+145 downto 96+145);
-    corFBHeader(1).virtualChannel   <= corMetaOut(143+145 downto 128+145);
-    corFBHeader(1).valid            <= corMetaOut(144+145);
-    corFBHeader(1).integration      <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(1).ctFrame          <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(1).bad_poly <= corMetaOut(615);
-    corFBHeader(1).lastChannel <= corMetaOut(618);
-    corFBHeader(1).demap_table_select <= corMetaOut(619);
-    
-    corFBHeader(2).HDeltaP          <= corMetaOut(31+290 downto 0+290);
-    corFBHeader(2).VDeltaP          <= corMetaOut(63+290 downto 32+290);
-    corFBHeader(2).HOffsetP         <= corMetaOut(95+290 downto 64+290);
-    corFBHeader(2).VOffsetP         <= corMetaOut(127+290 downto 96+290);
-    corFBHeader(2).virtualChannel   <= corMetaOut(143+290 downto 128+290);
-    corFBHeader(2).valid            <= corMetaOut(144+290);
-    corFBHeader(2).integration      <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(2).ctFrame          <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(2).bad_poly <= corMetaOut(616);
-    corFBHeader(2).lastChannel <= corMetaOut(618);
-    corFBHeader(2).demap_table_select <= corMetaOut(619);
-    
-    corFBHeader(3).HDeltaP          <= corMetaOut(31+435 downto 0+435);
-    corFBHeader(3).VDeltaP          <= corMetaOut(63+435 downto 32+435);
-    corFBHeader(3).HOffsetP         <= corMetaOut(95+435 downto 64+435);
-    corFBHeader(3).VOffsetP         <= corMetaOut(127+435 downto 96+435);
-    corFBHeader(3).virtualChannel   <= corMetaOut(143+435 downto 128+435);
-    corFBHeader(3).valid            <= corMetaOut(144+435);
-    corFBHeader(3).integration      <= corMetaOut(31+580 downto 0+580);
-    corFBHeader(3).ctFrame          <= corMetaOut(33+580 downto 32+580);
-    corFBHeader(3).bad_poly <= corMetaOut(617);
-    corFBHeader(3).lastChannel <= corMetaOut(618);
-    corFBHeader(3).demap_table_select <= corMetaOut(619);
-    
     corFBHeaderValid <= corValidOut and (not corValidOutDel);
     
     process(i_axi_clk)
@@ -387,77 +220,37 @@ begin
         end if;
     end process;
     
---    FDGen : for i in 0 to 3 generate 
---        FineDelay : entity filterbanks_lib.fineDelay
---        generic map (
---            FBSELECTION => 2  -- 2 = Correlator
---        )
---        port map (
---            i_clk  => i_axi_clk,
---            -- data and header in
---            i_data        => corDout_arr(i),    --  in t_FB_output_payload;  -- 16 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
---            i_dataValid   => corValidOut,       -- in std_logic;
---            i_header      => corFBHeader(i),    -- in t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
---            i_headerValid => corFBHeaderValid,  -- in std_logic;
---            -- Data and Header out
---            o_data        => FDdata(i),         -- out t_ctc_output_payload;   -- 8 bit data : .Hpol.re, Hpol.im, .Vpol.re, .Vpol.im 
---            o_dataValid   => FDcorDataValid(i), -- out std_logic;
---            o_header      => FDHeader(i),       -- out t_atomic_CT_pst_META_out; -- .HDeltaP(15:0), .VDeltaP(15:0), .frameCount(36:0), virtualChannel(15:0), .valid
---            o_headerValid => headerValid(i),    -- out std_logic;
-    
---            -------------------------------------------
---            -- control and monitoring
---            -- Disable the fine delay. Instead of multiplying by the output of the sin/cos lookup, just scale by unity.
---            i_disable     => i_fineDelayDisable, -- in std_logic;
---            -- Scale down by 2^(i_RFIScale) before clipping for RFI.
---            -- Unity for the sin/cos lookup is 0x10000, so :
---            --   i_RFIScale < 16  ==> Amplify the output of the filterbanks.
---            --   i_RFIScale = 16  ==> Amplitude of the filterbank output is unchanged.
---            --   i_RFIScale > 16  ==> Amplitude of the filterbank output is reduced.
---            i_RFIScale    => i_RFIScale, -- in std_logic_vector(4 downto 0); 
---            -- For monitoring of the output level.
---            -- Higher level should keep track of : 
---            --   * The total number of frames processed.
---            --   * The sum of each of the outputs below. (but note one is superfluous since it can be calculated from the total frames processed and the sum of all the others).
---            --      - These sums should be 32 bit values, which ensures wrapping will occur at most once per hour.
---            -- For the correlator:
---            --   - Each frame corresponds to 3456 fine channels x 2 (H & V polarisations) * 2 (re+im).
---            --   - Every fine channel must be one of the categories below, so they will sum to 3456*2*2 = 13824.
---            o_overflow    => open, -- hist_overflow(i),     -- out(15:0); -- Number of fine channels which were clipped.
---            o_64_127      => open, -- hist_64_127(i),  -- out(15:0); -- Number of fine channels in the range 64 to 128.
---            o_32_63       => open, -- hist_32_63(i),   -- out(15:0); -- Number of fine channels in the range 32 to 64.
---            o_16_31       => open, -- hist_16_31(i),   -- out(15:0); -- Number of fine channels in the range 16 to 32.
---            o_0_15        => open, -- hist_0_15(i),    -- out(15:0); -- Number of fine channels in the range 0 to 15.
---            o_virtualChannel => open, -- hist_virtualChannel(i), -- out(8:0);
---            o_histogramValid => open  -- hist_valid(i) -- out std_logic -- indicates histogram data is valid.
---        );
---    end generate;
-    
     -- fineDelay incurs a 19 clock latency on the data.
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            FD_virtualChannel0(0) <= corFBHeader(0).virtualChannel(15 downto 0);
+            FD_virtualChannel0(0) <= "0000" & corMetaOut(11 downto 0);
             FD_virtualChannel0(18 downto 1) <= FD_virtualChannel0(17 downto 0);
-            FD_virtualChannel1(0) <= corFBHeader(1).virtualChannel(15 downto 0);
-            FD_virtualChannel1(18 downto 1) <= FD_virtualChannel1(17 downto 0);
-            FD_virtualChannel2(0) <= corFBHeader(2).virtualChannel(15 downto 0);
-            FD_virtualChannel2(18 downto 1) <= FD_virtualChannel2(17 downto 0);
-            FD_virtualChannel3(0) <= corFBHeader(3).virtualChannel(15 downto 0);
-            FD_virtualChannel3(18 downto 1) <= FD_virtualChannel3(17 downto 0);
             
-            FD_bad_poly(0) <= corFBHeader(0).bad_poly or corFBHeader(1).bad_poly or corFBHeader(2).bad_poly or corFBHeader(3).bad_poly;
+            FD_bad_poly(0)(0) <= CorMetaOut(58);
+            FD_bad_poly(0)(1) <= CorMetaOut(59);
+            FD_bad_poly(0)(2) <= CorMetaOut(60);
+            FD_bad_poly(0)(3) <= CorMetaOut(61);
+            FD_bad_poly(0)(4) <= CorMetaOut(62);
+            FD_bad_poly(0)(5) <= CorMetaOut(63);
+            FD_bad_poly(0)(6) <= CorMetaOut(64);
+            FD_bad_poly(0)(7) <= CorMetaOut(65);
+            FD_bad_poly(0)(8) <= CorMetaOut(66);
+            FD_bad_poly(0)(9) <= CorMetaOut(67);
+            FD_bad_poly(0)(10) <= CorMetaOut(68);
+            FD_bad_poly(0)(11) <= CorMetaOut(69);
+            
             FD_bad_poly(18 downto 1) <= FD_bad_poly(17 downto 0);
             
-            FD_lastChannel(0) <= corFBHeader(0).lastChannel;
+            FD_lastChannel(0) <= CorMetaOut(70);
             FD_lastChannel(18 downto 1) <= FD_lastChannel(17 downto 0);
-            FD_demap_table_select(0) <= corFBHeader(0).demap_table_select;
+            FD_demap_table_select(0) <= CorMetaOut(71);
             FD_demap_table_select(18 downto 1) <= FD_demap_table_select(17 downto 0);
             
-            FD_integration(0) <= corFBHeader(0).integration;
+            FD_integration(0) <= CorMetaOut(57 downto 26);
             FD_integration(18 downto 1) <= FD_integration(17 downto 0);
             
-            FD_ctFrame(0) <= corFBHeader(0).ctFrame;
+            FD_ctFrame(0) <= CorMetaOut(25 downto 24);
             FD_ctFrame(18 downto 1) <= FD_ctFrame(17 downto 0);
              
             FD_datavalid(0) <= corValidOut;
@@ -494,11 +287,63 @@ begin
     o_data(3).Vpol.re <= FD_finecount(7 downto 0);
     o_data(3).Vpol.im <= FD_finecount(15 downto 8);
     
+    o_data(4).Hpol.re <= FD_virtualChannel0(18)(7 downto 0);
+    o_data(4).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(4).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(4).Vpol.im <= FD_finecount(15 downto 8);
+
+    o_data(1).Hpol.re <= FD_virtualChannel1(18)(7 downto 0);
+    o_data(1).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(1).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(1).Vpol.im <= FD_finecount(15 downto 8);
+    
+    o_data(2).Hpol.re <= FD_virtualChannel2(18)(7 downto 0);
+    o_data(2).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(2).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(2).Vpol.im <= FD_finecount(15 downto 8);
+    
+    o_data(3).Hpol.re <= FD_virtualChannel3(18)(7 downto 0);
+    o_data(3).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(3).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(3).Vpol.im <= FD_finecount(15 downto 8);
+
+    o_data(0).Hpol.re <= FD_virtualChannel0(18)(7 downto 0);
+    o_data(0).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(0).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(0).Vpol.im <= FD_finecount(15 downto 8);
+
+    o_data(1).Hpol.re <= FD_virtualChannel1(18)(7 downto 0);
+    o_data(1).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(1).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(1).Vpol.im <= FD_finecount(15 downto 8);
+    
+    o_data(2).Hpol.re <= FD_virtualChannel2(18)(7 downto 0);
+    o_data(2).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(2).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(2).Vpol.im <= FD_finecount(15 downto 8);
+    
+    o_data(3).Hpol.re <= FD_virtualChannel3(18)(7 downto 0);
+    o_data(3).Hpol.im <= FD_integration(18)(7 downto 0);
+    o_data(3).Vpol.re <= FD_finecount(7 downto 0);
+    o_data(3).Vpol.im <= FD_finecount(15 downto 8);
+    
+    
     o_dataValid <= FD_datavalid(18);
-    o_virtualChannel(0) <= FD_virtualChannel0(18);
-    o_virtualChannel(1) <= FD_virtualChannel1(18);
-    o_virtualChannel(2) <= FD_virtualChannel2(18);
-    o_virtualChannel(3) <= FD_virtualChannel3(18);
+    virtualChannel(0) <= FD_virtualChannel0(18);
+    virtualChannel(1) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 1);
+    virtualChannel(2) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 2);
+    virtualChannel(3) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 3);
+    virtualChannel(4) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 4);
+    virtualChannel(5) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 5);
+    virtualChannel(6) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 6);
+    virtualChannel(7) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 7);
+    virtualChannel(8) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 8);
+    virtualChannel(9) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 9);
+    virtualChannel(10) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 10);
+    virtualChannel(11) <= std_logic_vector(unsigned(FD_virtualChannel0(18)) + 11);
+    
+    o_virtualChannel <= virtualChannel;
+    
     o_bad_poly <= FD_bad_poly(18);
     o_lastChannel <= FD_lastChannel(18);
     o_demap_table_select <= FD_demap_table_select(18);
@@ -509,15 +354,15 @@ begin
     o_headerValid(1) <= FD_headerValid(18);
     o_headerValid(2) <= FD_headerValid(18);
     o_headerValid(3) <= FD_headerValid(18);
+    o_headerValid(4) <= FD_headerValid(18);
+    o_headerValid(5) <= FD_headerValid(18);
+    o_headerValid(6) <= FD_headerValid(18);
+    o_headerValid(7) <= FD_headerValid(18);
+    o_headerValid(8) <= FD_headerValid(18);
+    o_headerValid(9) <= FD_headerValid(18);
+    o_headerValid(10) <= FD_headerValid(18);
+    o_headerValid(11) <= FD_headerValid(18);
     
---    o_data <= FDdata;
---    o_dataValid <= FDcorDataValid(0);  -- FDPSTDataValid(0) and (1), (2), (3) will be the same.
---    o_virtualChannel(0) <= FDHeader(0).virtualChannel;
---    o_virtualChannel(1) <= FDHeader(1).virtualChannel;
---    o_virtualChannel(2) <= FDHeader(2).virtualChannel;
---    o_virtualChannel(3) <= FDHeader(3).virtualChannel;
---    o_frameCount <= FDHeader(0).frameCount;
---    o_headerValid <= headerValid;
     ---------------------------------------------------------------
     -- Registers
     -- 
@@ -568,36 +413,5 @@ begin
     output_disable_i.rd_en <= '1';
     output_disable_i.clk <= i_axi_clk;
     output_disable_i.rst <= '0';
-    
-    --------------------------------------------------------------
-    -- Packets of samples to go to the 100G
-    -- Each output packet contains : 
-    --  16 byte header : 
-    --    5 bytes = 40 bits : framecount
-    --    2 bytes = 16 bits : virtual channel
-    --    1 byte  = 8  bits : Polarisation (either 0 or 1)
-    --    8 bytes           : unused.
-    --  Data : 
-    --    8+8 bit complex data for 3456 fine channels.
-    --    = 6912 bytes of data.
-    
-    -- Buffer : The output from the fine delay arrives as a burst, with
-    --  16 bytes wide; 3456 clocks long.
-    -- This double buffers the data so that we can output packets with data for a single
-    -- coarse channel and polarisation in a single packet.
-    -- The buffer is split into 16 x (512 deep) pages, 2 buffers for each of
-    --  coarse 0, pol 0, 
-    --  coarse 0, pol 1,
-    --  coarse 1, pol 0,
-    --  coarse 1, pol 1,
-    --  coarse 2, pol 0, 
-    --  coarse 2, pol 1,
-    --  coarse 3, pol 0, 
-    --  coarse 3, pol 1,
-    
-    o_packetValid <= '0';
-    o_packetData <= (others => '0');
-    
-    
     
 end Behavioral;

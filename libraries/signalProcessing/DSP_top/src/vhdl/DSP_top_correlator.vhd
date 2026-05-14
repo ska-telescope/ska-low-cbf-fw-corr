@@ -161,7 +161,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     ---------------------------------------------------------------------------
     -- SIGNAL DECLARATIONS  --
     ---------------------------------------------------------------------------   
-    signal LFAADecode_dbg : std_logic_vector(13 downto 0);
+    signal LFAADecode_dbg : std_logic_vector(22 downto 0);
     signal gnd : std_logic_vector(199 downto 0);
     
     signal clk_LFAA40GE_wallTime : t_wall_time;
@@ -282,7 +282,7 @@ ARCHITECTURE structure OF DSP_top_correlator IS
     signal FB_meta_ctFrame : std_logic_vector(1 downto 0);
     signal FB_meta_virtualChannel : std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
     signal FB_meta_valid : std_logic_vector(11 downto 0);    
-    
+    signal FB_scaling : std_logic_vector(4 downto 0);
 begin
     
     gnd <= (others => '0');
@@ -398,6 +398,7 @@ begin
         o_meta_virtualChannel => FB_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
         o_meta_valid          => FB_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
         o_lastChannel         => FB_lastChannel,         -- out std_logic; -- aligns with meta data, indicates this is the last group of channels to be processed in this frame.
+        o_scaling             => FB_scaling, --  out std_logic_vector(4 downto 0);  -- scale factor applied in the filterbanks        
         -- o_demap_table_select and o_totalChannels will change just prior to the start of reading out of a new integration frame.
         -- So it should be registered on the first output of a new integration frame in corner turn 2.
         o_demap_table_select => FB_demap_table_select, -- out std_logic;
@@ -479,7 +480,7 @@ begin
             i_data_rst => FB_sof, -- in std_logic;
             -- Register interface
             i_axi_clk    => i_MACE_clk,   -- in std_logic;
-            i_axi_clk_2x => i_MACE_clkx2, -- in std_logic;
+            i_axi_clk_2x => '0', -- in std_logic; This version is only for the U55c, so 2x clock is unused
             i_axi_rst => i_MACE_rst,      -- in std_logic;
             i_axi_mosi => i_FB_axi_mosi,  -- in t_axi4_lite_mosi;
             o_axi_miso => o_FB_axi_miso,  -- out t_axi4_lite_miso;
@@ -514,6 +515,7 @@ begin
 --            i_lastChannel => FB_lastChannel, -- in std_logic;
             i_demap_table_select => FB_demap_table_select, -- in std_logic;
             i_dataValid => FB_valid, -- in std_logic;
+            i_scaling   => FB_scaling, --  in std_logic_vector(4 downto 0);  -- scale factor applied in the filterbanks
             -- Data out; bursts of 3456 clocks for each channel.
             -- Correlator filterbank data output
             o_integration    => FD_integration,    -- out std_logic_vector(31 downto 0); -- frame count is the same for all simultaneous output streams.

@@ -22,7 +22,6 @@ use axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.ALL;
 Library xpm;
 use xpm.vcomponents.all;
--- USE filterbanks_lib.cor_filterbanks_filterbanks_reg_pkg.ALL;
 
 entity FB_Top_correlator_dummy_v80 is
     port(
@@ -128,15 +127,11 @@ architecture Behavioral of FB_Top_correlator_dummy_v80 is
     signal vc_hold, vc_out : t_slv_16_arr(3 downto 0);
     signal framecount_hold, framecount_out : std_logic_vector(31 downto 0);
     signal bufWrAddr, bufRdAddr : std_logic_vector(12 downto 0);
---    signal config_ro : t_config_ro;
---    signal output_disable_i : t_config_output_disable_ram_in;
---    signal output_disable_o : t_config_output_disable_ram_out;
     signal tx_packet_count, tx_packet_count_ct : std_logic_vector(31 downto 0) := x"00000000";
     signal packetValidDel1, packetValid, FDcorDataValidDel : std_logic;
     signal output_disabled : std_logic;
     signal output_disable_addr : std_logic_vector(9 downto 0);
     signal reg_reset_del1, reg_reset : std_logic;
---    signal config_rw : t_config_rw;
     signal HeaderValid : std_logic_vector(3 downto 0);
     signal sof_out, sof_del1 : std_logic := '0';
     signal sof_out_count : std_logic_vector(13 downto 0) := (others => '0');
@@ -363,55 +358,5 @@ begin
     o_headerValid(10) <= FD_headerValid(18);
     o_headerValid(11) <= FD_headerValid(18);
     
-    ---------------------------------------------------------------
-    -- Registers
-    -- 
-    
---    filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_reg
---    port map(
---        MM_CLK              => i_axi_clk,   -- in  std_logic;
---        MM_RST              => i_axi_rst,   -- in  std_logic;
---        SLA_IN              => i_axi_mosi,  -- IN  t_axi4_lite_mosi;
---        SLA_OUT             => o_axi_miso,  -- OUT t_axi4_lite_miso;
---        CONFIG_FIELDS_RO	=> config_ro,   -- IN  t_config_ro;
---        CONFIG_FIELDS_RW    => config_rw,   -- out t_config_rw;
---        CONFIG_OUTPUT_DISABLE_IN  => output_disable_i, -- IN  t_config_output_disable_ram_in;
---        CONFIG_OUTPUT_DISABLE_OUT => output_disable_o  -- OUT t_config_output_disable_ram_out
---    );
-    
---    config_ro.status <= x"00000000";
---    config_ro.txCount_eth <= tx_packet_count;
---    config_ro.txcount_corner_turn <= tx_packet_count_ct;
-    
---    process(i_axi_clk)
---    begin
---        if rising_edge(i_axi_clk) then
---            reg_reset <= config_rw.config(0);
---            reg_reset_del1 <= reg_reset;
-            
---            -- count of ethernet packet going out.
---            if reg_reset = '1' and reg_reset_del1 = '0' then
---                tx_packet_count <= (others => '0');
---            elsif packetValid = '1' and packetValidDel1 = '0' then
---                tx_packet_count <= std_logic_vector(unsigned(tx_packet_count) + 1);
---            end if;
-            
---            -- count of packets going out to the corner turn.
---            FDcorDataValidDel <= FDcorDataValid(0);
---            if reg_reset = '1' and reg_reset_del1 = '0' then
---                tx_packet_count_ct <= (others => '0');
---            elsif FDcorDataValid(0) = '1' and FDcorDataValidDel = '0' then
---                tx_packet_count_ct <= std_logic_vector(unsigned(tx_packet_count_ct) + 1);
---            end if;
-            
---        end if;
---    end process;
-    
---    output_disable_i.adr <= output_disable_addr;
---    output_disable_i.wr_dat <= (others => '0');
---    output_disable_i.wr_en <= '0';
---    output_disable_i.rd_en <= '1';
---    output_disable_i.clk <= i_axi_clk;
---    output_disable_i.rst <= '0';
     
 end Behavioral;

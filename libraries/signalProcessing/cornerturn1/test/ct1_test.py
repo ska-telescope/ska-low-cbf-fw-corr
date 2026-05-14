@@ -237,14 +237,16 @@ def get_tb_fb_data(tb_file, virtual_channels):
     print("Loading data at the filterbank output")
     first_integration_set = False
     first_integration = 0
-    integrations = 2
+    integrations = 10
+    # round up to a multiple of 4
+    virtual_channels_roundup = int(4 * ((virtual_channels + 3) // 4))
     # Number of packets received for each integration, frame and virtual channel
-    packet_count = np.zeros((integrations,3,virtual_channels),dtype=np.int32)
+    packet_count = np.zeros((integrations,3,virtual_channels_roundup),dtype=np.int32)
     # meta data : [integration, frame, packet, vc, bad_poly/last_channel/demap_table_select]
     # 64 packets per frame
-    meta_data = np.zeros((integrations,3,64,virtual_channels,3),dtype = np.int64)
+    meta_data = np.zeros((integrations,3,64,virtual_channels_roundup,3),dtype = np.int64)
     # data [integration, frame, packet, vc, Hre/Him/Vre/Vim, fine_channel]
-    sim_fbout = np.zeros((integrations,3,64,virtual_channels,4,3456), dtype = np.int32)
+    sim_fbout = np.zeros((integrations,3,64,virtual_channels_roundup,4,3456), dtype = np.int32)
     vc_list = np.zeros(4,dtype = np.int32)
     first_line = True
     linecount = 0
@@ -298,13 +300,15 @@ def get_tb_data(tb_file, virtual_channels):
     print("Loading data at the output of corner turn 1")
     first_integration_set = False
     first_integration = 0
+    # round up to a multiple of 4
+    virtual_channels_roundup = int(4*((virtual_channels + 3) // 4))
     # Number of packets received for each integration, frame and virtual channel
-    packet_count = np.zeros((10,3,virtual_channels),dtype=np.int32)
+    packet_count = np.zeros((10,3,virtual_channels_roundup),dtype=np.int32)
     # meta data : [integration, frame, packet, vc, hdelta/Hoffset/Vdelta/Voffset]
     # 75 packets = 11 preload + 64 per frame
-    meta_data = np.zeros((10,3,75,virtual_channels,4),dtype = np.int64)
+    meta_data = np.zeros((10,3,75,virtual_channels_roundup,4),dtype = np.int64)
     # data [integration,frame,packet,vc,Hre/Him/Vre/Vim,sample]
-    data_data = np.zeros((10,3,75,virtual_channels,4,4096), dtype = np.int32)
+    data_data = np.zeros((10,3,75,virtual_channels_roundup,4,4096), dtype = np.int32)
     vc_list = np.zeros(4,dtype = np.int32)
     for line in tb_file:
         dval = line.split()
@@ -332,7 +336,7 @@ def get_tb_data(tb_file, virtual_channels):
             #if dcount == 4095:
             #    print(f"Read last element of testbench packet : integration {integration}, frame = {frame}, packet_count = {packet_count[integration,frame,vc]}")
             if dcount > 4095:
-                print(f"!!!!! Too many samples in the packet to the filterbank, dcount = {dcount}")
+                print(f"!!!!! Too many samples in the packet to the filterbank, dcount = {dcount}, integration = {integration}, frame = {frame}, packet = {packet_count[integration, frame, vc]}")
             data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 0, dcount] = conv_signed_16bit(dint[1])
             data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 1, dcount] = conv_signed_16bit(dint[2])
             data_data[integration, frame, packet_count[integration,frame,vc] - 1, vc_list[0], 2, dcount] = conv_signed_16bit(dint[3])

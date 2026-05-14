@@ -66,6 +66,10 @@ create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila
 set_property -dict [list CONFIG.C_PROBE0_WIDTH {120} CONFIG.C_DATA_DEPTH {8192}] [get_ips ila_beamData]
 create_ip_run [get_ips ila_beamData]
 
+create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_hbm_test
+set_property -dict [list CONFIG.C_PROBE0_WIDTH {72} CONFIG.C_DATA_DEPTH {32768}] [get_ips ila_hbm_test]
+create_ip_run [get_ips ila_hbm_test]
+
 create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_120_16k
 set_property -dict [list CONFIG.C_PROBE0_WIDTH {120} CONFIG.C_DATA_DEPTH {16384}] [get_ips ila_120_16k]
 create_ip_run [get_ips ila_120_16k]

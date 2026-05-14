@@ -170,12 +170,17 @@ signal packed_fifo_empty    : std_logic;
 signal packed_fifo_rd_count : std_logic_vector(((ceil_log2(packed_depth))) downto 0);
 -- WR        
 signal packed_fifo_wr       : std_logic;
-signal packed_fifo_data     : std_logic_vector(271 downto 0);
+signal packed_fifo_data     : std_logic_vector((packed_width-1) downto 0);
 signal packed_fifo_full     : std_logic;
 signal packed_fifo_wr_count : std_logic_vector(((ceil_log2(packed_depth))) downto 0);
 
 signal packed_fifo_hold     : std_logic;
 signal packed_fifo_holdd    : std_logic;
+
+signal picked_fifo_wr       : std_logic;
+signal picked_fifo_data     : std_logic_vector(271 downto 0);
+
+signal picked_hp_fifo_data  : std_logic_vector(271 downto 0);
 
 signal packed_fifo_wr_pipe  : std_logic_vector(7 downto 0) := x"00";
 
@@ -204,6 +209,9 @@ signal aligned_packed_wr            : std_logic;
 signal trigger_final_write          : std_logic;
 
 signal packed_wr_enable             : std_logic_vector(1 downto 0) := "00";
+
+signal half_precision_data          : std_logic_vector(511 downto 0);
+signal half_precision_data_wr       : std_logic;
 
 --------------------------------------------------------------------------------
 -- triangle signals
@@ -307,6 +315,7 @@ signal testmode_load_instruct_d		: std_logic;
 
 signal spead_data_heap_size         : std_logic_vector(7 downto 0);
 signal bytes_to_send                : unsigned(13 downto 0);
+signal fifo_send_level              : unsigned(12 downto 0);
 
 signal hbm_readout_complete         : std_logic;
 
@@ -346,13 +355,15 @@ signal debug_i_data_valid               : std_logic;
 signal debug_table_select               : std_logic;
 signal debug_wr_ct1_table_change        : std_logic := '0';
 
+signal debug_i_time_ref                 : std_logic_vector(63 downto 0);
+
 signal debug_swap_in_progress           : std_logic;
 signal debug_wr_ct1_swap_progress       : std_logic := '0';
 
 signal debug_table_add_remove           : std_logic;
 signal debug_wr_table_add_remove        : std_logic := '0';
 
-CONSTANT no_of_debug_rams               : integer := 3;
+CONSTANT no_of_debug_rams               : integer := 4;
 signal debug_wr                         : std_logic := '0';
 signal debug_data                       : t_slv_32_arr((no_of_debug_rams-1) downto 0);
 signal debug_data_wr                    : std_logic_vector((no_of_debug_rams-1) downto 0) := (others => '0');
@@ -373,6 +384,14 @@ signal bram_rddata              : STD_LOGIC_VECTOR(31 DOWNTO 0);
 signal args_addr                : STD_LOGIC_VECTOR(13 DOWNTO 0);
 
 signal debug_vec_from_packet    : std_logic_vector(31 downto 0);
+
+signal full_half_precision      : std_logic := '1';
+
+signal packed_final_notify      : std_logic;
+signal hp_pack_final_notify     : std_logic;
+signal fp_pack_final_notify     : std_logic;
+
+signal packer_reset             : std_logic;
 
 --------------------------------------------------------------------------------
 begin
@@ -411,7 +430,9 @@ begin
     meta_reg_proc : process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            bytes_in_heap           <= unsigned(i_from_spead_pack.bytes_in_heap);
+            bytes_in_heap(31)           <= '0';
+            bytes_in_heap(30 downto 0)  <= unsigned(i_from_spead_pack.bytes_in_heap(30 downto 0));
+            full_half_precision         <= i_from_spead_pack.bytes_in_heap(31);
 
             if testmode_select = '0' then
                 meta_cache_fifo_wr      <= i_data_valid;
@@ -715,7 +736,7 @@ begin
             if reset = '1' then
                 pack_it_fsm_debug   <= x"F";
                 pack_it_fsm         <= IDLE;
-                packed_fifo_wr      <= '0';
+                picked_fifo_wr      <= '0';
                 meta_data_rd        <= x"F";
                 hbm_data_cache_sel  <= '0';
                 hbm_data_fifo_rd    <= '0';
@@ -739,7 +760,7 @@ begin
                             pack_it_fsm         <= LOOPS;
                             row_count_rd_out    <= cor_tri_row_count + cor_tri_row;
                         end if;
-                        packed_fifo_wr      <= '0';
+                        picked_fifo_wr      <= '0';
                         strut_counter       <= 0;
                         hbm_data_cache_sel  <= '0';
                         small_matrix_tracker<= x"0";
@@ -791,10 +812,10 @@ begin
                         
                         -- this hold off mechanism will need to checked with scaling up
                         if packed_fifo_holdd = '1' then
-                            packed_fifo_wr      <= '0';
+                            picked_fifo_wr      <= '0';
                             hbm_data_fifo_rd    <= '0';
                         else
-                            packed_fifo_wr      <= '1';
+                            picked_fifo_wr      <= '1';
                             hbm_data_cache_sel  <= NOT hbm_data_cache_sel;
                             hbm_data_fifo_rd    <= hbm_data_rd_en and (NOT hbm_data_cache_sel);
                         end if;
@@ -817,10 +838,10 @@ begin
                         end if;
 
                         -- Update tracking counters based on wr signal.
-                        if packed_fifo_wr = '1' then
+                        if picked_fifo_wr = '1' then
                             if data_wr_counter = 0 then
                                 pack_it_fsm         <= RD_DRAIN;
-                                packed_fifo_wr      <= '0';
+                                picked_fifo_wr      <= '0';
                                 data_rd_counter     <= '0' & x"00" & read_skip_per_line(strut_counter);
                             else
                                 
@@ -831,7 +852,7 @@ begin
                     -- DRAIN the remaining elements in the last 512 bytes of the row that are not used.
                     when RD_DRAIN =>
                         pack_it_fsm_debug   <= x"4";
-                        packed_fifo_wr      <= '0';
+                        picked_fifo_wr      <= '0';
                         hbm_data_cache_sel  <= '0';
                         if data_rd_counter = 0 then
                             if strut_counter = small_matrix_tracker then
@@ -881,13 +902,12 @@ begin
 
                 matrix_packed(1)    <= matrix_packed(0);
 
-                packed_fifo_wr_pipe <= packed_fifo_wr_pipe(6 downto 0) & packed_fifo_wr;
             end if;
         end if;
     end process;
 
-    --packed_fifo_data    <= hbm_data_cache & meta_data_cache;
-    packed_fifo_data    <= hbm_data_cache_le & meta_data_cache;
+    picked_hp_fifo_data <= hbm_data_cache & meta_data_cache;
+    picked_fifo_data    <= hbm_data_cache_le & meta_data_cache;
 ---------------------------------------------------------------------------
 -- LE swapping of the vis_data
 -- data is lots of single precision floats, bring lowest 32 bits to the top and then LE swap that.
@@ -902,136 +922,58 @@ hbm_data_cache_le   <=  hbm_data_cache(7 downto 0) &        hbm_data_cache(15 do
                         hbm_data_cache(199 downto 192) &    hbm_data_cache(207 downto 200) &    hbm_data_cache(215 downto 208) &    hbm_data_cache(223 downto 216) & 
                         hbm_data_cache(231 downto 224) &    hbm_data_cache(239 downto 232) &    hbm_data_cache(247 downto 240) &    hbm_data_cache(255 downto 248); 
 
----------------------------------------------------------------------------
--- align the data to 64bytes, from 2 x 34 bytes
-
-align_64b_proc : process(i_axi_clk)
+packer_reset_proc : process(i_axi_clk)
 begin
     if rising_edge(i_axi_clk) then
         if cor_triangle_fsm = idle OR reset = '1' then
-            pack_counter                <= x"01";
-
-            packed_fifo_data_d1         <= (others => '0');
-            packed_fifo_data_d2         <= (others => '0');
-            packed_fifo_data_d3         <= (others => '0');
-            aligned_packed_fifo_data_d  <= (others => '0');
-            packed_wr_enable            <= "00";
-
-            aligned_packed_wr_d         <= '0';
-            pack_byte_tracker           <= x"00";
+            packer_reset    <= '1';
         else
-            if packed_fifo_wr = '1' or (packed_wr_enable(1) = '1') then
-                packed_fifo_data_d1     <= packed_fifo_data;
-                packed_fifo_data_d2     <= packed_fifo_data_d1;
-                packed_fifo_data_d3     <= packed_fifo_data_d2;
-            end if;
-
-
-            ---------------------------
-            -- push the remaining sub 64 byte data along.
-            if matrix_packed(1) = '1' and pack_byte_tracker >= 30 then
-                packed_wr_enable    <= "10";
-            elsif matrix_packed(1) = '1' and pack_byte_tracker >= 1 then
-                packed_wr_enable    <= "11";
-            else
-                packed_wr_enable    <= packed_wr_enable(0) & '0';    
-            end if;
-
-            
-
-
-            if (packed_fifo_wr = '1' or (packed_wr_enable(1) = '1')) AND (pack_wr = '1') then
-                -- adding 34 bytes and subtracting 64 so -30
-                pack_byte_tracker   <= pack_byte_tracker - 30;
-            elsif (packed_fifo_wr = '1' or (packed_wr_enable(1) = '1')) then
-                pack_byte_tracker   <=  pack_byte_tracker + 34;
-            elsif (pack_wr = '1') then
-                pack_byte_tracker   <= pack_byte_tracker -  64;
-            end if;
-
-            if pack_byte_tracker >= 64 then
-                if pack_counter = 17 then
-                    pack_counter    <= x"01";
-                else
-                    pack_counter    <= pack_counter + 1;
-                end if;
-
-            end if;
-
-            aligned_packed_wr_d         <= aligned_packed_wr;
-            aligned_packed_fifo_data_d  <= aligned_packed_fifo_data;
+            packer_reset    <= '0';
         end if;
     end if;
 end process;
 
-pack_wr   <= '1' when (pack_byte_tracker >= 64) else '0';
+    i_half_p_packer : entity correlator_lib.half_precision_packer
+        port map (
+            clk                 => i_axi_clk,
+            reset               => packer_reset,
 
-reg_512_align_proc : process(i_axi_clk)
-begin
-    if rising_edge(i_axi_clk) then
-        if reset = '1' then
-            aligned_packed_wr               <= '0';
-            aligned_packed_fifo_data        <= (others => '0');
-        else
-            aligned_packed_wr               <= pack_wr;
+            i_heap_size         => bytes_in_heap,
+            o_finished_pack     => hp_pack_final_notify,
+            ------------------------------------------------------
+            -- data from the picker FSM
+            i_sorted_data       => picked_hp_fifo_data,
+            i_sorted_data_wr    => picked_fifo_wr,
 
-            if (pack_counter(4 downto 0) = 1) then
-                aligned_packed_fifo_data    <=                                       packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 32);
-            end if;
-            if (pack_counter(4 downto 0) = 2) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(31 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 64);
-            end if;
-            if (pack_counter(4 downto 0) = 3) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(63 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 96);
-            end if;
-            if (pack_counter(4 downto 0) = 4) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(95 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 128);
-            end if;
-            if (pack_counter(4 downto 0) = 5) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(127 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 160);
-            end if;
-            if (pack_counter(4 downto 0) = 6) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(159 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 192);
-            end if;
-            if (pack_counter(4 downto 0) = 7) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(191 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 224);
-            end if;
-            if (pack_counter(4 downto 0) = 8) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(223 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 256);
-            end if;
-            if (pack_counter(4 downto 0) = 9) then
-                aligned_packed_fifo_data    <=                                         packed_fifo_data_d2(255 downto 0)   & packed_fifo_data_d1(271 downto 16);
-            end if;
-            if (pack_counter(4 downto 0) = 10) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(15 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 48);
-            end if;
-            if (pack_counter(4 downto 0) = 11) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(47 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 80);
-            end if;
-            if (pack_counter(4 downto 0) = 12) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(79 downto 0)    & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 112);
-            end if;
-            if (pack_counter(4 downto 0) = 13) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(111 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 144);
-            end if;
-            if (pack_counter(4 downto 0) = 14) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(143 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 176);
-            end if;
-            if (pack_counter(4 downto 0) = 15) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(175 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 208);
-            end if;
-            if (pack_counter(4 downto 0) = 16) then
-                aligned_packed_fifo_data    <= packed_fifo_data_d3(207 downto 0)   & packed_fifo_data_d2                   &   packed_fifo_data_d1(271 downto 240);
-            end if;
-            if (pack_counter(4 downto 0) = 17) then
-                aligned_packed_fifo_data    <=                                      packed_fifo_data_d2(239 downto 0)   & packed_fifo_data_d1;
-            end if;
-        end if;
-    end if;
-end process;
+            o_data_out          => half_precision_data,
+            o_data_valid        => half_precision_data_wr
+        );
 
+    i_full_p_packer : entity correlator_lib.full_precision_packer
+        port map (
+            clk                 => i_axi_clk,
+            reset               => packer_reset,
 
-    ---------------------------------------------------------------------------
+            i_heap_size         => bytes_in_heap,
+            o_finished_pack     => fp_pack_final_notify,
+            ------------------------------------------------------
+            -- data from the picker FSM
+            i_sorted_data       => picked_fifo_data,
+            i_sorted_data_wr    => picked_fifo_wr,
+
+            o_data_out          => aligned_packed_fifo_data_d,
+            o_data_valid        => aligned_packed_wr_d
+        );
+
+        ---------------------------------------------------------------------------
+
+packed_fifo_wr          <= aligned_packed_wr_d          when full_half_precision = '0' else half_precision_data_wr;
+
+packed_fifo_data        <= aligned_packed_fifo_data_d   when full_half_precision = '0' else half_precision_data;
+
+packed_final_notify     <= fp_pack_final_notify         when full_half_precision = '0' else hp_pack_final_notify;
+
+---------------------------------------------------------------------------
 
     packed_cache_fifo : entity signal_processing_common.xpm_sync_fifo_wrapper
     Generic map (
@@ -1051,8 +993,8 @@ end process;
         fifo_empty          => packed_fifo_empty,
         fifo_rd_count       => packed_fifo_rd_count,
         -- WR        
-        fifo_wr             => aligned_packed_wr_d,
-        fifo_data           => aligned_packed_fifo_data_d,
+        fifo_wr             => packed_fifo_wr,
+        fifo_data           => packed_fifo_data,
         fifo_full           => packed_fifo_full,
         fifo_wr_count       => packed_fifo_wr_count
     );    
@@ -1078,55 +1020,46 @@ end process;
                 -- 8192 bytes is 128 reads.
                 --if unsigned(packed_fifo_rd_count) >= 128 then               -- packets of 8kish when dealing with larger stations
 
-                spead_data_heap_size    <= i_from_spead_pack.spead_data_heap_size(13 downto 6);
+                fifo_send_level <= "00000" & unsigned(i_from_spead_pack.spead_data_heap_size(13 downto 6));
 
-                if spead_data_heap_size = x"40" then    -- 4096
-                    bytes_to_send   <= 14D"4096";
-                elsif spead_data_heap_size = x"20" then    -- 2048
-                    bytes_to_send   <= 14D"2048";
-                elsif spead_data_heap_size = x"10" then    -- 1024
-                    bytes_to_send   <= 14D"1024";
-                elsif spead_data_heap_size = x"08" then    -- 512
-                    bytes_to_send   <= 14D"512";
-                elsif spead_data_heap_size = x"04" then    -- 256
-                    bytes_to_send   <= 14D"256";
-                elsif spead_data_heap_size = x"02" then    -- 128
-                    bytes_to_send   <= 14D"128";
-                else
-                    bytes_to_send   <= 14D"8192";
-                end if;
+                bytes_to_send   <= unsigned(i_from_spead_pack.spead_data_heap_size(13 downto 0));
+                -- if spead_data_heap_size = x"40" then    -- 4096
+                --     bytes_to_send   <= 14D"4096";
+                -- elsif spead_data_heap_size = x"20" then    -- 2048
+                --     bytes_to_send   <= 14D"2048";
+                -- elsif spead_data_heap_size = x"10" then    -- 1024
+                --     bytes_to_send   <= 14D"1024";
+                -- elsif spead_data_heap_size = x"08" then    -- 512
+                --     bytes_to_send   <= 14D"512";
+                -- elsif spead_data_heap_size = x"04" then    -- 256
+                --     bytes_to_send   <= 14D"256";
+                -- elsif spead_data_heap_size = x"02" then    -- 128
+                --     bytes_to_send   <= 14D"128";
+                -- else
+                --     bytes_to_send   <= 14D"8192";
+                -- end if;
 
                 -- 128 deep = 8K data + vis, match this against the programmed desired data chunk size.
                 -- i_from_spead_pack.spead_data_heap_size(15 downto 0)      8192 = bit 13.
 
                 if (spead_data_rd = '1') OR (packed_fifo_empty = '1') then
                     send_spead_data     <= "00";
-                elsif packed_fifo_rd_count(12 downto 0) >= ("00000" & i_from_spead_pack.spead_data_heap_size(13 downto 6)) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
+                elsif unsigned(packed_fifo_rd_count(12 downto 0)) >= fifo_send_level then --("00000" & i_from_spead_pack.spead_data_heap_size(13 downto 6)) AND (bytes_in_heap_tracker >= bytes_to_send) then               -- packets of 8kish when dealing with larger stations
                     send_spead_data     <= "01";
                     bytes_to_packetise  <= bytes_to_send; --14D"8192";                       -- stream out 8k.
-                elsif (bytes_in_heap_tracker = bytes_to_process) AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
-                    bytes_to_packetise  <= bytes_to_process(13 downto 0);
+                elsif (packed_final_notify = '1') AND (pack_it_fsm = COMPLETE) then      -- drain or for single packet configs.
+                    bytes_to_packetise  <= bytes_in_heap_tracker(13 downto 0);
                     send_spead_data     <= "01";
---                elsif (spead_data_rd = '1') OR (packed_fifo_empty = '1') then
---                    send_spead_data     <= "00";
                 end if;
 
                 if (pack_it_fsm = IDLE)  then
-                    bytes_to_process        <= ( others => '0');
                     bytes_in_heap_tracker   <= bytes_in_heap;
+
+                    -- debug
                     bytes_to_process_dbg    <= ( others => '0');
                     dbg_heap_trkr_start     <= std_logic_vector(bytes_in_heap);
-                elsif packed_fifo_rd = '1' AND packed_fifo_wr_pipe(7) = '1' then
-                    bytes_to_process        <= bytes_to_process - 30;
-                    bytes_to_process_dbg    <= bytes_to_process_dbg + 34;
-                    bytes_in_heap_tracker   <= bytes_in_heap_tracker - 64;
                 elsif packed_fifo_rd = '1' then
-                    bytes_to_process    <= bytes_to_process - 64;
-
                     bytes_in_heap_tracker   <= bytes_in_heap_tracker - 64;
-                elsif packed_fifo_wr_pipe(7) = '1' then
-                    bytes_to_process        <= bytes_to_process + 34;
-                    bytes_to_process_dbg    <= bytes_to_process_dbg + 34;
                 end if;
 
                 -- pack_it_FSM goes IDLE after each matrix read out
@@ -1241,25 +1174,29 @@ gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
     
 END GENERATE;
 
-
-    hbm_rd_debug_ro.debug_pack_it_fsm           <= pack_it_fsm_debug;
-    hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;
-    hbm_rd_debug_ro.debug_hbm_reader_fsm		<= hbm_reader_fsm_debug;
-    hbm_rd_debug_ro.debug_hbm_reader_fsm_cache  <= hbm_reader_fsm_debug_cache;
-    hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
-
-    hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
-    hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo_reg;
-    hbm_rd_debug_ro.debug_bytes_in_heap_trkr    <= std_logic_vector(dbg_bytes_in_heap_trkr);
-    
-    testmode_select				<= hbm_rd_debug_rw.testmode_select;
-    testmode_hbm_start_addr		<= hbm_rd_debug_rw.testmode_hbm_start_addr;
-    testmode_subarray			<= hbm_rd_debug_rw.testmode_subarray;
-    testmode_freqindex			<= hbm_rd_debug_rw.testmode_freqindex;
-    testmode_time_ref			<= hbm_rd_debug_rw.testmode_time_ref;
-    testmode_row				<= hbm_rd_debug_rw.testmode_row;
-    testmode_row_count			<= hbm_rd_debug_rw.testmode_row_count;
-    testmode_load_instruct		<= hbm_rd_debug_rw.testmode_load_instruct;
+    reg_args_proc : process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            hbm_rd_debug_ro.debug_pack_it_fsm           <= pack_it_fsm_debug;
+            hbm_rd_debug_ro.debug_cor_tri_fsm			<= cor_tri_fsm_debug;
+            hbm_rd_debug_ro.debug_hbm_reader_fsm		<= hbm_reader_fsm_debug;
+            hbm_rd_debug_ro.debug_hbm_reader_fsm_cache  <= hbm_reader_fsm_debug_cache;
+            hbm_rd_debug_ro.subarray_instruct_writes    <= std_logic_vector(debug_instruction_writes);
+        
+            hbm_rd_debug_ro.subarray_instruct_pending   <= '0' & meta_cache_fifo_wr_count;
+            hbm_rd_debug_ro.debug_packed_fifo           <= debug_packed_fifo_reg;
+            hbm_rd_debug_ro.debug_bytes_in_heap_trkr    <= std_logic_vector(dbg_bytes_in_heap_trkr);
+            
+            testmode_select				<= hbm_rd_debug_rw.testmode_select;
+            testmode_hbm_start_addr		<= hbm_rd_debug_rw.testmode_hbm_start_addr;
+            testmode_subarray			<= hbm_rd_debug_rw.testmode_subarray;
+            testmode_freqindex			<= hbm_rd_debug_rw.testmode_freqindex;
+            testmode_time_ref			<= hbm_rd_debug_rw.testmode_time_ref;
+            testmode_row				<= hbm_rd_debug_rw.testmode_row;
+            testmode_row_count			<= hbm_rd_debug_rw.testmode_row_count;
+            testmode_load_instruct		<= hbm_rd_debug_rw.testmode_load_instruct;
+        end if;
+    end process;
 
     ---------------------------------------------------------------------------
     
@@ -1320,7 +1257,7 @@ ila_gen : if DEBUG_ILA generate
         probe0(66)              => debug_data_wr(0),
         probe0(67)              => debug_data_wr(1),
         probe0(81 downto 68)    => args_addr,
-        probe0(95 downto 82)    => bram_addr_d2,
+        probe0(95 downto 82)    => bram_addr_d2(13 downto 0),
 
         probe0(127 downto 96)   => debug_rd_data(0),
         probe0(159 downto 128)  => debug_rd_data(1),
@@ -1347,6 +1284,8 @@ ila_gen : if DEBUG_ILA generate
             debug_i_bad_poly                <= i_bad_poly;
             debug_i_table_select            <= i_table_select;
             debug_i_data_valid              <= i_data_valid;
+
+            debug_i_time_ref                <= i_time_ref;
 
             debug_vec_from_packet           <= i_from_spead_pack.debug_vec;
 
@@ -1392,6 +1331,7 @@ ila_gen : if DEBUG_ILA generate
                                 debug_i_table_swap_in_progress &
                                 debug_vec_from_packet(25 downto 0);
 
+            debug_data(3)   <=  debug_i_time_ref(39 downto 8);
 
             if debug_wr = '1' then
                 debug_wr_addr   <= debug_wr_addr + 1;
@@ -1407,7 +1347,7 @@ ila_gen : if DEBUG_ILA generate
     bram_return_data_proc : process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            bram_addr_d1    <= args_addr;
+            bram_addr_d1    <= x"0" & args_addr;
             bram_addr_d2    <= bram_addr_d1;
         end if;
     end process;
@@ -1415,6 +1355,7 @@ ila_gen : if DEBUG_ILA generate
     bram_rddata     <=  debug_rd_data(0) when bram_addr_d2(11 downto 10) = "00"  else
                         debug_rd_data(1) when bram_addr_d2(11 downto 10) = "01"  else
                         debug_rd_data(2) when bram_addr_d2(11 downto 10) = "10"  else
+                        debug_rd_data(3) when bram_addr_d2(11 downto 10) = "11"  else
                         x"DEADBEEF";
     
     debug_data_wr(0)    <=  '1' when (args_addr(11 downto 10) = "00") AND bram_we(0) = '1' AND bram_en = '1' else
@@ -1422,6 +1363,8 @@ ila_gen : if DEBUG_ILA generate
     debug_data_wr(1)    <=  '1' when (args_addr(11 downto 10) = "01") AND bram_we(0) = '1' AND bram_en = '1' else
                                     '0';
     debug_data_wr(2)    <=  '1' when (args_addr(11 downto 10) = "10") AND bram_we(0) = '1' AND bram_en = '1' else
+                                    '0';
+    debug_data_wr(3)    <=  '1' when (args_addr(11 downto 10) = "11") AND bram_we(0) = '1' AND bram_en = '1' else
                                     '0';
     
     debug_rams_gen : FOR i in 0 to (no_of_debug_rams-1) GENERATE

@@ -448,6 +448,13 @@ begin
                 int_m06_shared(63 downto 32) <= (WDATA(31 downto 0) and wmask) or (int_m06_shared(63 downto 32) and (not wmask));
             end if;
             
+            
+            m01_shared   <= int_m01_shared;
+            m02_shared   <= int_m02_shared;
+            m03_shared   <= int_m03_shared;
+            m04_shared   <= int_m04_shared;
+            m05_shared   <= int_m05_shared;
+            m06_shared   <= int_m06_shared;
         end if;
     end process;
     
@@ -459,11 +466,6 @@ begin
     dma_dest     <= int_dma_dest;
     dma_shared   <= int_dma_shared;
     dma_size     <= int_dma_size;
-    m01_shared   <= int_m01_shared;
-    m02_shared   <= int_m02_shared;
-    m03_shared   <= int_m03_shared;
-    m04_shared   <= int_m04_shared;
-    m05_shared   <= int_m05_shared;
-    m06_shared   <= int_m06_shared;
+
     
 end Behavioral;

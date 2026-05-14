@@ -151,11 +151,6 @@ architecture Behavioral of FB_Top_correlator is
     signal dataIn :  t_slv_32_arr(23 downto 0);
     signal RFIThresholds  : t_slv_32_arr(11 downto 0);
     
---    signal config_ro : t_config_ro;
---    signal output_disable_i : t_config_output_disable_ram_in;
---    signal output_disable_o : t_config_output_disable_ram_out;
---    signal config_rw : t_config_rw;
-    
 begin
     
     -----------------------------------------------------------------------------------
@@ -375,91 +370,5 @@ begin
         end if;
     end process;
     
---    -- ARGS U55
---    gen_u55_args : IF (C_TARGET_DEVICE = "U55") GENERATE 
---        filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_reg
---        port map(
---            MM_CLK              => i_axi_clk,   -- in  std_logic;
---            MM_RST              => i_axi_rst,   -- in  std_logic;
---            SLA_IN              => i_axi_mosi,  -- IN  t_axi4_lite_mosi;
---            SLA_OUT             => o_axi_miso,  -- OUT t_axi4_lite_miso;
---            CONFIG_FIELDS_RO	=> config_ro,   -- IN  t_config_ro;
---            CONFIG_FIELDS_RW    => config_rw,   -- out t_config_rw;
---            CONFIG_OUTPUT_DISABLE_IN  => output_disable_i, -- IN  t_config_output_disable_ram_in;
---            CONFIG_OUTPUT_DISABLE_OUT => output_disable_o  -- OUT t_config_output_disable_ram_out
---        );
---    END GENERATE;
-    
---    -- ARGS Gaskets for V80
---    gen_v80_args : IF (C_TARGET_DEVICE = "V80") GENERATE
-    
-----        i_fb_noc : entity noc_lib.args_noc
-----        generic map (
-----            G_DEBUG => FALSE
-----        )
-----        port map ( 
-----            i_clk       => i_axi_clk,
-----            i_rst       => i_axi_rst,
-        
-----            noc_wren    => noc_wren,
-----            noc_rden    => noc_rden,
-----            noc_wr_adr  => noc_wr_adr,
-----            noc_wr_dat  => noc_wr_dat,
-----            noc_rd_adr  => noc_rd_adr,
-----            noc_rd_dat  => noc_rd_dat_mux
-----        );
-    
-----        filterbank_Reg : entity filterbanks_lib.cor_filterbanks_filterbanks_versal
-----        port map(
-----            MM_CLK                  => i_axi_clk,   -- in  std_logic;
-----            MM_RST                  => i_axi_rst,   -- in  std_logic;
-    
-----            noc_wren                => noc_wren,
-----            noc_rden                => noc_rden,
-----            noc_wr_adr              => noc_wr_adr,
-----            noc_wr_dat              => noc_wr_dat,
-----            noc_rd_adr              => noc_rd_adr,
-----            noc_rd_dat              => noc_rd_dat_mux,
-            
-----            CONFIG_FIELDS_RO        => config_ro,   -- IN  t_config_ro;
-----            CONFIG_FIELDS_RW        => config_rw,   -- out t_config_rw;
-----            CONFIG_OUTPUT_DISABLE_IN    => output_disable_i, -- IN  t_config_output_disable_ram_in;
-----            CONFIG_OUTPUT_DISABLE_OUT   => output_disable_o  -- OUT t_config_output_disable_ram_out
-----        );
-    
---        -- If no NOC module, then just set the scaling to the default value
---        config_rw.scaling(4 downto 0) <= "10000";
-    
---    END GENERATE;
-
-
---    config_ro.status <= x"00000000";
---    config_ro.txCount_eth <= (others => '0');
---    config_ro.txcount_corner_turn <= tx_packet_count_ct;
-    
---    process(i_axi_clk)
---    begin
---        if rising_edge(i_axi_clk) then
---            RFIScale <= config_rw.scaling(4 downto 0);
---            reg_reset <= config_rw.config(0);
---            reg_reset_del1 <= reg_reset;
-            
---            -- count of packets going out to the corner turn.
---            FDcorDataValidDel <= FDcorDataValid(0);
---            if reg_reset = '1' and reg_reset_del1 = '0' then
---                tx_packet_count_ct <= (others => '0');
---            elsif FDcorDataValid(0) = '1' and FDcorDataValidDel = '0' then
---                tx_packet_count_ct <= std_logic_vector(unsigned(tx_packet_count_ct) + 1);
---            end if;
-            
---        end if;
---    end process;
-    
---    output_disable_i.adr <= output_disable_addr;
---    output_disable_i.wr_dat <= (others => '0');
---    output_disable_i.wr_en <= '0';
---    output_disable_i.rd_en <= '1';
---    output_disable_i.clk <= i_axi_clk;
---    output_disable_i.rst <= '0';
     
 end Behavioral;
