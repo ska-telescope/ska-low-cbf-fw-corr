@@ -25,23 +25,8 @@
 -- First 256 MBytes is used for visibilities circular buffer, then 16 Mbytes for the TCI data.
 --  256 MBytes / (8192 bytes/cell) = 32768 cells to fill the circular buffer.
 --  
---
---
---
--- Data output 
---  Data words are constructed with :
---      1 sample  = 8  single precision values (4 complex values) - all correlations between two dual-pol stations.
---                  +2 bytes of TCI (time centroid) and FD (fraction of data)
---                = 34 bytes.
---  The output bus is 32 bytes wide, so for simplicity the default packet size is a multiple of 16 samples
---  (since 16 * 34 bytes = 544 bytes = 17 x 32 byte words)
---  The final packet for a particular subarray will typically have less samples than the other packets, 
---  since subarray can be of arbitrary size.
---  Default output packet size is :
---    
---  
 ----------------------------------------------------------------------------------
-library IEEE;
+library IEEE, signal_processing_common;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 Library axi4_lib;
@@ -49,6 +34,7 @@ USE axi4_lib.axi4_lite_pkg.ALL;
 use axi4_lib.axi4_full_pkg.all;
 Library xpm;
 use xpm.vcomponents.all;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity correlator_HBM is
     Port ( 
@@ -174,18 +160,32 @@ begin
             
             o_HBM_end <= "0000" & fifo_wr_ptr & "0000000000000";
             
-            if i_dcount(0) = '0' then
+            if (C_TARGET_DEVICE = "V80") then
+                -- 256 bit wide HBM interface in the V80
                 w_fifo_din(255 downto 0) <= i_data;
+                if ((i_visValid = '1' and i_dcount(6 downto 0) = "1111111") or (i_TCIvalid = '1' and i_dcount = "00001111")) then
+                    -- indicates last word in a HBM data transfer.
+                    -- Occurs twice in the 256 transfers for the data, at i_dcount = x7F and i_dcount = xFF, and once at the end of the TCI data, when i_dcount = 0xf
+                    w_fifo_din(256) <= '1';
+                else
+                    -- Not the last word in the HBM data transfer
+                    w_fifo_din(256) <= '0';
+                end if;
             else
-                w_fifo_din(511 downto 256) <= i_data;
-            end if;
-            if ((i_visValid = '1' and i_dcount(6 downto 0) = "1111111") or (i_TCIvalid = '1' and i_dcount = "00001111")) then
-                -- indicates last word in a HBM data transfer.
-                -- Occurs twice in the 256 transfers for the data, at i_dcount = x7F and i_dcount = xFF, and once at the end of the TCI data, when i_dcount = 0xf
-                w_fifo_din(512) <= '1';
-            else
-                -- Not the last word in the HBM data transfer
-                w_fifo_din(512) <= '0';
+                -- 512 bit wide HBM interface in the U55c
+                if i_dcount(0) = '0' then
+                    w_fifo_din(255 downto 0) <= i_data;
+                else
+                    w_fifo_din(511 downto 256) <= i_data;
+                end if;
+                if ((i_visValid = '1' and i_dcount(6 downto 0) = "1111111") or (i_TCIvalid = '1' and i_dcount = "00001111")) then
+                    -- indicates last word in a HBM data transfer.
+                    -- Occurs twice in the 256 transfers for the data, at i_dcount = x7F and i_dcount = xFF, and once at the end of the TCI data, when i_dcount = 0xf
+                    w_fifo_din(512) <= '1';
+                else
+                    -- Not the last word in the HBM data transfer
+                    w_fifo_din(512) <= '0';
+                end if;
             end if;
             
             if ((i_TCIvalid = '1' and i_dcount = "00001111") and
@@ -195,7 +195,11 @@ begin
                 -- tile in a row of tiles, then notify the SPEAD packet generator.
                 -- If tile row (=tileDel1(7 downto 4)) and tile column (= tileDel1(3 downto 0)) 
                 -- are the same, then we are at the end of the row of tiles. 
-                w_fifo_din(513) <= '1'; -- signals that the SPEAD_trigger_fifo should be read
+                if (C_TARGET_DEVICE = "V80") then
+                    w_fifo_din(257) <= '1'; -- signals that the SPEAD_trigger_fifo should be read, 256 bit wide interface for the V80
+                else
+                    w_fifo_din(513) <= '1'; -- signals that the SPEAD_trigger_fifo should be read, 512 bit wide interface for the U55c
+                end if;
                 SPEAD_trigger_we <= '1'; -- signals SPEAD packet generator
                 SPEAD_trigger_din(19 downto 0) <= channelDel1(19 downto 0);  -- 20 bits; 
                 SPEAD_trigger_din(27 downto 20) <= subarrayBeamDel1; --
@@ -217,12 +221,21 @@ begin
                 SPEAD_trigger_din(59 downto 57) <= shortIntegrationDel1;
             else
                 -- Do not trigger reading of the SPEAD_trigger_fifo 
-                w_fifo_din(513) <= '0';
+                if (C_TARGET_DEVICE = "V80") then
+                    w_fifo_din(257) <= '0';
+                else
+                    w_fifo_din(513) <= '0';
+                end if;
                 SPEAD_trigger_we <= '0';
             end if;
             
-            -- write a 513 bit word for every second 256 bit input word.
-            w_fifo_we <= (i_visValid or i_TCIvalid) and i_dcount(0); 
+            if (C_TARGET_DEVICE = "V80") then
+                -- write a 258 bit word (256 data + last + trigger) for every 256 bit input word 
+                w_fifo_we <= (i_visValid or i_TCIvalid);
+            else
+                -- write a 514 bit word for every second 256 bit input word (2x256 data bits + last + trigger).
+                w_fifo_we <= (i_visValid or i_TCIvalid) and i_dcount(0);
+            end if;
             
             -- There is about 20 clocks latency for data to stop after o_stop is high.
             -- So we stop when we still have space for more than 20 new 256-bit words in the FIFO.
@@ -260,14 +273,22 @@ begin
                 when vis_addr1 =>
                     aw_fifo_din(31 downto 28) <= "0000"; -- bits 31:28 select the 256 MByte base address; Visibilities go in the low 256 MBytes.
                     aw_fifo_din(27 downto 0) <= fifo_wr_ptr & "0000000000000"; -- the address to write to; fifo_wr_ptr is in units of cells; for visibility data, that is units of 8 kbytes.
-                    aw_fifo_din(39 downto 32) <= "00111111"; -- aw_len = 4 kbytes = 64 x (64 byte words)
+                    if (C_TARGET_DEVICE = "V80") then
+                        aw_fifo_din(39 downto 32) <= "01111111"; -- aw_len = 4 kbytes = 128 x (32 byte words)
+                    else
+                        aw_fifo_din(39 downto 32) <= "00111111"; -- aw_len = 4 kbytes = 64 x (64 byte words)
+                    end if;
                     aw_fifo_we <= '1';
                     set_aw_fsm <= vis_addr2;
                 
                 when vis_addr2 =>
                     aw_fifo_din(31 downto 28) <= "0000"; -- second half of the visibility data;
                     aw_fifo_din(27 downto 0) <= fifo_wr_ptr & "1000000000000"; -- the address to write to; fifo_wr_ptr is in units of cells; for visibility data, that is units of 8 kbytes. This is the second block of 4 kbytes for the cell.
-                    aw_fifo_din(39 downto 32) <= "00111111"; -- aw_len = 4 kbytes = 64 x (64 byte words)
+                    if (C_TARGET_DEVICE = "V80") then
+                        aw_fifo_din(39 downto 32) <= "01111111"; -- aw_len = 4 kbytes = 128 x (32 byte words)
+                    else
+                        aw_fifo_din(39 downto 32) <= "00111111"; -- aw_len = 4 kbytes = 64 x (64 byte words)
+                    end if;
                     aw_fifo_we <= '1';
                     set_aw_fsm <= TCI_Addr;
                 
@@ -275,7 +296,11 @@ begin
                     aw_fifo_din(31 downto 28) <= "0001";  -- TCI data FIFO is offset by 256 Mbytes from the start of the buffer.
                     aw_fifo_din(27 downto 24) <= "0000";  -- Only use 16 Mbytes for the TCI data, since it is 1/16th the size of the visibility data.
                     aw_fifo_din(23 downto 0) <= fifo_wr_ptr & "000000000"; -- 512 bytes per block of data; so 9 zeros in the address.
-                    aw_fifo_din(39 downto 32) <= "00000111";   -- aw_len = 512 bytes = 8 x (64 byte words)
+                    if (C_TARGET_DEVICE = "V80") then
+                        aw_fifo_din(39 downto 32) <= "00001111"; -- aw_len = 512 bytes = 16 x (32 byte words)
+                    else
+                        aw_fifo_din(39 downto 32) <= "00000111"; -- aw_len = 512 bytes = 8 x (64 byte words)
+                    end if;
                     aw_fifo_we <= '1';
 
                     -- update the write pointer;
@@ -312,59 +337,118 @@ begin
     end process;
     
     o_errors <= errors_int;
+    v80_geni : if (C_TARGET_DEVICE = "V80") generate
+
+        -- FIFO to interface to the o_axi_w bus.
+        -- The FIFO has space for 512 x 256 bits = 16384 bytes (+ a few extra control bits for last and trigger)
+        wdata_fifo_i : xpm_fifo_sync
+        generic map (
+            CASCADE_HEIGHT => 0,        -- DECIMAL
+            DOUT_RESET_VALUE => "0",    -- String
+            ECC_MODE => "no_ecc",       -- String
+            FIFO_MEMORY_TYPE => "auto", -- String
+            FIFO_READ_LATENCY => 0,     -- DECIMAL
+            FIFO_WRITE_DEPTH => 512,     -- DECIMAL
+            FULL_RESET_VALUE => 0,      -- DECIMAL
+            PROG_EMPTY_THRESH => 10,    -- DECIMAL
+            PROG_FULL_THRESH => 10,     -- DECIMAL
+            RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
+            READ_DATA_WIDTH => 258,     -- DECIMAL
+            READ_MODE => "fwft",        -- String
+            SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+            USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
+            WAKEUP_TIME => 0,           -- DECIMAL
+            WRITE_DATA_WIDTH => 258,    -- DECIMAL
+            WR_DATA_COUNT_WIDTH => 10   -- DECIMAL
+        ) port map (
+            almost_empty => open,           -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
+            almost_full => open,            -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
+            data_valid => w_fifo_dout_valid,   -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
+            dbiterr => open,                   -- 1-bit output: Double Bit Error
+            dout => w_fifo_dout(257 downto 0), -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
+            empty => open,                  -- 1-bit output: Empty Flag: When asserted, this signal indicates that the FIFO is empty. 
+            full => w_fifo_full,            -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full. 
+            overflow => open,               -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full. 
+            prog_empty => open,             -- 1-bit output: Programmable Empty: 
+            prog_full => open,              -- 1-bit output: Programmable Full: 
+            rd_data_count => open,          -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
+            rd_rst_busy => open,            -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
+            sbiterr => open,                -- 1-bit output: Single Bit Error: 
+            underflow => open,              -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty. 
+            wr_ack => open,                 -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
+            wr_data_count => w_fifo_count,  -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
+            wr_rst_busy => open,            -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
+            din => w_fifo_din(257 downto 0), -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+            injectdbiterr => '0',           -- 1-bit input: Double Bit Error Injection: Injects a double bit error if the ECC feature is used on block RAMs or UltraRAM macros.
+            injectsbiterr => '0',           -- 1-bit input: Single Bit Error Injection: Injects a single bit error if the ECC feature is used on block RAMs or UltraRAM macros.
+            rd_en => i_axi_wready,          -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
+            rst => '0',                     -- 1-bit input: Reset: Must be synchronous to wr_clk. 
+            sleep => '0',                   -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
+            wr_clk => i_axi_clk,            -- 1-bit input: Write clock: Used for write operation. 
+            wr_en => w_fifo_we              -- 1-bit input: Write Enable: If the FIFO is not full, asserting this signal causes data (on din) to be written to the FIFO 
+        );
+        
+        o_axi_w.valid <= w_fifo_dout_valid;
+        o_axi_w.data <= w_fifo_dout(255 downto 0); 
+        o_axi_w.data(511 downto 256) <= (others => '0');
+        o_axi_w.last <= w_fifo_dout(256);
+        
+    end generate;
     
-    -- FIFO to convert the data to 512 bits wide, and interface to the o_axi_w bus.
-    -- The FIFO has space for 32 x 512 bits = 2048 bytes.
-    wdata_fifo_i : xpm_fifo_sync
-    generic map (
-        CASCADE_HEIGHT => 0,        -- DECIMAL
-        DOUT_RESET_VALUE => "0",    -- String
-        ECC_MODE => "no_ecc",       -- String
-        FIFO_MEMORY_TYPE => "auto", -- String
-        FIFO_READ_LATENCY => 0,     -- DECIMAL
-        FIFO_WRITE_DEPTH => 512,     -- DECIMAL
-        FULL_RESET_VALUE => 0,      -- DECIMAL
-        PROG_EMPTY_THRESH => 10,    -- DECIMAL
-        PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
-        READ_DATA_WIDTH => 514,     -- DECIMAL
-        READ_MODE => "fwft",        -- String
-        SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
-        USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
-        WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 514,    -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 10   -- DECIMAL
-    ) port map (
-        almost_empty => open,           -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
-        almost_full => open,            -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
-        data_valid => w_fifo_dout_valid, -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
-        dbiterr => open,                -- 1-bit output: Double Bit Error
-        dout => w_fifo_dout,            -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
-        empty => open,                  -- 1-bit output: Empty Flag: When asserted, this signal indicates that the FIFO is empty. 
-        full => w_fifo_full,            -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full. 
-        overflow => open,               -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full. 
-        prog_empty => open,             -- 1-bit output: Programmable Empty: 
-        prog_full => open,              -- 1-bit output: Programmable Full: 
-        rd_data_count => open,          -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
-        rd_rst_busy => open,            -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
-        sbiterr => open,                -- 1-bit output: Single Bit Error: 
-        underflow => open,              -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty. 
-        wr_ack => open,                 -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
-        wr_data_count => w_fifo_count,  -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
-        wr_rst_busy => open,            -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
-        din => w_fifo_din,              -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
-        injectdbiterr => '0',           -- 1-bit input: Double Bit Error Injection: Injects a double bit error if the ECC feature is used on block RAMs or UltraRAM macros.
-        injectsbiterr => '0',           -- 1-bit input: Single Bit Error Injection: Injects a single bit error if the ECC feature is used on block RAMs or UltraRAM macros.
-        rd_en => i_axi_wready,          -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
-        rst => '0',                    -- 1-bit input: Reset: Must be synchronous to wr_clk. 
-        sleep => '0',                   -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
-        wr_clk => i_axi_clk,            -- 1-bit input: Write clock: Used for write operation. 
-        wr_en => w_fifo_we              -- 1-bit input: Write Enable: If the FIFO is not full, asserting this signal causes data (on din) to be written to the FIFO 
-    );
-    
-    o_axi_w.valid <= w_fifo_dout_valid;
-    o_axi_w.data <= w_fifo_dout(511 downto 0); 
-    o_axi_w.last <= w_fifo_dout(512);
+    u55_geni : IF (C_TARGET_DEVICE = "U55") GENERATE
+        -- FIFO to convert the data to 512 bits wide, and interface to the o_axi_w bus.
+        -- The FIFO has space for 512 x 512 bits = 32768 bytes.
+        wdata_fifo_i : xpm_fifo_sync
+        generic map (
+            CASCADE_HEIGHT => 0,        -- DECIMAL
+            DOUT_RESET_VALUE => "0",    -- String
+            ECC_MODE => "no_ecc",       -- String
+            FIFO_MEMORY_TYPE => "auto", -- String
+            FIFO_READ_LATENCY => 0,     -- DECIMAL
+            FIFO_WRITE_DEPTH => 512,     -- DECIMAL
+            FULL_RESET_VALUE => 0,      -- DECIMAL
+            PROG_EMPTY_THRESH => 10,    -- DECIMAL
+            PROG_FULL_THRESH => 10,     -- DECIMAL
+            RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL
+            READ_DATA_WIDTH => 514,     -- DECIMAL
+            READ_MODE => "fwft",        -- String
+            SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+            USE_ADV_FEATURES => "1707", -- String -- bit 12 enables data valid flag; 
+            WAKEUP_TIME => 0,           -- DECIMAL
+            WRITE_DATA_WIDTH => 514,    -- DECIMAL
+            WR_DATA_COUNT_WIDTH => 10   -- DECIMAL
+        ) port map (
+            almost_empty => open,           -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
+            almost_full => open,            -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
+            data_valid => w_fifo_dout_valid, -- 1-bit output: Read Data Valid: When asserted, this signal indicates that valid data is available on the output bus (dout).
+            dbiterr => open,                -- 1-bit output: Double Bit Error
+            dout => w_fifo_dout,            -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
+            empty => open,                  -- 1-bit output: Empty Flag: When asserted, this signal indicates that the FIFO is empty. 
+            full => w_fifo_full,            -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full. 
+            overflow => open,               -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full. 
+            prog_empty => open,             -- 1-bit output: Programmable Empty: 
+            prog_full => open,              -- 1-bit output: Programmable Full: 
+            rd_data_count => open,          -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
+            rd_rst_busy => open,            -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
+            sbiterr => open,                -- 1-bit output: Single Bit Error: 
+            underflow => open,              -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty. 
+            wr_ack => open,                 -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
+            wr_data_count => w_fifo_count,  -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
+            wr_rst_busy => open,            -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
+            din => w_fifo_din,              -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
+            injectdbiterr => '0',           -- 1-bit input: Double Bit Error Injection: Injects a double bit error if the ECC feature is used on block RAMs or UltraRAM macros.
+            injectsbiterr => '0',           -- 1-bit input: Single Bit Error Injection: Injects a single bit error if the ECC feature is used on block RAMs or UltraRAM macros.
+            rd_en => i_axi_wready,          -- 1-bit input: Read Enable: If the FIFO is not empty, asserting this signal causes data (on dout) to be read from the FIFO. 
+            rst => '0',                    -- 1-bit input: Reset: Must be synchronous to wr_clk. 
+            sleep => '0',                   -- 1-bit input: Dynamic power saving- If sleep is High, the memory/fifo block is in power saving mode.
+            wr_clk => i_axi_clk,            -- 1-bit input: Write clock: Used for write operation. 
+            wr_en => w_fifo_we              -- 1-bit input: Write Enable: If the FIFO is not full, asserting this signal causes data (on din) to be written to the FIFO 
+        );
+        
+        o_axi_w.valid <= w_fifo_dout_valid;
+        o_axi_w.data <= w_fifo_dout(511 downto 0); 
+        o_axi_w.last <= w_fifo_dout(512);
+    end generate;
     
     
     -- FIFO for aw commands.
@@ -476,10 +560,18 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            if w_fifo_dout_valid = '1' and i_axi_wready = '1' and w_fifo_dout(513) = '1' then
-                SPEAD_trigger_rd <= '1';
+            if (C_TARGET_DEVICE = "V80") then
+                if w_fifo_dout_valid = '1' and i_axi_wready = '1' and w_fifo_dout(257) = '1' then
+                    SPEAD_trigger_rd <= '1';
+                else
+                    SPEAD_trigger_rd <= '0';
+                end if;
             else
-                SPEAD_trigger_rd <= '0';
+                if w_fifo_dout_valid = '1' and i_axi_wready = '1' and w_fifo_dout(513) = '1' then
+                    SPEAD_trigger_rd <= '1';
+                else
+                    SPEAD_trigger_rd <= '0';
+                end if;
             end if;
             SPEAD_trigger_rd_Del1 <= SPEAD_trigger_rd;
             
