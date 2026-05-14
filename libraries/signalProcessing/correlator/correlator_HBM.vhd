@@ -389,7 +389,7 @@ begin
         );
         
         o_axi_w.valid <= w_fifo_dout_valid;
-        o_axi_w.data <= w_fifo_dout(255 downto 0); 
+        o_axi_w.data(255 downto 0) <= w_fifo_dout(255 downto 0);
         o_axi_w.data(511 downto 256) <= (others => '0');
         o_axi_w.last <= w_fifo_dout(256);
         
