@@ -630,8 +630,6 @@ begin
             -- Register interface
             i_axi_clk => i_MACE_clk,    -- in std_logic;
             i_axi_rst => i_MACE_rst,    -- in std_logic;
-            i_axi_mosi => c_axi4_lite_mosi_rst, -- in t_axi4_lite_mosi;
-            o_axi_miso => open, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
             -- Data input, common valid signal, expects packets of 4096 samples
