@@ -368,6 +368,7 @@ add_files -fileset sources_1 [glob \
   $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/memory_tdp_64_32_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
   $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd \
   $COMMON_PATH/common/src/vhdl/axi512_to_256_addr.vhd \
@@ -382,6 +383,7 @@ set_property library signal_processing_common [get_files {\
  */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
  */common/src/vhdl/xpm_fifo_wrapper.vhd \
  */common/src/vhdl/memory_tdp_wrapper.vhd \
+ */common/src/vhdl/memory_tdp_64_32_wrapper.vhd \
  */common/src/vhdl/args_axi_terminus.vhd \
  */target_fpga_pkg.vhd \
 }]

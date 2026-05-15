@@ -12,18 +12,17 @@ peripherals:
       - slave_name        : VCStats
         slave_type        : RAM
         number_of_slaves  : 1
-        slave_description : " VC_STATS
-                              This address space arrangement has been optimised for all 3 SPEAD formats, some fields return 0 when not used.
-                              Base Address 0, range 16384 words
-                              2 words per virtual channel, for up to 8192 virtual channels
-                              first word = latest packet number, bits (31:0)
-                              second word = latest packet number, bits (47:32)
-
-                              VC_TABLE
-                              Base Address 32768 words, range 32768
+        slave_description : " VC_STATS \
+                              Base Address 0, range 16384 (4-byte) words \
+                              2 words per virtual channel, for up to 8192 virtual channels \
+                              first word = latest packet number, bits (31:0) \
+                              second word = latest packet number, bits (47:32) \
+                              \
+                              VC_TABLE \
+                              Base Address 32768 words, range 32768 \
                               Virtual channel table. Two copies in addresses 0-16383 and 16384-32767. The table used is determined by a control register in corner turn 1. \
                               The table has enough address space to support up to 8192 virtual channels, \
-                              but the maximum number of virtual channels supported in the correlator is 3072 \
+                              but the maximum number of virtual channels supported in the U55 correlator is 1024, or for the V80 correlator 3072 \
                                    Each entry has 2 words :\
                                     First word : \
                                       bits 7:0   = substation_id, \
@@ -59,7 +58,6 @@ peripherals:
                                       bit  31    = set to '1' to indicate this entry is valid \
                                     Second Word : \
                                       bits (9:0) =  Virtual channel.  \
-                                   
                               "
         fields            :
           - - field_name        : data
@@ -69,7 +67,7 @@ peripherals:
               number_of_fields  : 65536
               interface         : simple
               reset_value       : 0
-              field_description : "Status for each virtual channel."
+              field_description : "Virtual channel table and status for each virtual channel. See detailed description above"
       #################################################################
       - slave_name        : StatCtrl
         slave_type        : reg

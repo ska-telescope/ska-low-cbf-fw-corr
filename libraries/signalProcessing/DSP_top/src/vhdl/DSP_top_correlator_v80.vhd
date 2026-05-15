@@ -314,6 +314,7 @@ begin
         i_axis_tlast     => i_axis_tlast, --  in std_logic;                      
         i_axis_tuser     => i_axis_tuser, --  in (79:0);  -- Timestamp for the packet, from the PTP core
         i_axis_tvalid    => i_axis_tvalid, -- in std_logic;
+        i_100GE_clk      => i_MACE_clk,    -- Single clock used for registers and 100GE interface in the v80
         i_100GE_rst      => eth100G_rst,
         --i_data_rst       => '0',            -- in std_logic;
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
@@ -583,8 +584,6 @@ begin
             i_axi_clk    => i_MACE_clk,   -- in std_logic;
             i_axi_clk_2x => i_MACE_clkx2, -- in std_logic;
             i_axi_rst    => i_MACE_rst,      -- in std_logic;
-            i_axi_mosi => c_axi4_lite_mosi_rst,  -- in t_axi4_lite_mosi;
-            o_axi_miso => open,  -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
             -----------------------------------------

@@ -29,8 +29,6 @@ entity FB_Top_correlator_dummy_v80 is
         -- AXI slave interface, 64k word block of space with the fir filter coefficients.
         i_axi_clk  : in std_logic;
         i_axi_rst  : in std_logic;
-        i_axi_mosi  : in  t_axi4_lite_mosi;
-        o_axi_miso  : out t_axi4_lite_miso;
         -- Configuration (on i_data_clk)
         i_fineDelayDisable : in std_logic;
         -----------------------------------------

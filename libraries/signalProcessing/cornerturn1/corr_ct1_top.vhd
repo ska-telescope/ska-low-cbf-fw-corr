@@ -1706,10 +1706,10 @@ begin
             o_dbgCheckData => dbgCheckData,  -- out t_slv_32_arr(11:0)
             o_dbgBadData   => dbgBadData,     -- out t_slv_32_arr(11:0)
             o_mismatch_set => config_ro.mismatch_set(11 downto 0),  -- out 11:0;
-            i_reset_mismatch => config_rw.reset_mismatch, -- in std_logic
-            o_ar_fsm_dbg => ar_fsm_dbg, --  out std_logic_vector(4 downto 0)
-            o_poly_dbg0 => poly_dbg0, -- out std_logic_vector(31 downto 0);
-            o_poly_dbg1 => poly_dbg1  -- out std_logic_vector(31 downto 0)
+            i_reset_mismatch => config_rw.reset_mismatch  -- in std_logic
+            --o_ar_fsm_dbg => ar_fsm_dbg, --  out std_logic_vector(4 downto 0)
+            --o_poly_dbg0 => poly_dbg0, -- out std_logic_vector(31 downto 0);
+            --o_poly_dbg1 => poly_dbg1  -- out std_logic_vector(31 downto 0)
         );
         config_ro.dbgCheckData0 <= dbgCheckData(0);
         config_ro.dbgCheckData1 <= dbgCheckData(1);

@@ -89,9 +89,6 @@ entity DSP_top_correlator is
         o_LFAA_CT_axi_miso : out t_axi4_lite_miso; --
         i_poly_full_axi_mosi : in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
         o_poly_full_axi_miso : out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
-        -- registers for the filterbanks
-        i_FB_axi_mosi : in t_axi4_lite_mosi;
-        o_FB_axi_miso : out t_axi4_lite_miso;
         -- Registers for the correlator corner turn 
         i_cor_CT_axi_mosi : in t_axi4_lite_mosi;  --
         o_cor_CT_axi_miso : out t_axi4_lite_miso; --
@@ -482,8 +479,6 @@ begin
             i_axi_clk    => i_MACE_clk,   -- in std_logic;
             i_axi_clk_2x => '0', -- in std_logic; This version is only for the U55c, so 2x clock is unused
             i_axi_rst => i_MACE_rst,      -- in std_logic;
-            i_axi_mosi => i_FB_axi_mosi,  -- in t_axi4_lite_mosi;
-            o_axi_miso => o_FB_axi_miso,  -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
             -- Data input, common valid signal, expects packets of 4096 samples
@@ -543,8 +538,6 @@ begin
             -- Register interface
             i_axi_clk => i_MACE_clk,    -- in std_logic;
             i_axi_rst => i_MACE_rst,    -- in std_logic;
-            i_axi_mosi => c_axi4_lite_mosi_rst, -- in t_axi4_lite_mosi;
-            o_axi_miso => open, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
             -- Data input, common valid signal, expects packets of 4096 samples
