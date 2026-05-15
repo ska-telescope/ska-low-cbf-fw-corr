@@ -322,13 +322,17 @@ begin
         -- wdata portion of the AXI-full external interface (should go directly to the external memory)
         o_axi_w      => o_HBM_axi_w(0),      -- w data bus (.wvalid, .wdata, .wlast)
         i_axi_wready => i_HBM_axi_wready(0), -- 
+        -- Second wdata bus for the second half (i.e. 4kBytes) of each packet, used when c_TARGET_DEVICE = "V80"
+        -- 
+        o_axi_w2        => open,
+        i_axi_wready2   => '1',
         -- Second wdata bus for the second half (i.e. 4kBytes) of each packet, used when g_CORRELATOR_V80 = True
         --o_axi_w2      => o_HBM_axi_w(1),      -- out t_axi4_full_data; w data bus (.wvalid, .wdata, .wlast)
         --i_axi_wready2 => i_HBM_axi_wready(1), -- in std_logic;
         --AXI lite Interface
         i_s_axi_mosi       => i_LFAALite_axi_mosi, -- in t_axi4_lite_mosi; at the top level use mc_lite_mosi(c_LFAADecode_lite_index)
         o_s_axi_miso       => o_LFAALite_axi_miso, -- out t_axi4_lite_miso;
-        i_s_axi_clk        => i_MACE_clk,         
+        i_clk        => i_MACE_clk,         
         i_s_axi_rst        => i_MACE_rst,
         -- registers AXI Full interface
         i_vcstats_MM_IN    => i_LFAAFull_axi_mosi, -- in  t_axi4_full_mosi; At the top level use mc_full_mosi(c_LFAAdecode_full_index),
