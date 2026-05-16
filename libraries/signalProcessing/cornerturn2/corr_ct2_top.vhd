@@ -866,7 +866,7 @@ END GENERATE;
     subarray_beam_in.rd_en <= '1';
     subarray_beam_in.clk <= i_axi_clk;
     subarray_beam_in.rst <= '0';
-    subarray_beam_in.adr <= SB_addr;
+    subarray_beam_in.adr <= "00" & SB_addr;
     
     process(i_axi_clk)
         variable dout_SB_sel_v : integer := 0;
