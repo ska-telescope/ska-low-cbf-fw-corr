@@ -125,6 +125,37 @@ constant meta_cache_width       : INTEGER := 1 + 1 + 32 + 8 + 17 + 64 + 13 + 9;
 constant meta_cache_depth       : INTEGER := 64;    -- choosen at random, hopefully not 64 aub arrays waiting to be read.
 constant meta_cache_limit      : integer := 56;
 
+-- array of constants to help with each 256 tile of visibilities.
+-- position 0 = total bytes expected in first 256 vis
+-- position 1 = total bytes expected in first 512 vis
+-- etc
+-- posistions calculated for 2048
+-- correlator only tested working to 1440.
+--
+-- Two arrays, 1 for Half precision (18 bytes), 1 for Full precision (34 bytes).
+--
+-- algo for full precision is N*(N+1)*34/2.
+
+TYPE byte_per_tile_t IS ARRAY (INTEGER RANGE <>) OF UNSIGNED(31 DOWNTO 0);
+constant byte_per_tile_hp       : byte_per_tile_t(0 to 7)  := (32D"592128",
+                                                                32D"2363904",
+                                                                32D"5315328",
+                                                                32D"9446400",
+                                                                32D"14757120",
+                                                                32D"21247488",
+                                                                32D"28917504",
+                                                                32D"37767168"  
+                                                                );
+constant byte_per_tile_fp       : byte_per_tile_t(0 to 7)  := (32D"1118464",
+                                                                32D"4465152",
+                                                                32D"10040064",
+                                                                32D"17843200",
+                                                                32D"27874560",
+                                                                32D"40134144",
+                                                                32D"54621952",
+                                                                32D"71337984"  
+                                                                );
+
 signal meta_cache_fifo_in_reset : std_logic;
 signal meta_cache_fifo_rd       : std_logic;
 signal meta_cache_fifo_q        : std_logic_vector((meta_cache_width-1) downto 0);

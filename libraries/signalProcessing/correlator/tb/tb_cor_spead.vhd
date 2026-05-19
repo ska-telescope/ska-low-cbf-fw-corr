@@ -38,7 +38,7 @@ constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
 constant USE_TEST_CASE      : BOOLEAN := FALSE;
-constant GEN_DATA_END       : BOOLEAN := TRUE;
+constant GEN_DATA_END       : BOOLEAN := FALSE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -108,6 +108,9 @@ signal stim_time_ref            : std_logic_vector(63 downto 0);
 signal ints_since_epoch         : std_logic_vector(31 downto 0);
 signal no_of_283s               : std_logic_vector(1 downto 0);
 signal time_of_int              : std_logic;
+
+signal reset_hbm_readout        : std_logic;
+signal reset_hbm_readout_mux    : std_logic;
 
 signal data_valid               : std_logic := '0';
 
@@ -343,8 +346,8 @@ begin
                 row_count   <= 9D"0";
                 data_valid  <= '0';
             else
-                row         <= "00000" & zero_byte;
-                row_count   <= "000000000";
+                --row         <= "00000" & zero_byte;
+                --row_count   <= "000000000";
                 data_valid  <= '0';
             end if;
             
@@ -468,9 +471,9 @@ begin
                 else
                     interrupt_hbm_rd    <= '0';
                 end if; 
-            end if;
+            --end if;
 
-            if USE_TEST_CASE = FALSE AND (GEN_DATA_END = TRUE) then
+            elsif USE_TEST_CASE = FALSE AND (GEN_DATA_END = TRUE) then
 -- HEAP data size rams
 -- ADDR    Config      Value(inc Epoch offset)
 -- 
@@ -529,27 +532,27 @@ begin
                 elsif stim_count = 13000 then
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"6";
+                    row_count       <= 9D"17";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"5";
+                    stim_sub_array  <= 8D"16";
                     
                     stim_time_ref(31 downto 0)  <= 32D"4";
                     stim_time_ref(33 downto 32) <= "00";
                     stim_time_ref(34)           <= '1';
---                elsif stim_count = 17000 then
---                    -- META DATA FROM CORRELATOR SIM
---                    row             <= 13D"0";
---                    row_count       <= 9D"20";
---                    data_valid      <= '1';
+                elsif stim_count = 15000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"18";
+                    data_valid      <= '1';
     
---                    stim_freq_index <= 17D"1";
---                    stim_sub_array  <= 8D"5";
+                    stim_freq_index <= 17D"1";
+                    stim_sub_array  <= 8D"17";
                     
---                    stim_time_ref(31 downto 0)  <= 32D"3";
---                    stim_time_ref(33 downto 32) <= "01";
---                    stim_time_ref(34)           <= '1';
+                    stim_time_ref(31 downto 0)  <= 32D"3";
+                    stim_time_ref(33 downto 32) <= "01";
+                    stim_time_ref(34)           <= '1';
 --                elsif stim_count = 21000 then
 --                    -- META DATA FROM CORRELATOR SIM
 --                    row             <= 13D"0";
@@ -563,22 +566,77 @@ begin
 --                    stim_time_ref(33 downto 32) <= "10";
 --                    stim_time_ref(34)           <= '1';
     
-                elsif stim_count = 25000 then
+--                elsif stim_count = 18000 then
+--                    -- META DATA FROM CORRELATOR SIM
+--                    row             <= 13D"0";
+--                    row_count       <= 9D"34";
+--                    data_valid      <= '1';
+    
+--                    stim_freq_index <= 17D"0";
+--                    stim_sub_array  <= 8D"33";
+                    
+--                    --stim_table_select  <= '1';
+    
+--                    stim_time_ref(31 downto 0)  <= 32D"3";
+--                    stim_time_ref(33 downto 32) <= "00";
+--                    stim_time_ref(34)           <= '0';
+                
+                
+                elsif stim_count = 21000 then 
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
-                    row_count       <= 9D"32";
+                    row_count       <= 9D"256";
                     data_valid      <= '1';
     
                     stim_freq_index <= 17D"0";
-                    stim_sub_array  <= 8D"31";
-                    
-                    --stim_table_select  <= '1';
+                    stim_sub_array  <= 8D"71";
+                    hbm_start_addr  <= x"00080000";
+                end if;
+
+            elsif USE_TEST_CASE = FALSE AND (GEN_DATA_END = FALSE) then
+
+                hbm_start_addr  <= x"00000000";
+                if stim_count = 35000 then
+                    --stim_count <= 100;
+                elsif clock_300_rst = '0' then
+                    stim_count  <= stim_count + 1;
+                end if;
+
+                if stim_count = 1000 then 
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"0";
+                    row_count       <= 9D"18";
+                    data_valid      <= '1';
     
-                    stim_time_ref(31 downto 0)  <= 32D"3";
-                    stim_time_ref(33 downto 32) <= "00";
-                    stim_time_ref(34)           <= '0';
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"17";
+
+                elsif (stim_count >= 17900) AND (stim_count < 17910) then    
+                    reset_hbm_readout <= '1';
+                elsif stim_count = 18000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"256";
+                    row_count       <= 9D"17";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"100";
+
+                elsif (stim_count >= 33900) AND (stim_count < 33910) then    
+                    reset_hbm_readout <= '1';
+                elsif stim_count = 34000 then
+                    -- META DATA FROM CORRELATOR SIM
+                    row             <= 13D"512";
+                    row_count       <= 9D"17";
+                    data_valid      <= '1';
+    
+                    stim_freq_index <= 17D"0";
+                    stim_sub_array  <= 8D"101";
+                else
+                    reset_hbm_readout <= '0';
                 end if;
             
+                
             end if;
             
             i <= 0;
@@ -635,7 +693,7 @@ begin
     end if;
 end process;
 
-
+reset_hbm_readout_mux   <= (NOT packetiser_enable(0)) OR reset_hbm_readout;
 
 DUT : entity correlator_lib.correlator_data_reader generic map ( 
         DEBUG_ILA           => FALSE
@@ -647,7 +705,7 @@ DUT : entity correlator_lib.correlator_data_reader generic map (
         i_axi_clk           => clock_300,
         i_axi_rst           => clock_300_rst,
 
-        i_local_reset       => NOT packetiser_enable(0),
+        i_local_reset       => reset_hbm_readout_mux, --NOT packetiser_enable(0),
         
         i_packetiser_table_select       => '0',
         i_table_swap_in_progress        => '0',

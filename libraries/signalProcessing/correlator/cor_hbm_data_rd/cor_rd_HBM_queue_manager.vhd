@@ -50,8 +50,8 @@ entity cor_rd_HBM_queue_manager is
         -- HBM config
         i_begin                     : in std_logic;
         i_hbm_base_addr             : in unsigned(31 downto 0);
-        i_row_start                 : in unsigned(12 downto 0);     -- The index of the first row that is available, counts from zero.
-        i_number_of_rows            : in unsigned(8 downto 0);
+        i_row_start                 : in unsigned(12 downto 0);     -- The index of the first row that is available, counts from zero expect 0, 256, 512 etc.
+        i_number_of_rows            : in unsigned(8 downto 0);      -- The number of rows available to be read out. Valid range is 1 to 256.
         o_done                      : out std_logic;
 
         -- Visibility Data FIFO RD interface
@@ -91,30 +91,87 @@ PORT (
     probe0 : IN STD_LOGIC_VECTOR(191 DOWNTO 0));
 END COMPONENT; 
 
-constant META_OFFSET_256MB  : unsigned(31 downto 0) := x"10000000";
+
+-- Cell is 16x16 stations and is written in the following way.
+-- C1
+-- C2 | C3
+-- ...
+-- .....
+-- 
+-- for 257
+-- C1 | C2 | ..... | C16  (Add DATA_TILE_OFFSET to get to final) || C17 (AKA T3 - Cell 1)
+--
+-- Retrieve META and DATA in lots of 16 rows.
+-- Meta is a full retrieve of 16 and data will finish on the exact row.
+
 
 -- This is the address offset for stations > 16,
 -- matrix is stripped, retrieve 512 bytes and if more than 16 then need to add 
--- CELL_OFFSET to get next position.
-constant CELL_OFFSET_ROW    : unsigned(27 downto 0) := x"0002000"; 
+-- DATA_CELL_OFFSET to get next position.
+-- Data Cell = 16 x 16 x 32 bytes = 
+constant DATA_CELL_OFFSET       : unsigned(27 downto 0) := x"000_2000"; 
 
--- TYPE meta_hbm_capture IS ARRAY (INTEGER RANGE <>) OF UNSIGNED(7 DOWNTO 0);
--- constant meta_fifo_wrens : meta_hbm_capture(0 to 15)    := (x"01",
---                                                             x"03",
---                                                             x"07",
---                                                             x"0F",
---                                                             x"4",
---                                                             x"5",
---                                                             x"6",
---                                                             x"7",
---                                                             x"8",
---                                                             x"9",
---                                                             x"A",
---                                                             x"B",
---                                                             x"C",
---                                                             x"D",
---                                                             x"E",
---                                                             x"F");
+-- when reading across Tiles
+-- Tile is 16x16 Cells. And is written in the following way
+-- T1                                                   << 256
+-- T2  | T3                                             << 512
+-- T4  | T5  | T6                                       << 768
+-- T7  | T8  | T9  | T10                                << 1024
+-- T11 | T12 | T13 | T14 | T15                          << 1280
+-- T16 | T17 | T18 | T19 | T20 | T21                    << 1536
+-- T22 | T23 | T24 | T25 | T26 | T27 | T28              << 1792
+-- T29 | T30 | T31 | T32 | T33 | T34 | T35 | T36        << 2048   ADDR PTRs = 0x100_0000 max.
+--
+-- Tiles are stored sequentially in HBM, that means tile 1, then tile 2, tile 3, tile 4, etc.
+-- T2 = 
+-- C1   | C2 | C3 | ..  | C16
+-- C17  |   ......      | C32
+-- ... 
+-- ...
+-- C241 |   ......      | C256
+--
+-- To service a request for 273, expect the following
+-- T2 =                         || T3 = 
+-- C1   | C2 | C3 | ..  | C16   || C1 |
+-- C17  |   ......      | C32   || C2 | C3
+-- ...                          ||
+-- ...                          ||
+-- C241 |   ......      | C256  ||
+--
+-- To service a request for 528, expect the following
+-- T4 =                         || T5 =                         || T6 =
+-- C1   | C2 | C3 | ..  | C16   || C1   | C2 | C3 | ..  | C16   || C1 |
+-- C17  |   ......      | C32   || C17  |   ......      | C32   || C2 | C3
+-- ...                          || ...                          ||
+-- ...                          || ...                          ||
+-- C241 |   ......      | C256  || C241 |   ......      | C256  ||
+--
+--
+-- Worked example of first row of 257
+--
+--
+--
+--
+--
+
+-- The next Tile start address offset is
+-- 16 x 16 x DATA_CELL_OFFSET(0x2000) = 
+constant DATA_TILE_OFFSET       : unsigned(27 downto 0) := x"020_0000"; 
+
+-- Next strip of 16 in a tile offset = 
+-- (16 x 16 x 32) x 16 Cells across
+constant DATA_TILE_STRIPE_OFFSET: unsigned(27 downto 0) := x"002_0000"; 
+
+-- META ----
+-- Meta data starts 256MB after Data.
+constant META_OFFSET_256MB      : unsigned(31 downto 0) := x"10000000";
+
+-- Meta Data has the same approach but data is smaller, 2 bytes instead of 32.
+-- Therefore META_CELL = 16 x 16 x 2 bytes = 512 byets
+constant META_CELL_OFFSET       : unsigned(27 downto 0) := x"0000200";
+-- META_TILE = 16 x 16 x 512 = 131072 bytes
+constant META_TILE_OFFSET       : unsigned(27 downto 0) := x"002_0000";
+
 
 
 -- HBM data from correlator.
@@ -152,10 +209,13 @@ signal hbm_data_sel_cnt       : unsigned(7 downto 0);
 ----------------------------------------------------------------------------
 -- hbm rd signals
 type HBM_reader_fsm_type is     (IDLE, TRACKER, CALC, 
-                                RD_META, RD_META_AR, 
-                                RD_DATA, RD_DATA_AR, 
-                                DATA_2, META_ADDR, DATA_SEL,
-                                CELL_ROW, CHECK, COMPLETE);
+                                GEN_META_INSTRUCTION, META_GET_TILE, META_GET_CELL, META_TILE_JUMP_ADDR,
+                                RD_META, RD_META_AR, CHECK_META, 
+                                GEN_DATA_INSTRUCTION, DATA_GET_TILE, DATA_GET_CELL, 
+                                RD_DATA, RD_DATA_AR, CHECK_DATA,
+                                DATA_SEL,
+                                CELL_ROW, COMPLETE,
+                                GET_STRIP);
 signal HBM_reader_fsm : HBM_reader_fsm_type;
 
 signal hbm_reader_fsm_debug         : std_logic_vector(3 downto 0)  := x"0";
@@ -163,14 +223,18 @@ signal hbm_reader_fsm_debug_d       : std_logic_vector(3 downto 0)  := x"0";
 signal hbm_reader_fsm_debug_cache   : std_logic_vector(3 downto 0)  := x"0";
 
 -- 512 byte rds
+signal meta_data_ptr        : unsigned(27 downto 0) := (others => '0');
 signal meta_data_addr       : unsigned(27 downto 0) := (others => '0');
-signal meta_data_quantity   : unsigned(13 downto 0) := (others => '0');
+signal meta_data_cache      : unsigned(27 downto 0) := (others => '0');
 
+signal vis_data_ptr         : unsigned(27 downto 0) := (others => '0');
 signal vis_data_addr        : unsigned(27 downto 0) := (others => '0');
-signal next_data_addr       : unsigned(27 downto 0) := (others => '0');
-signal vis_base             : unsigned(27 downto 0) := (others => '0');
+signal vis_data_cache       : unsigned(27 downto 0) := (others => '0');
+
+signal vis_loop_cnt         : unsigned(7 downto 0) := (others => '0');
 
 signal curr_data_addr       : unsigned(27 downto 0) := (others => '0');
+signal addr_request         : std_logic_vector(31 downto 0) := (others => '0');
 
 signal hbm_retrieval_trac   : unsigned(7 downto 0) := (others => '0');
 signal hbm_returned_trac    : unsigned(7 downto 0) := (others => '0');
@@ -186,12 +250,10 @@ signal hbm_rd_loop_cnt      : unsigned(3 downto 0);
 signal HBM_axi_data_valid   : std_logic;
 signal HBM_axi_data_last    : std_logic;
 
-signal received_64b         : std_logic;
-
 signal rows_process         : unsigned(8 downto 0);
 signal rows_position        : unsigned(8 downto 0);
-signal cells_required       : unsigned(8 downto 0);
-signal cell_row_requests    : unsigned(6 downto 0);
+signal cells_required       : unsigned(7 downto 0);
+signal cell_row_requests    : unsigned(7 downto 0);
 
 signal reset_combo          : std_logic;
 
@@ -212,6 +274,16 @@ signal current_hbm_requests_stored : unsigned(12 downto 0) := (others => '0');
 
 signal enable_hbm_read      : std_logic;
 signal enable_hbm_read_del  : std_logic;
+
+signal data_stripe_count    : unsigned(7 downto 0) := x"00";
+signal tile_get_tracker     : unsigned(4 downto 0) := "00000";
+signal whole_tiles          : unsigned(7 downto 0) := x"00";
+signal tiles_retrieved      : unsigned(7 downto 0) := x"00";
+
+signal getting_tile         : std_logic;
+signal get_meta_or_data     : std_logic;
+signal meta_cells_working   : unsigned(7 downto 0) := x"00";
+
 
 begin
 
@@ -259,9 +331,6 @@ o_hbm_meta_fifo_rd_count        <= hbm_meta_fifo_rd_count;
 -- 8192 bytes for all the vis.
 -- request the meta, then vis, then loop.
 
-
--- hbm_axi_ar_addr     <=  std_logic_vector(meta_data_addr) when hbm_addr_sel = '0' else
---                         std_logic_vector(vis_data_addr);
 -- number of 64b reads. 512b = 8. minus 1 for bus.
 hbm_axi_ar_len      <= x"07";
 
@@ -317,7 +386,7 @@ begin
             hbm_reader_fsm_debug    <= x"F";
             hbm_reader_fsm_debug_d  <= x"F";
             meta_data_addr      <= (others => '0');
-            meta_data_quantity  <= (others => '0');
+            meta_data_cache     <= (others => '0');
             vis_data_addr       <= (others => '0');
             o_HBM_curr_addr     <= (others => '0');
             meta_ready          <= '0';
@@ -332,8 +401,8 @@ begin
             meta_to_get         <= x"00";
             last_flag_goal      <= x"00";
             hbm_data_sel        <= '0';
-            row_cell_offset     <= CELL_OFFSET_ROW;
-            next_cell_row       <= CELL_OFFSET_ROW(26 downto 0) & '0';
+            row_cell_offset     <= DATA_CELL_OFFSET;
+            next_cell_row       <= DATA_CELL_OFFSET(26 downto 0) & '0';
         else
             
             hbm_reader_fsm_debug_d <= hbm_reader_fsm_debug;
@@ -358,154 +427,328 @@ begin
             -- Get META first, request all the Cells.
             -- This is done at the start.
 
+            -- i_row_start                 : in unsigned(12 downto 0);     -- The index of the first row that is available, counts from zero expect 0, 256, 512 etc.
+            -- i_number_of_rows            : in unsigned(8 downto 0);      -- The number of rows available to be read out. Valid range is 1 to 256.
+
             case HBM_reader_fsm is
                 when IDLE =>
                     hbm_reader_fsm_debug    <= x"0";
                     hbm_data_sel            <= '0';
+
+                    getting_tile            <= '0';
+                    tile_get_tracker        <= 5D"16";
+
                     if i_begin = '1' then
-                        HBM_reader_fsm  <= CHECK;
+                        HBM_reader_fsm  <= GET_STRIP;
                         -- report back current HBM address in use.
                         o_HBM_curr_addr <= std_logic_vector(i_hbm_base_addr);
                     end if;
-                    hbm_rd_loop_cnt     <= x"0";
+                    --hbm_rd_loop_cnt     <= x"0";
                     -- META data always stored in upper half of HBM segment.
-                    meta_data_addr      <= i_hbm_base_addr(31 downto 4); --META_OFFSET_256MB + (x"0" & i_hbm_base_addr(31 downto 4));
-                    vis_data_addr       <= i_hbm_base_addr(27 downto 0);
-                    vis_base            <= i_hbm_base_addr(27 downto 0);
+                    meta_data_ptr       <= i_hbm_base_addr(31 downto 4); -- Start address of the meta data is at (i_hbm_base_addr/16 + 256 Mbytes)
+                    vis_data_ptr        <= i_hbm_base_addr(27 downto 0);
+
+                    -- Upper number of the vis to retrieve, logic starts at 1 and goal seeks to this.
                     rows_process        <= i_number_of_rows;
-                    rows_position       <= 9D"0";
+                    rows_position       <= (others => '0');
+                    -- if less than 256 then not a whole tile is needed
+                    -- if more then that is the number of whole tiles.
+                    whole_tiles         <= "000" & i_row_start(12 downto 8);
+                    tiles_retrieved     <= x"00";
+
                     data_returned_done  <= '0';
 
-                    meta_cells              <= x"00";
-                    meta_cell_inc           <= x"01";
-                    meta_to_get             <= "000" & i_number_of_rows(8 downto 4);
-                    last_flag_goal          <= x"00";
-                    row_cell_offset     <= CELL_OFFSET_ROW;
-                    next_cell_row       <= CELL_OFFSET_ROW(26 downto 0) & '0';
+                    meta_cells          <= x"01";
+
+                    -- if 0 meta, 1 vis data.
+                    get_meta_or_data    <= '0';
+
                 ---------------------------------------------------------------------------------------
-                -- Get meta
+                -- Work out what needs to be retrieved in terms of Tiles and Cells
+                -- Look at Row
+                -- generate META in lots of 16 rows, and DATA in lots of 16 rows or less if not modulo 16.
+                -- meta is retreived in lots of 16 rows and the correct read out is handled in the sub module.
+                -- data is more tricky, for reading across a tile, is reading across a cell which is 16x16
+                -- 16 across by 32 bytes = 512, then add a cell offset of 8192 to get to the next 16 etc.
 
-                when CHECK =>
+                -- META AND DATA ARE DIFFERENT RETREIVAL PATTERNS.
+                -- META gets the whole 16x16
+                -- DATA gets one line of 1x16
+                -- DATA retreival of 257 base lines will be 1 Tile + 1 Cell or 17 Cells.
+                -- Effectively the unit of retrieval for DATA is CELLS as the unwanted baselines 
+                -- in the last CELL retrieved are discarded by follow on logic in the chain.
+
+                -- Big loop
+                -- 16 META
+                -- Wait for DATA, flip the HBM write bit
+                -- Upto 16 Data
+                -- Wait for DATA, flip the HBM write bit
+                -- Back to top.
+
+                when GET_STRIP =>
                     hbm_reader_fsm_debug    <= x"1";
-                -- calculate how many CELLS of META data to be retrieved.
-                    meta_cell_inc           <= meta_cell_inc + 1;
-                    meta_cells              <= meta_cell_inc + meta_cells;
-                    last_flag_goal          <= meta_cell_inc + meta_cells - 1;
 
-                    if meta_to_get = 0 then
-                        HBM_reader_fsm      <= META_ADDR;
-                        meta_cell_inc       <= meta_cells - 1;
+                    -- cells required to retrieve post Tile
+                    cells_required      <= unsigned("000" & rows_process(8 downto 4)) + 1;
+
+
+                    meta_data_addr      <= meta_data_ptr;
+                    vis_data_addr       <= vis_data_ptr;
+
+                    -- working registers for the 16 loop.
+                    meta_to_get         <= x"00";
+                    vis_loop_cnt        <= x"00";
+
+                    HBM_reader_fsm      <= GEN_META_INSTRUCTION;
+                    
+
+                when GEN_META_INSTRUCTION =>
+                    hbm_reader_fsm_debug    <= x"2";
+
+                    if whole_tiles /= tiles_retrieved then
+                        HBM_reader_fsm      <= META_GET_TILE;
+                        getting_tile        <= '1';
+                        tile_get_tracker    <= 5D"16";
+                        -- 128MB of addr space as that is all that is available to Data or Vis
+                        -- take a copy of current pointer to work along the row with.
+                        
+                    -- All tiles preceding the remaining cells acquired
+                    -- get cells
                     else
-                        meta_to_get         <= meta_to_get - 1;
+                        HBM_reader_fsm      <= META_GET_CELL;
+                        getting_tile        <= '0';
                     end if;
+
+                    -- latest TILE ALIGNED Address.
+                    meta_data_cache         <= meta_data_addr;
+
+                when META_GET_TILE =>
+                    hbm_reader_fsm_debug    <= x"3";
+
+                    tile_get_tracker        <= tile_get_tracker - 1;
+
+                    -- pass current pointer, and prepare next loop incr.
+                    addr_request    <= "0001" & std_logic_vector(meta_data_cache);      -- <<< ADD 256MB here.
+                    -- next addr is + 512 for met
+                    meta_data_cache <= meta_data_cache + 512;
+                    -- execute RD
+                    HBM_reader_fsm  <= RD_META;
+
+                    -- if we have generated 16->1 requests, then 0 won't be needed
+                    -- update the pointer to start of next tile
+                    -- incr tiles_retrieved
+                    -- go back to make next instruction.
+                    if tile_get_tracker = 0 then
+                        meta_data_addr  <= meta_data_addr + META_TILE_OFFSET;
+                        tiles_retrieved <= tiles_retrieved + 1;
+                        HBM_reader_fsm  <= META_TILE_JUMP_ADDR;
+                        getting_tile    <= '0';
+                    end if;
+
+                when META_TILE_JUMP_ADDR =>
+                    hbm_reader_fsm_debug    <= x"4";
+
+                    -- if ALL TILES retrieved, then update the pointer to the start of the next 16
+                    -- This is 16 rows (1 Cell below the last transaction) 16 x 16 x 2 x 16 = 8192
+                    if (whole_tiles = tiles_retrieved) then
+                        meta_data_ptr   <= meta_data_ptr + x"2000";
+                    end if;
+
+                    HBM_reader_fsm  <= GEN_META_INSTRUCTION;                    
+
+                when META_GET_CELL =>
+                    hbm_reader_fsm_debug    <= x"5";
+
+                    -- need to retrieve a subset of tile. 
+                    -- 
+                    -- META is stored as a triangle
+                    -- so upto 16 rows = 1
+                    -- upto 32 = 3
+                    -- each subsequent address = +512
+                    -- As we are only processing in lots of 16, get 16 at a time
+                    -- first pass through will be 1, 2, 3, etc as triangle grows as we go down.
 
                     
-                when META_ADDR =>
-                    hbm_reader_fsm_debug    <= x"2";
-                    HBM_reader_fsm          <= RD_META;
-                    curr_data_addr          <= meta_data_addr;
+                    -- execute RD, or Move onto DATA for this set of 16.
+                    if meta_to_get = meta_cells then    -- escape!
+                        -- incr as next loop will be +1
+                        meta_cells <= meta_cells + 1;
+                        HBM_reader_fsm  <= DATA_SEL;
+                    else
+                        meta_to_get <= meta_to_get + 1;
+                        HBM_reader_fsm  <= RD_META;
+                    end if;
+
+
+                    addr_request    <= "0001" & std_logic_vector(meta_data_cache);
+                    -- next addr is + 512 for met
+                    meta_data_cache <= meta_data_cache + 512;
+
+
+
+                ---------------------------------------------------------------------------------------
 
                 when RD_META =>
-                    hbm_reader_fsm_debug    <= x"3";
-                    hbm_axi_ar_addr         <= "0001" & std_logic_vector(curr_data_addr);
+                    hbm_reader_fsm_debug    <= x"6";
+                    
+                    hbm_axi_ar_addr         <= addr_request;
                     hbm_axi_ar_valid        <= '1';
-                        
                     HBM_reader_fsm          <= RD_META_AR;
 
+
                 when RD_META_AR =>
-                    hbm_reader_fsm_debug    <= x"4";
+                    hbm_reader_fsm_debug    <= x"7";
                     if hbm_axi_ar_rdy = '1' then
                         hbm_axi_ar_valid    <= '0';
-                        HBM_reader_fsm      <= DATA_2;
+                        HBM_reader_fsm      <= CHECK_META;
                     end if;
 
-                when DATA_2 => 
-                    hbm_reader_fsm_debug    <= x"5";
-                    meta_data_addr          <= meta_data_addr + 512;
-
-                    if meta_cells = 1 then
-                        HBM_reader_fsm      <= DATA_SEL;
-                        meta_ready          <= '1';
+                when CHECK_META =>
+                    hbm_reader_fsm_debug    <= x"8";
+                    -- in TILE LOOP, return.
+                    if getting_tile = '1' then
+                        HBM_reader_fsm      <= META_GET_TILE;
                     else
-                        HBM_reader_fsm      <= META_ADDR;
-                        meta_cells          <= meta_cells - 1;
+                        HBM_reader_fsm      <= META_GET_CELL;
                     end if;
-                    -- request 8k of data and wait until it is drain to 50% before next loop.
-                    -- elsif unsigned(hbm_data_fifo_rd_count) < 3072 then
-                    --     HBM_reader_fsm      <= CHECK;
-                    -- end if;
+    
+                ---------------------------------------------------------------------------------------
+                ---------------------------------------------------------------------------------------
+                -- META >> DATA >> META >> ..... 
+                -- wait for all transaction to return then move to next retrieval and switch
+                -- the write bits to relevant RAMs.
+                when DATA_SEL =>
+                    hbm_reader_fsm_debug    <= x"9";
+                    --
+                    tiles_retrieved         <= x"00";
+                    --
+                    if hbm_retrieval_trac = hbm_returned_trac then
+                        hbm_data_sel        <= NOT hbm_data_sel;
+                        get_meta_or_data    <= NOT get_meta_or_data;
+
+                        if get_meta_or_data = '0' then
+                            -- if META, we are going to DATA for that Strip of 16
+                            HBM_reader_fsm      <= GEN_DATA_INSTRUCTION;
+                            data_stripe_count   <= x"00";
+                        else
+                            -- if NOT, DATA must be done so time to look for next 16.
+                            HBM_reader_fsm      <= GET_STRIP;
+                        end if;
+                    end if;
 
                 ---------------------------------------------------------------------------------------
-                -- wait for META, then toggle write flag
-                when DATA_SEL =>
-                    hbm_reader_fsm_debug    <= x"6";
-                    if hbm_retrieval_trac = hbm_returned_trac then
-                        hbm_data_sel        <= '1';
-                        HBM_reader_fsm      <= TRACKER;
-                    end if;
-
-
                 ---------------------------------------------------------------------------------------
                 -- Get visibilities
-                when CELL_ROW =>
-                    hbm_reader_fsm_debug    <= x"C";
-                    if std_logic_vector(rows_position(3 downto 0)) = x"0" then
-                        row_cell_offset     <= row_cell_offset + next_cell_row;
-                        next_cell_row       <= next_cell_row + CELL_OFFSET_ROW;
-                        vis_data_addr       <= row_cell_offset + vis_base;
-                        
-                    end if;
-                    HBM_reader_fsm          <= TRACKER;
-                
-                
-                when TRACKER =>
-                    hbm_reader_fsm_debug    <= x"7";
+                when GEN_DATA_INSTRUCTION => 
+                    hbm_reader_fsm_debug    <= x"A";
 
-                    meta_ready              <= '0';
-                    -- if position = number of rows then exit
                     if rows_position = rows_process then
                         HBM_reader_fsm      <= COMPLETE;
+                    elsif data_stripe_count = 16 then
+                        HBM_reader_fsm      <= DATA_SEL;
+                        -- update ptr to next stripe
+                        vis_data_ptr        <= vis_data_ptr + DATA_TILE_STRIPE_OFFSET;
                     else
-                        HBM_reader_fsm      <= CALC;
-                        rows_position       <= rows_position + 1;
-                        next_data_addr      <= vis_data_addr;
-                        curr_data_addr      <= vis_data_addr;
-                        cells_required      <= unsigned("0000" & rows_position(8 downto 4)) + 1;
-                    end if;
-                    cell_row_requests       <= (others => '0');
 
-                when CALC =>
-                    hbm_reader_fsm_debug    <= x"8";
-                    -- this is wrapping around and used as an exit condition.
-                    if cells_required = cell_row_requests then
-                        HBM_reader_fsm      <= CELL_ROW;
-                        vis_data_addr       <= vis_data_addr + 512;     -- increment to next row offset.
+                        if whole_tiles /= tiles_retrieved then
+                            HBM_reader_fsm      <= DATA_GET_TILE;
+                            getting_tile        <= '1';
+                            tile_get_tracker    <= 5D"16";
+                            -- 128MB of addr space as that is all that is available to Data or Vis
+                            -- take a copy of current pointer to work along the row with.
+                            
+                            -- latest TILE ALIGNED Address.
+                            vis_data_cache      <= vis_data_addr;
+
+                        else
+                            HBM_reader_fsm      <= DATA_GET_CELL;
+                            getting_tile        <= '0';
+                            rows_position       <= rows_position + 1;
+                            cells_required      <= unsigned("000" & rows_position(8 downto 4)) + 1;
+                            cell_row_requests   <= x"00";
+                        end if;
+
+
+
+                    end if;
+
+                when DATA_GET_TILE =>
+                    hbm_reader_fsm_debug    <= x"B";
+
+                    tile_get_tracker        <= tile_get_tracker - 1;
+
+                    -- pass current pointer, and prepare next loop incr.
+                    addr_request    <= "0000" & std_logic_vector(vis_data_cache); 
+                    -- next addr is + 8192 for data row in next CELL.
+                    vis_data_cache  <= vis_data_cache + 8192;
+                    -- execute RD
+                    HBM_reader_fsm  <= RD_DATA;
+
+                    -- if we have generated 16->1 requests, then 0 won't be needed
+                    -- update the pointer to start of next tile
+                    -- incr tiles_retrieved
+                    -- go back to make next instruction.
+                    if tile_get_tracker = 0 then
+                        vis_data_addr   <= vis_data_addr + DATA_TILE_OFFSET;
+                        tiles_retrieved <= tiles_retrieved + 1;
+                        HBM_reader_fsm  <= GEN_DATA_INSTRUCTION;
+                        getting_tile    <= '0';
+                    end if;
+                
+
+                when DATA_GET_CELL =>
+                    hbm_reader_fsm_debug    <= x"D";
+                    -- need to retrieve a subset of tile.(stripe)
+                    -- 
+                    -- First pass thru will be 16 rows 1 cell   (512)
+                    -- 2nd pass thru will be 16 rows 2 cells    (512 + 8192)
+                    -- etc
+                    
+                    -- execute RDs required for line based on cells.
+                    if cells_required = cell_row_requests then    -- escape!
+                        HBM_reader_fsm      <= GEN_DATA_INSTRUCTION;
                     else
                         cell_row_requests   <= cell_row_requests + 1;
                         HBM_reader_fsm      <= RD_DATA;
-                        curr_data_addr      <= next_data_addr;
-                        next_data_addr      <= next_data_addr + CELL_OFFSET_ROW;   -- the next row is 8192 bytes away in the next cell.  
                     end if;
+
+
+                    addr_request    <= "0000" & std_logic_vector(vis_data_cache);
+                    -- next addr is + 512 for met
+                    vis_data_cache  <= vis_data_cache + 512;
+
+
+                ---------------------------------------------------------------------------------------
+                -- VIS FSM SECTION
 
                 when RD_DATA =>
                     hbm_reader_fsm_debug    <= x"9";
                     
                     if (enable_hbm_read_del = '1') then
-                        hbm_axi_ar_addr         <= "0000" & std_logic_vector(curr_data_addr);
+                        hbm_axi_ar_addr         <= addr_request;
                         hbm_axi_ar_valid        <= '1';
-    
+
                         HBM_reader_fsm          <= RD_DATA_AR;
                     end if;
-
 
                 when RD_DATA_AR =>
                     hbm_reader_fsm_debug    <= x"A";
                     if hbm_axi_ar_rdy = '1' then
                         hbm_axi_ar_valid    <= '0';
 
-                        HBM_reader_fsm      <= CALC;
+                        HBM_reader_fsm      <= CHECK_DATA;
                     end if;
 
+                when CHECK_DATA =>
+                    -- in TILE LOOP, return.
+                    if getting_tile = '1' then
+                        HBM_reader_fsm      <= DATA_GET_TILE;
+                    else
+                        HBM_reader_fsm      <= DATA_GET_CELL;
+                    end if;
+
+                ---------------------------------------------------------------------------------------
+                ---------------------------------------------------------------------------------------
 
                 when COMPLETE =>
                     hbm_reader_fsm_debug    <= x"B";
@@ -525,29 +768,7 @@ begin
 end process;
 
 ---------------------------------------------------------------------------
--- DATA cache
--- DATA is requested in lots of 16x16.
--- meta data comes first, count the last flags to match the requests above.
---
-
--- received_64b    <= '1' when i_HBM_axi_r.valid = '1' AND i_HBM_axi_r.last = '1' else '0';
-
--- hbm_sel_proc : process(clk)
--- begin
---     if rising_edge(clk) then
---         if  (HBM_reader_fsm = IDLE) then
---             hbm_data_sel        <= '0';
---         elsif (received_64b = '1') AND last_flag_goal = hbm_data_sel_cnt then
---             hbm_data_sel        <= '1'; 
---         end if;
-
---         if  (HBM_reader_fsm = IDLE) then
---             hbm_data_sel_cnt    <= x"00";
---         elsif (received_64b = '1') then
---             hbm_data_sel_cnt    <= hbm_data_sel_cnt + 1;
---         end if;
---     end if;
--- end process;
+-- DATA and META Cache.
 
     o_fifo_in_rst       <= hbm_data_fifo_in_reset;
 
@@ -605,64 +826,6 @@ end process;
             i_next_meta         => hbm_meta_fifo_rd,
             o_data_out          => hbm_meta_fifo_q
         );
-
--- constant META_FIFO_WRITE_WIDTH : integer := 32;
--- constant META_FIFO_READ_WIDTH  : integer := 64;
--- constant META_FIFO_WRITE_DEPTH : integer := 512;
--- constant META_FIFO_READ_DEPTH  : integer := FIFO_WRITE_DEPTH*WRITE_DATA_WIDTH/READ_DATA_WIDTH;
-
-    -- hbm_meta_cache_fifo : xpm_fifo_sync
-    --     generic map (
-    --         DOUT_RESET_VALUE    => "0",    
-    --         ECC_MODE            => "no_ecc",
-    --         FIFO_MEMORY_TYPE    => "block", 
-    --         FIFO_READ_LATENCY   => 0,
-    --         WRITE_DATA_WIDTH    => META_FIFO_WRITE_WIDTH,     
-    --         FIFO_WRITE_DEPTH    => 64,     
-    --         FULL_RESET_VALUE    => 0,      
-    --         PROG_EMPTY_THRESH   => 0,    
-    --         PROG_FULL_THRESH    => 0,     
-    --         READ_MODE           => "fwft",  
-    --         SIM_ASSERT_CHK      => 0,      
-    --         USE_ADV_FEATURES    => "1404", 
-    --         WAKEUP_TIME         => 0,      
-    --         RD_DATA_COUNT_WIDTH => ((ceil_log2(META_FIFO_READ_DEPTH))+1),  
-    --         READ_DATA_WIDTH     => META_FIFO_READ_WIDTH,      
-    --         WR_DATA_COUNT_WIDTH => ((ceil_log2(META_FIFO_WRITE_DEPTH))+1)   
-    --     )
-    --     port map (
-    --         rst           => i_fifo_reset, 
-    --         wr_clk        => clk, 
-    --         rd_rst_busy   => hbm_meta_rd_rst_busy,
-    --         wr_rst_busy   => hbm_meta_wr_rst_busy,
-
-    --         --------------------------------
-    --         --rd_data_count => op, 
-    --         rd_en         => hbm_meta_fifo_rd,  
-    --         dout          => hbm_meta_fifo_q,
-    --         empty         => hbm_meta_fifo_empty,
-    --         rd_data_count => hbm_meta_fifo_rd_count,
-    --         data_valid    => open,   
-    --         --------------------------------        
-    --         wr_data_count => open,
-    --         wr_en         => hbm_meta_fifo_wr,
-    --         din           => hbm_meta_fifo_data,
-    --         full          => open,
-
-    --         almost_empty  => open,  
-    --         almost_full   => open,
-    --         dbiterr       => open, 
-    --         overflow      => open,
-    --         prog_empty    => open, 
-    --         prog_full     => open,
-
-    --         sbiterr       => open,
-    --         underflow     => open,
-    --         wr_ack        => open,
-    --         sleep         => '0',         
-    --         injectdbiterr => '0',     
-    --         injectsbiterr => '0'        
-    --     );
 
 ---------------------------------------------------------------------------
 -- debug
