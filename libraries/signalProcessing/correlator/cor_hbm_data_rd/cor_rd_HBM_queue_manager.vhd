@@ -284,6 +284,9 @@ signal getting_tile         : std_logic;
 signal get_meta_or_data     : std_logic;
 signal meta_cells_working   : unsigned(7 downto 0) := x"00";
 
+signal debug_data_tile_req_cnt  : unsigned(7 downto 0) := x"00";
+signal debug_data_cell_req_cnt  : unsigned(7 downto 0) := x"00";
+
 
 begin
 
@@ -375,6 +378,25 @@ begin
         end if;
         
         enable_hbm_read_del <= enable_hbm_read;
+    end if;
+end process;
+
+debug_proc: process (clk)
+begin
+    if rising_edge(clk) then
+        if reset = '1' then
+            debug_data_tile_req_cnt <= x"00";
+            debug_data_cell_req_cnt <= x"00";
+        end if;
+
+        if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') AND (get_meta_or_data = '1' AND getting_tile = '1') then
+            debug_data_tile_req_cnt <= debug_data_tile_req_cnt + 1;
+        end if;
+
+        if (hbm_axi_ar_valid = '1' AND hbm_axi_ar_rdy = '1') AND (get_meta_or_data = '1' AND getting_tile = '0') then
+            debug_data_cell_req_cnt <= debug_data_cell_req_cnt + 1;
+        end if;
+
     end if;
 end process;
 
@@ -679,8 +701,7 @@ begin
 
                     -- pass current pointer, and prepare next loop incr.
                     addr_request    <= "0000" & std_logic_vector(vis_data_cache); 
-                    -- next addr is + 8192 for data row in next CELL.
-                    vis_data_cache  <= vis_data_cache + 8192;
+
                     -- execute RD
                     HBM_reader_fsm  <= RD_DATA;
 
@@ -693,6 +714,9 @@ begin
                         tiles_retrieved <= tiles_retrieved + 1;
                         HBM_reader_fsm  <= GEN_DATA_INSTRUCTION;
                         getting_tile    <= '0';
+                    else
+                        -- next addr is + 8192 for data row in next CELL.
+                        vis_data_cache  <= vis_data_cache + 8192;
                     end if;
                 
 
@@ -707,6 +731,9 @@ begin
                     -- execute RDs required for line based on cells.
                     if cells_required = cell_row_requests then    -- escape!
                         HBM_reader_fsm      <= GEN_DATA_INSTRUCTION;
+                        -- reset tiles counter for next ROW.
+                        tiles_retrieved         <= x"00";
+                        --
                     else
                         cell_row_requests   <= cell_row_requests + 1;
                         HBM_reader_fsm      <= RD_DATA;

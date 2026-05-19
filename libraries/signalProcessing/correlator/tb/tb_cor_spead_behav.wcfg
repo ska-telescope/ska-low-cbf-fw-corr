@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.063334 us"></ZoomStartTime>
-      <ZoomEndTime time="257.863335 us"></ZoomEndTime>
-      <Cursor1Time time="94.063334 us"></Cursor1Time>
+      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
+      <ZoomEndTime time="701.000001 us"></ZoomEndTime>
+      <Cursor1Time time="203.532930 us"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="273"></NameColumnWidth>
-      <ValueColumnWidth column_width="77"></ValueColumnWidth>
+      <ValueColumnWidth column_width="73"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="754" />
+   <WVObjectSize size="773" />
    <wvobject fp_name="divider835" type="divider">
       <obj_property name="label">f2f</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -137,6 +137,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_sub_array">
       <obj_property name="ElementShortName">i_sub_array[7:0]</obj_property>
       <obj_property name="ObjectShortName">i_sub_array[7:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/i_freq_index">
       <obj_property name="ElementShortName">i_freq_index[16:0]</obj_property>
@@ -308,6 +309,10 @@
       <obj_property name="ElementShortName">debug_instruction_writes[31:0]</obj_property>
       <obj_property name="ObjectShortName">debug_instruction_writes[31:0]</obj_property>
    </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_wr_count">
+      <obj_property name="ElementShortName">hbm_data_fifo_wr_count[12:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_data_fifo_wr_count[12:0]</obj_property>
+   </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/HBM_axi_ar">
       <obj_property name="ElementShortName">HBM_axi_ar</obj_property>
       <obj_property name="ObjectShortName">HBM_axi_ar</obj_property>
@@ -316,6 +321,65 @@
    <wvobject type="logic" fp_name="/tb_cor_spead/HBM_axi_arready">
       <obj_property name="ElementShortName">HBM_axi_arready</obj_property>
       <obj_property name="ObjectShortName">HBM_axi_arready</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_cells">
+      <obj_property name="ElementShortName">meta_cells[7:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_cells[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_cell_inc">
+      <obj_property name="ElementShortName">meta_cell_inc[7:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_cell_inc[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_to_get">
+      <obj_property name="ElementShortName">meta_to_get[7:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_to_get[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_data_ptr">
+      <obj_property name="ElementShortName">meta_data_ptr[27:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_ptr[27:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_data_addr">
+      <obj_property name="ElementShortName">meta_data_addr[27:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_addr[27:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/meta_data_cache">
+      <obj_property name="ElementShortName">meta_data_cache[27:0]</obj_property>
+      <obj_property name="ObjectShortName">meta_data_cache[27:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/whole_tiles">
+      <obj_property name="ElementShortName">whole_tiles[7:0]</obj_property>
+      <obj_property name="ObjectShortName">whole_tiles[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/tiles_retrieved">
+      <obj_property name="ElementShortName">tiles_retrieved[7:0]</obj_property>
+      <obj_property name="ObjectShortName">tiles_retrieved[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/tile_get_tracker">
+      <obj_property name="ElementShortName">tile_get_tracker[4:0]</obj_property>
+      <obj_property name="ObjectShortName">tile_get_tracker[4:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/getting_tile">
+      <obj_property name="ElementShortName">getting_tile</obj_property>
+      <obj_property name="ObjectShortName">getting_tile</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/get_meta_or_data">
+      <obj_property name="ElementShortName">get_meta_or_data</obj_property>
+      <obj_property name="ObjectShortName">get_meta_or_data</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/debug_data_tile_req_cnt">
+      <obj_property name="ElementShortName">debug_data_tile_req_cnt[7:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_data_tile_req_cnt[7:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/debug_data_cell_req_cnt">
+      <obj_property name="ElementShortName">debug_data_cell_req_cnt[7:0]</obj_property>
+      <obj_property name="ObjectShortName">debug_data_cell_req_cnt[7:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/addr_request">
+      <obj_property name="ElementShortName">addr_request[31:0]</obj_property>
+      <obj_property name="ObjectShortName">addr_request[31:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_retrieval_trac">
       <obj_property name="ElementShortName">hbm_retrieval_trac[7:0]</obj_property>
@@ -331,9 +395,27 @@
       <obj_property name="ElementShortName">HBM_axi_r</obj_property>
       <obj_property name="ObjectShortName">HBM_axi_r</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/received_64b">
-      <obj_property name="ElementShortName">received_64b</obj_property>
-      <obj_property name="ObjectShortName">received_64b</obj_property>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/data_stripe_count">
+      <obj_property name="ElementShortName">data_stripe_count[7:0]</obj_property>
+      <obj_property name="ObjectShortName">data_stripe_count[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/rows_process">
+      <obj_property name="ElementShortName">rows_process[8:0]</obj_property>
+      <obj_property name="ObjectShortName">rows_process[8:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/rows_position">
+      <obj_property name="ElementShortName">rows_position[8:0]</obj_property>
+      <obj_property name="ObjectShortName">rows_position[8:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/cells_required">
+      <obj_property name="ElementShortName">cells_required[7:0]</obj_property>
+      <obj_property name="ObjectShortName">cells_required[7:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/cell_row_requests">
+      <obj_property name="ElementShortName">cell_row_requests[7:0]</obj_property>
+      <obj_property name="ObjectShortName">cell_row_requests[7:0]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/cor_read_cells">
       <obj_property name="ElementShortName">cor_read_cells[15:0]</obj_property>
