@@ -599,12 +599,14 @@ begin
                     else
                         meta_to_get <= meta_to_get + 1;
                         HBM_reader_fsm  <= RD_META;
+
+                        -- next addr is + 512 for met
+                        meta_data_cache <= meta_data_cache + 512;
                     end if;
 
 
                     addr_request    <= "0001" & std_logic_vector(meta_data_cache);
-                    -- next addr is + 512 for met
-                    meta_data_cache <= meta_data_cache + 512;
+
 
 
 
@@ -657,6 +659,9 @@ begin
                             HBM_reader_fsm      <= GET_STRIP;
                         end if;
                     end if;
+
+                    -- trigger META FSM after first pass.
+                    meta_ready <= '1';
 
                 ---------------------------------------------------------------------------------------
                 ---------------------------------------------------------------------------------------
@@ -737,12 +742,13 @@ begin
                     else
                         cell_row_requests   <= cell_row_requests + 1;
                         HBM_reader_fsm      <= RD_DATA;
+
+                        -- next addr is + 512 for vis
+                        vis_data_cache  <= vis_data_cache + 512;
                     end if;
 
 
                     addr_request    <= "0000" & std_logic_vector(vis_data_cache);
-                    -- next addr is + 512 for met
-                    vis_data_cache  <= vis_data_cache + 512;
 
 
                 ---------------------------------------------------------------------------------------

@@ -25,15 +25,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000000 us"></ZoomStartTime>
-      <ZoomEndTime time="701.000001 us"></ZoomEndTime>
-      <Cursor1Time time="203.532930 us"></Cursor1Time>
+      <ZoomStartTime time="13,084.500 ns"></ZoomStartTime>
+      <ZoomEndTime time="13,735.001 ns"></ZoomEndTime>
+      <Cursor1Time time="13,420.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="273"></NameColumnWidth>
-      <ValueColumnWidth column_width="73"></ValueColumnWidth>
+      <NameColumnWidth column_width="272"></NameColumnWidth>
+      <ValueColumnWidth column_width="66"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="773" />
+   <WVObjectSize size="778" />
    <wvobject fp_name="divider835" type="divider">
       <obj_property name="label">f2f</obj_property>
       <obj_property name="DisplayName">label</obj_property>
@@ -394,6 +394,7 @@
    <wvobject type="array" fp_name="/tb_cor_spead/HBM_axi_r">
       <obj_property name="ElementShortName">HBM_axi_r</obj_property>
       <obj_property name="ObjectShortName">HBM_axi_r</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/data_stripe_count">
       <obj_property name="ElementShortName">data_stripe_count[7:0]</obj_property>
@@ -431,6 +432,18 @@
       <obj_property name="ElementShortName">cells_to_retrieve[16:0]</obj_property>
       <obj_property name="ObjectShortName">cells_to_retrieve[16:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/vis_data_ptr">
+      <obj_property name="ElementShortName">vis_data_ptr[27:0]</obj_property>
+      <obj_property name="ObjectShortName">vis_data_ptr[27:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/vis_data_addr">
+      <obj_property name="ElementShortName">vis_data_addr[27:0]</obj_property>
+      <obj_property name="ObjectShortName">vis_data_addr[27:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/RD_manager/vis_data_cache">
+      <obj_property name="ElementShortName">vis_data_cache[27:0]</obj_property>
+      <obj_property name="ObjectShortName">vis_data_cache[27:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/RD_manager/hbm_data_fifo_wr">
       <obj_property name="ElementShortName">hbm_data_fifo_wr</obj_property>
@@ -1445,6 +1458,14 @@
    <wvobject type="array" fp_name="/tb_cor_spead/DUT/packed_fifo_data">
       <obj_property name="ElementShortName">packed_fifo_data[511:0]</obj_property>
       <obj_property name="ObjectShortName">packed_fifo_data[511:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/picked_hp_fifo_data">
+      <obj_property name="ElementShortName">picked_hp_fifo_data[271:0]</obj_property>
+      <obj_property name="ObjectShortName">picked_hp_fifo_data[271:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/tb_cor_spead/DUT/hbm_meta_fifo_q">
+      <obj_property name="ElementShortName">hbm_meta_fifo_q[31:0]</obj_property>
+      <obj_property name="ObjectShortName">hbm_meta_fifo_q[31:0]</obj_property>
    </wvobject>
    <wvobject type="logic" fp_name="/tb_cor_spead/DUT/packed_fifo_wr">
       <obj_property name="ElementShortName">packed_fifo_wr</obj_property>
