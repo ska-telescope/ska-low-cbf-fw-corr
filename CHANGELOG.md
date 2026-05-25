@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 1.0.4
+    * Fix - Half precision for 1,2,or 3 station data packets.
 * 1.0.3
     * Requires Processor 0.23.3+
     * Half precision (16-bit) Visibility data available for SPEAD DATA packets.
