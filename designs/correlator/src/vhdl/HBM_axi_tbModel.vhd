@@ -270,7 +270,7 @@ architecture Behavioral of HBM_axi_tbModel is
     end protected MemoryPType;
     
     type MemoryPType is protected body
-        type MemBlockType    is array (0 to 1023) of integer;  -- Each memory block allocated is 1024 integers, to store 4096 bytes.
+        type MemBlockType    is array (0 to 2047) of integer;  -- Each memory block allocated is 1024 integers, to store 4096 bytes.
         type MemBlockPtrType is access MemBlockType;
         type MemArrayType    is array (0 to (2**(AXI_ADDR_WIDTH-BLOCK_WIDTH) - 1)) of MemBlockPtrType ;
         
@@ -412,7 +412,7 @@ architecture Behavioral of HBM_axi_tbModel is
                         memArray(memAddrInt4096)(lineBase + wordCount) := to_integer(signed(memData));
                         wordCount := wordCount + 1;
 
-                        --report "meminit : data " & to_hstring(memData) & "|| Addr 4K || " & to_hstring(memAddr) & " || linebase offset || " & integer'image(lineBase)  & " || wordcount offset || " & integer'image(wordCount); 
+                        report "meminit : data " & to_hstring(memData) & "|| Addr 4K || " & to_hstring(memAddr) & " || linebase offset || " & integer'image(lineBase)  & " || wordcount offset || " & integer'image(wordCount); 
                     end if;
                 end loop;
                 
