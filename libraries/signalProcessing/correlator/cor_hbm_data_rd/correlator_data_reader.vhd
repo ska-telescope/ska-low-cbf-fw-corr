@@ -888,7 +888,7 @@ begin
                         reset_cache_fifos   <= '0';
                         
                         -- delay for pipeline processing after last vis for isntruction written.
-                        if pack_it_count = 8 then
+                        if pack_it_count = 12 then
                             if (cache_fifos_in_reset = '0') AND (reset_cache_fifos = '0') AND (packed_fifo_empty = '1')then
                                 pack_it_fsm         <= IDLE;
                             end if;
