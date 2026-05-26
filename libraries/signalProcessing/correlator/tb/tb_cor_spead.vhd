@@ -31,14 +31,14 @@ constant fname          : string := "";
 -- assuming stim in base of repo for the moment.
 --constant init_fname     : string := "../../../../../../../HBM_read_out_test_triangle.txt";
 
-constant g_TEST_CASE        : string := "../../../../../../../low-cbf-model/src_atomic/run_cor_1sa_17stations/";
+constant g_TEST_CASE        : string := "../../../../../../../";
 --constant g_VIS_CHECK_FILE   : string := "LTA_vis_check.txt";
-constant g_VIS_CHECK_FILE   : string := "hbm_default_layout.txt";
+constant g_VIS_CHECK_FILE   : string := "fpga_init.txt";
 
 constant init_fname         : string := g_TEST_CASE & g_VIS_CHECK_FILE;
 
 constant USE_TEST_CASE      : BOOLEAN := FALSE;
-constant GEN_DATA_END       : BOOLEAN := TRUE;
+constant GEN_DATA_END       : BOOLEAN := FALSE;
 
 constant HBM_addr_width         : integer := 32;
 
@@ -595,7 +595,7 @@ begin
 
             elsif USE_TEST_CASE = FALSE AND (GEN_DATA_END = FALSE) then
 
-                hbm_start_addr  <= x"00000000";
+                
                 if stim_count = 35000 then
                     --stim_count <= 100;
                 elsif clock_300_rst = '0' then
@@ -603,6 +603,7 @@ begin
                 end if;
 
                 if stim_count = 1000 then 
+                    hbm_start_addr  <= x"00000000";
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"0";
                     row_count       <= 9D"18";
@@ -614,6 +615,7 @@ begin
                 elsif (stim_count >= 17900) AND (stim_count < 17910) then    
                     reset_hbm_readout <= '1';
                 elsif stim_count = 18000 then
+                    hbm_start_addr  <= x"0011_0000";
                     -- META DATA FROM CORRELATOR SIM
                     row             <= 13D"256";
                     row_count       <= 9D"17";
