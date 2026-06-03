@@ -305,12 +305,7 @@ begin
     
     -- Dump to HBM
     icdump : entity correlator_lib.correlator_HBM
-    generic map (
-        -- Number of samples in most packets. Each sample is 34 bytes of data. 
-        -- The last packet in a subarray will typically have less samples, since a given subarray 
-        -- does not have any particular total length.
-        g_PACKET_SAMPLES_DIV16 => g_PACKET_SAMPLES_DIV16  -- : integer  
-    ) Port map ( 
+    Port map ( 
         i_axi_clk   => i_axi_clk, -- in std_logic;
         i_axi_rst   => i_axi_rst, -- in std_logic;
         ----------------------------------------------------------------------------------------

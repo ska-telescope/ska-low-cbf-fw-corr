@@ -9,11 +9,12 @@
 -- 
 ----------------------------------------------------------------------------------
 
-library IEEE, correlator_lib, common_lib;
+library IEEE, correlator_lib, common_lib, signal_processing_common;
 use IEEE.STD_LOGIC_1164.ALL;
 USE common_lib.common_pkg.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use correlator_lib.cmac_pkg.ALL;
+use signal_processing_common.target_fpga_pkg.ALL;
 
 entity cmac_quad_wrapper is
     port(
@@ -162,86 +163,168 @@ begin
     end process;
 
 
-    cmac_XX : entity correlator_lib.cmac
-    generic map (
-        g_ACCUM_WIDTH     => 24, -- natural := 24;
-        g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
-        g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
-    ) port map (
-        i_clk       => i_clk, -- in std_logic;
-        i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
-
-        i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
-        i_row_real  => i_row_data(7 downto 0),  -- in std_logic_vector(7 downto 0);
-        i_row_imag  => i_row_data(15 downto 8), -- in std_logic_vector(7 downto 0);
+    gen_u55_cmac : IF (C_TARGET_DEVICE = "U55") GENERATE
+    
+        cmac_XX : entity correlator_lib.cmac
+        generic map (
+            g_ACCUM_WIDTH     => 24, -- natural := 24;
+            g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
+            g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+    
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(7 downto 0),  -- in std_logic_vector(7 downto 0);
+            i_row_imag  => i_row_data(15 downto 8), -- in std_logic_vector(7 downto 0);
+            
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(7 downto 0),  --  in std_logic_vector(7 downto 0);
+            i_col_imag  => i_col_data(15 downto 8), --  in std_logic_vector(7 downto 0);
+    
+            -- Readout interface. Readout pulses high 5 clocks after i_<col|row>.last
+            o_readout_vld  => XX_vld, -- out std_logic;
+            o_readout_data => XX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
+    
+        cmac_XY : entity correlator_lib.cmac
+        generic map (
+            g_ACCUM_WIDTH     => 24, -- natural := 24;
+            g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
+            g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(7 downto 0),  -- in (7:0);
+            i_row_imag  => i_row_data(15 downto 8), -- in (7:0);
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(23 downto 16),  --  in (7:0);
+            i_col_imag  => i_col_data(31 downto 24), --  in (7:0);
+            -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
+            o_readout_vld  => XY_vld, -- out std_logic;
+            o_readout_data => XY_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
+    
+        cmac_YX : entity correlator_lib.cmac
+        generic map (
+            g_ACCUM_WIDTH     => 24, -- natural := 24;
+            g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
+            g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(23 downto 16), -- in (7:0);
+            i_row_imag  => i_row_data(31 downto 24), -- in (7:0); 
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(7 downto 0),  --  in (7:0);
+            i_col_imag  => i_col_data(15 downto 8), --  in (7:0);
+            -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
+            o_readout_vld  => YX_vld, -- out std_logic;
+            o_readout_data => YX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
+    
+        cmac_YY : entity correlator_lib.cmac
+        generic map (
+            g_ACCUM_WIDTH     => 24, -- natural := 24;
+            g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
+            g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+    
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(23 downto 16),  -- in std_logic_vector(7 downto 0);
+            i_row_imag  => i_row_data(31 downto 24), -- in std_logic_vector(7 downto 0);
+            
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(23 downto 16),  --  in std_logic_vector(7 downto 0);
+            i_col_imag  => i_col_data(31 downto 24), --  in std_logic_vector(7 downto 0);
+    
+            -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
+            o_readout_vld  => YY_vld, -- out std_logic;
+            o_readout_data => YY_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
         
-        i_col       => i_col_meta, --  in t_cmac_input_bus;
-        i_col_real  => i_col_data(7 downto 0),  --  in std_logic_vector(7 downto 0);
-        i_col_imag  => i_col_data(15 downto 8), --  in std_logic_vector(7 downto 0);
+    end generate;
 
-        -- Readout interface. Readout pulses high 5 clocks after i_<col|row>.last
-        o_readout_vld  => XX_vld, -- out std_logic;
-        o_readout_data => XX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
-    );
-
-    cmac_XY : entity correlator_lib.cmac
-    generic map (
-        g_ACCUM_WIDTH     => 24, -- natural := 24;
-        g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
-        g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
-    ) port map (
-        i_clk       => i_clk, -- in std_logic;
-        i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
-        i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
-        i_row_real  => i_row_data(7 downto 0),  -- in (7:0);
-        i_row_imag  => i_row_data(15 downto 8), -- in (7:0);
-        i_col       => i_col_meta, --  in t_cmac_input_bus;
-        i_col_real  => i_col_data(23 downto 16),  --  in (7:0);
-        i_col_imag  => i_col_data(31 downto 24), --  in (7:0);
-        -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
-        o_readout_vld  => XY_vld, -- out std_logic;
-        o_readout_data => XY_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
-    );
-
-    cmac_YX : entity correlator_lib.cmac
-    generic map (
-        g_ACCUM_WIDTH     => 24, -- natural := 24;
-        g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
-        g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
-    ) port map (
-        i_clk       => i_clk, -- in std_logic;
-        i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
-        i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
-        i_row_real  => i_row_data(23 downto 16), -- in (7:0);
-        i_row_imag  => i_row_data(31 downto 24), -- in (7:0); 
-        i_col       => i_col_meta, --  in t_cmac_input_bus;
-        i_col_real  => i_col_data(7 downto 0),  --  in (7:0);
-        i_col_imag  => i_col_data(15 downto 8), --  in (7:0);
-        -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
-        o_readout_vld  => YX_vld, -- out std_logic;
-        o_readout_data => YX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
-    );
-
-    cmac_YY : entity correlator_lib.cmac
-    generic map (
-        g_ACCUM_WIDTH     => 24, -- natural := 24;
-        g_SAMPLE_WIDTH    => 8,  -- natural range 1 to 9 := 8;  -- >6 uses two 18b multiplers
-        g_CMAC_LATENCY    => 5   -- natural range work.cmac_pkg.c_CMAC_LATENCY to work.cmac_pkg.c_CMAC_LATENCY  -- i.e. 5
-    ) port map (
-        i_clk       => i_clk, -- in std_logic;
-        i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
-
-        i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
-        i_row_real  => i_row_data(23 downto 16),  -- in std_logic_vector(7 downto 0);
-        i_row_imag  => i_row_data(31 downto 24), -- in std_logic_vector(7 downto 0);
+    gen_v80_cmac : IF (C_TARGET_DEVICE = "V80") GENERATE
+        -- V80 version uses 1 DSP per CMAC instead of 2 for the U55 version
         
-        i_col       => i_col_meta, --  in t_cmac_input_bus;
-        i_col_real  => i_col_data(23 downto 16),  --  in std_logic_vector(7 downto 0);
-        i_col_imag  => i_col_data(31 downto 24), --  in std_logic_vector(7 downto 0);
-
-        -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
-        o_readout_vld  => YY_vld, -- out std_logic;
-        o_readout_data => YY_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
-    );
-
+        cmac_XX : entity correlator_lib.cmac_versal
+        generic map (
+            g_BYPASS_OFFSETS  => True -- do not do conjugation or offset by 1 needed for the complex multiply, as it is already done.
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+    
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(7 downto 0),  -- in std_logic_vector(7 downto 0);
+            i_row_imag  => i_row_data(15 downto 8), -- in std_logic_vector(7 downto 0);
+            
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(7 downto 0),  --  in std_logic_vector(7 downto 0);
+            i_col_imag  => i_col_data(15 downto 8), --  in std_logic_vector(7 downto 0);
+    
+            -- Readout interface. Readout pulses high 5 clocks after i_<col|row>.last
+            o_readout_vld  => XX_vld, -- out std_logic;
+            o_readout_data => XX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
+    
+        cmac_XY : entity correlator_lib.cmac_versal
+        generic map (
+            g_BYPASS_OFFSETS  => True -- do not do conjugation or offset by 1 needed for the complex multiply, as it is already done.
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(7 downto 0),  -- in (7:0);
+            i_row_imag  => i_row_data(15 downto 8), -- in (7:0);
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(23 downto 16),  --  in (7:0);
+            i_col_imag  => i_col_data(31 downto 24), --  in (7:0);
+            -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
+            o_readout_vld  => XY_vld, -- out std_logic;
+            o_readout_data => XY_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
+    
+        cmac_YX : entity correlator_lib.cmac_versal
+        generic map (
+            g_BYPASS_OFFSETS  => True -- do not do conjugation or offset by 1 needed for the complex multiply, as it is already done.
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(23 downto 16), -- in (7:0);
+            i_row_imag  => i_row_data(31 downto 24), -- in (7:0); 
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(7 downto 0),  --  in (7:0);
+            i_col_imag  => i_col_data(15 downto 8), --  in (7:0);
+            -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
+            o_readout_vld  => YX_vld, -- out std_logic;
+            o_readout_data => YX_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
+    
+        cmac_YY : entity correlator_lib.cmac_versal
+        generic map (
+            g_BYPASS_OFFSETS  => True -- do not do conjugation or offset by 1 needed for the complex multiply, as it is already done.
+        ) port map (
+            i_clk       => i_clk, -- in std_logic;
+            i_clk_reset => '0',   -- in std_logic;  -- all this does is disable simulation error messages.
+    
+            i_row       => i_row_meta,   -- in t_cmac_input_bus;  only uses .vld, .first and .last
+            i_row_real  => i_row_data(23 downto 16),  -- in std_logic_vector(7 downto 0);
+            i_row_imag  => i_row_data(31 downto 24), -- in std_logic_vector(7 downto 0);
+            
+            i_col       => i_col_meta, --  in t_cmac_input_bus;
+            i_col_real  => i_col_data(23 downto 16),  --  in std_logic_vector(7 downto 0);
+            i_col_imag  => i_col_data(31 downto 24), --  in std_logic_vector(7 downto 0);
+    
+            -- Readout interface. Readout pulses high 5 or 6 clocks after i_<col|row>.last
+            o_readout_vld  => YY_vld, -- out std_logic;
+            o_readout_data => YY_data -- out std_logic_vector((g_ACCUM_WIDTH*2 - 1) downto 0)  -- real part in low g_ACCUM_WIDTH bits, imaginary part in high g_ACCUM_BITS 
+        );
+        
+    end generate;
 end Behavioral;
