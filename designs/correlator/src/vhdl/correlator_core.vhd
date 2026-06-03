@@ -514,18 +514,6 @@ ARCHITECTURE structure OF correlator_core IS
     signal logic_HBM_axi_wreadyi_sigproc : std_logic_vector(5 downto 0);
     signal logic_HBM_axi_awreadyi_sigproc : std_logic_vector(5 downto 0);
     
-    signal sps_axis_tdata   : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-    signal sps_axis_tkeep   : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-    signal sps_axis_tlast   : std_logic;
-    signal sps_axis_tuser   : std_logic_vector(79 downto 0);  -- Timestamp for the packet.
-    signal sps_axis_tvalid  : std_logic;
-    
-    signal dsp_axis_tdata   : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-    signal dsp_axis_tkeep   : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
-    signal dsp_axis_tlast   : std_logic;
-    signal dsp_axis_tuser   : std_logic_vector(79 downto 0);  -- Timestamp for the packet.
-    signal dsp_axis_tvalid  : std_logic;
-    
 begin
     
     ---------------------------------------------------------------------------
@@ -765,24 +753,6 @@ begin
         logic_HBM_axi_wreadyi_sigproc <= logic_HBM_axi_wreadyi;
         
     end generate;
-    
-    dupe_eth_bus : process(i_eth100G_clk)
-    begin
-        if rising_edge(i_eth100G_clk) then
-            sps_axis_tdata  <= i_axis_tdata; 
-            sps_axis_tkeep  <= i_axis_tkeep;
-            sps_axis_tlast  <= i_axis_tlast;
-            sps_axis_tuser  <= i_axis_tuser;
-            sps_axis_tvalid <= i_axis_tvalid;
-            
-            dsp_axis_tdata  <= i_axis_tdata; 
-            dsp_axis_tkeep  <= i_axis_tkeep;
-            dsp_axis_tlast  <= i_axis_tlast;
-            dsp_axis_tuser  <= i_axis_tuser;
-            dsp_axis_tvalid <= i_axis_tvalid;
-
-        end if;
-    end process;
     
     hbm_sps_mon_gen : if g_INCLUDE_SPS_MONITOR generate
         
@@ -1078,7 +1048,7 @@ begin
         -----------------------------------------------------------------------
         -- AXI slave interfaces for modules
         i_MACE_clk  => ap_clk, -- in std_logic;
-        i_MACE_clkx2 => '0',   -- unused in U55c
+        i_MACE_clkx2 => '0', -- in std_logic; This is only used in the versal version.  
         i_MACE_rst  => ap_rst, -- in std_logic;
         -- LFAADecode, lite + full slave
         i_LFAALite_axi_mosi => mc_lite_mosi(c_LFAADecode100g_lite_index), -- in t_axi4_lite_mosi; 
@@ -1090,9 +1060,6 @@ begin
         o_LFAA_CT_axi_miso => mc_lite_miso(c_corr_ct1_lite_index), -- out t_axi4_lite_miso;
         i_poly_full_axi_mosi => mc_full_mosi(c_corr_ct1_full_index),
         o_poly_full_axi_miso => mc_full_miso(c_corr_ct1_full_index),
-        -- Filterbanks
-        i_FB_axi_mosi => mc_lite_mosi(c_filterbanks_lite_index), -- in  t_axi4_lite_mosi;
-        o_FB_axi_miso => mc_lite_miso(c_filterbanks_lite_index), -- out t_axi4_lite_miso;
         -- Corner turn between filterbanks and the correlator
         i_cor_CT_axi_mosi => mc_lite_mosi(c_corr_ct2_lite_index), -- in  t_axi4_lite_mosi;
         o_cor_CT_axi_miso => mc_lite_miso(c_corr_ct2_lite_index), -- out t_axi4_lite_miso;

@@ -74,13 +74,15 @@
 --
 --
 ----------------------------------------------------------------------------------
-library IEEE, correlator_lib, common_lib, xpm;
+library IEEE, correlator_lib, common_lib, xpm, signal_processing_common;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 library DSP_top_lib;
 --USE correlator_lib.correlator_reg_pkg.ALL;
 USE common_lib.common_pkg.ALL;
 use xpm.vcomponents.all;
+
+use signal_processing_common.target_fpga_pkg.ALL;
 
 Library axi4_lib;
 USE axi4_lib.axi4_lite_pkg.ALL;
@@ -947,89 +949,210 @@ begin
         end if;
     end process;            
     
-    -- The next two generate statements were initially written using a for loop within a process, 
-    -- but that triggered a vivado simulator bug. 
-    -- The simulator can't handle for loops inside a process, in the case where 
-    -- only part of an array signal is assigned.
-    first_row_copy : for col in 0 to 15 generate
+    
+    
+    gen_u55_cmac : IF (C_TARGET_DEVICE = "U55") GENERATE
+        -- The next two generate statements were initially written using a for loop within a process, 
+        -- but that triggered a vivado simulator bug. 
+        -- The simulator can't handle for loops inside a process, in the case where 
+        -- only part of an array signal is assigned.
+        first_row_copy : for col in 0 to 15 generate
+            
+            process(i_cor_clk)
+            begin
+                if rising_edge(i_cor_clk) then
+                    colMetaDel(0)(col+1).vld <= colMetaDel(0)(col).vld;
+                    colMetaDel(0)(col+1).first <= colMetaDel(0)(col).first;
+                    colMetaDel(0)(col+1).last <= colMetaDel(0)(col).last;
+                    colMetaDel(0)(col+1).sample_cnt <= colMetaDel(0)(col).sample_cnt;
+                    
+                    if (col_possibly_invalid(col+2) = '1' and 
+                        (col > unsigned(last_col(col+2)))) then
+                        -- column is out of range for the correlation.
+                        -- +2 in above indeces to account for memory read latency.
+                        col_invalid(col) <= '1';
+                    else
+                        col_invalid(col) <= '0';
+                    end if;
+                    
+                    -- Convert flagged samples (i.e. values of -128) to zeros so they don't contribute
+                    -- to the integration, and mark them as flagged in the meta data.
+                    if (colBRAMDout(col)(7 downto 0) = "10000000" or
+                        colBRAMDout(col)(15 downto 8) = "10000000" or 
+                        colBRAMDout(col)(23 downto 16) = "10000000" or 
+                        colBRAMDout(col)(31 downto 24) = "10000000" or
+                        col_invalid(col) = '1') then
+                        -- If real or imaginary in either polarisation is flagged, then the sample is bad.
+                        colDataDel(0)(col) <= (others => '0');
+                        colMetaDel(0)(col).rfi <= '1';
+                    else
+                        colDataDel(0)(col) <= colBRAMDout(col);
+                        colMetaDel(0)(col).rfi <= '0';
+                    end if;
+                    
+                end if;
+            end process;
+             
+        end generate;
         
-        process(i_cor_clk)
-        begin
-            if rising_edge(i_cor_clk) then
-                colMetaDel(0)(col+1).vld <= colMetaDel(0)(col).vld;
-                colMetaDel(0)(col+1).first <= colMetaDel(0)(col).first;
-                colMetaDel(0)(col+1).last <= colMetaDel(0)(col).last;
-                colMetaDel(0)(col+1).sample_cnt <= colMetaDel(0)(col).sample_cnt;
-                
-                if (col_possibly_invalid(col+2) = '1' and 
-                    (col > unsigned(last_col(col+2)))) then
-                    -- column is out of range for the correlation.
-                    -- +2 in above indeces to account for memory read latency.
-                    col_invalid(col) <= '1';
-                else
-                    col_invalid(col) <= '0';
+        first_col_copy : for row in 0 to 15 generate
+    
+            array_visValid(row)(0) <= '0';
+            array_visData(row)(0) <= (others => '0');
+            process(i_cor_clk)
+            begin
+                if rising_edge(i_cor_clk) then
+                    
+                    rowMetaDel(row+1)(0).vld <= rowMetaDel(row)(0).vld;
+                    rowMetaDel(row+1)(0).first <= rowMetaDel(row)(0).first;
+                    rowMetaDel(row+1)(0).last <= rowMetaDel(row)(0).last;
+                    rowMetaDel(row+1)(0).sample_cnt <= rowMetaDel(row)(0).sample_cnt;
+                    shiftOut(row+1)(0) <= shiftOut(row)(0);
+                    
+                    if (row_possibly_invalid(row+2) = '1' and 
+                        (row > unsigned(last_row(row+2)))) then
+                        -- row is out of range for the correlation.
+                        -- +2 in above indeces to account for memory read latency.
+                        row_invalid(row) <= '1';
+                    else
+                        row_invalid(row) <= '0';
+                    end if;                
+                    
+                    if (rowBRAMDout(row)(7 downto 0) = "10000000" or
+                        rowBRAMDout(row)(15 downto 8) = "10000000" or 
+                        rowBRAMDout(row)(23 downto 16) = "10000000" or 
+                        rowBRAMDout(row)(31 downto 24) = "10000000" or
+                        row_invalid(row) = '1') then
+                        -- If real or imaginary in either polarisation is flagged, then the sample is bad.
+                        rowDataDel(row)(0) <= (others => '0');
+                        rowMetaDel(row)(0).rfi <= '1';
+                    else
+                        rowDataDel(row)(0) <= rowBRAMDout(row);
+                        rowMetaDel(row)(0).rfi <= '0';
+                    end if;
+                    
                 end if;
-                
-                -- Convert flagged samples (i.e. values of -128) to zeros so they don't contribute
-                -- to the integration, and mark them as flagged in the meta data.
-                if (colBRAMDout(col)(7 downto 0) = "10000000" or
-                    colBRAMDout(col)(15 downto 8) = "10000000" or 
-                    colBRAMDout(col)(23 downto 16) = "10000000" or 
-                    colBRAMDout(col)(31 downto 24) = "10000000" or
-                    col_invalid(col) = '1') then
-                    -- If real or imaginary in either polarisation is flagged, then the sample is bad.
-                    colDataDel(0)(col) <= (others => '0');
-                    colMetaDel(0)(col).rfi <= '1';
-                else
-                    colDataDel(0)(col) <= colBRAMDout(col);
-                    colMetaDel(0)(col).rfi <= '0';
-                end if;
-                
-            end if;
-        end process;
-         
+            end process;
+            
+        end generate;
     end generate;
     
-    first_col_copy : for row in 0 to 15 generate
-
-        array_visValid(row)(0) <= '0';
-        array_visData(row)(0) <= (others => '0');
-        process(i_cor_clk)
-        begin
-            if rising_edge(i_cor_clk) then
-                
-                rowMetaDel(row+1)(0).vld <= rowMetaDel(row)(0).vld;
-                rowMetaDel(row+1)(0).first <= rowMetaDel(row)(0).first;
-                rowMetaDel(row+1)(0).last <= rowMetaDel(row)(0).last;
-                rowMetaDel(row+1)(0).sample_cnt <= rowMetaDel(row)(0).sample_cnt;
-                shiftOut(row+1)(0) <= shiftOut(row)(0);
-                
-                if (row_possibly_invalid(row+2) = '1' and 
-                    (row > unsigned(last_row(row+2)))) then
-                    -- row is out of range for the correlation.
-                    -- +2 in above indeces to account for memory read latency.
-                    row_invalid(row) <= '1';
-                else
-                    row_invalid(row) <= '0';
-                end if;                
-                
-                if (rowBRAMDout(row)(7 downto 0) = "10000000" or
-                    rowBRAMDout(row)(15 downto 8) = "10000000" or 
-                    rowBRAMDout(row)(23 downto 16) = "10000000" or 
-                    rowBRAMDout(row)(31 downto 24) = "10000000" or
-                    row_invalid(row) = '1') then
-                    -- If real or imaginary in either polarisation is flagged, then the sample is bad.
-                    rowDataDel(row)(0) <= (others => '0');
-                    rowMetaDel(row)(0).rfi <= '1';
-                else
-                    rowDataDel(row)(0) <= rowBRAMDout(row);
-                    rowMetaDel(row)(0).rfi <= '0';
+    gen_v80_cmac : IF (C_TARGET_DEVICE = "V80") GENERATE
+        -- For the V80, the cmac has some preprocessing of the data to facilitate use of a single DSP per complex multiply
+        -- 
+        first_row_copy : for col in 0 to 15 generate
+            
+            process(i_cor_clk)
+            begin
+                if rising_edge(i_cor_clk) then
+                    colMetaDel(0)(col+1).vld <= colMetaDel(0)(col).vld;
+                    colMetaDel(0)(col+1).first <= colMetaDel(0)(col).first;
+                    colMetaDel(0)(col+1).last <= colMetaDel(0)(col).last;
+                    colMetaDel(0)(col+1).sample_cnt <= colMetaDel(0)(col).sample_cnt;
+                    
+                    if (col_possibly_invalid(col+2) = '1' and 
+                        (col > unsigned(last_col(col+2)))) then
+                        -- column is out of range for the correlation.
+                        -- +2 in above indeces to account for memory read latency.
+                        col_invalid(col) <= '1';
+                    else
+                        col_invalid(col) <= '0';
+                    end if;
+                    
+                    -- Convert flagged samples (i.e. values of -128) to zeros so they don't contribute
+                    -- to the integration, and mark them as flagged in the meta data.
+                    if (colBRAMDout(col)(7 downto 0) = "10000000" or
+                        colBRAMDout(col)(15 downto 8) = "10000000" or 
+                        colBRAMDout(col)(23 downto 16) = "10000000" or 
+                        colBRAMDout(col)(31 downto 24) = "10000000" or
+                        col_invalid(col) = '1') then
+                        -- If real or imaginary in either polarisation is flagged, then the sample is bad.
+                        colDataDel(0)(col) <= (others => '0');
+                        colMetaDel(0)(col).rfi <= '1';
+                    else
+                        -- Column data is conjugated, and the imaginary part has an offset of 1 depending on the sign of the 
+                        -- real part, in order to support the quirks of the single-DSP complex multiplier.
+                        -- real part is unchanged
+                        colDataDel(0)(col)(7 downto 0) <= colBRAMDout(col)(7 downto 0);
+                        colDataDel(0)(col)(23 downto 16) <= colBRAMDout(col)(23 downto 16);
+                        -- imaginary part; negate and subtract one if the real part is negative
+                        if colDataDel(0)(col)(7) = '0' then
+                            colDataDel(0)(col)(15 downto 8) <= std_logic_vector(signed(not colBRAMDout(col)(15 downto 8)) + 1);
+                        else
+                            colDataDel(0)(col)(15 downto 8) <= not colBRAMDout(col)(15 downto 8);
+                        end if;
+                        if colDataDel(0)(col)(23) = '0' then
+                            colDataDel(0)(col)(31 downto 24) <= std_logic_vector(signed(not colBRAMDout(col)(31 downto 24)) + 1);
+                        else
+                            colDataDel(0)(col)(31 downto 24) <= not colBRAMDout(col)(31 downto 24);
+                        end if;
+                    
+                        colMetaDel(0)(col).rfi <= '0';
+                    end if;
+                    
                 end if;
-                
-            end if;
-        end process;
+            end process;
+             
+        end generate;
         
-    end generate;
+        first_col_copy : for row in 0 to 15 generate
+    
+            array_visValid(row)(0) <= '0';
+            array_visData(row)(0) <= (others => '0');
+            process(i_cor_clk)
+            begin
+                if rising_edge(i_cor_clk) then
+                    
+                    rowMetaDel(row+1)(0).vld <= rowMetaDel(row)(0).vld;
+                    rowMetaDel(row+1)(0).first <= rowMetaDel(row)(0).first;
+                    rowMetaDel(row+1)(0).last <= rowMetaDel(row)(0).last;
+                    rowMetaDel(row+1)(0).sample_cnt <= rowMetaDel(row)(0).sample_cnt;
+                    shiftOut(row+1)(0) <= shiftOut(row)(0);
+                    
+                    if (row_possibly_invalid(row+2) = '1' and 
+                        (row > unsigned(last_row(row+2)))) then
+                        -- row is out of range for the correlation.
+                        -- +2 in above indeces to account for memory read latency.
+                        row_invalid(row) <= '1';
+                    else
+                        row_invalid(row) <= '0';
+                    end if;                
+                    
+                    if (rowBRAMDout(row)(7 downto 0) = "10000000" or
+                        rowBRAMDout(row)(15 downto 8) = "10000000" or 
+                        rowBRAMDout(row)(23 downto 16) = "10000000" or 
+                        rowBRAMDout(row)(31 downto 24) = "10000000" or
+                        row_invalid(row) = '1') then
+                        -- If real or imaginary in either polarisation is flagged, then the sample is bad.
+                        rowDataDel(row)(0) <= (others => '0');
+                        rowMetaDel(row)(0).rfi <= '1';
+                    else
+                        -- The imaginary part of the row data has an offset of 1 depending on the sign of the 
+                        -- real part, in order to support the quirks of the single-DSP complex multiplier.
+                        -- real part is unchanged
+                        rowDataDel(row)(0)(7 downto 0) <= rowBRAMDout(row)(7 downto 0);
+                        rowDataDel(row)(0)(23 downto 16) <= rowBRAMDout(row)(23 downto 16);
+                        -- imaginary part; subtract one if the real part is negative
+                        if rowDataDel(row)(0)(7) = '0' then
+                            rowDataDel(row)(0)(15 downto 8) <= rowBRAMDout(row)(15 downto 8);
+                        else
+                            rowDataDel(row)(0)(15 downto 8) <= std_logic_vector(signed(rowBRAMDout(row)(15 downto 8)) - 1);
+                        end if;
+                        if rowDataDel(row)(0)(23) = '0' then
+                            rowDataDel(row)(0)(31 downto 24) <= rowBRAMDout(row)(31 downto 24);
+                        else
+                            rowDataDel(row)(0)(31 downto 24) <= std_logic_vector(signed(rowBRAMDout(row)(31 downto 24)) - 1);
+                        end if;
+                        
+                        rowMetaDel(row)(0).rfi <= '0';
+                    end if;
+                    
+                end if;
+            end process;
+            
+        end generate;
+    end generate;    
+    
     
     -- The multiplier array:
     row_mult_gen : for row_mult in 0 to 15 generate

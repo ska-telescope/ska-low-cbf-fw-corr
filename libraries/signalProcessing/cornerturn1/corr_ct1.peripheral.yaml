@@ -83,6 +83,21 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "status. "
+          - - field_name        : status2
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "more status"
+          - - field_name        : status3
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "more status"
+          - - field_name        : status4
+              width             : 32
+              access_mode       : RO
+              reset_value       : 0x0
+              field_description : "more status"
           - - field_name        : recent_readout_gap
               width             : 32
               access_mode       : RO
@@ -139,9 +154,9 @@ peripherals:
           - - field_name        : output_cycles
               width             : 16
               access_mode       : RW
-              reset_value       : 0x1004
+              reset_value       : 0x10D0
               field_description : "Number of clock cycles from the start of one output packet to the start of the next packet.\
-                                   Actual packet length is 4096 clocks. Default is 4100."
+                                   Actual packet length is 4096 clocks. Default is 4304, corresponding to a minimum clock rate of 294 MHz."
               
           - - field_name        : framecount_start
               width             : 7
@@ -198,6 +213,14 @@ peripherals:
               access_mode       : RW
               reset_value       : 0x0
               field_description : "Reset search for mismatched data. Write high then low to reset."
+
+          - - field_name        : scaling
+              width             : 6
+              access_mode       : RW
+              reset_value       : 0x10
+              field_description : "right bit shift used to convert 16 bit filterbank output to 8 bit data stored in HBM. \
+                                   Default is 0x10, which is appropriate for wideband noise. \
+                                   Use larger values to accomodate data with large dynamic range in the fine channels."
 
           - - field_name        : mismatch_set
               width             : 12

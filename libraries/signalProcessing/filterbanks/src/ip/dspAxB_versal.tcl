@@ -28,6 +28,7 @@ set_property -dict [list \
   CONFIG.pipeline_options {Expert} \
   CONFIG.preg_6 {true} \
 ] [get_ips dsp_AxB_plus_PCIN_versal]
+create_ip_run [get_ips dsp_AxB_plus_PCIN_versal]
 
 create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name DSP_AxB_versal
 set_property -dict [list \

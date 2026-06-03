@@ -202,6 +202,7 @@ set bd_name         "top"
   $COMMON_PATH/common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/xpm_fifo_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/memory_tdp_wrapper.vhd \
+  $COMMON_PATH/common/src/vhdl/memory_dp_64_32_wrapper.vhd \
   $COMMON_PATH/common/src/vhdl/args_axi_terminus.vhd \
   $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd \
   $COMMON_PATH/common/src/vhdl/axi512_to_256_addr.vhd \
@@ -210,6 +211,7 @@ set bd_name         "top"
   $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
   $DESIGN_PATH/src_v80/vhdl/target_fpga_pkg.vhd \
+  $DESIGN_PATH/src_v80/vhdl/hbm_noc_if.vhd  
   ]
 
   set_property library signal_processing_common [get_files {\
@@ -218,8 +220,10 @@ set bd_name         "top"
   */common/src/vhdl/xpm_sync_fifo_wrapper.vhd \
   */common/src/vhdl/xpm_fifo_wrapper.vhd \
   */common/src/vhdl/memory_tdp_wrapper.vhd \
+  */common/src/vhdl/memory_dp_64_32_wrapper.vhd \
   */common/src/vhdl/args_axi_terminus.vhd \
   */target_fpga_pkg.vhd \
+  */hbm_noc_if.vhd \
   }]
 
   set_property library common_lib [get_files {\
@@ -318,15 +322,15 @@ source $DESIGN_PATH/src_v80/ip/correlator.tcl
 # signal processing Top level
 
   add_files -fileset sources_1 [glob \
-    $RLIBRARIES_PATH/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator.vhd \
+    $RLIBRARIES_PATH/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator_v80.vhd \
     $RLIBRARIES_PATH/signalProcessing/DSP_top/src/vhdl/DSP_top_pkg.vhd \
   ]
   set_property library DSP_top_lib [get_files  {\
-    *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator.vhd \
+    *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator_v80.vhd \
     *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_pkg.vhd \
   }]
 
-  set_property file_type {VHDL 2008} [get_files  *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator.vhd]
+  set_property file_type {VHDL 2008} [get_files  *libraries/signalProcessing/DSP_top/src/vhdl/DSP_top_correlator_v80.vhd]
 
 
 #############################################################
@@ -411,7 +415,7 @@ add_files -fileset sources_1 [glob \
  $COMMON_PATH/spead/src/spead_packet_pkg.vhd \
  $COMMON_PATH/spead/src/spead_packet.vhd \
  $COMMON_PATH/spead/src/spead_registers.vhd \
- $COMMON_PATH/spead/src/spead_top.vhd \
+ $COMMON_PATH/spead/src/spead_top_cor_v80.vhd \
  $COMMON_PATH/spead/src/memory_tdp_spead.vhd \
  $COMMON_PATH/spead/src/spead_axi_bram_wrapper.vhd \
  $COMMON_PATH/spead/src/spead_init_memspace.vhd \
@@ -428,7 +432,7 @@ set_property library spead_lib [get_files {\
  *libraries/spead/src/spead_packet_pkg.vhd \
  *libraries/spead/src/spead_packet.vhd \
  *libraries/spead/src/spead_registers.vhd \
- *libraries/spead/src/spead_top.vhd \
+ *libraries/spead/src/spead_top_cor_v80.vhd \
  *libraries/spead/src/memory_tdp_spead.vhd \
  *libraries/spead/src/spead_axi_bram_wrapper.vhd \
  *libraries/spead/src/spead_init_memspace.vhd \
@@ -466,9 +470,9 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/flattening_wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/sps_flatten_dclk.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/dsp_dotproduct.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_valid_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_ct1_top.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn1/corr_div3.vhd \
@@ -483,9 +487,9 @@ set_property library ct_lib [get_files {\
  *libraries/signalProcessing/cornerturn1/sps_flatten_dclk.vhd \
  *libraries/signalProcessing/cornerturn1/dsp_dotproduct.vhd \
  *libraries/signalProcessing/cornerturn1/poly_axi_bram_wrapper_v80.vhd \
- *libraries/signalProcessing/cornerturn1/corr_ct1_readout.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_readout_v80.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_readout_32bit.vhd \
- *libraries/signalProcessing/cornerturn1/corr_ct1_valid.vhd \
+ *libraries/signalProcessing/cornerturn1/corr_ct1_valid_v80.vhd \
  *libraries/signalProcessing/cornerturn1/corr_ct1_top.vhd \
  *libraries/signalProcessing/cornerturn1/corr_div3.vhd \
  *libraries/signalProcessing/cornerturn1/hbm_ila.vhd \
@@ -561,31 +565,35 @@ add_files -fileset sources_1 [glob \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg.vhd \
   $ARGS_PATH/corr_ct2/corr_ct2/corr_ct2_reg_versal.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_wrapper_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din2HBM_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_dout_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count6.vhd \
   $RLIBRARIES_PATH/signalProcessing/cornerturn2/ones_count16.vhd \
-  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
+  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr_v80.vhd \
 ]
 
 set_property library ct_lib [get_files {\
  *corr_ct2/corr_ct2/corr_ct2_reg_pkg.vhd \
  *corr_ct2/corr_ct2/corr_ct2_reg.vhd \
  *corr_ct2/corr_ct2/corr_ct2_reg_versal.vhd \
- *libraries/signalProcessing/cornerturn2/corr_ct2_top.vhd \
- *libraries/signalProcessing/cornerturn2/corr_ct2_din.vhd \
- *libraries/signalProcessing/cornerturn2/corr_ct2_dout.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_wrapper_v80.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_top_v80.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_din2HBM_v80.vhd \
+ *libraries/signalProcessing/cornerturn2/corr_ct2_dout_v80.vhd \
  *libraries/signalProcessing/cornerturn2/corr_ct2_bad_poly_mem.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count6.vhd \
  *libraries/signalProcessing/cornerturn2/ones_count16.vhd \
- *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd \
+ *libraries/signalProcessing/cornerturn2/get_ct2_HBM_addr_v80.vhd \
 }]
 
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din.vhd]
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top.vhd]
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_din_v80.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/corr_ct2_top_v80.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/cornerturn2/get_ct2_HBM_addr_v80.vhd]
 
 #############################################################
 ## Correlator
@@ -593,11 +601,11 @@ set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing
   puts "Add Correlator files ..."
 
 add_files -fileset sources_1 [glob \
-  $ARGS_PATH/cor/config/cor_config_reg_pkg.vhd \
-  $ARGS_PATH/cor/config/cor_config_reg.vhd \
-  $ARGS_PATH/cor/config/cor_config_reg_versal.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_top.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/single_correlator.vhd \
+  $ARGS_PATH/cor_status/cor_status/cor_status_reg_pkg.vhd \
+  $ARGS_PATH/cor_status/cor_status/cor_status_reg_versal.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_wrapper_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/correlator_top_v80.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/single_correlator_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/full_correlator.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/correlator_HBM.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/LTA_urams.vhd \
@@ -619,11 +627,9 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom7.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/inv_rom8.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_quad_wrapper.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add_dsp.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_v80/cmac_versal.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
-  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader_v80.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
   $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/hbm_read_axi_bram_wrapper.vhd \
@@ -633,11 +639,11 @@ add_files -fileset sources_1 [glob \
 ]
 
 set_property library correlator_lib [get_files {\
-  *cor/config/cor_config_reg_pkg.vhd \
-  *cor/config/cor_config_reg.vhd \
-  *cor/config/cor_config_reg_versal.vhd \
-  *libraries/signalProcessing/correlator/correlator_top.vhd \
-  *libraries/signalProcessing/correlator/single_correlator.vhd \
+  *cor_status/cor_status/cor_status_reg_pkg.vhd \
+  *cor_status/cor_status/cor_status_reg_versal.vhd \
+  *libraries/signalProcessing/correlator/correlator_wrapper_v80.vhd \
+  *libraries/signalProcessing/correlator/correlator_top_v80.vhd \
+  *libraries/signalProcessing/correlator/single_correlator_v80.vhd \
   *libraries/signalProcessing/correlator/full_correlator.vhd \
   *libraries/signalProcessing/correlator/correlator_HBM.vhd \
   *libraries/signalProcessing/correlator/LTA_urams.vhd \
@@ -659,11 +665,9 @@ set_property library correlator_lib [get_files {\
   *libraries/signalProcessing/correlator/inv_rom7.vhd \
   *libraries/signalProcessing/correlator/inv_rom8.vhd \
   *libraries/signalProcessing/correlator/cmac_quad_wrapper.vhd \
-  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac.vhd \
-  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add.vhd \
-  *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/mult_add_dsp.vhd \
+  *libraries/signalProcessing/correlator/cmac_array/cmac_v80/cmac_versal.vhd \
   *libraries/signalProcessing/correlator/cmac_array/cmac_quad/cmac/cmac_pkg.vhd \
-  *libraries/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd \
+  *libraries/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader_v80.vhd \
   *libraries/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd \
   *signalProcessing/correlator/cor_hbm_data_rd/cor_rd_meta_mem.vhd \
   *signalProcessing/correlator/cor_hbm_data_rd/hbm_read_axi_bram_wrapper.vhd \
@@ -672,11 +676,12 @@ set_property library correlator_lib [get_files {\
   *signalProcessing/correlator/cor_hbm_data_rd/half_precision_packer.vhd \
 }]
 
-set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader.vhd]
+set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/correlator_data_reader_v80.vhd]
 set_property file_type {VHDL 2008} [get_files  $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/cor_rd_HBM_queue_manager.vhd]
 set_property file_type {VHDL 2008} [get_files  $COMMON_PATH/spead/src/spead_registers.vhd]
 
 source $RLIBRARIES_PATH/signalProcessing/correlator/LTA.tcl
+source $RLIBRARIES_PATH/signalProcessing/correlator/cmac_versal.tcl
 source $RLIBRARIES_PATH/signalProcessing/correlator/cor_hbm_data_rd/hbm_read.tcl
 
 ##############################################################
@@ -715,6 +720,8 @@ set_property library signal_processing_common [get_files {\
  }]
 
 set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/tb/tb_axi512_to_256.vhd]
+
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/common/src/vhdl/axi512_to_256.vhd]
 
 set_property top tb_axi512_to_256 [get_filesets sim_hbm_axi]
 set_property top_lib xil_defaultlib [get_filesets sim_hbm_axi]
@@ -784,6 +791,9 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
     exit
   }
 
+  set_property strategy Flow_PerfOptimized_high [get_runs synth_1]
+  set_property strategy Performance_ExtraTimingOpt [get_runs impl_1]
+
   set_property -dict { used_in_synthesis false    processing_order NORMAL } [get_files *impl.xdc]
   set_property -dict { used_in_synthesis false    processing_order NORMAL } [get_files *impl.pins.xdc]
 
@@ -792,8 +802,14 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
   set_property STEPS.WRITE_DEVICE_IMAGE.TCL.PRE  [get_files *write_device_image.pre.tcl]  [get_runs impl_1]
 
   set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]
-
-
+  
+  #set_property STEPS.OPT_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
+  #set_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE AggressiveExplore [get_runs impl_1]
+  #set_property STEPS.POST_PLACE_POWER_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
+  #set_property STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
+  #set_property STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
+  set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
+  set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
 
   puts "--------------------------------------------------------"
   puts "Project Creation script completed, XPR ready to open"
