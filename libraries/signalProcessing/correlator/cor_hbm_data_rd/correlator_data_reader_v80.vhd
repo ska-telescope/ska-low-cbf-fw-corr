@@ -1268,7 +1268,7 @@ ila_gen : if DEBUG_ILA generate
                 debug_wr_addr   <= debug_wr_addr + 1;
             end if;
 
-            hbm_rd_debug_ro.dbg_dbg_ram_wr_addr <= x"00000" & "00" & std_logic_vector(debug_wr_addr);
+            o_hbm_rd_debug_ro.dbg_dbg_ram_wr_addr <= x"00000" & "00" & std_logic_vector(debug_wr_addr);
         end if;
     end process;
  
