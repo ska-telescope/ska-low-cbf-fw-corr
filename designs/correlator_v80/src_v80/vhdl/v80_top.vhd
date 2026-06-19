@@ -29,7 +29,7 @@ ENTITY v80_top IS
     generic (
         -- GLOBAL GENERICS for PERENTIE LOGIC
         G_UPPER_PCIBRACKET_PORT     : BOOLEAN := TRUE;     -- applies to 200G only.
-        G_200G_DCMAC                : BOOLEAN := TRUE;     -- True will instantiate top QSFP at 100G.
+        G_200G_DCMAC                : BOOLEAN := FALSE;     -- True will instantiate top QSFP at 100G.
         g_DEBUG_ILA                 : BOOLEAN := FALSE
     );
     PORT (
