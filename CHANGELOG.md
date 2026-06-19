@@ -1,5 +1,7 @@
 ### Changelog
 ## Correlator Personality
+* 2.0.1
+    * V80 - 200G
 * 2.0.0
     * Requires Processor 0.25.0+
     * U55 update to support scaleup for the V80.
