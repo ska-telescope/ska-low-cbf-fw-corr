@@ -662,7 +662,7 @@ begin
             --                           fineChannel   -> fineChannel_del1
             --                                            bufWrDataFinal -> bufWrDataFinal_del1
             --                                            bufWEFinal     -> bufWEFinal_del1
-            if i_dataValid = '1' then
+            if dataValidDel1 = '1' then
                 if (fineChannel(0) = '0' and timeStep(0) = '0') then
                     bufWEFinal <= "000000010101";
                 elsif (fineChannel(0) = '0' and timeStep(0) = '1') then

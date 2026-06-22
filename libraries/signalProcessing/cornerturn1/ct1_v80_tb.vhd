@@ -62,7 +62,8 @@ entity ct1_v80_tb is
         g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_ct1_out_v80.txt";
         g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_fb_out_v80.txt";
         g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
-        g_USE_FILTERBANK : std_logic := '0';
+        g_USE_FILTERBANK : std_logic := '1';
+        g_FILTERBANKS_TO_USE : integer := 1; -- 6 for normal operation, 1 for faster runtime (but vc outputs 2-11 will be X's)
         g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data         
         
     );
@@ -1226,15 +1227,15 @@ begin
     FBgen : if g_USE_FILTERBANK = '1' generate
         corFB_i : entity filterbanks_lib.FB_top_correlator
         generic map (
-            g_FILTERBANKS_DIV2 => 6  -- 12 parallel filterbanks 
+            g_FILTERBANKS_DIV2 => g_FILTERBANKS_TO_USE  -- 12 parallel filterbanks 
         ) port map (
             i_data_rst => FB5_sof, -- in std_logic;
             -- Register interface
             i_axi_clk    => clk300_gated,    -- in std_logic;
             i_axi_clk_2x => clk600_gated,  -- in std_logic;
             i_axi_rst => clk300_rst,    -- in std_logic;
-            i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
-            o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
+            --i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
+            --o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
             -- Data input, common valid signal, expects packets of 4096 samples
@@ -1377,8 +1378,8 @@ begin
             -- Register interface
             i_axi_clk    => clk300_gated,    -- in std_logic;
             i_axi_rst => clk300_rst,    -- in std_logic;
-            i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
-            o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
+            --i_axi_mosi => FB_axi_mosi, -- in t_axi4_lite_mosi;
+            --o_axi_miso => FB_axi_miso, -- out t_axi4_lite_miso;
             -- Configuration (on i_data_clk)
             i_fineDelayDisable => '0',     -- in std_logic;
             -- Data input, common valid signal, expects packets of 4096 samples
