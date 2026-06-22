@@ -28,7 +28,9 @@ USE xpm.vcomponents.all;
 ENTITY v80_top IS
     generic (
         -- GLOBAL GENERICS for PERENTIE LOGIC
-        g_DEBUG_ILA     : BOOLEAN := FALSE
+        G_UPPER_PCIBRACKET_PORT     : BOOLEAN := TRUE;     -- applies to 200G only.
+        G_200G_DCMAC                : BOOLEAN := FALSE;     -- True will instantiate top QSFP at 100G.
+        g_DEBUG_ILA                 : BOOLEAN := FALSE
     );
     PORT (
         CH0_DDR4_0_0_act_n : out STD_LOGIC_VECTOR ( 0 to 0 );
@@ -105,7 +107,22 @@ ENTITY v80_top IS
         qsfp1_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
         
         qsfp1_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
-        qsfp1_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0)        
+        qsfp1_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0);
+        
+        qsfp2_322mhz_clk_p      : in STD_LOGIC;
+        qsfp2_322mhz_clk_n      : in STD_LOGIC;
+
+        qsfp2_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
+        qsfp2_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
+        
+        qsfp2_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
+        qsfp2_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0);
+
+        qsfp3_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
+        qsfp3_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
+        
+        qsfp3_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
+        qsfp3_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0)  
     );
 END v80_top;
 
@@ -254,6 +271,7 @@ begin
     end process;
     
 ----------------------------------------------------------------
+gen_100G : IF (NOT G_200G_DCMAC) GENERATE
     i_dcmac_wrapper : entity versal_dcmac_lib.dcmac_wrapper
     Generic map (
         G_DEBUG_ILA             => FALSE
@@ -301,6 +319,113 @@ begin
         o_port_0_locked         => dcmac_locked(0),
         o_port_1_locked         => dcmac_locked(1)
     );
+END GENERATE;
+----------------------------------------------------------------
+gen_200G : IF (G_200G_DCMAC) GENERATE
+    gen_upper_qsfp_cages : IF (G_UPPER_PCIBRACKET_PORT) GENERATE
+        i_200g_upper_dcmac_wrapper : entity versal_dcmac_lib.dcmac_200g_wrapper
+        Generic map (
+            G_UPPER_PCIBRACKET_PORT => G_UPPER_PCIBRACKET_PORT,
+            G_DEBUG_ILA             => FALSE
+        )
+        Port map ( 
+            i_clk                   => Clock_100_GTY_buf,
+            i_reset                 => Clock_100_resetn,
+            
+            i_host_clk              => clock_300,
+            i_host_clk_rst          => clock_300_rst,
+
+            ------------------------
+            
+            o_system_stats_vec      => system_stats_vec,
+            
+            ------------------------
+    
+            qsfp0_322mhz_clk_p      => qsfp0_322mhz_clk_p,
+            qsfp0_322mhz_clk_n      => qsfp0_322mhz_clk_n,
+            
+            qsfp0_4x_grx_p          => qsfp0_4x_grx_p,
+            qsfp0_4x_grx_n          => qsfp0_4x_grx_n,
+            
+            qsfp0_4x_gtx_p          => qsfp0_4x_gtx_p,
+            qsfp0_4x_gtx_n          => qsfp0_4x_gtx_n,
+
+            qsfp1_4x_grx_p          => qsfp1_4x_grx_p,
+            qsfp1_4x_grx_n          => qsfp1_4x_grx_n,
+            
+            qsfp1_4x_gtx_p          => qsfp1_4x_gtx_p,
+            qsfp1_4x_gtx_n          => qsfp1_4x_gtx_n,
+            
+            ------------------------------------------------
+            
+            o_dcmac_clk             => dcmac_clk,
+            
+            i_dcmac_rst_trigger     => dcmac_reset_sys_peripheral,
+            
+            o_port_0_rx_bus         => dcmac_rx_data_0,
+            o_port_1_rx_bus         => dcmac_rx_data_1,
+
+            o_port_0_tx_bus         => dcmac_tx_data_0,
+            o_port_0_tx_ready       => dcmac_tx_ready_0,
+            o_port_1_tx_bus         => dcmac_tx_data_1,
+
+            o_port_0_locked         => dcmac_locked(0),
+            o_port_1_locked         => dcmac_locked(1)
+        );
+    END GENERATE;
+
+    gen_lower_qsfp_cages : IF (NOT G_UPPER_PCIBRACKET_PORT) GENERATE
+        i_200g_lower_dcmac_wrapper : entity versal_dcmac_lib.dcmac_200g_wrapper
+        Generic map (
+            G_UPPER_PCIBRACKET_PORT => FALSE,
+            G_DEBUG_ILA             => FALSE
+        )
+        Port map ( 
+            i_clk                   => Clock_100_GTY_buf,
+            i_reset                 => Clock_100_resetn,
+            
+            i_host_clk              => clock_300,
+            i_host_clk_rst          => clock_300_rst,
+
+            ------------------------
+            
+            o_system_stats_vec      => system_stats_vec,
+            
+            ------------------------
+    
+            qsfp0_322mhz_clk_p      => qsfp2_322mhz_clk_p,
+            qsfp0_322mhz_clk_n      => qsfp2_322mhz_clk_n,
+            
+            qsfp0_4x_grx_p          => qsfp3_4x_grx_p,
+            qsfp0_4x_grx_n          => qsfp3_4x_grx_n,
+            
+            qsfp0_4x_gtx_p          => qsfp3_4x_gtx_p,
+            qsfp0_4x_gtx_n          => qsfp3_4x_gtx_n,
+
+            qsfp1_4x_grx_p          => qsfp2_4x_grx_p,
+            qsfp1_4x_grx_n          => qsfp2_4x_grx_n,
+            
+            qsfp1_4x_gtx_p          => qsfp2_4x_gtx_p,
+            qsfp1_4x_gtx_n          => qsfp2_4x_gtx_n,
+            
+            ------------------------------------------------
+            
+            o_dcmac_clk             => dcmac_clk,
+            
+            i_dcmac_rst_trigger     => dcmac_reset_sys_peripheral,
+            
+            o_port_0_rx_bus         => dcmac_rx_data_0,
+            o_port_1_rx_bus         => dcmac_rx_data_1,
+
+            o_port_0_tx_bus         => dcmac_tx_data_0,
+            o_port_0_tx_ready       => dcmac_tx_ready_0,
+            o_port_1_tx_bus         => dcmac_tx_data_1,
+
+            o_port_0_locked         => dcmac_locked(0),
+            o_port_1_locked         => dcmac_locked(1)
+        );
+    END GENERATE;
+END GENERATE;
 ----------------------------------------------------------------
     i_v80_board : entity work.top_wrapper
     port map (

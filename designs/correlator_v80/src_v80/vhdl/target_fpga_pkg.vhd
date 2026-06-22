@@ -34,12 +34,6 @@ PACKAGE target_fpga_pkg IS
                                                                            x"00000046C0000000",   -- 27 GBytes
                                                                            x"0000004680000000");  -- 26 Gbytes
                                                                            
- --   constant c_V80_HBM_BASE_VIS_ADDR   : t_slv_64_arr(5 downto 0)      := (x"0000004680000000",   -- 26 Gbytes
- --                                                                          x"00000046C0000000",   -- 27 GBytes
- --                                                                          x"0000004700000000",   -- 28 GBytes
- --                                                                          x"0000004740000000",   -- 29 GBytes
- --                                                                          x"0000004780000000",   -- 30 GBytes
- --                                                                          x"00000047C0000000");  -- 31 GBytes
     -- two HBM interfaces to write SPS data into the HBM from the 200GE
     -- Place these in SLR1 near the ethernet MAC. Writes over the VNOC get high bandwidth even from a different SLR.
     constant c_V80_HBM_SPS_DECODE_VNOC0 : boolean := True;
