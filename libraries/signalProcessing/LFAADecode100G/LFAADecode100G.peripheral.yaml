@@ -120,6 +120,12 @@ peripherals:
               field_description : "Total number of virtual channels to process in this FPGA. Should be total_stations * total_coarse. \
                                    See also the description above for total_channels_table0 "
           #################################
+          - - field_name        : vct_table_select
+              width             : 1
+              access_mode       : RW
+              reset_value       : 0x0
+              field_description : "NOT USED in correlator, but created for shared logic with PST and PSS."
+          #################################
           - - field_name        : use_dbg_data
               width             : 1
               access_mode       : RW
