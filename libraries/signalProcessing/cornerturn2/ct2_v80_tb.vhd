@@ -117,7 +117,6 @@ architecture Behavioral of ct2_v80_tb is
 
     type t_fb_fsm is (wait_sof, send_sof, send_sof_wait, send_data0, send_Data, packet_gap, new_vc_gap, frame_gap);
     signal fb_fsm : t_fb_fsm := wait_sof;
-
     signal fb_sof, fb_dataValid : std_logic;
     signal fb_headerValid : std_logic_vector(11 downto 0);
     signal fb_virtualChannel : t_slv_16_arr(11 downto 0);
