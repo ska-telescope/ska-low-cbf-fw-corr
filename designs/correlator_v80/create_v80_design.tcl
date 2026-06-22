@@ -105,8 +105,10 @@ set bd_name         "top"
   # Write the block diagram wrapper and set it as design top
   add_files -norecurse [make_wrapper -files [get_files "${bd_name}.bd"] -top]
 
-  # ----------------------------------------
+  # --------------------------------------------------------------------------------
   # Add DCMAC BD
+  # 100G config
+
     if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
     source $COMMON_PATH/DCMAC/dcmac_two_100g_bd.tcl
   } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
@@ -120,6 +122,15 @@ set bd_name         "top"
   
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
+  # 200G config for lower ports.
+  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
+  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
+
+  # 200G config for upper ports.
+  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
+  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
+
+  # --------------------------------------------------------------------------------
   add_files -fileset sources_1 [glob \
     $ARGS_PATH/DCMAC/dcmac/DCMAC_dcmac_reg_pkg.vhd \
     $ARGS_PATH/DCMAC/dcmac/DCMAC_dcmac_reg_versal.vhd \
@@ -130,6 +141,8 @@ set bd_name         "top"
     $COMMON_PATH/DCMAC/versal_dcmac_pkg.vhd \
     $COMMON_PATH/DCMAC/dcmac_config.vhd \
     $COMMON_PATH/DCMAC/dcmac_port_stats.vhd \
+    $COMMON_PATH/DCMAC/dcmac_200g_wrapper.vhd \
+    $COMMON_PATH/DCMAC/dcmac_200g_config.vhd \
   ]
 
   set_property library versal_dcmac_lib [get_files {\
@@ -142,12 +155,15 @@ set bd_name         "top"
     */DCMAC/versal_dcmac_pkg.vhd \
     */DCMAC/dcmac_config.vhd \
     */DCMAC/dcmac_port_stats.vhd \
+    */DCMAC/dcmac_200g_wrapper.vhd \
+    */DCMAC/dcmac_200g_config.vhd \
   }]
 
   set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/versal_dcmac_pkg.vhd]
   set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/dcmac_wrapper.vhd]
   set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/packet_player.vhd]
   set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/segment_to_saxi.vhd]
+  set_property file_type {VHDL 2008} [get_files $COMMON_PATH/DCMAC/dcmac_200g_wrapper.vhd]
 
   source $COMMON_PATH/DCMAC/dcmac_ip.tcl
 

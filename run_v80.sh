@@ -38,7 +38,7 @@ else
 fi
 
 # run HBM address collation script.
-./common/scripts/hbm_addr_extract.sh designs/correlator_v80/src_v80/vhdl/correlator_core.vhd
+./common/scripts/hbm_addr_extract.sh designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
 
 cp addresses.hbm output/
 
