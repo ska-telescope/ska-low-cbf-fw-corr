@@ -234,7 +234,7 @@ build v80:
   rules:
    - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
-  interruptible: true
+  #interruptible: true
   allow_failure: true
   needs:
     - fpga lint v80
