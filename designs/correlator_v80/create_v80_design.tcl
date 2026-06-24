@@ -122,13 +122,13 @@ set bd_name         "top"
   
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
-  # 200G config for lower ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
-  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
+  # # 200G config for lower ports.
+  # source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
+  # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
 
-  # 200G config for upper ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
-  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
+  # # 200G config for upper ports.
+  # source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
+  # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
 
   # --------------------------------------------------------------------------------
   add_files -fileset sources_1 [glob \
