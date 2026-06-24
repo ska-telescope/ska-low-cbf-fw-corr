@@ -27,8 +27,8 @@ set spead_3_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/spead_packetiser
 set spead_4_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[4].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 set spead_5_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[5].cor_speader/host_interface/gen_v80_args.i_spead_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 
-#set dcmac_nsu [get_noc_interfaces "i_dcmac_wrapper/i_port_0_stats/i_dcmac_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
-set dcmac_nsu [get_noc_interfaces "*/i_port_0_stats/i_dcmac_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
+set dcmac_nsu [get_noc_interfaces "i_dcmac_wrapper/i_port_0_stats/i_dcmac_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
+#set dcmac_nsu [get_noc_interfaces "*/i_port_0_stats/i_dcmac_noc/xpm_nsu_mm_inst/M_AXI_nsu"]
 
 set corstat_nsu [get_noc_interfaces "i_correlator_core/dsp_topi/correlator_geni[0].correlator_wrapperi/cor_regi.args_noci/xpm_nsu_mm_inst/M_AXI_nsu"]
 
