@@ -20,11 +20,12 @@
 --   This requires double buffering in ultraRAM in this module of 16 time samples from the filterbanks.
 --   So we have a buffer which is (2 (double buffer)) * (16 times) * (12 virtual channels) * (2 pol) * (3456 fine channels) * (2 complex) * (1 byte/sample) = 5184 kBytes = 162 ultraRAMs.
 --
---   The ultraRAM buffer is constructed from 12 pieces, each of which is (128 bits wide) * (7x4096 deep)
---     - Each piece is thus 14 ultraRAMs.
---     - Total ultraRAMs used = 12*14 = 168
---     - Even and odd indexed fine channels are dealt with separately, with their own HBM interface
---     - Data layout in the ultraRAM buffer for even-indexed fine channels :
+--   The ultraRAM buffer is constructed from 24 pieces (4 fine channel groups * 3 vc groups * 2 time groups),
+--   each of which is (128 bits wide) * (7x2048 deep)
+--     - Each piece is thus 7 ultraRAMs.
+--     - Total ultraRAMs used = 24*7 = 168
+--     - Fine channels are split into 4 groups (fc mod 4), each with its own HBM write interface.
+--     - Data layout in the ultraRAM buffer (one fine channel group instance) :
 --     
 --      | WrEn="000000000001" | WrEn="000000000010" | WrEn="000000000100" | WrEn="000000001000" | WrEn="000000010000"  | WrEn="000000100000"  |   <-- Write enable vector for the memory blocks (for even indexed channels)
 --      |128 bits = 4 channels|
@@ -151,12 +152,12 @@ entity corr_ct2_top_v80 is
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         -- Expected to be up to 18 Gbyte of unified memory used by the correlators
-        -- One HBM port is used for even indexed fine channels, while the other HBM port is used for odd indexed fine channels.
-        o_HBM_axi_aw      : out t_axi4_full_addr_arr(1 downto 0); -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready : in std_logic_vector(1 downto 0);
-        o_HBM_axi_w       : out t_axi4_full_data_arr(1 downto 0); -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  : in std_logic_vector(1 downto 0);
-        i_HBM_axi_b       : in t_axi4_full_b_arr(1 downto 0);     -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        -- Four HBM ports, one per fc mod 4 group (fine channels 0,4,8,...  /  1,5,9,...  /  2,6,10,...  /  3,7,11,...).
+        o_HBM_axi_aw      : out t_axi4_full_addr_arr(3 downto 0); -- write address bus
+        i_HBM_axi_awready : in std_logic_vector(3 downto 0);
+        o_HBM_axi_w       : out t_axi4_full_data_arr(3 downto 0); -- w data bus
+        i_HBM_axi_wready  : in std_logic_vector(3 downto 0);
+        i_HBM_axi_b       : in t_axi4_full_b_arr(3 downto 0);     -- write response bus
         
         -- signals used in testing to initiate readout of the buffer when HBM is preloaded with data,
         -- so we don't have to wait for the previous processing stages to complete.
@@ -301,8 +302,8 @@ architecture Behavioral of corr_ct2_top_v80 is
         probe0 : in std_logic_vector(119 downto 0)); 
     end component;
     
-    signal HBM_axi_aw : t_axi4_full_addr_arr(1 downto 0);
-    signal HBM_axi_w  : t_axi4_full_data_arr(1 downto 0);
+    signal HBM_axi_aw : t_axi4_full_addr_arr(3 downto 0);
+    signal HBM_axi_w  : t_axi4_full_data_arr(3 downto 0);
     
     signal dbg_hbm_status0, dbg_hbm_status1 : std_logic_vector(7 downto 0);
     signal dbg_hbm_reset_final : std_logic;
@@ -572,14 +573,18 @@ begin
         i_insert_dbg => statctrl_rw.insert_dbg(0), -- in std_logic;
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
-        -- two HBM interfaces
+        -- four HBM write interfaces, one for each group of fine channels that share the same index modulo 4:
+        --   interface 0 = fine channels 0, 4, 8, ...
+        --   interface 1 = fine channels 1, 5, 9, ...
+        --   interface 2 = fine channels 2, 6, 10, ...
+        --   interface 3 = fine channels 3, 7, 11, ...
         i_axi_clk      => i_axi_clk,         -- in std_logic;
-        -- 2 blocks of memory, 3 Gbytes for virtual channels 0-511, 3 Gbytes for virtual channels 512-1023
-        o_HBM_axi_aw      => HBM_axi_aw(1 downto 0),      -- out t_axi4_full_addr_arr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready => i_HBM_axi_awready(1 downto 0), -- in  std_logic_vector;
-        o_HBM_axi_w       => HBM_axi_w(1 downto 0),       -- out t_axi4_full_data_arr; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  => i_HBM_axi_wready(1 downto 0),  -- in  std_logic_vector;
-        i_HBM_axi_b       => i_HBM_axi_b(1 downto 0)        -- in  t_axi4_full_b_arr     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.       
+        -- 4 x 4 GB HBM regions, one per interface above
+        o_HBM_axi_aw      => HBM_axi_aw(3 downto 0),      -- out t_axi4_full_addr_arr; -- write address bus
+        i_HBM_axi_awready => i_HBM_axi_awready(3 downto 0), -- in  std_logic_vector;
+        o_HBM_axi_w       => HBM_axi_w(3 downto 0),       -- out t_axi4_full_data_arr; -- w data bus
+        i_HBM_axi_wready  => i_HBM_axi_wready(3 downto 0),  -- in  std_logic_vector;
+        i_HBM_axi_b       => i_HBM_axi_b(3 downto 0)        -- in  t_axi4_full_b_arr     -- write response bus
     );
     o_HBM_axi_aw <= HBM_axi_aw;
     o_HBM_axi_w <= HBM_axi_w;

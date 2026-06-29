@@ -230,6 +230,7 @@ architecture Behavioral of corr_ct2_dout_v80 is
     
     signal cur_fineChannelOffset_Ext : std_logic_vector(23 downto 0);
     signal HBM_addr, HBM_addr_hold : std_logic_vector(35 downto 0);
+    signal HBM_fc_group, HBM_fc_group_hold : std_logic_vector(1 downto 0) := "00";
     signal HBM_addr_hold_valid, clear_hold : std_logic := '0';
     signal HBM_addr_bad, HBM_fine_high : std_logic := '0';
     signal cur_timeBase : std_logic_vector(3 downto 0) := "0000";
@@ -301,7 +302,8 @@ begin
         o_HBM_addr         => HBM_addr,       -- out (35:0);
         o_out_of_range     => HBM_addr_bad,   -- out std_logic; Indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
         o_fine_high        => HBM_fine_high,  -- out std_logic; Indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
-        o_valid            => HBM_addr_valid  -- out std_logic; Some fixed number of clock cycles after i_valid.
+        o_valid            => HBM_addr_valid, -- out std_logic; Some fixed number of clock cycles after i_valid.
+        o_fc_group         => HBM_fc_group    -- out (1:0); i_fine_channel(1:0) delayed to match o_HBM_addr; selects the 4 GB HBM region.
     );
      
     cur_fineChannelOffset_ext(23 downto 7) <= (others => '0');
@@ -341,6 +343,7 @@ begin
                 HBM_addr_hold_valid <= '0';
             elsif HBM_addr_valid = '1' then
                 HBM_addr_hold <= HBM_addr;
+                HBM_fc_group_hold <= HBM_fc_group;
                 HBM_addr_hold_valid <= '1';
             elsif clear_hold = '1' then
                 HBM_Addr_hold_valid <= '0';
@@ -490,9 +493,10 @@ begin
                         clear_hold <= '1';
                         o_SB_req <= '0';
                         if HBM_addr_valid = '1' then
-                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr(35 downto 8);
+                            -- bits 33:32 select the 4 GB HBM region (fc_group × 4 GB)
+                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr(35 downto 34) & HBM_fc_group & HBM_addr(31 downto 8);
                         elsif HBM_addr_hold_valid = '1' then
-                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr_hold(35 downto 8);
+                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr_hold(35 downto 34) & HBM_fc_group_hold & HBM_addr_hold(31 downto 8);
                         end if;
                         if HBM_addr_valid = '1' or HBM_addr_hold_valid = '1' then
                             ar_fsm <= wait_ar;
@@ -519,7 +523,10 @@ begin
                     when set_ar2 =>
                         ar_fsm_dbg <= "0110";
                         -- Set the HBM address for (up to) 3 remaining 256-byte blocks.
+                        -- Station offset is at most 3 × 256 bytes, so it cannot carry into bits 33:32.
+                        -- We therefore add it to the full slice and then overwrite bits 33:32 with HBM_fc_group_hold.
                         o_HBM_axi_ar.addr(35 downto 8) <= std_logic_vector(unsigned(HBM_addr_hold(35 downto 8)) + unsigned(cur_station_offset_ext));
+                        o_HBM_axi_ar.addr(33 downto 32) <= HBM_fc_group_hold;
                         o_HBM_axi_ar.valid <= '1';
                         ar_fsm <= wait_ar;
                         

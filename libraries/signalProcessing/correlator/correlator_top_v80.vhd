@@ -488,6 +488,7 @@ begin
                     SB_rd_fsm <= idle;
             
             end case;
+            cor_tableSelect <= readout_tableSelect;
             
             -- del1 : SB_rd_addr is valid
             SB_rd_fsm_del1 <= SB_rd_fsm;

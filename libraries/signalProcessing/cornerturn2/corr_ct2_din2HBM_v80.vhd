@@ -7,20 +7,19 @@
 -- Description: 
 --    Corner turn between the filterbanks and the correlator for SKA correlator processing. 
 --    This module copies data out of the ultraRAM buffer into the HBM.
---    A single HBM interface is implemented, for either even or odd-indexed fine channels.
---     - Even and odd indexed fine channels have their own ultraRAM buffer 
+--    A single HBM interface is implemented for one fc mod 4 group (g_FC_MOD4 selects which quarter).
 --    Tasks :
---        - For each of 3 groups of 4 virtual channels ;=:
+--        - For each of 3 groups of 4 virtual channels:
 --          - Generate the read address to the ultraRAM buffer
 --          - Generate the HBM address to write to
 --        - FIFOs for the AW bus and the wdata buses
 --        - 256 bit wide interface to the HBM
---    
+--
 --    Data flow :
 --     - An instruction comes in indicating that 16 time samples have been captured in the ultraRAM buffer
 --        - meta data for each of 3 groups of 4 virtual channels is also provided
---     - state machine steps through all 1728 fine channels, and generates write addresses to HBM if required 
---        - There are 3456 fine channels per coarse channel, but each instance of this module only deals with even or odd indexed fine channels
+--     - state machine steps through 864 fine channels (3456/4), generates write addresses to HBM if required
+--        - There are 3456 fine channels per coarse channel; each instance handles fine channels where fc mod 4 = g_FC_MOD4
 --
 --
 --
@@ -79,7 +78,7 @@ use xpm.vcomponents.all;
 entity corr_ct2_din2HBM_v80 is
     generic (
         g_DEBUG_ILA : BOOLEAN := FALSE;
-        g_ODD_FINE  : std_logic := '0'  -- This module works through half the fine channels (3456/2 = 1728). Set this to 1 to process odd-indexed fine channels, or 0 for the even-indexed fine channels
+        g_FC_MOD4   : std_logic_vector(1 downto 0) := "00"  -- This module works through a quarter of the fine channels (3456/4 = 864). Selects which quarter: "00"=fc mod4=0, "01"=fc mod4=1, "10"=fc mod4=2, "11"=fc mod4=3
     );
     port(
         i_rst : in std_logic;
@@ -109,7 +108,7 @@ entity corr_ct2_din2HBM_v80 is
         o_copyToHBM_done : out std_logic;
         -------------------------------------------------------------------
         -- Read from the ultraRAM buffer
-        o_uram_rd_addr : out std_logic_vector(14 downto 0);
+        o_uram_rd_addr : out std_logic_vector(13 downto 0);
         -- 3 x 256 bit wide buses, for groups of stations 0-3, 4-7, 8-11
         -- 8 clock read latency from o_uram_rd_addr to i_uram_rd_dataX_X
         i_uram_rd_data0_3 : in std_logic_vector(255 downto 0);
@@ -158,7 +157,7 @@ architecture Behavioral of corr_ct2_din2HBM_v80 is
     signal SB_stations : std_logic_vector(15 downto 0);
     signal SB_N_fine : std_logic_vector(23 downto 0);
     signal skyFrequency : std_logic_vector(8 downto 0);
-    signal uram_fine : std_logic_vector(10 downto 0);
+    signal uram_fine : std_logic_vector(9 downto 0);
     signal fine_ext : std_logic_vector(23 downto 0);
     signal cur_station : std_logic_vector(11 downto 0);
     signal wcopy_fifo_space_available, wdata_FIFO_space_available : std_logic := '0';
@@ -170,17 +169,17 @@ architecture Behavioral of corr_ct2_din2HBM_v80 is
     signal wdataCopy_fsm_dbg : std_logic_vector(1 downto 0);
     signal time_between_wr_triggers, minimum_time_between_wr_triggers, copydata_readout_time, max_copydata_readout_time, wr_overflow : std_logic_vector(31 downto 0);
     signal get_addr : std_logic := '0';
-    signal wcopyFIFO_din : std_logic_vector(14 downto 0);
+    signal wcopyFIFO_din : std_logic_vector(13 downto 0);
     signal calc_HBM_addr : std_logic_vector(35 downto 0);
     signal awFIFO_din, awFIFO_dout : std_logic_vector(35 downto 0);
     signal awFIFO_wrEn, awFIFO_rdEn, awFIFO_valid, awFIFO_empty : std_logic;
     signal addr_valid, calc_HBM_addr_out_of_range, calc_HBM_fine_high : std_logic;
     signal wCopyfifo_rst, awfifo_rst, wdatafifo_rst, aw_fifo_space_available : std_logic;
     signal wCopyFIFO_valid : std_logic;
-    signal wCopyFIFO_dout : std_logic_vector(14 downto 0);
+    signal wCopyFIFO_dout : std_logic_vector(13 downto 0);
     signal wCopyFIFO_empty, wCopyFIFO_RdEn : std_logic;
     signal wdataFIFO_WrCount : std_logic_vector(9 downto 0);
-    signal uram_rd_addr, uram_base_addr : std_logic_vector(14 downto 0);
+    signal uram_rd_addr, uram_base_addr : std_logic_vector(13 downto 0);
     signal uram_rd_addr_offset : std_logic_vector(2 downto 0);
     signal last_write_pending_del1, last_write_pending : std_logic := '0';
     signal uram_addr_valid_del : std_logic_vector(7 downto 0) := x"00";
@@ -198,7 +197,7 @@ begin
     
     hbm_addri : entity ct_lib.get_ct2_HBM_addr_v80
     generic map (
-        g_BUFFER_OFFSET => x"200000000"  -- Each half of the buffer in the v80 is 8 Gbytes; 
+        g_BUFFER_OFFSET => x"080000000"  -- Each half of the buffer in the v80 is 2 Gbytes;
     ) port map (
         i_axi_clk => i_axi_clk, --  in std_logic;
         -- Values from the Subarray-beam table
@@ -220,17 +219,18 @@ begin
         o_out_of_range => calc_HBM_addr_out_of_range, -- out std_logic; -- indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
         o_fine_high    => calc_HBM_fine_high, --  out std_logic; -- indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
         o_fine_remaining => open,     --  out std_logic_vector(11 downto 0); -- Number of fine channels remaining to send for this coarse channel.
-        o_valid        => addr_valid  -- out std_logic -- 8 clock cycles after i_valid.
+        o_valid        => addr_valid, -- out std_logic -- 8 clock cycles after i_valid.
+        o_fc_group     => open        -- not used on the write path; each fc group has its own hbm_noc_if
     );
     
-    fine_ext <= "000000000000" & uram_fine & g_ODD_FINE;
+    fine_ext <= "000000000000" & uram_fine & g_FC_MOD4;  -- actual fine channel = uram_fine*4 + g_FC_MOD4
     
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
             
             if i_copyToHBM /= "000" then
-                -- fsm counts through all the fine channels, from 0 to 1727
+                -- fsm counts through fine channels for this fc mod 4 group, from 0 to 863
                 uram_fine <= (others => '0');
                 copyToHBM_buffer <= i_copyToHBM_buffer; -- in std_logic;
                 -- which group of 16 time samples we are up to. In total there are 12 groups of 16 times samples, for 12*16 = 192 time samples per 849ms frame
@@ -337,7 +337,7 @@ begin
                     
                     when check_space_available =>
                         if aw_fifo_space_available = '1' and wcopy_fifo_space_available = '1' then
-                            if unsigned(uram_fine) = 1727 then
+                            if unsigned(uram_fine) = 863 then
                                 aw_fsm <= done;
                             else
                                 uram_fine <= std_logic_vector(unsigned(uram_fine) + 1);
@@ -431,11 +431,11 @@ begin
     awFIFO_rdEn <= i_HBM_axi_awready and awFIFO_valid;
     
     -- fifo with instruction to the wdata_copy fsm to copy a 256 byte block from the uram buffer to the wdata bus
-    -- 15 bits wide :
-    --   bits 10:0 = fine channel to copy, 
-    --   bits 12:11 = group of virtual channels to copy, "00" = virtual channels 0-3, "01" = virtual channels 4-7, "10" = virtual channels 8-11
-    --   bit  13 = which half of the ultraRAM buffer to read from
-    --   bit  14 = last instruction in an 849ms correlator frame
+    -- 14 bits wide :
+    --   bits  9:0  = uram_fine index (0-863, = fine_channel/4 for this fc mod 4 group)
+    --   bits 11:10 = group of virtual channels to copy, "00" = virtual channels 0-3, "01" = virtual channels 4-7, "10" = virtual channels 8-11
+    --   bit  12 = which half of the ultraRAM buffer to read from (time(0))
+    --   bit  13 = last instruction in an 849ms correlator frame (trigger_readout)
     xpm_wdatacopy_fifo_sync_inst : xpm_fifo_sync
     generic map (
         CASCADE_HEIGHT => 0,        -- DECIMAL
@@ -448,12 +448,12 @@ begin
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
         RD_DATA_COUNT_WIDTH => 7,   -- DECIMAL
-        READ_DATA_WIDTH => 15,      -- DECIMAL
+        READ_DATA_WIDTH => 14,      -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
-        WRITE_DATA_WIDTH => 15,     -- DECIMAL
+        WRITE_DATA_WIDTH => 14,     -- DECIMAL
         WR_DATA_COUNT_WIDTH => 7   -- DECIMAL
     ) port map (
         almost_empty => open,     -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
@@ -484,8 +484,8 @@ begin
     );
     
     wCopyFIFO_RdEn <= '1' when wCopyFIFO_valid = '1' and wdataCopy_fsm = idle else '0';
-    uram_base_addr <= '0' & wCopyFIFO_dout(10 downto 0) & "000";  -- 8 words in the ultraRAMs for each 
-    o_uram_rd_addr <= uram_rd_addr(14 downto 3) & uram_rd_addr_offset;
+    uram_base_addr <= '0' & wCopyFIFO_dout(9 downto 0) & "000";  -- 8 words in the ultraRAMs for each
+    o_uram_rd_addr <= uram_rd_addr(13 downto 3) & uram_rd_addr_offset;
     
     process(i_axi_clk)
     begin
@@ -495,13 +495,13 @@ begin
                 when idle =>
                     if wCopyFIFO_valid = '1' then
                         -- 2nd and 4th group of 16 times go to the second half of the memory,
-                        -- which starts at 3.5*4096 = 14336
-                        if wCopyFIFO_dout(13) = '0' then
+                        -- which starts at 3.5*2048 = 7168
+                        if wCopyFIFO_dout(12) = '0' then
                             uram_rd_addr <= uram_base_addr;
                         else
-                            uram_rd_addr <= std_logic_vector(unsigned(uram_base_addr) + 14336);
+                            uram_rd_addr <= std_logic_vector(unsigned(uram_base_addr) + 7168);
                         end if;
-                        vc_block_select <= wCopyFIFO_dout(12 downto 11); -- Which of the 3 groups of virtual channels to choose.
+                        vc_block_select <= wCopyFIFO_dout(11 downto 10); -- Which of the 3 groups of virtual channels to choose.
                         uram_rd_addr_offset <= "000";
                         wdataCopy_fsm <= copyData;
                     end if;
@@ -533,7 +533,7 @@ begin
             
             ----------------------------------------------
             -- determine when the end of an 849ms frame occurs 
-            if wdataCopy_fsm = idle and wCopyFIFO_valid = '1' and wCopyFIFO_dout(14) = '1' then
+            if wdataCopy_fsm = idle and wCopyFIFO_valid = '1' and wCopyFIFO_dout(13) = '1' then
                 last_write_pending <= '1';
             elsif aw_fsm = done and wdataCopy_fsm = idle and wCopyFIFO_empty = '1' and awFIFO_empty = '1'  then
                 last_write_pending <= '0'; 
@@ -617,7 +617,8 @@ begin
                 wr_overflow <= (others => '0');
             elsif ((i_copyToHBM /= "000") and (aw_fsm /= done)) then
                 wr_overflow(0) <= '1';
-                wr_overflow(11 downto 1) <= uram_fine;
+                wr_overflow(10 downto 1) <= uram_fine;
+                wr_overflow(11) <= '0';
                 wr_overflow(15 downto 12) <= i_copyToHBM_time;
                 wr_overflow(27 downto 16) <= i_copyToHBM_station(0);
                 wr_overflow(31 downto 28) <= "0000";

@@ -11,10 +11,15 @@
 --  generic map for each test case.  The Python checker (ct2_check.py) reads
 --  that same wrapper file to reconstruct the expected HBM contents.
 --
---  HBM dump:
---   At simulation time g_SIM_DURATION_US the contents of the CT2 HBM are
---   written to g_HBM_DUMP_FILE (one 32-bit hex word per line, lowest address
---   first).  The simulation then stops.
+--  HBM dumps:
+--   At simulation time g_SIM_DURATION_US the contents of both HBMs are written
+--   to disk and the simulation stops:
+--     g_HBM_DUMP_FILE : CT2 corner-turn HBM (filterbank->correlator data),
+--                       checked by ct2_check.py.
+--     g_VIS_DUMP_FILE : correlator visibility HBM output (visibilities + the
+--                       TCI/DV meta data), checked by vis_check.py.
+--   Both use the sparse "<byte-addr-hex> <data-hex>" format produced by
+--   HBM_axi_tbModel_multi.MemDump.
 --
 ----------------------------------------------------------------------------------
 
@@ -62,7 +67,9 @@ entity ct2_v80_tb is
         -- Simulation control
         g_SIM_DURATION_US   : integer := 5000;
         g_HBM_DUMP_FILE     : string  := "ct2_hbm_dump.txt";
-        g_HBM_DUMP_BYTES    : integer := 33554432  -- 32 MB default
+        -- Visibility HBM dump (correlator output), written at the same time as
+        -- the CT2 HBM dump.  Checked by vis_check.py.
+        g_VIS_DUMP_FILE     : string  := "ct2_vis_dump.txt"
     );
 end ct2_v80_tb;
 
@@ -103,15 +110,45 @@ architecture Behavioral of ct2_v80_tb is
     end procedure;
 
     -- AXI buses (CT2 HBM for filterbank->correlator data)
-    signal HBM_axi_aw, HBM_axi_vis_aw : t_axi4_full_addr_arr(1 downto 0);
-    signal HBM_axi_awready, HBM_axi_vis_awready : std_logic_vector(1 downto 0);
-    signal HBM_axi_w, HBM_axi_vis_w : t_axi4_full_data_arr(1 downto 0);
-    signal HBM_axi_wready, HBM_axi_vis_wready : std_logic_vector(1 downto 0);
-    signal HBM_axi_b, HBM_axi_vis_b : t_axi4_full_b_arr(1 downto 0);
-    signal HBM_axi_ar, HBM_axi_vis_ar : t_axi4_full_addr_arr(1 downto 0);
-    signal HBM_axi_arready, HBM_axi_vis_arready : std_logic_vector(1 downto 0);
-    signal HBM_axi_r, HBM_axi_vis_r : t_axi4_full_data_arr(1 downto 0);
-    signal HBM_axi_rready, HBM_axi_vis_rready : std_logic_vector(1 downto 0);
+    -- Write side: 4 interfaces (one per fc mod 4 group)
+    signal HBM_axi_aw      : t_axi4_full_addr_arr(3 downto 0);
+    signal HBM_axi_awready : std_logic_vector(3 downto 0);
+    signal HBM_axi_w       : t_axi4_full_data_arr(3 downto 0);
+    signal HBM_axi_wready  : std_logic_vector(3 downto 0);
+    signal HBM_axi_b       : t_axi4_full_b_arr(3 downto 0);
+    -- Read side: 2 interfaces (one per correlator core)
+    signal HBM_axi_ar      : t_axi4_full_addr_arr(1 downto 0);
+    signal HBM_axi_arready : std_logic_vector(1 downto 0);
+    signal HBM_axi_r       : t_axi4_full_data_arr(1 downto 0);
+    signal HBM_axi_rready  : std_logic_vector(1 downto 0);
+    -- Visibility HBM (correlator write, 2 interfaces)
+    signal HBM_axi_vis_aw      : t_axi4_full_addr_arr(1 downto 0);
+    signal HBM_axi_vis_awready : std_logic_vector(1 downto 0);
+    signal HBM_axi_vis_w       : t_axi4_full_data_arr(1 downto 0);
+    signal HBM_axi_vis_wready  : std_logic_vector(1 downto 0);
+    signal HBM_axi_vis_b       : t_axi4_full_b_arr(1 downto 0);
+    -- Visibility HBM signals presented to the model, after the per-core 1 GB
+    -- address offset is applied (one interface per correlator core).
+    signal hbm_vis_aw      : t_axi4_full_addr_arr(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_awready : std_logic_vector(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_w       : t_axi4_full_data_arr(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_wready  : std_logic_vector(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_b       : t_axi4_full_b_arr(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_ar      : t_axi4_full_addr_arr(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_arready : std_logic_vector(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_r       : t_axi4_full_data_arr(g_CORRELATOR_CORES-1 downto 0);
+    signal hbm_vis_rready  : std_logic_vector(g_CORRELATOR_CORES-1 downto 0);
+    -- 6-interface combined signals for HBM_axi_tbModel_multi
+    -- Interfaces 0-3: CT2 write (fc mod 4), 4-5: correlator reads
+    signal hbm_multi_aw      : t_axi4_full_addr_arr(5 downto 0);
+    signal hbm_multi_awready : std_logic_vector(5 downto 0);
+    signal hbm_multi_w       : t_axi4_full_data_arr(5 downto 0);
+    signal hbm_multi_wready  : std_logic_vector(5 downto 0);
+    signal hbm_multi_b       : t_axi4_full_b_arr(5 downto 0);
+    signal hbm_multi_ar      : t_axi4_full_addr_arr(5 downto 0);
+    signal hbm_multi_arready : std_logic_vector(5 downto 0);
+    signal hbm_multi_r       : t_axi4_full_data_arr(5 downto 0);
+    signal hbm_multi_rready  : std_logic_vector(5 downto 0);
 
     signal send_fb_data : std_logic := '0';
 
@@ -128,15 +165,6 @@ architecture Behavioral of ct2_v80_tb is
 
     signal hbm_status : t_slv_8_arr(1 downto 0);
     signal hbm_rst_dbg : t_slv_32_arr(1 downto 0);
-
-    signal HBM_axi_awsize, HBM_axi_vis_awsize, HBM_axi_arprot, HBM_axi_vis_arprot, HBM_axi_awprot, HBM_axi_vis_awprot : t_slv_3_arr(1 downto 0);
-    signal HBM_axi_awburst, HBM_axi_vis_awburst : t_slv_2_arr(1 downto 0);
-    signal HBM_axi_bready, HBM_axi_vis_bready : std_logic_vector(1 downto 0);
-    signal HBM_axi_wstrb, HBM_axi_vis_wstrb : t_slv_64_arr(1 downto 0);
-    signal HBM_axi_arsize, HBM_axi_vis_arsize : t_slv_3_arr(1 downto 0);
-    signal HBM_axi_arburst, HBM_axi_vis_arburst, HBM_axi_arlock, HBM_axi_vis_arlock, HBM_axi_awlock, HBM_axi_vis_awlock : t_slv_2_arr(1 downto 0);
-    signal HBM_axi_awcache, HBM_axi_vis_awcache, HBM_axi_awqos, HBM_axi_vis_awqos, HBM_axi_arqos, HBM_axi_vis_arqos, HBM_axi_arregion, HBM_axi_vis_arregion, HBM_axi_awregion, HBM_axi_vis_awregion, HBM_axi_arcache, HBM_axi_vis_arcache : t_slv_4_arr(1 downto 0);
-    signal HBM_axi_awid, HBM_axi_vis_awid, HBM_axi_arid, HBM_axi_vis_arid, HBM_axi_bid, HBM_axi_vis_bid : t_slv_1_arr(1 downto 0);
 
     signal clk300, clk300_rst, data_rst : std_logic := '0';
     signal clk400 : std_logic := '0';
@@ -521,213 +549,132 @@ begin
             o_freq_index0_repeat => open
         );
         ro_stall(i) <= '0';
-
-        HBM1G_VIS : entity correlator_lib.HBM_axi_tbModel
-        generic map (
-            AXI_ADDR_WIDTH           => 32,
-            AXI_ID_WIDTH             => 1,
-            AXI_DATA_WIDTH           => 256,
-            READ_QUEUE_SIZE          => 16,
-            MIN_LAG                  => 60,
-            INCLUDE_PROTOCOL_CHECKER => TRUE,
-            RANDSEED                 => 43526,
-            LATENCY_LOW_PROBABILITY  => 95,
-            LATENCY_ZERO_PROBABILITY => 80
-        ) port map (
-            i_clk        => clk300,
-            i_rst_n      => rst_n,
-            axi_awaddr   => HBM_axi_vis_aw(i).addr(31 downto 0),
-            axi_awid     => HBM_axi_vis_awid(i),
-            axi_awlen    => HBM_axi_vis_aw(i).len,
-            axi_awsize   => HBM_axi_vis_awsize(i),
-            axi_awburst  => HBM_axi_vis_awburst(i),
-            axi_awlock   => HBM_axi_vis_awlock(i),
-            axi_awcache  => HBM_axi_vis_awcache(i),
-            axi_awprot   => HBM_axi_vis_awprot(i),
-            axi_awqos    => HBM_axi_vis_awqos(i),
-            axi_awregion => HBM_axi_vis_awregion(i),
-            axi_awvalid  => HBM_axi_vis_aw(i).valid,
-            axi_awready  => HBM_axi_vis_awready(i),
-            axi_wdata    => HBM_axi_vis_w(i).data(255 downto 0),
-            axi_wstrb    => HBM_axi_vis_wstrb(i)(31 downto 0),
-            axi_wlast    => HBM_axi_vis_w(i).last,
-            axi_wvalid   => HBM_axi_vis_w(i).valid,
-            axi_wready   => HBM_axi_vis_wready(i),
-            axi_bresp    => HBM_axi_vis_b(i).resp,
-            axi_bvalid   => HBM_axi_vis_b(i).valid,
-            axi_bready   => HBM_axi_vis_bready(i),
-            axi_bid      => HBM_axi_vis_bid(i),
-            axi_araddr   => HBM_axi_vis_ar(i).addr(31 downto 0),
-            axi_arlen    => HBM_axi_vis_ar(i).len,
-            axi_arsize   => HBM_axi_vis_arsize(i),
-            axi_arburst  => HBM_axi_vis_arburst(i),
-            axi_arlock   => HBM_axi_vis_arlock(i),
-            axi_arcache  => HBM_axi_vis_arcache(i),
-            axi_arprot   => HBM_axi_vis_arprot(i),
-            axi_arvalid  => HBM_axi_vis_ar(i).valid,
-            axi_arready  => HBM_axi_vis_arready(i),
-            axi_arqos    => HBM_axi_vis_arqos(i),
-            axi_arid     => HBM_axi_vis_arid(i),
-            axi_arregion => HBM_axi_vis_arregion(i),
-            axi_rdata    => HBM_axi_vis_r(i).data(255 downto 0),
-            axi_rresp    => HBM_axi_vis_r(i).resp,
-            axi_rlast    => HBM_axi_vis_r(i).last,
-            axi_rvalid   => HBM_axi_vis_r(i).valid,
-            axi_rready   => HBM_axi_vis_rready(i),
-            i_write_to_disk      => '0',
-            i_fname              => "",
-            i_write_to_disk_addr => 0,
-            i_write_to_disk_size => 0,
-            i_init_mem           => '0',
-            i_init_fname         => ""
-        );
     end generate;
 
     ---------------------------------------------------------------------------
-    -- AXI bus tie-offs
+    -- Visibility HBM model (correlator output).
+    -- Write-only here: the SPEAD readout is disabled (i_readout_start='0'), so
+    -- the correlator never reads the visibility HBM.  AR/R interfaces are tied
+    -- off.  One write interface per correlator core; the shared memory is
+    -- dumped to g_VIS_DUMP_FILE at the same time as the CT2 HBM dump.
+    --
+    -- In the full firmware, hbm_noc_if adds a physical base address per
+    -- correlator core so each core's visibilities land in a separate HBM.
+    -- The testbench bypasses hbm_noc_if and shares one memory, so we insert a
+    -- 1 GB (0x4000_0000) offset per core here: core 0 unchanged, core 1 at
+    -- +1 GB, etc.  Each core's footprint (256 MB vis + TCI at +256 MB) fits
+    -- well within its 1 GB slot.
     ---------------------------------------------------------------------------
-    axi_hbm_gen : for i in 0 to 1 generate
-        HBM_axi_awsize(i)   <= get_axi_size(HBM_DATA_WIDTH);
-        HBM_axi_awburst(i)  <= "01";
-        HBM_axi_bready(i)   <= '1';
-        HBM_axi_wstrb(i)    <= (others => '1');
-        HBM_axi_arsize(i)   <= get_axi_size(HBM_DATA_WIDTH);
-        HBM_axi_arburst(i)  <= "01";
-        HBM_axi_arlock(i)   <= "00";
-        HBM_axi_awlock(i)   <= "00";
-        HBM_axi_awcache(i)  <= "0011";
-        HBM_axi_awprot(i)   <= "000";
-        HBM_axi_awqos(i)    <= "0000";
-        HBM_axi_awregion(i) <= "0000";
-        HBM_axi_arcache(i)  <= "0011";
-        HBM_axi_arprot(i)   <= "000";
-        HBM_axi_arqos(i)    <= "0000";
-        HBM_axi_arregion(i) <= "0000";
-        HBM_axi_awid(i)(0)  <= '0';
-        HBM_axi_arid(i)(0)  <= '0';
-        HBM_axi_bid(i)(0)   <= '0';
-
-        HBM_axi_vis_awsize(i)   <= get_axi_size(HBM_DATA_WIDTH);
-        HBM_axi_vis_awburst(i)  <= "01";
-        HBM_axi_vis_bready(i)   <= '1';
-        HBM_axi_vis_wstrb(i)    <= (others => '1');
-        HBM_axi_vis_arsize(i)   <= get_axi_size(HBM_DATA_WIDTH);
-        HBM_axi_vis_arburst(i)  <= "01";
-        HBM_axi_vis_arlock(i)   <= "00";
-        HBM_axi_vis_awlock(i)   <= "00";
-        HBM_axi_vis_awcache(i)  <= "0011";
-        HBM_axi_vis_awprot(i)   <= "000";
-        HBM_axi_vis_awqos(i)    <= "0000";
-        HBM_axi_vis_awregion(i) <= "0000";
-        HBM_axi_vis_arcache(i)  <= "0011";
-        HBM_axi_vis_arprot(i)   <= "000";
-        HBM_axi_vis_arqos(i)    <= "0000";
-        HBM_axi_vis_arregion(i) <= "0000";
-        HBM_axi_vis_awid(i)(0)  <= '0';
-        HBM_axi_vis_arid(i)(0)  <= '0';
-        HBM_axi_vis_bid(i)(0)   <= '0';
+    vis_aw_offset_gen : for k in 0 to (g_CORRELATOR_CORES - 1) generate
+        hbm_vis_aw(k).valid <= HBM_axi_vis_aw(k).valid;
+        hbm_vis_aw(k).addr  <= std_logic_vector(unsigned(HBM_axi_vis_aw(k).addr) +
+                                                shift_left(to_unsigned(k, 40), 30));
+        hbm_vis_aw(k).len   <= HBM_axi_vis_aw(k).len;
+        hbm_vis_w(k)        <= HBM_axi_vis_w(k);
+        HBM_axi_vis_awready(k) <= hbm_vis_awready(k);
+        HBM_axi_vis_wready(k)  <= hbm_vis_wready(k);
+        HBM_axi_vis_b(k)       <= hbm_vis_b(k);
+        -- Read side unused (no visibility readback in this testbench).
+        hbm_vis_ar(k).valid <= '0';
+        hbm_vis_rready(k)   <= '0';
     end generate;
 
-    ---------------------------------------------------------------------------
-    -- 16 GB CT2 HBM model (filterbank data -> correlator)
-    ---------------------------------------------------------------------------
-    HBM16G_2 : entity correlator_lib.HBM_axi_TwoInterface_tbModel
+    HBM_VIS_MULTI : entity correlator_lib.HBM_axi_tbModel_multi
     generic map (
-        AXI_ADDR_WIDTH           => 34,
-        AXI_ID_WIDTH             => 1,
+        g_NUM_INTERFACES         => g_CORRELATOR_CORES,
         AXI_DATA_WIDTH           => 256,
+        -- Per core: visibilities in the low 256 MB, TCI/DV at the 256 MB
+        -- offset, plus a 1 GB stride per core.  34-bit addressing covers up to
+        -- the g_MAX_CORRELATORS=6 cores (6 GB).
+        AXI_ADDR_WIDTH           => 34,
         READ_QUEUE_SIZE          => 16,
         MIN_LAG                  => 60,
-        INCLUDE_PROTOCOL_CHECKER => TRUE,
+        RANDSEED                 => 1234,
+        LATENCY_LOW_PROBABILITY  => 99,
+        LATENCY_ZERO_PROBABILITY => 80
+    ) port map (
+        i_clk                => clk300,
+        i_rst_n              => rst_n,
+        i_axi_aw             => hbm_vis_aw,
+        o_axi_awready        => hbm_vis_awready,
+        i_axi_w              => hbm_vis_w,
+        o_axi_wready         => hbm_vis_wready,
+        o_axi_b              => hbm_vis_b,
+        i_axi_ar             => hbm_vis_ar,
+        o_axi_arready        => hbm_vis_arready,
+        o_axi_r              => hbm_vis_r,
+        i_axi_rready         => hbm_vis_rready,
+        i_write_to_disk      => write_HBM_to_disk2,
+        i_fname              => g_VIS_DUMP_FILE,
+        i_init_mem           => '0',
+        i_init_fname         => ""
+    );
+
+    ---------------------------------------------------------------------------
+    -- Wire hbm_multi arrays: 0-3 = CT2 write (fc mod 4), 4-5 = correlator reads
+    ---------------------------------------------------------------------------
+    -- In the real system, hbm_noc_if adds a physical base of k × 4 GB (bits 33:32 = k)
+    -- to each write interface's address.  The testbench bypasses hbm_noc_if, so we
+    -- insert the fc_group offset here to keep write and read addresses consistent.
+    ct2_aw_offset_gen : for k in 0 to 3 generate
+        hbm_multi_aw(k).valid <= HBM_axi_aw(k).valid;
+        hbm_multi_aw(k).addr  <= HBM_axi_aw(k).addr(39 downto 34) &
+                                  std_logic_vector(to_unsigned(k, 2)) &
+                                  HBM_axi_aw(k).addr(31 downto 0);
+        hbm_multi_aw(k).len   <= HBM_axi_aw(k).len;
+    end generate;
+    hbm_multi_w(3 downto 0)  <= HBM_axi_w;
+    HBM_axi_awready           <= hbm_multi_awready(3 downto 0);
+    HBM_axi_wready            <= hbm_multi_wready(3 downto 0);
+    HBM_axi_b                 <= hbm_multi_b(3 downto 0);
+
+    hbm_multi_aw(4).valid <= '0';
+    hbm_multi_aw(5).valid <= '0';
+    hbm_multi_w(4).valid  <= '0';
+    hbm_multi_w(5).valid  <= '0';
+
+    hbm_multi_ar(4) <= HBM_axi_ar(0);
+    hbm_multi_ar(5) <= HBM_axi_ar(1);
+    HBM_axi_arready(0)  <= hbm_multi_arready(4);
+    HBM_axi_arready(1)  <= hbm_multi_arready(5);
+    HBM_axi_r(0)        <= hbm_multi_r(4);
+    HBM_axi_r(1)        <= hbm_multi_r(5);
+    hbm_multi_rready(4) <= HBM_axi_rready(0);
+    hbm_multi_rready(5) <= HBM_axi_rready(1);
+
+    hbm_multi_ar(0).valid <= '0';
+    hbm_multi_ar(1).valid <= '0';
+    hbm_multi_ar(2).valid <= '0';
+    hbm_multi_ar(3).valid <= '0';
+    hbm_multi_rready(3 downto 0) <= "0000";
+
+    ---------------------------------------------------------------------------
+    -- CT2 HBM model: 4 write (fc mod 4 groups) + 2 read (correlator) interfaces
+    ---------------------------------------------------------------------------
+    HBM16G_2 : entity correlator_lib.HBM_axi_tbModel_multi
+    generic map (
+        g_NUM_INTERFACES         => 6,
+        AXI_DATA_WIDTH           => 256,
+        AXI_ADDR_WIDTH           => 34,
+        READ_QUEUE_SIZE          => 16,
+        MIN_LAG                  => 60,
         RANDSEED                 => 43526,
         LATENCY_LOW_PROBABILITY  => 99,
-        LATENCY_ZERO_PROBABILITY => 80,
-        LATENCY_LOW_PROBABILITY2 => 99,
-        LATENCY_ZERO_PROBABILITY2 => 82
+        LATENCY_ZERO_PROBABILITY => 80
     ) port map (
-        i_clk        => clk300,
-        i_rst_n      => rst_n,
-        axi_awaddr   => HBM_axi_aw(0).addr(33 downto 0),
-        axi_awid     => HBM_axi_awid(0),
-        axi_awlen    => HBM_axi_aw(0).len,
-        axi_awsize   => HBM_axi_awsize(0),
-        axi_awburst  => HBM_axi_awburst(0),
-        axi_awlock   => HBM_axi_awlock(0),
-        axi_awcache  => HBM_axi_awcache(0),
-        axi_awprot   => HBM_axi_awprot(0),
-        axi_awqos    => HBM_axi_awqos(0),
-        axi_awregion => HBM_axi_awregion(0),
-        axi_awvalid  => HBM_axi_aw(0).valid,
-        axi_awready  => HBM_axi_awready(0),
-        axi_wdata    => HBM_axi_w(0).data(255 downto 0),
-        axi_wstrb    => HBM_axi_wstrb(0)(31 downto 0),
-        axi_wlast    => HBM_axi_w(0).last,
-        axi_wvalid   => HBM_axi_w(0).valid,
-        axi_wready   => HBM_axi_wready(0),
-        axi_bresp    => HBM_axi_b(0).resp,
-        axi_bvalid   => HBM_axi_b(0).valid,
-        axi_bready   => HBM_axi_bready(0),
-        axi_bid      => HBM_axi_bid(0),
-        axi_araddr   => HBM_axi_ar(0).addr(33 downto 0),
-        axi_arlen    => HBM_axi_ar(0).len,
-        axi_arsize   => HBM_axi_arsize(0),
-        axi_arburst  => HBM_axi_arburst(0),
-        axi_arlock   => HBM_axi_arlock(0),
-        axi_arcache  => HBM_axi_arcache(0),
-        axi_arprot   => HBM_axi_arprot(0),
-        axi_arvalid  => HBM_axi_ar(0).valid,
-        axi_arready  => HBM_axi_arready(0),
-        axi_arqos    => HBM_axi_arqos(0),
-        axi_arid     => HBM_axi_arid(0),
-        axi_arregion => HBM_axi_arregion(0),
-        axi_rdata    => HBM_axi_r(0).data(255 downto 0),
-        axi_rresp    => HBM_axi_r(0).resp,
-        axi_rlast    => HBM_axi_r(0).last,
-        axi_rvalid   => HBM_axi_r(0).valid,
-        axi_rready   => HBM_axi_rready(0),
-        axi2_awaddr   => HBM_axi_aw(1).addr(33 downto 0),
-        axi2_awid     => HBM_axi_awid(1),
-        axi2_awlen    => HBM_axi_aw(1).len,
-        axi2_awsize   => HBM_axi_awsize(1),
-        axi2_awburst  => HBM_axi_awburst(1),
-        axi2_awlock   => HBM_axi_awlock(1),
-        axi2_awcache  => HBM_axi_awcache(1),
-        axi2_awprot   => HBM_axi_awprot(1),
-        axi2_awqos    => HBM_axi_awqos(1),
-        axi2_awregion => HBM_axi_awregion(1),
-        axi2_awvalid  => HBM_axi_aw(1).valid,
-        axi2_awready  => HBM_axi_awready(1),
-        axi2_wdata    => HBM_axi_w(1).data(255 downto 0),
-        axi2_wstrb    => HBM_axi_wstrb(1)(31 downto 0),
-        axi2_wlast    => HBM_axi_w(1).last,
-        axi2_wvalid   => HBM_axi_w(1).valid,
-        axi2_wready   => HBM_axi_wready(1),
-        axi2_bresp    => HBM_axi_b(1).resp,
-        axi2_bvalid   => HBM_axi_b(1).valid,
-        axi2_bready   => HBM_axi_bready(1),
-        axi2_bid      => HBM_axi_bid(1),
-        axi2_araddr   => HBM_axi_ar(1).addr(33 downto 0),
-        axi2_arlen    => HBM_axi_ar(1).len,
-        axi2_arsize   => HBM_axi_arsize(1),
-        axi2_arburst  => HBM_axi_arburst(1),
-        axi2_arlock   => HBM_axi_arlock(1),
-        axi2_arcache  => HBM_axi_arcache(1),
-        axi2_arprot   => HBM_axi_arprot(1),
-        axi2_arvalid  => HBM_axi_ar(1).valid,
-        axi2_arready  => HBM_axi_arready(1),
-        axi2_arqos    => HBM_axi_arqos(1),
-        axi2_arid     => HBM_axi_arid(1),
-        axi2_arregion => HBM_axi_arregion(1),
-        axi2_rdata    => HBM_axi_r(1).data(255 downto 0),
-        axi2_rresp    => HBM_axi_r(1).resp,
-        axi2_rlast    => HBM_axi_r(1).last,
-        axi2_rvalid   => HBM_axi_r(1).valid,
-        axi2_rready   => HBM_axi_rready(1),
-        -- HBM dump: triggered by write_HBM_to_disk2 at g_SIM_DURATION_US
+        i_clk                => clk300,
+        i_rst_n              => rst_n,
+        i_axi_aw             => hbm_multi_aw,
+        o_axi_awready        => hbm_multi_awready,
+        i_axi_w              => hbm_multi_w,
+        o_axi_wready         => hbm_multi_wready,
+        o_axi_b              => hbm_multi_b,
+        i_axi_ar             => hbm_multi_ar,
+        o_axi_arready        => hbm_multi_arready,
+        o_axi_r              => hbm_multi_r,
+        i_axi_rready         => hbm_multi_rready,
         i_write_to_disk      => write_HBM_to_disk2,
         i_fname              => g_HBM_DUMP_FILE,
-        i_write_to_disk_addr => 0,
-        i_write_to_disk_size => g_HBM_DUMP_BYTES,
         i_init_mem           => '0',
         i_init_fname         => ""
     );

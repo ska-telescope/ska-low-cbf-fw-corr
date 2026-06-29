@@ -411,74 +411,52 @@ set_property -dict [list READ_BANDWIDTH 600 READ_AVERAGE_BURST 64 WRITE_BANDWIDT
 
 
 ######################################
-# 16GB for CT2 writes
-set ct2_wr_1 [get_noc_interfaces i_correlator_core/dsp_topi/ct_cor_out_inst/HBM0i/hbm_noc_geni.hbm_noci/S_AXI_nmu]
-set hbm_conn_ct2_0_wr0 [create_noc_connection -source $ct2_wr_1 -target $hbm0G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr0
-set hbm_conn_ct2_0_wr1 [create_noc_connection -source $ct2_wr_1 -target $hbm1G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr1
-set hbm_conn_ct2_0_wr2 [create_noc_connection -source $ct2_wr_1 -target $hbm2G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr2
-set hbm_conn_ct2_0_wr3 [create_noc_connection -source $ct2_wr_1 -target $hbm3G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr3
-set hbm_conn_ct2_0_wr4 [create_noc_connection -source $ct2_wr_1 -target $hbm4G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr4
-set hbm_conn_ct2_0_wr5 [create_noc_connection -source $ct2_wr_1 -target $hbm5G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr5
-set hbm_conn_ct2_0_wr6 [create_noc_connection -source $ct2_wr_1 -target $hbm6G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr6
-set hbm_conn_ct2_0_wr7 [create_noc_connection -source $ct2_wr_1 -target $hbm7G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr7
-set hbm_conn_ct2_0_wr8 [create_noc_connection -source $ct2_wr_1 -target $hbm8G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr8
-set hbm_conn_ct2_0_wr9 [create_noc_connection -source $ct2_wr_1 -target $hbm9G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr9
-set hbm_conn_ct2_0_wr10 [create_noc_connection -source $ct2_wr_1 -target $hbm10G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr10
-set hbm_conn_ct2_0_wr11 [create_noc_connection -source $ct2_wr_1 -target $hbm11G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr11
-set hbm_conn_ct2_0_wr12 [create_noc_connection -source $ct2_wr_1 -target $hbm12G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr12
-set hbm_conn_ct2_0_wr13 [create_noc_connection -source $ct2_wr_1 -target $hbm13G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr13
-set hbm_conn_ct2_0_wr14 [create_noc_connection -source $ct2_wr_1 -target $hbm14G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr14
-set hbm_conn_ct2_0_wr15 [create_noc_connection -source $ct2_wr_1 -target $hbm15G_port0]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr15
+# 16GB for CT2 writes — 4-buffer split: one NMU per fc mod 4 group, each covering 4 GB.
+# Each NMU connects to port0 of its 4 GB region (port0 and port1 are independent 1 GB channels).
 
-set ct2_wr_2 [get_noc_interfaces i_correlator_core/dsp_topi/ct_cor_out_inst/HBM1i/hbm_noc_geni.hbm_noci/S_AXI_nmu]
-set hbm_conn_ct2_1_wr0 [create_noc_connection -source $ct2_wr_2 -target $hbm0G_port1]
+# HBM0i: fc_group=0, 0-4 GB (hbm0G-hbm3G)
+set ct2_wr_0 [get_noc_interfaces i_correlator_core/dsp_topi/ct_cor_out_inst/HBM0i/hbm_noc_geni.hbm_noci/S_AXI_nmu]
+set hbm_conn_ct2_0_wr0 [create_noc_connection -source $ct2_wr_0 -target $hbm0G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr0
+set hbm_conn_ct2_0_wr1 [create_noc_connection -source $ct2_wr_0 -target $hbm1G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr1
+set hbm_conn_ct2_0_wr2 [create_noc_connection -source $ct2_wr_0 -target $hbm2G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr2
+set hbm_conn_ct2_0_wr3 [create_noc_connection -source $ct2_wr_0 -target $hbm3G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_0_wr3
+
+# HBM1i: fc_group=1, 4-8 GB (hbm4G-hbm7G)
+set ct2_wr_1 [get_noc_interfaces i_correlator_core/dsp_topi/ct_cor_out_inst/HBM1i/hbm_noc_geni.hbm_noci/S_AXI_nmu]
+set hbm_conn_ct2_1_wr0 [create_noc_connection -source $ct2_wr_1 -target $hbm4G_port0]
 set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr0
-set hbm_conn_ct2_1_wr1 [create_noc_connection -source $ct2_wr_2 -target $hbm1G_port1]
+set hbm_conn_ct2_1_wr1 [create_noc_connection -source $ct2_wr_1 -target $hbm5G_port0]
 set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr1
-set hbm_conn_ct2_1_wr2 [create_noc_connection -source $ct2_wr_2 -target $hbm2G_port1]
+set hbm_conn_ct2_1_wr2 [create_noc_connection -source $ct2_wr_1 -target $hbm6G_port0]
 set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr2
-set hbm_conn_ct2_1_wr3 [create_noc_connection -source $ct2_wr_2 -target $hbm3G_port1]
+set hbm_conn_ct2_1_wr3 [create_noc_connection -source $ct2_wr_1 -target $hbm7G_port0]
 set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr3
-set hbm_conn_ct2_1_wr4 [create_noc_connection -source $ct2_wr_2 -target $hbm4G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr4
-set hbm_conn_ct2_1_wr5 [create_noc_connection -source $ct2_wr_2 -target $hbm5G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr5
-set hbm_conn_ct2_1_wr6 [create_noc_connection -source $ct2_wr_2 -target $hbm6G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr6
-set hbm_conn_ct2_1_wr7 [create_noc_connection -source $ct2_wr_2 -target $hbm7G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr7
-set hbm_conn_ct2_1_wr8 [create_noc_connection -source $ct2_wr_2 -target $hbm8G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr8
-set hbm_conn_ct2_1_wr9 [create_noc_connection -source $ct2_wr_2 -target $hbm9G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr9
-set hbm_conn_ct2_1_wr10 [create_noc_connection -source $ct2_wr_2 -target $hbm10G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr10
-set hbm_conn_ct2_1_wr11 [create_noc_connection -source $ct2_wr_2 -target $hbm11G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr11
-set hbm_conn_ct2_1_wr12 [create_noc_connection -source $ct2_wr_2 -target $hbm12G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr12
-set hbm_conn_ct2_1_wr13 [create_noc_connection -source $ct2_wr_2 -target $hbm13G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr13
-set hbm_conn_ct2_1_wr14 [create_noc_connection -source $ct2_wr_2 -target $hbm14G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr14
-set hbm_conn_ct2_1_wr15 [create_noc_connection -source $ct2_wr_2 -target $hbm15G_port1]
-set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_1_wr15
+
+# HBM2i: fc_group=2, 8-12 GB (hbm8G-hbm11G)
+set ct2_wr_2 [get_noc_interfaces i_correlator_core/dsp_topi/ct_cor_out_inst/HBM2i/hbm_noc_geni.hbm_noci/S_AXI_nmu]
+set hbm_conn_ct2_2_wr0 [create_noc_connection -source $ct2_wr_2 -target $hbm8G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_2_wr0
+set hbm_conn_ct2_2_wr1 [create_noc_connection -source $ct2_wr_2 -target $hbm9G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_2_wr1
+set hbm_conn_ct2_2_wr2 [create_noc_connection -source $ct2_wr_2 -target $hbm10G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_2_wr2
+set hbm_conn_ct2_2_wr3 [create_noc_connection -source $ct2_wr_2 -target $hbm11G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_2_wr3
+
+# HBM3i: fc_group=3, 12-16 GB (hbm12G-hbm15G)
+set ct2_wr_3 [get_noc_interfaces i_correlator_core/dsp_topi/ct_cor_out_inst/HBM3i/hbm_noc_geni.hbm_noci/S_AXI_nmu]
+set hbm_conn_ct2_3_wr0 [create_noc_connection -source $ct2_wr_3 -target $hbm12G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_3_wr0
+set hbm_conn_ct2_3_wr1 [create_noc_connection -source $ct2_wr_3 -target $hbm13G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_3_wr1
+set hbm_conn_ct2_3_wr2 [create_noc_connection -source $ct2_wr_3 -target $hbm14G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_3_wr2
+set hbm_conn_ct2_3_wr3 [create_noc_connection -source $ct2_wr_3 -target $hbm15G_port0]
+set_property -dict [list READ_BANDWIDTH 0 READ_AVERAGE_BURST 64 WRITE_BANDWIDTH 400 WRITE_AVERAGE_BURST 64] $hbm_conn_ct2_3_wr3
 
 ######################################
 # 16GB for CT2 read interfaces for each correlator instance
@@ -827,8 +805,10 @@ set_property -dict [list READ_BANDWIDTH 4200 READ_AVERAGE_BURST 64 WRITE_BANDWID
 # i_correlator_core/dsp_topi/correlator_geni[5].correlator_wrapperi/HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
 # i_correlator_core/dsp_topi/correlator_geni[5].correlator_wrapperi/HBM_writei/vnoc_gen.hbm_noci/S_AXI_nmu 
 # i_correlator_core/dsp_topi/correlator_geni[5].correlator_wrapperi/xpm_nmu_strm_inst/S_AXIS_nmu 
-# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM0i/hbm_noc_geni.hbm_noci/S_AXI_nmu 
-# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM1i/hbm_noc_geni.hbm_noci/S_AXI_nmu 
+# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM0i/hbm_noc_geni.hbm_noci/S_AXI_nmu
+# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM1i/hbm_noc_geni.hbm_noci/S_AXI_nmu
+# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM2i/hbm_noc_geni.hbm_noci/S_AXI_nmu
+# i_correlator_core/dsp_topi/ct_cor_out_inst/HBM3i/hbm_noc_geni.hbm_noci/S_AXI_nmu 
 # i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[0].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
 # i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[1].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
 # i_correlator_core/dsp_topi/spead_packetiser_top/read_pkt_geni[2].HBM_readi/vnoc_gen.hbm_noci/S_AXI_nmu 
