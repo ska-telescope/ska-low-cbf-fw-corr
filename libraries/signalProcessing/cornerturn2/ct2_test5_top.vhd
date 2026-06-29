@@ -28,7 +28,7 @@ begin
         --   word3: HBM_base_addr=0                            -> 0x00000000
         g_SB_C0_TABLE => (x"00C8000C", x"00000000", x"98000120", x"00000000"),
         g_SB_C1_TABLE => (0 => x"00000000"),
-        g_SIM_DURATION_US => 4000,
+        g_SIM_DURATION_US => 4000, -- 4000us is just enough for the 288/24 = 12 visibility blocks to be output
         g_HBM_DUMP_FILE   => "ct2_test5_hbm.txt"
     );
 end Behavioral;
