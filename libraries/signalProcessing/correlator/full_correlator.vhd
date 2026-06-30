@@ -1075,13 +1075,13 @@ begin
                         -- real part is unchanged
                         colDataDel(0)(col)(7 downto 0) <= colBRAMDout(col)(7 downto 0);
                         colDataDel(0)(col)(23 downto 16) <= colBRAMDout(col)(23 downto 16);
-                        -- imaginary part; negate and subtract one if the real part is negative
-                        if colDataDel(0)(col)(7) = '0' then
+                        -- imaginary part; negate, and subtract one if the real part is negative
+                        if colBRAMDout(col)(7) = '0' then
                             colDataDel(0)(col)(15 downto 8) <= std_logic_vector(signed(not colBRAMDout(col)(15 downto 8)) + 1);
                         else
                             colDataDel(0)(col)(15 downto 8) <= not colBRAMDout(col)(15 downto 8);
                         end if;
-                        if colDataDel(0)(col)(23) = '0' then
+                        if colBRAMDout(col)(23) = '0' then
                             colDataDel(0)(col)(31 downto 24) <= std_logic_vector(signed(not colBRAMDout(col)(31 downto 24)) + 1);
                         else
                             colDataDel(0)(col)(31 downto 24) <= not colBRAMDout(col)(31 downto 24);
@@ -1133,12 +1133,12 @@ begin
                         rowDataDel(row)(0)(7 downto 0) <= rowBRAMDout(row)(7 downto 0);
                         rowDataDel(row)(0)(23 downto 16) <= rowBRAMDout(row)(23 downto 16);
                         -- imaginary part; subtract one if the real part is negative
-                        if rowDataDel(row)(0)(7) = '0' then
+                        if rowBRAMDout(row)(7) = '0' then
                             rowDataDel(row)(0)(15 downto 8) <= rowBRAMDout(row)(15 downto 8);
                         else
                             rowDataDel(row)(0)(15 downto 8) <= std_logic_vector(signed(rowBRAMDout(row)(15 downto 8)) - 1);
                         end if;
-                        if rowDataDel(row)(0)(23) = '0' then
+                        if rowBRAMDout(row)(23) = '0' then
                             rowDataDel(row)(0)(31 downto 24) <= rowBRAMDout(row)(31 downto 24);
                         else
                             rowDataDel(row)(0)(31 downto 24) <= std_logic_vector(signed(rowBRAMDout(row)(31 downto 24)) - 1);
