@@ -292,6 +292,7 @@ begin
             
             if i_cor_cfg_valid = '1' and i_cor_cfg_first = '1' then
                 readout_buffer_hold <= i_cor_cfg_data(0);
+                cor_tableSelect <= i_cor_cfg_data(1);
                 cfg_word_wr_en(0) <= '0';
                 -- Data is double buffered in the memory, write data to the cfg_mem_select half, 
                 -- then switch to that half for readout
@@ -488,7 +489,7 @@ begin
                     SB_rd_fsm <= idle;
             
             end case;
-            cor_tableSelect <= readout_tableSelect;
+            
             
             -- del1 : SB_rd_addr is valid
             SB_rd_fsm_del1 <= SB_rd_fsm;

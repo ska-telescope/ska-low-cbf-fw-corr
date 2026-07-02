@@ -837,7 +837,7 @@ begin
                     SB_addr(12) <= readout_tableSelect;
                     SB_addr(11 downto 9) <= dout_SB_sel;  -- steps through each correlator core
                     SB_addr(8 downto 0) <= dout_SB_entry; -- steps through each word in the subarray-beam memory for a particular correlator core
-                    cor_bp_rd_addr(7) <= readout_tableSelect;  -- Which of the two HBM buffers are we reading from, will always be the same for the two correlators
+                    cor_bp_rd_addr(7) <= readout_buffer;  -- Which of the two ?? hbm buffers ??  are we reading from, will always be the same for all correlators
                     cor_bp_rd_addr(6 downto 0) <= dout_SB_entry(8 downto 2); -- 4 words in each subarray-beam table entry
                     if dout_SB_sel = "101" then
                         dout_SB_sel <= "000";
@@ -912,7 +912,7 @@ begin
         --     o_axis_cor_last  : out std_logic;
         -- 
         -- Packets are sent on "readout_start_pulse"
-        --  - 1st byte (o_axis_cor_first = '1') = Readout buffer selection
+        --  - 1st byte (o_axis_cor_first = '1') = Readout buffer selection and table selection
         --  - Next 4 bytes                      = framecount
         --  - 1 byte                            = Number of subarray beams 
         --  - Then 128 groups of 4 bytes each, where each 4 bytes are the data from a 32-bit word in the subarray beam table.
@@ -927,7 +927,7 @@ begin
             if rising_edge(i_axi_clk) then
                 if (unsigned(dout_SB_sel_del3) = i) then
                     if (SB_rd_fsm_del3 = send_meta) then
-                        cfg_to_send(i) <= readout_frameCount_Del1 & "0000000" & readout_buffer_del1;
+                        cfg_to_send(i) <= readout_frameCount_Del1 & "000000" & readout_tableSelect & readout_buffer_del1;
                         cfg_to_send_valid(i) <= "11111";
                         cfg_to_send_first(i) <= "00001";
                         cfg_to_send_last(i) <= "00000";

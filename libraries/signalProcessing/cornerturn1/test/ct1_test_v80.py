@@ -226,6 +226,19 @@ def conv_signed_8bit(din):
     else:
         return (din)
 
+# Sentinel stored for filterbank-output samples that the testbench wrote as
+# 'X' (undriven bytes).  This happens when only some filterbanks are
+# instantiated to reduce simulation runtime; those samples are expected and
+# are skipped in the comparison rather than treated as mismatches.
+FB_X = 1 << 20
+
+def hexint(di):
+    """Parse a hex token; return None if it is an undriven 'X' value."""
+    try:
+        return int(di, 16)
+    except ValueError:
+        return None
+
 def get_tb_fb_data(tb_file, virtual_channels):
     # Load data saved by the testbench at the output of the filterbank
     # File format : text
@@ -245,13 +258,16 @@ def get_tb_fb_data(tb_file, virtual_channels):
     meta_data = np.zeros((integrations,3,64,virtual_channels,3),dtype = np.int64)
     # data [integration, frame, packet, vc, Hre/Him/Vre/Vim, fine_channel]
     sim_fbout = np.zeros((integrations,3,64,virtual_channels,4,3456), dtype = np.int32)
-    vc_list = np.zeros(4,dtype = np.int32)
+    vc_list = [None, None, None, None]  # list (not ndarray) so undriven VCs can be None
     first_line = True
     linecount = 0
     
     for line in tb_file:
         dval = line.split()
-        dint = [int(di,16) for di in dval]
+        # Undriven bytes appear as 'X' tokens (some filterbanks not
+        # instantiated); hexint() returns None for those so parsing does not
+        # fail, and the data samples are stored as the FB_X sentinel below.
+        dint = [hexint(di) for di in dval]
         if first_line:
             print("filterbank output dint : ")
             print(dint)
@@ -261,27 +277,38 @@ def get_tb_fb_data(tb_file, virtual_channels):
                 first_integration = dint[1]
             integration = dint[1] - first_integration
             frame = dint[2]
+            # Undriven filterbanks report their VC number (and meta) as 'X'
+            # (None).  Store only the driven VCs; the undriven ones have no
+            # filterbank output and are skipped here and in the comparison.
             vc_list[0] = dint[3]
             vc_list[1] = dint[4]
             vc_list[2] = dint[5]
             vc_list[3] = dint[6]
             for vc_count in range(4):
-                # same meta data for groups of 4 virtual channels
-                meta_data[integration, frame, packet_count[integration, frame, vc_list[vc_count]], vc_list[vc_count], 0] = dint[7]
-                meta_data[integration, frame, packet_count[integration, frame, vc_list[vc_count]], vc_list[vc_count], 1] = dint[8]
-                meta_data[integration, frame, packet_count[integration, frame, vc_list[vc_count]], vc_list[vc_count], 2] = dint[9]
-                packet_count[integration, frame, vc_list[vc_count]] = packet_count[integration, frame, vc_list[vc_count]] + 1
-                dcount = 0
+                vc = vc_list[vc_count]
+                if vc is None:
+                    continue   # filterbank for this VC not instantiated
+                pc = packet_count[integration, frame, vc]
+                # bad_poly / last_channel / demap may also be 'X'; store 0 when
+                # undriven (this meta is not used in the comparison).
+                meta_data[integration, frame, pc, vc, 0] = dint[7] if dint[7] is not None else 0
+                meta_data[integration, frame, pc, vc, 1] = dint[8] if dint[8] is not None else 0
+                meta_data[integration, frame, pc, vc, 2] = dint[9] if dint[9] is not None else 0
+                packet_count[integration, frame, vc] = pc + 1
+            dcount = 0
         else:
             # dint[0] == 5, the data part
+            first_line = False
             for vc_count in range(4):   # 4 virtual channels per line
+                vc = vc_list[vc_count]
+                if vc is None:
+                    continue   # whole group undriven
                 for component in range(4): # 4 components (H pol re, H pol im, V pol re, V pol im)
-                    #if (dcount > 3455):
-                    #    print(f"line {linecount} in the filterbank output")
-                    #    print(f"integration = {integration}, frame = {frame}, vclist = {vc_list}, dcount= {dcount}")
-                    #    print(dint)
-                    first_line = False
-                    sim_fbout[integration, frame, packet_count[integration,frame,vc_list[vc_count]] - 1, vc_list[vc_count], component, dcount] = conv_signed_8bit(dint[1 + vc_count * 4 + component])
+                    # Undriven filterbank samples are 'X' (None) -> store the
+                    # FB_X sentinel so the comparison skips them.
+                    raw = dint[1 + vc_count * 4 + component]
+                    value = FB_X if raw is None else conv_signed_8bit(raw)
+                    sim_fbout[integration, frame, packet_count[integration,frame,vc] - 1, vc, component, dcount] = value
             dcount = dcount + 1                    
         linecount += 1
     return (meta_data, sim_fbout, packet_count)
@@ -295,7 +322,7 @@ def get_tb_data(tb_file, virtual_channels):
     # array element:    0       1       2         3          4           5        6          7 
     #   - 4096 lines of data   
     #      C <re Hpol> <im Hpol> <re Vpol> <im Vpol> ... (x12 for 12 virtual channels)
-    print("Loading data at the output of corner turn 1")
+    print(f"Loading data at the output of corner turn 1 for {virtual_channels} virtual channels")
     first_integration_set = False
     first_integration = 0
     # Number of packets received for each integration, frame and virtual channel
@@ -400,16 +427,20 @@ def main():
     for b in range(20 * ((vc_max+20)//20)):   # Use a multiple of 20 words to make the vhdl testbench happy
         args.data.write(f"{RFI_thresholds[b]:08x}\n")
     
-    # Get the output of the simulation
+    # Get the output of the simulation.
+    # vc_max is the highest configured virtual channel; the number of virtual
+    # channels output by both CT1 and the filterbank is always padded up to a
+    # multiple of 12, so size both loaders to vc_ceil12 (not vc_max+1 -- the
+    # filterbank output can contain VC numbers beyond vc_max in the padded group).
+    vc_ceil12 = int(np.ceil((vc_max+1) / 12.0) * 12)
     if args.tbdata:
-        vc_ceil12 = int(np.ceil(vc_max / 12.0) * 12)  # Number of virtual channels output by ct1 is always a multiple of 12
         (meta_data, data_data, packet_count) = get_tb_data(args.tbdata, vc_ceil12)
         tb_valid = True
     else:
         tb_valid = False
-    
+
     if args.fbdata:
-        (sim_fb_meta, sim_fb_data, sim_fb_packet_count) = get_tb_fb_data(args.fbdata, total_blocks)
+        (sim_fb_meta, sim_fb_data, sim_fb_packet_count) = get_tb_fb_data(args.fbdata, vc_ceil12)
         filterbank_fir_taps = open(f"{args.filterbank_taps}", "rt")
         fb = filterbank.PolyphaseFilterBank(filterbank_fir_taps)
         sim_fb_valid = True
@@ -441,6 +472,7 @@ def main():
     meta_mismatch = 0
     fd_mismatch = 0
     fd_match = 0
+    fd_skipped = 0   # samples the testbench wrote as 'X' (uninstantiated filterbanks)
     for frame in range(sim_frames):
         integration_offset = frame // 3
         integration = integration_start + integration_offset
@@ -600,7 +632,11 @@ def main():
                     else:
                         print(f"No tb data : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")
                 
-                if sim_fb_valid:
+                # Skip the filterbank comparison for VCs whose filterbank was
+                # not instantiated (no packets received -> testbench wrote 'X').
+                if sim_fb_valid and sim_fb_packet_count[integration_offset, frame_in_integration, vc] == 0:
+                    fd_skipped += 1
+                if sim_fb_valid and sim_fb_packet_count[integration_offset, frame_in_integration, vc] > 0:
                     # Get the data from the CT1 output from the testbench, and calculate the expected output
                     # from the filterbank
                     fb_in = np.zeros(75*4096, dtype = np.complex128)
@@ -697,6 +733,11 @@ def main():
                             Xim = sim_fb_data[integration_offset, frame_in_integration, fb_pkt_out, vc, 1, fine_freq]
                             Yre = sim_fb_data[integration_offset, frame_in_integration, fb_pkt_out, vc, 2, fine_freq]
                             Yim = sim_fb_data[integration_offset, frame_in_integration, fb_pkt_out, vc, 3, fine_freq]
+                            # Skip samples the testbench left undriven ('X'):
+                            # the filterbank for this channel was not instantiated.
+                            if (Xre == FB_X) or (Xim == FB_X) or (Yre == FB_X) or (Yim == FB_X):
+                                fd_skipped += 1
+                                continue
                             p_Xre = np.real(fdelay_out[fb_pkt_out, fine_freq, 0])
                             p_Xim = np.imag(fdelay_out[fb_pkt_out, fine_freq, 0])
                             p_Yre = np.real(fdelay_out[fb_pkt_out, fine_freq, 1])
@@ -716,7 +757,7 @@ def main():
         print(f"    data sample mismatch = {data_mismatch}, data samples matched = {data_match} ")
         print(f"    meta data mismatch = {meta_mismatch}, meta data matched = {meta_match}")
     if sim_fb_valid:
-        print(f"    fine delay output mismatch = {fd_mismatch}, match count = {fd_match}")
+        print(f"    fine delay output mismatch = {fd_mismatch}, match count = {fd_match}, skipped (X) = {fd_skipped}")
 
 if __name__ == "__main__":
     main()

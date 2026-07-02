@@ -513,10 +513,17 @@ def diagnose_meta(afd, atci, efd, etci, tci_tol):
 # Checking
 # ---------------------------------------------------------------------------
 
+def _update_worst(worst, key, res, loc, exp, act):
+    """Track the largest residual seen for a quantity, regardless of pass/fail."""
+    if res > worst[key]['res']:
+        worst[key] = {'res': res, 'loc': loc, 'exp': exp, 'act': act}
+
+
 def check_cell(dump, desc, sb, station_map, time_groups,
-               vis_rtol, vis_atol, tci_tol, max_detail, detail_count):
+               vis_rtol, vis_atol, tci_tol, max_detail, detail_count, worst):
     """
     Check one cell.  Returns (n_re_bad, n_im_bad, n_meta_bad, n_missing).
+    `worst` is updated in place with the largest residual seen.
     """
     vis, tci, fd = compute_integration(
         sb, station_map, desc['output_channel'], desc['output_time'],
@@ -556,6 +563,9 @@ def check_cell(dump, desc, sb, station_map, time_groups,
                     if act_re is None or act_im is None:
                         n_missing += 1
                         continue
+                    loc = f"cell={cell_index} e={e} row_st={srow} col_st={scol} p={p1}{p2}"
+                    _update_worst(worst, 're', abs(act_re - exp_re), loc, exp_re, act_re)
+                    _update_worst(worst, 'im', abs(act_im - exp_im), loc, exp_im, act_im)
                     re_bad = abs(act_re - exp_re) > vis_atol + vis_rtol * abs(exp_re)
                     im_bad = abs(act_im - exp_im) > vis_atol + vis_rtol * abs(exp_im)
                     if re_bad:
@@ -583,6 +593,9 @@ def check_cell(dump, desc, sb, station_map, time_groups,
             if act_fd is None or act_tci is None:
                 n_missing += 1
             else:
+                mloc = f"cell={cell_index} e={e} row_st={srow} col_st={scol}"
+                _update_worst(worst, 'fd', abs(act_fd - exp_fd), mloc, exp_fd, act_fd)
+                _update_worst(worst, 'tci', _wrap_diff(act_tci, exp_tci), mloc, exp_tci, act_tci)
                 fd_bad = abs(act_fd - exp_fd) > tci_tol
                 tci_bad = _wrap_diff(act_tci, exp_tci) > tci_tol
                 if fd_bad or tci_bad:
@@ -613,11 +626,14 @@ def check(cfg, dump, vis_rtol, vis_atol, tci_tol, max_detail, diagnose=False):
     demap = ct2_check.decode_demap(demap_words, virt_chs)
     sbs = decode_sb_table_full(sb_c0_words)
 
+    empty_worst = {k: {'res': -1.0, 'loc': '', 'exp': 0.0, 'act': 0.0}
+                   for k in ('re', 'im', 'tci', 'fd')}
+
     cells = written_cell_indices(dump)
     if not cells:
         print("  WARNING: no visibility cells written (simulation may not have "
               "run long enough)")
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, 0, empty_worst
     max_cell = cells[-1]
     print(f"  {len(cells)} visibility cells present (max cell index {max_cell})")
 
@@ -626,7 +642,7 @@ def check(cfg, dump, vis_rtol, vis_atol, tci_tol, max_detail, diagnose=False):
                if sb['n_stations'] > 0 and not sb['output_disable']]
     if len(enabled) == 0:
         print("  WARNING: no enabled subarray-beams in the SB table")
-        return 0, 0, 0, len(cells)
+        return 0, 0, 0, 0, len(cells), empty_worst
     if len(enabled) > 1:
         print(f"  NOTE: {len(enabled)} enabled subarray-beams; this checker "
               f"currently verifies only the first (index {enabled[0]}).")
@@ -651,13 +667,15 @@ def check(cfg, dump, vis_rtol, vis_atol, tci_tol, max_detail, diagnose=False):
     n_meta_bad = 0
     n_missing = 0
     detail_count = [0]
+    worst = {k: {'res': -1.0, 'loc': '', 'exp': 0.0, 'act': 0.0}
+             for k in ('re', 'im', 'tci', 'fd')}
     cell_set = set(cells)
     for d in descs:
         if d['cell_index'] not in cell_set:
             continue
         rb, ib, mb, ms = check_cell(dump, d, sb, station_map, time_groups,
                                     vis_rtol, vis_atol, tci_tol, max_detail,
-                                    detail_count)
+                                    detail_count, worst)
         n_checked += 1
         n_re_bad += rb
         n_im_bad += ib
@@ -682,7 +700,7 @@ def check(cfg, dump, vis_rtol, vis_atol, tci_tol, max_detail, diagnose=False):
             diagnose_cell(av, ev, vis_rtol, vis_atol)
             diagnose_meta(afd, atci, efd, etci, tci_tol)
 
-    return n_checked, n_re_bad, n_im_bad, n_meta_bad, n_missing
+    return n_checked, n_re_bad, n_im_bad, n_meta_bad, n_missing, worst
 
 
 # ---------------------------------------------------------------------------
@@ -716,7 +734,7 @@ def main():
     print(f"  {len(dump)} 32-bit words loaded ({len(dump) * 4} bytes)")
 
     print("Checking ...\n")
-    checked, re_bad, im_bad, meta_bad, missing = check(
+    checked, re_bad, im_bad, meta_bad, missing, worst = check(
         cfg, dump, args.vis_rtol, args.vis_atol, args.tci_tol, args.max_detail,
         diagnose=args.diagnose)
 
@@ -727,6 +745,24 @@ def main():
     print(f"  Bad vis (imag)     : {im_bad}")
     print(f"  Bad TCI/DV         : {meta_bad}")
     print(f"  Missing words      : {missing}")
+
+    # Always report the worst mismatch seen, pass or fail.
+    if checked > 0:
+        print("  Worst mismatch (residual = |actual - expected|):")
+        for key, label, unit in (('re', 'vis real', ''), ('im', 'vis imag', ''),
+                                  ('tci', 'TCI', ' LSB'), ('fd', 'FD/DV', ' LSB')):
+            w = worst[key]
+            if w['res'] < 0:
+                continue
+            if key in ('re', 'im'):
+                tol = args.vis_atol + args.vis_rtol * abs(w['exp'])
+                pct = (w['res'] / tol * 100.0) if tol > 0 else 0.0
+                print(f"    {label:8s}: {w['res']:.4g}{unit}  "
+                      f"({pct:.3f}% of its {tol:.4g} threshold)  "
+                      f"exp={w['exp']:.4g} act={w['act']:.4g}  @ {w['loc']}")
+            else:
+                print(f"    {label:8s}: {int(w['res'])}{unit} (threshold {args.tci_tol})  "
+                      f"exp={int(w['exp'])} act={int(w['act'])}  @ {w['loc']}")
     if checked == 0:
         print("  WARNING: nothing checked")
         sys.exit(2)
