@@ -467,6 +467,10 @@ architecture Behavioral of corr_ct1_top is
     signal ar_fsm_dbg : std_logic_vector(4 downto 0);
     signal poly_dbg0, poly_dbg1 : std_logic_vector(31 downto 0);
     
+    signal meta_delays_v80_int : t_CT1_META_delays_arr(11 downto 0);
+    signal meta_virtualChannel_int : std_logic_Vector(11 downto 0);
+    signal validOut_del1 : std_logic := '0';
+    
 begin
     
     ------------------------------------------------------------------------------------
@@ -1671,11 +1675,11 @@ begin
             -- The delay through the flattening filter means that o_metaXX will change before o_valid by up to about 30 clocks.
             -- But o_metaXX is only sampled by the filterbank at the start of a packet (i.e. once every 4096 clocks)
             -- So it is ok for it to change ~30 clocks earlier.
-            o_meta_delays         => o_meta_delays,         -- out t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
+            o_meta_delays         => meta_delays_v80_int,         -- out t_CT1_META_delays_arr(11 downto 0); -- defined in DSP_top_pkg.vhd; fields are : HDeltaP(31:0), VDeltaP(31:0), HOffsetP(31:0), VOffsetP(31:0), bad_poly (std_logic)
             o_meta_RFIThresholds  => o_meta_RFIThresholds,  -- out t_slv_32_arr(11 downto 0);
             o_meta_integration    => o_meta_integration,    -- out std_logic_vector(31 downto 0);
             o_meta_ctFrame        => o_meta_ctFrame,        -- out std_logic_vector(1 downto 0); 
-            o_meta_virtualChannel => o_meta_virtualChannel, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
+            o_meta_virtualChannel => meta_virtualChannel_int, -- out std_logic_vector(11 downto 0); -- first virtual channel output, remaining 3 (U55c) or 11 (V80) are o_meta_VC+1, +2, etc.
             o_meta_valid          => o_meta_valid,          -- out std_logic_vector(11 downto 0); -- Total number of virtual channels need not be a multiple of 12, so individual valid signals here.
             o_lastChannel => o_lastChannel, -- out std_logic; Aligns with o_metaX
             o_valid => validOut, -- out std_logic;
@@ -1711,6 +1715,8 @@ begin
             --o_poly_dbg0 => poly_dbg0, -- out std_logic_vector(31 downto 0);
             --o_poly_dbg1 => poly_dbg1  -- out std_logic_vector(31 downto 0)
         );
+        o_meta_delays <= meta_delays_v80_int;
+        o_meta_virtualChannel <= meta_virtualChannel_int;
         config_ro.dbgCheckData0 <= dbgCheckData(0);
         config_ro.dbgCheckData1 <= dbgCheckData(1);
         config_ro.dbgCheckData2 <= dbgCheckData(2);
@@ -1719,6 +1725,29 @@ begin
         config_ro.dbgBadData1 <= dbgBadData(1);
         config_ro.dbgBadData2 <= dbgBadData(2);
         config_ro.dbgBadData3 <= dbgBadData(3);
+        
+        process(i_shared_clk)
+        begin
+            if rising_edge(i_shared_clk) then
+                validOut_del1 <= validOut;
+                if validOut = '1' and validOut_del1 = '0' and (unsigned(meta_virtualChannel_int) = 0) then
+                    config_ro.vc0_delay <= meta_delays_v80_int(0).HDeltaP;
+                    config_ro.vc1_delay <= meta_delays_v80_int(1).HDeltaP;
+                    config_ro.vc2_delay <= meta_delays_v80_int(2).HDeltaP;
+                    config_ro.vc3_delay <= meta_delays_v80_int(3).HDeltaP;
+                    config_ro.vc4_delay <= meta_delays_v80_int(4).HDeltaP;
+                    config_ro.vc5_delay <= meta_delays_v80_int(5).HDeltaP;
+                    config_ro.vc6_delay <= meta_delays_v80_int(6).HDeltaP;
+                    config_ro.vc7_delay <= meta_delays_v80_int(7).HDeltaP;
+                    config_ro.vc8_delay <= meta_delays_v80_int(8).HDeltaP;
+                    config_ro.vc9_delay <= meta_delays_v80_int(9).HDeltaP;
+                    config_ro.vc10_delay <= meta_delays_v80_int(10).HDeltaP;
+                    config_ro.vc11_delay <= meta_delays_v80_int(11).HDeltaP;
+                end if;
+            end if;
+        end process;
+        
+        
     end generate;
     ----------------------------------------------------------------------------
     

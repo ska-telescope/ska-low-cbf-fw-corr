@@ -41,6 +41,7 @@ entity ct2_v80_tb is
         -- Filterbank timing
         g_PACKET_GAP        : integer := 4100;  -- clocks from start of one filterbank packet to start of next
         g_VC_GAP            : integer := 20000; -- clocks idle between groups of 12 virtual channels
+        g_TOTAL_INTEGRATIONS : integer := 1;    -- Total number of integrations of data for the filterbank to send.
         -- Design configuration
         g_VIRTUAL_CHANNELS  : integer := 12;
         g_CORRELATOR_CORES  : integer := 1;
@@ -152,7 +153,7 @@ architecture Behavioral of ct2_v80_tb is
 
     signal send_fb_data : std_logic := '0';
 
-    type t_fb_fsm is (wait_sof, send_sof, send_sof_wait, send_data0, send_Data, packet_gap, new_vc_gap, frame_gap);
+    type t_fb_fsm is (wait_sof, send_sof, send_sof_wait, send_data0, send_Data, packet_gap, new_vc_gap, frame_gap, done);
     signal fb_fsm : t_fb_fsm := wait_sof;
     signal fb_sof, fb_dataValid : std_logic;
     signal fb_headerValid : std_logic_vector(11 downto 0);
@@ -396,12 +397,17 @@ begin
                         end if;
 
                     when frame_gap =>
-                        if fb_count = 100000 then
+                        if unsigned(fb_integration) >= g_TOTAL_INTEGRATIONS then
+                            fb_fsm <= done;
+                        elsif fb_count = 100000 then
                             fb_count <= 0;
                             fb_fsm   <= send_sof;
                         else
                             fb_count <= fb_count + 1;
                         end if;
+                        
+                    when done =>
+                        fb_fsm <= done;
 
                     when others =>
                         fb_fsm <= wait_sof;

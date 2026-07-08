@@ -274,6 +274,33 @@ def compute_integration(sb, station_map, output_channel, output_time,
 # Cell production sequence
 # ---------------------------------------------------------------------------
 
+def count_cells_per_integration(sb):
+    """Count cells produced in one integration for a single SB."""
+    n_stations = int(sb['n_stations'])
+    if n_stations == 0:
+        return 0
+    n_fpi = int(sb['n_fine_integrate'])
+    n_fine = int(sb['n_fine'])
+    n_output_channels = n_fine // n_fpi if n_fpi else 0
+    if n_output_channels == 0:
+        return 0
+    time_groups = 1 if sb['n_time_integrate'] == 192 else 3
+    tile_rows = int(math.ceil(n_stations / 256))
+    spatial = 0
+    for tile_row in range(tile_rows):
+        if tile_row < tile_rows - 1:
+            cell_rows = 16
+        else:
+            rem = n_stations % 256
+            if rem == 0:
+                rem = 256
+            cell_rows = int(math.ceil(rem / 16))
+        for tile_col in range(tile_row + 1):
+            for cell_row in range(cell_rows):
+                spatial += (cell_row + 1) if tile_row == tile_col else 16
+    return spatial * n_output_channels * time_groups
+
+
 def cell_descriptors(sb, max_cells):
     """
     Yield cell descriptors in the exact order the firmware writes them, up to
@@ -522,7 +549,8 @@ def _update_worst(worst, key, res, loc, exp, act):
 def check_cell(dump, desc, sb, station_map, time_groups,
                vis_rtol, vis_atol, tci_tol, max_detail, detail_count, worst):
     """
-    Check one cell.  Returns (n_re_bad, n_im_bad, n_meta_bad, n_missing).
+    Check one cell.  Returns (n_re_bad, n_im_bad, n_meta_bad, n_missing,
+                               n_re_good, n_im_good, n_meta_good).
     `worst` is updated in place with the largest residual seen.
     """
     vis, tci, fd = compute_integration(
@@ -541,6 +569,9 @@ def check_cell(dump, desc, sb, station_map, time_groups,
     n_im_bad = 0
     n_meta_bad = 0
     n_missing = 0
+    n_re_good = 0
+    n_im_good = 0
+    n_meta_good = 0
 
     for row in range(16):
         for col in range(16):
@@ -570,8 +601,12 @@ def check_cell(dump, desc, sb, station_map, time_groups,
                     im_bad = abs(act_im - exp_im) > vis_atol + vis_rtol * abs(exp_im)
                     if re_bad:
                         n_re_bad += 1
+                    else:
+                        n_re_good += 1
                     if im_bad:
                         n_im_bad += 1
+                    else:
+                        n_im_good += 1
                     if (re_bad or im_bad) and detail_count[0] < max_detail:
                         detail_count[0] += 1
                         tag = ("re+im" if re_bad and im_bad
@@ -606,8 +641,10 @@ def check_cell(dump, desc, sb, station_map, time_groups,
                               f"row_st={srow} col_st={scol}"
                               f"  exp(FD,TCI)=({exp_fd},{exp_tci})"
                               f"  act=({act_fd},{act_tci})")
+                else:
+                    n_meta_good += 1
 
-    return n_re_bad, n_im_bad, n_meta_bad, n_missing
+    return n_re_bad, n_im_bad, n_meta_bad, n_missing, n_re_good, n_im_good, n_meta_good
 
 
 def _wrap_diff(a, b):
@@ -633,74 +670,94 @@ def check(cfg, dump, vis_rtol, vis_atol, tci_tol, max_detail, diagnose=False):
     if not cells:
         print("  WARNING: no visibility cells written (simulation may not have "
               "run long enough)")
-        return 0, 0, 0, 0, 0, empty_worst
+        return 0, 0, 0, 0, 0, 0, 0, 0, empty_worst
     max_cell = cells[-1]
     print(f"  {len(cells)} visibility cells present (max cell index {max_cell})")
 
-    # Only one enabled subarray-beam is supported in this first pass.
     enabled = [i for i, sb in enumerate(sbs)
                if sb['n_stations'] > 0 and not sb['output_disable']]
     if len(enabled) == 0:
         print("  WARNING: no enabled subarray-beams in the SB table")
-        return 0, 0, 0, 0, len(cells), empty_worst
-    if len(enabled) > 1:
-        print(f"  NOTE: {len(enabled)} enabled subarray-beams; this checker "
-              f"currently verifies only the first (index {enabled[0]}).")
-    sb_index = enabled[0]
-    sb = sbs[sb_index]
-    station_map = build_station_map(demap, sb_index)
-    time_groups = 1 if sb['n_time_integrate'] == 192 else 3
+        return 0, 0, 0, 0, len(cells), 0, 0, 0, empty_worst
 
-    print(f"  subarray-beam {sb_index}: stations={sb['n_stations']} "
-          f"n_fine={sb['n_fine']} fine_per_int={sb['n_fine_integrate']} "
-          f"n_time={sb['n_time_integrate']} "
-          f"stations_mapped={len(station_map)}")
-
-    # Build the production sequence up to the highest written cell.
-    descs = list(cell_descriptors(sb, max_cell + 1))
-    for idx, d in enumerate(descs):
-        d['cell_index'] = idx
+    # Compute per-SB cell counts so we can map each SB's cells to physical
+    # HBM indices.  The HBM is filled sequentially: each integration cycle
+    # contains one block of cells per enabled SB in index order.
+    cells_per_sb_int = {i: count_cells_per_integration(sbs[i]) for i in enabled}
+    total_cells_per_cycle = sum(cells_per_sb_int.values())
+    n_integrations = (max_cell // total_cells_per_cycle + 1
+                      if total_cells_per_cycle > 0 else 1)
+    print(f"  {len(enabled)} enabled subarray-beam(s); "
+          f"cycle={total_cells_per_cycle} cells/integration")
 
     n_checked = 0
     n_re_bad = 0
     n_im_bad = 0
     n_meta_bad = 0
     n_missing = 0
+    n_re_good = 0
+    n_im_good = 0
+    n_meta_good = 0
     detail_count = [0]
     worst = {k: {'res': -1.0, 'loc': '', 'exp': 0.0, 'act': 0.0}
              for k in ('re', 'im', 'tci', 'fd')}
     cell_set = set(cells)
-    for d in descs:
-        if d['cell_index'] not in cell_set:
-            continue
-        rb, ib, mb, ms = check_cell(dump, d, sb, station_map, time_groups,
-                                    vis_rtol, vis_atol, tci_tol, max_detail,
-                                    detail_count, worst)
-        n_checked += 1
-        n_re_bad += rb
-        n_im_bad += ib
-        n_meta_bad += mb
-        n_missing += ms
 
-    # On mismatch (or when forced), diagnose the first written cell to identify
-    # which convention the RTL actually uses.
-    if (diagnose or n_re_bad > 0 or n_im_bad > 0 or n_meta_bad > 0) and cells:
-        first_idx = cells[0]
-        first_desc = next((d for d in descs if d['cell_index'] == first_idx), None)
-        if first_desc is not None:
-            av, afd, atci = read_actual_cell(dump, first_idx)
-            ev, efd, etci = expected_cell_block(first_desc, sb, station_map,
-                                                time_groups)
-            print(f"\n--- diagnosing cell {first_idx} "
-                  f"(integration={first_desc['integration']}, "
-                  f"oc={first_desc['output_channel']}, "
-                  f"ot={first_desc['output_time']}, "
-                  f"row_st={first_desc['row_first_station']}, "
-                  f"col_st={first_desc['col_first_station']}) ---")
-            diagnose_cell(av, ev, vis_rtol, vis_atol)
-            diagnose_meta(afd, atci, efd, etci, tci_tol)
+    for sb_index in enabled:
+        sb = sbs[sb_index]
+        station_map = build_station_map(demap, sb_index)
+        time_groups = 1 if sb['n_time_integrate'] == 192 else 3
+        cells_before = sum(cells_per_sb_int[i] for i in enabled if i < sb_index)
+        n_per_int = cells_per_sb_int[sb_index]
 
-    return n_checked, n_re_bad, n_im_bad, n_meta_bad, n_missing, worst
+        print(f"\n  --- subarray-beam {sb_index}: stations={sb['n_stations']} "
+              f"n_fine={sb['n_fine']} fine_per_int={sb['n_fine_integrate']} "
+              f"n_time={sb['n_time_integrate']} "
+              f"stations_mapped={len(station_map)} "
+              f"cells/int={n_per_int} offset={cells_before} ---")
+
+        descs = list(cell_descriptors(sb, n_per_int * n_integrations))
+        for idx, d in enumerate(descs):
+            pos_in_int = idx - d['integration'] * n_per_int
+            d['cell_index'] = (d['integration'] * total_cells_per_cycle
+                               + cells_before + pos_in_int)
+
+        sb_re_bad = 0
+        sb_im_bad = 0
+        sb_meta_bad = 0
+        for d in descs:
+            if d['cell_index'] not in cell_set:
+                continue
+            rb, ib, mb, ms, rg, ig, mg = check_cell(dump, d, sb, station_map, time_groups,
+                                                     vis_rtol, vis_atol, tci_tol, max_detail,
+                                                     detail_count, worst)
+            n_checked += 1
+            n_re_bad += rb;    sb_re_bad += rb
+            n_im_bad += ib;    sb_im_bad += ib
+            n_meta_bad += mb;  sb_meta_bad += mb
+            n_missing += ms
+            n_re_good += rg
+            n_im_good += ig
+            n_meta_good += mg
+
+        # Diagnose the first cell of this SB on mismatch (or when forced).
+        if diagnose or sb_re_bad > 0 or sb_im_bad > 0 or sb_meta_bad > 0:
+            first_desc = next((d for d in descs if d['cell_index'] in cell_set), None)
+            if first_desc is not None:
+                ci = first_desc['cell_index']
+                av, afd, atci = read_actual_cell(dump, ci)
+                ev, efd, etci = expected_cell_block(first_desc, sb, station_map,
+                                                    time_groups)
+                print(f"\n--- diagnosing SB{sb_index} cell {ci} "
+                      f"(integration={first_desc['integration']}, "
+                      f"oc={first_desc['output_channel']}, "
+                      f"ot={first_desc['output_time']}, "
+                      f"row_st={first_desc['row_first_station']}, "
+                      f"col_st={first_desc['col_first_station']}) ---")
+                diagnose_cell(av, ev, vis_rtol, vis_atol)
+                diagnose_meta(afd, atci, efd, etci, tci_tol)
+
+    return n_checked, n_re_bad, n_im_bad, n_meta_bad, n_missing, n_re_good, n_im_good, n_meta_good, worst
 
 
 # ---------------------------------------------------------------------------
@@ -734,15 +791,18 @@ def main():
     print(f"  {len(dump)} 32-bit words loaded ({len(dump) * 4} bytes)")
 
     print("Checking ...\n")
-    checked, re_bad, im_bad, meta_bad, missing, worst = check(
+    checked, re_bad, im_bad, meta_bad, missing, re_good, im_good, meta_good, worst = check(
         cfg, dump, args.vis_rtol, args.vis_atol, args.tci_tol, args.max_detail,
         diagnose=args.diagnose)
 
     print()
     print("=== vis_check result ===")
     print(f"  Cells checked      : {checked}")
+    print(f"  Good vis (real)    : {re_good}")
+    print(f"  Good vis (imag)    : {im_good}")
     print(f"  Bad vis (real)     : {re_bad}")
     print(f"  Bad vis (imag)     : {im_bad}")
+    print(f"  Good TCI/DV        : {meta_good}")
     print(f"  Bad TCI/DV         : {meta_bad}")
     print(f"  Missing words      : {missing}")
 

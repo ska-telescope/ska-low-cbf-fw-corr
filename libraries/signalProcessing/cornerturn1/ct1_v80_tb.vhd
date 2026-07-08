@@ -52,20 +52,37 @@ entity ct1_v80_tb is
 --            g_USE_FILTERBANK : std_logic := '1';
 --            g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data 
         
-        g_VIRTUAL_CHANNELS : integer := 13; -- 
+        ------------------------------------------------------------------------------------------
+        
+--        g_VIRTUAL_CHANNELS : integer := 13; -- 
+--        -- Number of virtual channels configured in the ingest module for each set of tables.
+--        g_CT1_VIRTUAL_CHANNELS0 : integer := 13; -- 
+--        g_CT1_VIRTUAL_CHANNELS1 : integer := 13; -- 
+--        g_PACKET_GAP : integer := 480;
+--        g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
+--        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13.txt";
+--        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_ct1_out_v80.txt";
+--        g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_fb_out_v80.txt";
+--        g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
+--        g_USE_FILTERBANK : std_logic := '1';
+--        g_FILTERBANKS_TO_USE : integer := 1; -- 6 for normal operation, 1 for faster runtime (but vc outputs 2-11 will be X's)
+--        g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data         
+       ---------------------------------------------------------------------------------------------
+       
+        g_VIRTUAL_CHANNELS : integer := 7; -- 
         -- Number of virtual channels configured in the ingest module for each set of tables.
-        g_CT1_VIRTUAL_CHANNELS0 : integer := 13; -- 
-        g_CT1_VIRTUAL_CHANNELS1 : integer := 13; -- 
+        g_CT1_VIRTUAL_CHANNELS0 : integer := 7; -- 
+        g_CT1_VIRTUAL_CHANNELS1 : integer := 7; -- 
         g_PACKET_GAP : integer := 480;
         g_PACKET_COUNT_START : std_logic_vector(47 downto 0) := x"00000000104E"; -- x"03421AFE0350";
-        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13.txt";
-        g_CT1_OUT_FILENAME : string :=       "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_ct1_out_v80.txt";
-        g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test13_fb_out_v80.txt";
+        g_REGISTER_INIT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test8.txt";
+        g_CT1_OUT_FILENAME : string := "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test8_ct1_out_v80.txt";
+        g_FB_OUT_FILENAME : string :=  "/home/hum089/projects/perentie/corr_latest/ska-low-cbf-fw-corr/libraries/signalProcessing/cornerturn1/test/test8_fb_out_v80.txt";
         g_RIPPLE_SELECT : std_logic_vector(31 downto 0) := x"00000000"; -- 0 for identity, 1 for TPM 16d correction, 2 for TPM 18a correction 
         g_USE_FILTERBANK : std_logic := '1';
         g_FILTERBANKS_TO_USE : integer := 1; -- 6 for normal operation, 1 for faster runtime (but vc outputs 2-11 will be X's)
-        g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data         
-        
+        g_DATA_RFI : std_logic := '0'  -- '1' to put bursty RFI flags in the SPS data  
+    
     );
 end ct1_v80_tb;
 
