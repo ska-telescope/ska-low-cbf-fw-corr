@@ -254,8 +254,8 @@ vivado compile v80:
   # allow this job to be cancelled if new pipeline comes along
   interruptible: false
   allow_failure: true
-  needs:
-    - fpga lint v80
+  # needs:
+  #   - fpga lint v80
   timeout: 12 hours
   variables:
     TARGET_ALVEO: "v80"
