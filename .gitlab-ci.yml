@@ -280,10 +280,13 @@ vivado compile v80:
     # back at repo root, run STAGE 1 only (Vivado HW compile).
     - ./run_v80_hw.sh
   artifacts:
-    # Full build/ tree is required by the assemble step (needs the .xsa, not
-    # just the bitstream). Narrow these paths if artifact storage is a concern.
     paths:
-      - build/
+      - build/ARGS/py/correlator_v80/fpgamap_*.py
+      - build/v80/v80_top.xsa
+      - build/v80/v80_top.runs/impl_1/v80_top.pdi
+      - build/v80/v80_top.runs/impl_1/v80_top.ltx
+      - build/v80/v80_top.runs/impl_1/*.rpt
+      - build/v80/v80_top.runs/impl_1/*.log
     expire_in: 90 days
     when: always
 
