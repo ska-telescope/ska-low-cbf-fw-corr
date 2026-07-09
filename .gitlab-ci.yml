@@ -338,7 +338,7 @@ publish v80 package:
   rules:
     - *package_rules_v80
   needs:
-    - job: build v80
+    - job: assemble v80
   tags:
     - shell 
   variables:
