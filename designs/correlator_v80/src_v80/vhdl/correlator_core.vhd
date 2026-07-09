@@ -669,76 +669,76 @@ begin
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
-   dsp_topi : entity dsp_top_lib.DSP_top_correlator_v80
-   generic map (
-       g_DEBUG_ILA             => g_DEBUG_ILA,
-       g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
-       g_USE_META              => g_USE_META,
-       g_CORRELATORS           => g_CORRELATORS,  -- number of correlator blocks to instantiate.
-       g_USE_DUMMY_FB          => g_USE_DUMMY_FB,
-       g_INCLUDE_SPS_MONITOR   => g_INCLUDE_SPS_MONITOR
-   ) port map (
-       ----------------------------------------------------------------------
-       -- Received data from 100GE
-       -- Uses i_MACE_clk
-       i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
-       i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
-       i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
-       i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
-       i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
-       -- Data to be transmitted on 100GE
-       o_bytes_to_transmit     => bytes_to_transmit,
-       o_data_to_player        => data_to_player,
-       o_data_to_player_wr     => data_to_player_wr,
-       i_data_to_player_rdy    => data_to_player_rdy,
-       --
-       i_eth100G_locked    => i_dcmac_locked_300m,
-       -----------------------------------------------------------------------
-       -- correlator processing clock, 425 MHz
-       i_clk425            => clk425,  -- in std_logic;
-       -----------------------------------------------------------------------
-       -- reset of the valid memory is in progress.
-       o_validMemRstActive => o_validMemRstActive,
-       -----------------------------------------------------------------------
-       -- clocks - legacy naming - i_MACE_clk is used for filterbanks, CT1, CT2
-       i_MACE_clk  => clk_300,     -- in std_logic;
-       i_MACE_clkx2 => clk_600,    -- in std_logic;
-       i_MACE_rst  => clk_300_rst, -- in std_logic;
+--   dsp_topi : entity dsp_top_lib.DSP_top_correlator_v80
+--   generic map (
+--       g_DEBUG_ILA             => g_DEBUG_ILA,
+--       g_SPS_PACKETS_PER_FRAME => g_SPS_PACKETS_PER_FRAME, -- for a single virtual channel, nominal value is 128 = 283 ms frames.
+--       g_USE_META              => g_USE_META,
+--       g_CORRELATORS           => g_CORRELATORS,  -- number of correlator blocks to instantiate.
+--       g_USE_DUMMY_FB          => g_USE_DUMMY_FB,
+--       g_INCLUDE_SPS_MONITOR   => g_INCLUDE_SPS_MONITOR
+--   ) port map (
+--       ----------------------------------------------------------------------
+--       -- Received data from 100GE
+--       -- Uses i_MACE_clk
+--       i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+--       i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
+--       i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
+--       i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
+--       i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
+--       -- Data to be transmitted on 100GE
+--       o_bytes_to_transmit     => bytes_to_transmit,
+--       o_data_to_player        => data_to_player,
+--       o_data_to_player_wr     => data_to_player_wr,
+--       i_data_to_player_rdy    => data_to_player_rdy,
+--       --
+--       i_eth100G_locked    => i_dcmac_locked_300m,
+--       -----------------------------------------------------------------------
+--       -- correlator processing clock, 425 MHz
+--       i_clk425            => clk425,  -- in std_logic;
+--       -----------------------------------------------------------------------
+--       -- reset of the valid memory is in progress.
+--       o_validMemRstActive => o_validMemRstActive,
+--       -----------------------------------------------------------------------
+--       -- clocks - legacy naming - i_MACE_clk is used for filterbanks, CT1, CT2
+--       i_MACE_clk  => clk_300,     -- in std_logic;
+--       i_MACE_clkx2 => clk_600,    -- in std_logic;
+--       i_MACE_rst  => clk_300_rst, -- in std_logic;
        
-       -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
-       -- used in testing with pre-load of the second corner turn HBM data
-       i_ct2_readout_start => i_ct2_readout_start,
-       i_ct2_readout_buffer => i_ct2_readout_buffer,
-       i_ct2_readout_frameCount => i_ct2_readout_frameCount,
-       ---------------------------------------------------------------
-       -- copy of the bus taking data to be written to the HBM.
-       -- Used for simulation only, to check against the model data.
-       o_tb_data      => o_tb_data,     -- out (255:0);
-       o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
-       o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
-       o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
-       o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
-       o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-       o_tb_channel   => o_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
-       -- Start of a burst of data through the filterbank, 
-       -- Used in the testbench to trigger download of the data written into the CT2 memory.
-       o_FB_out_sof   => o_FB_out_sof,   -- out std_logic
+--       -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
+--       -- used in testing with pre-load of the second corner turn HBM data
+--       i_ct2_readout_start => i_ct2_readout_start,
+--       i_ct2_readout_buffer => i_ct2_readout_buffer,
+--       i_ct2_readout_frameCount => i_ct2_readout_frameCount,
+--       ---------------------------------------------------------------
+--       -- copy of the bus taking data to be written to the HBM.
+--       -- Used for simulation only, to check against the model data.
+--       o_tb_data      => o_tb_data,     -- out (255:0);
+--       o_tb_visValid  => o_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+--       o_tb_TCIvalid  => o_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+--       o_tb_dcount    => o_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+--       o_tb_cell      => o_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+--       o_tb_tile      => o_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+--       o_tb_channel   => o_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
+--       -- Start of a burst of data through the filterbank, 
+--       -- Used in the testbench to trigger download of the data written into the CT2 memory.
+--       o_FB_out_sof   => o_FB_out_sof,   -- out std_logic
 
-       -- HBM reset
-       o_hbm_reset          => hbm_reset,
-       i_hbm_status         => hbm_status,
-       i_hbm_rst_dbg        => hbm_rst_dbg,
-       i_hbm_reset_final    => eth_disable_done,   -- 1 bit
-       i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
-       i_axi_dbg            => axi_dbg, -- 128 bits
-       i_axi_dbg_valid      => axi_dbg_valid,
-       -- 100GE input disable
-       o_lfaaDecode_reset   => lfaaDecode_reset,
-       i_ethDisable_done    => eth_disable_done
-    );
+--       -- HBM reset
+--       o_hbm_reset          => hbm_reset,
+--       i_hbm_status         => hbm_status,
+--       i_hbm_rst_dbg        => hbm_rst_dbg,
+--       i_hbm_reset_final    => eth_disable_done,   -- 1 bit
+--       i_eth_disable_fsm_dbg => eth_disable_fsm_dbg, -- 5 bits
+--       i_axi_dbg            => axi_dbg, -- 128 bits
+--       i_axi_dbg_valid      => axi_dbg_valid,
+--       -- 100GE input disable
+--       o_lfaaDecode_reset   => lfaaDecode_reset,
+--       i_ethDisable_done    => eth_disable_done
+--    );
     
-    hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
-    hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
+--    hbm_reset_combined(0)               <= hbm_reset(0) OR i_input_HBM_reset;
+--    hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
     
     -----------------------------------------------------------------------------------------------------------
     CMAC_100G_reset_proc : process(i_eth100G_clk)
