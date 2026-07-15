@@ -281,13 +281,13 @@ begin
             if RFI_count_last_del1(11) = '1' then
                 RFI_fsm <= run;
                 RFI_weight_addr_low <= RFI_count_1024block_del1;
-                RFI_weight_FIR_tap <= "0000";
+                RFI_weight_FIR_tap <= "1011";
             else
                 case RFI_fsm is
                     when run =>
                         -- Go through all 12 counts in RFI_sum_store, weight them and sum 
                         -- to get an estimate of the total error in the output 
-                        if unsigned(RFI_weight_FIR_tap) = 11 then
+                        if unsigned(RFI_weight_FIR_tap) = 0 then
                             if RFI_weight_addr_low = "111" then
                                 -- final sum complete, compare with the allowed threshold
                                 RFI_fsm <= check_threshold;
@@ -295,7 +295,7 @@ begin
                                 RFI_fsm <= idle;
                             end if;
                         end if;
-                        RFI_weight_FIR_tap <= std_logic_vector(unsigned(RFI_weight_FIR_tap) + 1);
+                        RFI_weight_FIR_tap <= std_logic_vector(unsigned(RFI_weight_FIR_tap) - 1);
                     
                     when check_threshold =>
                         RFI_fsm <= idle;
@@ -312,41 +312,41 @@ begin
             -- the index (RFI_weight_FIR_tap) is 12.
             case RFI_weight_FIR_tap is
                 when "0000" => 
-                    RFI_sum_station0 <= RFI_sum_store(0)(0); -- 10 bit value, maximum possible is 512
-                    RFI_sum_station1 <= RFI_sum_store(1)(0);
+                    RFI_sum_station0 <= RFI_sum_store(0)(11); -- 10 bit value, maximum possible is 512
+                    RFI_sum_station1 <= RFI_sum_store(1)(11);
                 when "0001" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(1);
-                    RFI_sum_station1 <= RFI_sum_store(1)(1);
-                when "0010" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(2);
-                    RFI_sum_station1 <= RFI_sum_store(1)(2);
-                when "0011" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(3);
-                    RFI_sum_station1 <= RFI_sum_store(1)(3);
-                when "0100" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(4);
-                    RFI_sum_station1 <= RFI_sum_store(1)(4);
-                when "0101" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(5);
-                    RFI_sum_station1 <= RFI_sum_store(1)(5);
-                when "0110" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(6);
-                    RFI_sum_station1 <= RFI_sum_store(1)(6);
-                when "0111" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(7);
-                    RFI_sum_station1 <= RFI_sum_store(1)(7);
-                when "1000" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(8);
-                    RFI_sum_station1 <= RFI_sum_store(1)(8);
-                when "1001" =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(9);
-                    RFI_sum_station1 <= RFI_sum_store(1)(9);
-                when "1010" =>
                     RFI_sum_station0 <= RFI_sum_store(0)(10);
                     RFI_sum_station1 <= RFI_sum_store(1)(10);
+                when "0010" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(9);
+                    RFI_sum_station1 <= RFI_sum_store(1)(9);
+                when "0011" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(8);
+                    RFI_sum_station1 <= RFI_sum_store(1)(8);
+                when "0100" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(7);
+                    RFI_sum_station1 <= RFI_sum_store(1)(7);
+                when "0101" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(6);
+                    RFI_sum_station1 <= RFI_sum_store(1)(6);
+                when "0110" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(5);
+                    RFI_sum_station1 <= RFI_sum_store(1)(5);
+                when "0111" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(4);
+                    RFI_sum_station1 <= RFI_sum_store(1)(4);
+                when "1000" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(3);
+                    RFI_sum_station1 <= RFI_sum_store(1)(3);
+                when "1001" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(2);
+                    RFI_sum_station1 <= RFI_sum_store(1)(2);
+                when "1010" =>
+                    RFI_sum_station0 <= RFI_sum_store(0)(1);
+                    RFI_sum_station1 <= RFI_sum_store(1)(1);
                 when others =>
-                    RFI_sum_station0 <= RFI_sum_store(0)(11);
-                    RFI_sum_station1 <= RFI_sum_store(1)(11);
+                    RFI_sum_station0 <= RFI_sum_store(0)(0);
+                    RFI_sum_station1 <= RFI_sum_store(1)(0);
             end case;
                 
             RFI_weight_addr_del1 <= RFI_weight_addr;
@@ -357,8 +357,9 @@ begin
             RFI_weight_addr_del2 <= RFI_weight_addr_del1;
             RFI_fsm_del2 <= RFI_fsm_del1;
             
-            if RFI_weight_addr_del2 = "0000000" and (RFI_fsm_del2 = run) then
+            if RFI_weight_addr_del2 = "1011000" and (RFI_fsm_del2 = run) then
                 -- First RFI sum to accumulate
+                -- First entry (block 11 (counts down from there), tap 0): start fresh
                 final_RFI_sum0 <= "0000000" & std_logic_vector(RFI_weighted_sum0);
                 final_RFI_sum1 <= "0000000" & std_logic_vector(RFI_weighted_sum1);
             elsif RFI_fsm_del2 = run then

@@ -179,7 +179,9 @@ entity correlator_top_v80 is
         o_dout_ar_fsm_dbg : out std_logic_vector(3 downto 0);
         o_dout_readout_fsm_dbg : out std_logic_vector(3 downto 0);
         o_dout_arFIFO_wr_count : out std_logic_vector(6 downto 0);
-        o_dout_dataFIFO_wrCount : out std_logic_vector(9 downto 0);
+        o_dout_dataFIFO_wrCount : out std_logic_vector(10 downto 0);
+        o_dout_arFIFO_wr_count_high_water   : out std_logic_vector(6 downto 0);
+        o_dout_dataFIFO_wr_count_high_water : out std_logic_vector(10 downto 0);
         o_dout_readout_error  : out std_logic;
         o_dout_recent_start_gap : out std_logic_vector(31 downto 0);
         o_dout_recent_readout_time : out std_logic_vector(31 downto 0);
@@ -593,7 +595,9 @@ begin
         o_ar_fsm_dbg      => o_dout_ar_fsm_dbg,        -- out (3:0);
         o_readout_fsm_dbg => o_dout_readout_fsm_dbg,   -- out (3:0);
         o_arFIFO_wr_count => o_dout_arFIFO_wr_count,   -- out (6:0);
-        o_dataFIFO_wrCount => o_dout_dataFIFO_wrCount, -- out (9:0);
+        o_dataFIFO_wrCount => o_dout_dataFIFO_wrCount, -- out (10:0);
+        o_arFIFO_wr_count_high_water   => o_dout_arFIFO_wr_count_high_water,   -- out (6:0);
+        o_dataFIFO_wr_count_high_water => o_dout_dataFIFO_wr_count_high_water, -- out (10:0);
         o_readout_error       => o_dout_readout_error,    -- out std_logic;
         o_recent_start_gap    => o_dout_recent_start_gap,    -- out (31:0);
         o_recent_readout_time => o_dout_recent_readout_time, -- out (31:0);

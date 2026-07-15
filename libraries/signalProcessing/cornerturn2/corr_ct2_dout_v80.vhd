@@ -169,7 +169,10 @@ entity corr_ct2_dout_v80 is
         o_ar_fsm_dbg : out std_logic_vector(3 downto 0);
         o_readout_fsm_dbg : out std_logic_vector(3 downto 0);
         o_arFIFO_wr_count : out std_logic_vector(6 downto 0);
-        o_dataFIFO_wrCount : out std_logic_vector(9 downto 0);
+        o_dataFIFO_wrCount : out std_logic_vector(10 downto 0);
+        -- High water marks (max fill level seen since i_rst) for the two FIFOs
+        o_arFIFO_wr_count_high_water   : out std_logic_vector(6 downto 0);
+        o_dataFIFO_wr_count_high_water : out std_logic_vector(10 downto 0);
         o_readout_error       : out std_logic;
         o_recent_start_gap    : out std_logic_vector(31 downto 0);
         o_recent_readout_time : out std_logic_vector(31 downto 0);
@@ -202,8 +205,11 @@ architecture Behavioral of corr_ct2_dout_v80 is
     signal arFIFO_din, arFIFO_dout : std_logic_vector(133 downto 0);
     signal dataFIFO_valid, dataFIFO_rdEn, dataFIFO_wrEn, dataFIFO_full : std_logic;
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
-    signal dataFIFO_rdCount : std_logic_vector(9 downto 0);
-    signal dataFIFO_wrCount : std_logic_vector(9 downto 0);
+    signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
+    signal dataFIFO_wrCount : std_logic_vector(10 downto 0);
+    signal dataFIFO_rready : std_logic := '0';
+    signal arFIFO_wr_count_high_water   : std_logic_vector(6 downto 0) := (others => '0');
+    signal dataFIFO_wr_count_high_water : std_logic_vector(10 downto 0) := (others => '0');
     --
     signal SB_stations : std_logic_vector(15 downto 0); -- 16 bits, the number of (sub)stations in this subarray-beam
     signal SB_coarseStart : std_logic_vector(8 downto 0);  -- The first coarse channel in this subarray-beam
@@ -278,6 +284,22 @@ begin
             o_recent_start_gap <= recent_start_gap;
             o_recent_readout_time <= recent_readout_time;
             o_min_start_gap <= min_start_gap;
+
+            -- Track high water marks (max fill level) for the ar and data FIFOs.
+            -- Cleared by i_rst so each capture starts fresh.
+            if i_rst = '1' then
+                arFIFO_wr_count_high_water   <= (others => '0');
+                dataFIFO_wr_count_high_water <= (others => '0');
+            else
+                if unsigned(arFIFO_wr_count) > unsigned(arFIFO_wr_count_high_water) then
+                    arFIFO_wr_count_high_water <= arFIFO_wr_count;
+                end if;
+                if unsigned(dataFIFO_wrCount) > unsigned(dataFIFO_wr_count_high_water) then
+                    dataFIFO_wr_count_high_water <= dataFIFO_wrCount;
+                end if;
+            end if;
+            o_arFIFO_wr_count_high_water   <= arFIFO_wr_count_high_water;
+            o_dataFIFO_wr_count_high_water <= dataFIFO_wr_count_high_water;
         end if;
     end process;
     
@@ -458,7 +480,7 @@ begin
                             -- check there is space in the ar FIFO.
                             -- Up to 4 requests get made at a time, so make sure there is 
                             -- at least 4 slots free in the ar fifo.
-                            if (unsigned(arFIFO_wr_count) < 56) then
+                            if (unsigned(arFIFO_wr_count) < 48) then
                                 ar_fsm <= set_ar;
                             end if;
                         end if;
@@ -842,18 +864,18 @@ begin
         ECC_MODE => "no_ecc",       -- String
         FIFO_MEMORY_TYPE => "auto", -- String
         FIFO_READ_LATENCY => 1,     -- DECIMAL
-        FIFO_WRITE_DEPTH => 512,    -- DECIMAL
+        FIFO_WRITE_DEPTH => 1024,   -- DECIMAL  (doubled from 512)
         FULL_RESET_VALUE => 0,      -- DECIMAL
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL  should be = log2(FIFO_READ_DEPTH) + 1
+        RD_DATA_COUNT_WIDTH => 11,  -- DECIMAL  should be = log2(FIFO_READ_DEPTH) + 1
         READ_DATA_WIDTH => 256,     -- DECIMAL
         READ_MODE => "std",         -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
         WRITE_DATA_WIDTH => 256,    -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 10   -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 11   -- DECIMAL
     ) port map (
         almost_empty => open,      -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
         almost_full => open,       -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
@@ -883,8 +905,24 @@ begin
     );
     
     dataFIFO_rdEn <= '1' when readout_fsm = send_data else '0';
-    dataFIFO_wrEn <= i_HBM_axi_r.valid and (not dataFIFO_full);
-    o_HBM_axi_rready <= not dataFIFO_full;
+
+    -- rready is registered and driven from the data FIFO write-data-count, deasserting
+    -- at 1000 words of the 1024-deep FIFO. The ~24 word margin leaves plenty of space
+    -- for beats already in flight during the one-cycle register delay, so the FIFO can
+    -- never actually reach full. This replaces the previous combinational
+    -- "not dataFIFO_full" backpressure.
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            if unsigned(dataFIFO_wrCount) < 1000 then
+                dataFIFO_rready <= '1';
+            else
+                dataFIFO_rready <= '0';
+            end if;
+        end if;
+    end process;
+    o_HBM_axi_rready <= dataFIFO_rready;
+    dataFIFO_wrEn <= i_HBM_axi_r.valid and dataFIFO_rready;
     
     -- Readout of the ar fifo and data fifo, send data to the correlator
     process(i_axi_clk)

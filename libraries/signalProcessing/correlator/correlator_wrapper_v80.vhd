@@ -91,7 +91,9 @@ architecture Behavioral of correlator_wrapper_v80 is
     signal dout_ar_fsm_dbg       : std_logic_vector(3 downto 0);
     signal dout_readout_fsm_dbg  : std_logic_vector(3 downto 0);
     signal dout_arFIFO_wr_count  : std_logic_vector(6 downto 0);
-    signal dout_dataFIFO_wrCount : std_logic_vector(9 downto 0);
+    signal dout_dataFIFO_wrCount : std_logic_vector(10 downto 0);
+    signal dout_arFIFO_wr_count_high_water   : std_logic_vector(6 downto 0);
+    signal dout_dataFIFO_wr_count_high_water : std_logic_vector(10 downto 0);
     signal dout_readout_error    : std_logic;
     signal dout_recent_start_gap : std_logic_vector(31 downto 0);
     signal dout_recent_readout_time : std_logic_vector(31 downto 0);
@@ -164,7 +166,9 @@ begin
             o_dout_ar_fsm_dbg       => dout_ar_fsm_dbg, --  out std_logic_vector(3 downto 0);
             o_dout_readout_fsm_dbg  => dout_readout_fsm_dbg, --  out std_logic_vector(3 downto 0);
             o_dout_arFIFO_wr_count  => dout_arFIFO_wr_count, --  out std_logic_vector(6 downto 0);
-            o_dout_dataFIFO_wrCount => dout_dataFIFO_wrCount, --  out std_logic_vector(9 downto 0);
+            o_dout_dataFIFO_wrCount => dout_dataFIFO_wrCount, --  out std_logic_vector(10 downto 0);
+            o_dout_arFIFO_wr_count_high_water   => dout_arFIFO_wr_count_high_water,   -- out std_logic_vector(6 downto 0);
+            o_dout_dataFIFO_wr_count_high_water => dout_dataFIFO_wr_count_high_water, -- out std_logic_vector(10 downto 0);
             o_dout_readout_error    => dout_readout_error, --  out std_logic;
             o_dout_recent_start_gap => dout_recent_start_gap, --  out std_logic_vector(31 downto 0);
             o_dout_recent_readout_time => dout_recent_readout_time, --  out std_logic_vector(31 downto 0);
@@ -388,11 +392,13 @@ begin
                 
                 cor_status_ro.fsm_status(7 downto 0) <= "0000" & dout_ar_fsm_dbg;
                 cor_status_ro.fsm_status(15 downto 8) <= "0000" & dout_readout_fsm_dbg;
-                cor_status_ro.fsm_status(23 downto 16) <= "0000000" & dout_readout_error;
-                cor_status_ro.fsm_status(31 downto 24) <= x"00";
-                
-                cor_status_ro.fifo_status(15 downto 0) <= x"00" & '0' & dout_arFIFO_wr_count;
-                cor_status_ro.fifo_status(31 downto 16) <= "000000" & dout_dataFIFO_wrCount;
+                cor_status_ro.fsm_status(19 downto 16) <= "000" & dout_readout_error;
+                -- top 12 bits: data FIFO fill high water mark (11-bit count, one pad bit)
+                cor_status_ro.fsm_status(31 downto 20) <= '0' & dout_dataFIFO_wr_count_high_water;
+
+                -- bits 7:0 = ar FIFO count, bits 15:8 = ar FIFO high water mark (7-bit each, one pad bit)
+                cor_status_ro.fifo_status(15 downto 0) <= '0' & dout_arFIFO_wr_count_high_water & '0' & dout_arFIFO_wr_count;
+                cor_status_ro.fifo_status(31 downto 16) <= "00000" & dout_dataFIFO_wrCount;
                 
                 cor_status_ro.recent_start_gap <= dout_recent_start_gap;
                 

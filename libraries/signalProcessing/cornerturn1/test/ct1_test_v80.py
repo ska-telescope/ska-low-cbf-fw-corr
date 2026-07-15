@@ -673,9 +673,7 @@ def main():
                             fb_out512x96_RFI = fb_out96x512.T
                             RFI_sum[pol,fb_pkt_out] = np.sum(fb_out512x96_RFI * RFI_analysis)
                             
-                            if (vc == 0) and (fb_pkt_out == 0):
-                                print('asdfasd')
-                                print(fb_in[0:10])
+                            if (vc == 0) and (fb_pkt_out < 8):
                                 print("rfi info : ")
                                 print(f"{np.sum(fb_out512x96_RFI,0)}")
                                 print(f"fb_pkt_out = {fb_pkt_out}, pol = {pol}, RFI_sum = {RFI_sum[pol,fb_pkt_out]}")
