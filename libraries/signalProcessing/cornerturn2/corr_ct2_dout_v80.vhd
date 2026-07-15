@@ -956,12 +956,12 @@ begin
                             readoutBadPoly <= arFIFO_dout(133);
                             
                             if (arFIFO_dout(39 downto 38) = "00") then
-                                if (unsigned(dataFIFO_rdCount) >= 8) then
+                                --if (unsigned(dataFIFO_rdCount) >= 8) then
                                     -- Each ar request is for 8 x 32-byte words = 256 bytes
-                                    readout_fsm <= send_data;
-                                else
-                                    readout_fsm <= wait_data;
-                                end if;
+                                --    readout_fsm <= send_data;
+                                --else
+                                readout_fsm <= wait_data;  -- Always go to wait_data to allow an extra clock for dataFIFO_rdCount to update
+                                --end if;
                             else
                                 readout_fsm <= signal_correlator;
                             end if;
