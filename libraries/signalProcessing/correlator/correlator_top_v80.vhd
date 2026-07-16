@@ -182,6 +182,7 @@ entity correlator_top_v80 is
         o_dout_dataFIFO_wrCount : out std_logic_vector(10 downto 0);
         o_dout_arFIFO_wr_count_high_water   : out std_logic_vector(6 downto 0);
         o_dout_dataFIFO_wr_count_high_water : out std_logic_vector(10 downto 0);
+        o_dout_overflow_underflow : out std_logic_vector(1 downto 0);
         o_dout_readout_error  : out std_logic;
         o_dout_recent_start_gap : out std_logic_vector(31 downto 0);
         o_dout_recent_readout_time : out std_logic_vector(31 downto 0);
@@ -598,6 +599,7 @@ begin
         o_dataFIFO_wrCount => o_dout_dataFIFO_wrCount, -- out (10:0);
         o_arFIFO_wr_count_high_water   => o_dout_arFIFO_wr_count_high_water,   -- out (6:0);
         o_dataFIFO_wr_count_high_water => o_dout_dataFIFO_wr_count_high_water, -- out (10:0);
+        o_overflow_underflow  => o_dout_overflow_underflow, -- out (1:0);
         o_readout_error       => o_dout_readout_error,    -- out std_logic;
         o_recent_start_gap    => o_dout_recent_start_gap,    -- out (31:0);
         o_recent_readout_time => o_dout_recent_readout_time, -- out (31:0);

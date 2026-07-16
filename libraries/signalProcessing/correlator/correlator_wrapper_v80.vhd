@@ -94,6 +94,7 @@ architecture Behavioral of correlator_wrapper_v80 is
     signal dout_dataFIFO_wrCount : std_logic_vector(10 downto 0);
     signal dout_arFIFO_wr_count_high_water   : std_logic_vector(6 downto 0);
     signal dout_dataFIFO_wr_count_high_water : std_logic_vector(10 downto 0);
+    signal dout_overflow_underflow : std_logic_vector(1 downto 0);
     signal dout_readout_error    : std_logic;
     signal dout_recent_start_gap : std_logic_vector(31 downto 0);
     signal dout_recent_readout_time : std_logic_vector(31 downto 0);
@@ -169,6 +170,7 @@ begin
             o_dout_dataFIFO_wrCount => dout_dataFIFO_wrCount, --  out std_logic_vector(10 downto 0);
             o_dout_arFIFO_wr_count_high_water   => dout_arFIFO_wr_count_high_water,   -- out std_logic_vector(6 downto 0);
             o_dout_dataFIFO_wr_count_high_water => dout_dataFIFO_wr_count_high_water, -- out std_logic_vector(10 downto 0);
+            o_dout_overflow_underflow => dout_overflow_underflow, -- out std_logic_vector(1 downto 0);
             o_dout_readout_error    => dout_readout_error, --  out std_logic;
             o_dout_recent_start_gap => dout_recent_start_gap, --  out std_logic_vector(31 downto 0);
             o_dout_recent_readout_time => dout_recent_readout_time, --  out std_logic_vector(31 downto 0);
@@ -398,7 +400,7 @@ begin
 
                 -- bits 7:0 = ar FIFO count, bits 15:8 = ar FIFO high water mark (7-bit each, one pad bit)
                 cor_status_ro.fifo_status(15 downto 0) <= '0' & dout_arFIFO_wr_count_high_water & '0' & dout_arFIFO_wr_count;
-                cor_status_ro.fifo_status(31 downto 16) <= "00000" & dout_dataFIFO_wrCount;
+                cor_status_ro.fifo_status(31 downto 16) <=  dout_overflow_underflow & "000" & dout_dataFIFO_wrCount;
                 
                 cor_status_ro.recent_start_gap <= dout_recent_start_gap;
                 

@@ -173,6 +173,7 @@ entity corr_ct2_dout_v80 is
         -- High water marks (max fill level seen since i_rst) for the two FIFOs
         o_arFIFO_wr_count_high_water   : out std_logic_vector(6 downto 0);
         o_dataFIFO_wr_count_high_water : out std_logic_vector(10 downto 0);
+        o_overflow_underflow  : out std_logic_vector(1 downto 0);
         o_readout_error       : out std_logic;
         o_recent_start_gap    : out std_logic_vector(31 downto 0);
         o_recent_readout_time : out std_logic_vector(31 downto 0);
@@ -205,8 +206,8 @@ architecture Behavioral of corr_ct2_dout_v80 is
     signal arFIFO_din, arFIFO_dout : std_logic_vector(133 downto 0);
     signal dataFIFO_valid, dataFIFO_rdEn, dataFIFO_wrEn, dataFIFO_full : std_logic;
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
-    signal dataFIFO_rdCount : std_logic_vector(10 downto 0);
-    signal dataFIFO_wrCount : std_logic_vector(10 downto 0);
+    signal dataFIFO_rdCount : std_logic_vector(9 downto 0);
+    signal dataFIFO_wrCount : std_logic_vector(9 downto 0);
     signal dataFIFO_rready : std_logic := '0';
     signal arFIFO_wr_count_high_water   : std_logic_vector(6 downto 0) := (others => '0');
     signal dataFIFO_wr_count_high_water : std_logic_vector(10 downto 0) := (others => '0');
@@ -270,6 +271,8 @@ architecture Behavioral of corr_ct2_dout_v80 is
     signal recent_readout_time, readout_time : std_logic_vector(31 downto 0) := x"00000000";
     signal start_Del1 : std_logic;
     signal min_start_gap : std_logic_vector(31 downto 0) := x"ffffffff";
+    signal dataFIFO_overflow, dataFIFO_underflow, dataFIFO_overflow_hold, dataFIFO_underflow_hold : std_logic := '0';
+    signal waitCount : std_logic_vector(2 downto 0) := "000";
     
 begin
     
@@ -279,23 +282,32 @@ begin
             o_ar_fsm_dbg <= ar_fsm_dbg;
             o_readout_fsm_dbg <= readout_fsm_dbg;
             o_arFIFO_wr_count <= arFIFO_wr_count;
-            o_dataFIFO_wrCount <= dataFIFO_wrCount;
+            o_dataFIFO_wrCount <= '0' & dataFIFO_wrCount;
             o_readout_error <= readout_error;
             o_recent_start_gap <= recent_start_gap;
             o_recent_readout_time <= recent_readout_time;
             o_min_start_gap <= min_start_gap;
+            o_overflow_underflow <= dataFIFO_overflow_hold & dataFIFO_underflow_hold;
 
             -- Track high water marks (max fill level) for the ar and data FIFOs.
             -- Cleared by i_rst so each capture starts fresh.
             if i_rst = '1' then
                 arFIFO_wr_count_high_water   <= (others => '0');
                 dataFIFO_wr_count_high_water <= (others => '0');
+                dataFIFO_underflow_hold <= '0';
+                dataFIFO_overflow_hold <= '0';
             else
                 if unsigned(arFIFO_wr_count) > unsigned(arFIFO_wr_count_high_water) then
                     arFIFO_wr_count_high_water <= arFIFO_wr_count;
                 end if;
                 if unsigned(dataFIFO_wrCount) > unsigned(dataFIFO_wr_count_high_water) then
-                    dataFIFO_wr_count_high_water <= dataFIFO_wrCount;
+                    dataFIFO_wr_count_high_water <= '0' & dataFIFO_wrCount;
+                end if;
+                if dataFIFO_underflow = '1' then
+                    dataFIFO_underflow_hold <= '1';
+                end if;
+                if dataFIFO_overflow = '1' then
+                    dataFIFO_overflow_hold <= '1';
                 end if;
             end if;
             o_arFIFO_wr_count_high_water   <= arFIFO_wr_count_high_water;
@@ -864,18 +876,18 @@ begin
         ECC_MODE => "no_ecc",       -- String
         FIFO_MEMORY_TYPE => "auto", -- String
         FIFO_READ_LATENCY => 1,     -- DECIMAL
-        FIFO_WRITE_DEPTH => 1024,   -- DECIMAL  (doubled from 512)
+        FIFO_WRITE_DEPTH => 512,    -- DECIMAL
         FULL_RESET_VALUE => 0,      -- DECIMAL
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 11,  -- DECIMAL  should be = log2(FIFO_READ_DEPTH) + 1
+        RD_DATA_COUNT_WIDTH => 10,  -- DECIMAL  should be = log2(FIFO_READ_DEPTH) + 1
         READ_DATA_WIDTH => 256,     -- DECIMAL
         READ_MODE => "std",         -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
         WRITE_DATA_WIDTH => 256,    -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 11   -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 10   -- DECIMAL
     ) port map (
         almost_empty => open,      -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
         almost_full => open,       -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
@@ -884,13 +896,13 @@ begin
         dout => dataFIFO_dout,     -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
         empty => open,             -- 1-bit output: Empty Flag: When asserted, this signal indicates that- the FIFO is empty.
         full => dataFIFO_full,     -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full.
-        overflow => open,          -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
+        overflow => dataFIFO_overflow,  -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
         prog_empty => open,        -- 1-bit output: Programmable Empty: This signal is asserted when the number of words in the FIFO is less than or equal to the programmable empty threshold value.
         prog_full => open,         -- 1-bit output: Programmable Full: This signal is asserted when the number of words in the FIFO is greater than or equal to the programmable full threshold value.
         rd_data_count => dataFIFO_rdCount,     -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
         rd_rst_busy => open,       -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
         sbiterr => open,           -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
-        underflow => open,         -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
+        underflow => dataFIFO_underflow, -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
         wr_ack => open,            -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => dataFIFO_wrCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
         wr_rst_busy => open,       -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
@@ -914,7 +926,7 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            if unsigned(dataFIFO_wrCount) < 1000 then
+            if unsigned(dataFIFO_wrCount) < 500 then
                 dataFIFO_rready <= '1';
             else
                 dataFIFO_rready <= '0';
@@ -956,21 +968,28 @@ begin
                             readoutBadPoly <= arFIFO_dout(133);
                             
                             if (arFIFO_dout(39 downto 38) = "00") then
-                                --if (unsigned(dataFIFO_rdCount) >= 8) then
+                                if (unsigned(dataFIFO_rdCount) > 12) then
                                     -- Each ar request is for 8 x 32-byte words = 256 bytes
-                                --    readout_fsm <= send_data;
-                                --else
-                                readout_fsm <= wait_data;  -- Always go to wait_data to allow an extra clock for dataFIFO_rdCount to update
-                                --end if;
+                                    -- Check against 12 so that even if it decrements a few more from the previous read, there will
+                                    -- still be 8 words available to read out.
+                                    readout_fsm <= send_data;
+                                else
+                                    readout_fsm <= wait_data;  -- Always go to wait_data to allow an extra clock for dataFIFO_rdCount to update
+                                end if;
                             else
                                 readout_fsm <= signal_correlator;
                             end if;
                         end if;
                         sendCount <= (others => '0');
+                        waitCount <= "000";
                         
                     when wait_data =>
                         readout_fsm_dbg <= "0001";
-                        if (unsigned(dataFIFO_rdCount) >= 8) then
+                        if waitCount /= "111" then
+                            -- waitCount ensures that dataFIFO_rdCount is up to date before we check it
+                            waitCount <= std_logic_vector(unsigned(waitCount) + 1);
+                        end if;
+                        if (unsigned(dataFIFO_rdCount) >= 8) and (unsigned(waitCount) > 4) then
                             readout_fsm <= send_data;
                         end if;
                         sendCount <= (others => '0');
@@ -981,6 +1000,7 @@ begin
                         if unsigned(sendCount) = 7 then
                             readout_fsm <= idle;
                         end if;
+                        waitCount <= "000";
                     
                     when signal_correlator =>
                         readout_fsm_dbg <= "0011";
