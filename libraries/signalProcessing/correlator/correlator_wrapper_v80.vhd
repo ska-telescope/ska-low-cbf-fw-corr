@@ -71,7 +71,7 @@ architecture Behavioral of correlator_wrapper_v80 is
     signal ro_FIFO_wrEn : std_logic;
     signal ro_FIFO_valid, ro_FIFO_full : std_logic;
     signal ro_FIFO_dout : std_logic_vector(127 downto 0);
-    signal ro_FIFO_wr_count : std_logic_vector(4 downto 0);
+    signal ro_FIFO_wr_count : std_logic_vector(6 downto 0);
     signal ro_FIFO_RdEn, ro_tready : std_logic;
     signal ro_reg_used : std_logic := '0';
     signal ro_tdata : std_logic_vector(127 downto 0);
@@ -81,7 +81,23 @@ architecture Behavioral of correlator_wrapper_v80 is
     signal ro_tid : std_logic_vector(5 downto 0);
     signal ro_tlast : std_logic;
     signal ro_stall : std_logic;
-    
+
+    -- Gating of the readout notification FIFO on HBM write completion.
+    -- The notification tells the packetiser to read a strip of visibilities from HBM.
+    -- On the V80 the write data can still be in flight through the NOC when the
+    -- notification is generated, so a notification is only released to the streaming
+    -- AXI NOC once all outstanding HBM writes for this instance have completed (their
+    -- write responses have returned). c_RO_FIFO_TIMEOUT is a safety net so a stuck
+    -- notification is eventually released even if a write response never returns.
+    constant c_RO_FIFO_TIMEOUT : integer := 2048; -- max clocks a notification may wait for outstanding writes to drain before being released anyway.
+    signal outstanding_writes : unsigned(15 downto 0) := (others => '0'); -- HBM write bursts issued (aw handshakes) but not yet completed (b responses).
+    signal writes_drained : std_logic;
+    signal ro_wait_count : unsigned(11 downto 0) := (others => '0'); -- clocks the head-of-FIFO notification has been waiting to be read.
+    signal ro_timeout : std_logic;
+    signal ro_timeout_del1 : std_logic := '0';
+    signal ro_timeout_sticky : std_logic := '0';        -- latches high on any ro_timeout, cleared on reset.
+    signal ro_timeout_count : std_logic_vector(7 downto 0) := x"00"; -- wrapping count of ro_timeout events.
+
     signal noc_wren                 : STD_LOGIC;
     signal noc_rden                 : STD_LOGIC;
     signal noc_wr_adr               : STD_LOGIC_VECTOR(17 DOWNTO 0);
@@ -101,7 +117,7 @@ architecture Behavioral of correlator_wrapper_v80 is
     signal dout_min_start_gap    : std_logic_vector(31 downto 0);
     signal cfg_dbg               : std_logic_vector(31 downto 0);
     signal cfg_count             : std_logic_Vector(31 downto 0) := x"00000000";
-    signal ro_count : std_logic_vector(15 downto 0) := x"0000";
+    signal ro_count : std_logic_vector(7 downto 0) := x"00";
     signal ro_status : std_logic_vector(31 downto 0);
     signal cor_status_ro : t_cor_status_ro;
     
@@ -269,18 +285,18 @@ begin
         ECC_MODE => "no_ecc",       -- String
         FIFO_MEMORY_TYPE => "distributed", -- String
         FIFO_READ_LATENCY => 0,     -- DECIMAL
-        FIFO_WRITE_DEPTH => 16,     -- DECIMAL
+        FIFO_WRITE_DEPTH => 64,     -- DECIMAL
         FULL_RESET_VALUE => 0,      -- DECIMAL
         PROG_EMPTY_THRESH => 10,    -- DECIMAL
         PROG_FULL_THRESH => 10,     -- DECIMAL
-        RD_DATA_COUNT_WIDTH => 5,   -- DECIMAL
+        RD_DATA_COUNT_WIDTH => 7,   -- DECIMAL
         READ_DATA_WIDTH => 128,     -- DECIMAL
         READ_MODE => "fwft",        -- String
         SIM_ASSERT_CHK => 0,        -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
         USE_ADV_FEATURES => "1404", -- String; bit 12 = enable data valid flag, bits 2 and 10 enable read and write data counts
         WAKEUP_TIME => 0,           -- DECIMAL
         WRITE_DATA_WIDTH => 128,    -- DECIMAL
-        WR_DATA_COUNT_WIDTH => 5    -- DECIMAL
+        WR_DATA_COUNT_WIDTH => 7    -- DECIMAL
     ) port map (
         almost_empty => open,        -- 1-bit output: Almost Empty : When asserted, this signal indicates that only one more read can be performed before the FIFO goes to empty.
         almost_full => open,         -- 1-bit output: Almost Full: When asserted, this signal indicates that only one more write can be performed before the FIFO is full.
@@ -309,8 +325,14 @@ begin
         wr_en => ro_FIFO_wrEn        -- 1-bit input: Write Enable: 
     );
     
-    ro_FIFO_rdEn <= '1' when ro_FIFO_valid = '1' and ro_reg_used = '0' else '0';
-    
+    -- Release a notification to the packetiser only once all outstanding HBM writes
+    -- for this instance have completed (writes_drained), so the data it points to is
+    -- guaranteed to be in HBM. ro_timeout is a safety net that releases a notification
+    -- that has been waiting too long (in case a write response is never returned).
+    writes_drained <= '1' when outstanding_writes = 0 else '0';
+    ro_timeout     <= '1' when ro_wait_count >= to_unsigned(c_RO_FIFO_TIMEOUT, ro_wait_count'length) else '0';
+    ro_FIFO_rdEn   <= '1' when (ro_FIFO_valid = '1' and ro_reg_used = '0' and (writes_drained = '1' or ro_timeout = '1')) else '0';
+
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
@@ -320,13 +342,33 @@ begin
             elsif ro_tready = '1' then
                 ro_reg_used <= '0';
             end if;
-            
-            if unsigned(ro_FIFO_wr_count) > 8 then
+
+            if unsigned(ro_FIFO_wr_count) > 56 then
                 ro_stall <= '1';
             else
                 ro_stall <= '0';
             end if;
-            
+
+            -- Track HBM write bursts that have been issued (aw handshake) but not yet
+            -- completed (b response). Each aw burst returns exactly one b response.
+            if i_axi_rst = '1' then
+                outstanding_writes <= (others => '0');
+            elsif (HBM_axi_aw.valid = '1' and HBM_axi_awready = '1') and (HBM_axi_b.valid = '1') then
+                outstanding_writes <= outstanding_writes; -- one issued, one completed this clock
+            elsif (HBM_axi_aw.valid = '1' and HBM_axi_awready = '1') then
+                outstanding_writes <= outstanding_writes + 1;
+            elsif (HBM_axi_b.valid = '1' and outstanding_writes /= 0) then
+                outstanding_writes <= outstanding_writes - 1;
+            end if;
+
+            -- Timeout counter for the notification currently at the head of the ro FIFO.
+            -- Reset whenever a notification is read out, or when the FIFO output is empty.
+            if ro_FIFO_rdEn = '1' or ro_FIFO_valid = '0' then
+                ro_wait_count <= (others => '0');
+            elsif ro_wait_count < to_unsigned(c_RO_FIFO_TIMEOUT, ro_wait_count'length) then
+                ro_wait_count <= ro_wait_count + 1;
+            end if;
+
         end if;
     end process;
     
@@ -414,18 +456,37 @@ begin
                 end if;
                 cor_status_ro.cfg_count <= cfg_count;
                 
-                ro_status(7 downto 0) <= "000" & ro_FIFO_wr_count;
+                ro_status(7 downto 0) <= "0" & ro_FIFO_wr_count;
                 ro_status(8) <= ro_FIFO_valid;
                 ro_status(9) <= ro_FIFO_full;
                 ro_status(10) <= ro_tready;
                 ro_status(11) <= ro_reg_used;
                 ro_status(12) <= ro_stall;
                 ro_status(13) <= ro_fifo_wren;
-                ro_status(15 downto 14) <= "00";
-                ro_status(31 downto 16) <= ro_count;
-                
+                ro_status(14) <= writes_drained;
+                -- bit 15 is sticky (register interface is only polled occasionally, so a
+                -- momentary ro_timeout would otherwise be missed), bits 23:16 count the
+                -- number of timeout events, bits 31:24 count notifications sent out.
+                ro_status(15) <= ro_timeout_sticky;
+                ro_status(23 downto 16) <= ro_timeout_count;
+                ro_status(31 downto 24) <= ro_count;
+
                 if ro_fifo_wren = '1' then
                     ro_count <= std_logic_vector(unsigned(ro_count) + 1);
+                end if;
+
+                -- ro_timeout can be high for many clocks per event; count rising edges only.
+                ro_timeout_del1 <= ro_timeout;
+                if i_axi_rst = '1' then
+                    ro_timeout_sticky <= '0';
+                    ro_timeout_count  <= x"00";
+                else
+                    if ro_timeout = '1' then
+                        ro_timeout_sticky <= '1';
+                    end if;
+                    if ro_timeout = '1' and ro_timeout_del1 = '0' then
+                        ro_timeout_count <= std_logic_vector(unsigned(ro_timeout_count) + 1);
+                    end if;
                 end if;
                 
                 cor_status_ro.ro_status <= ro_status;

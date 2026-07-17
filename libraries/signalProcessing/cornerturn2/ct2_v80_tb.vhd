@@ -596,7 +596,7 @@ begin
         READ_QUEUE_SIZE          => 16,
         MIN_LAG                  => 60,
         RANDSEED                 => 1234,
-        LATENCY_LOW_PROBABILITY  => 99,
+        LATENCY_LOW_PROBABILITY  => 80,
         LATENCY_ZERO_PROBABILITY => 80
     ) port map (
         i_clk                => clk300,
@@ -665,7 +665,7 @@ begin
         READ_QUEUE_SIZE          => 16,
         MIN_LAG                  => 60,
         RANDSEED                 => 43526,
-        LATENCY_LOW_PROBABILITY  => 99,
+        LATENCY_LOW_PROBABILITY  => 75,
         LATENCY_ZERO_PROBABILITY => 80
     ) port map (
         i_clk                => clk300,
