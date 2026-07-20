@@ -63,7 +63,7 @@ ENTITY correlator_core IS
         g_HBM_AXI_ID_WIDTH   : integer := 1;
         -- Number of correlator blocks to instantiate.
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
-        g_CORRELATORS        : integer := 1;  -- 1 to 6
+        g_CORRELATORS        : integer := 6;  -- 1 to 6
         g_INCLUDE_SPS_MONITOR : boolean := TRUE;
         g_USE_DUMMY_FB       : boolean := FALSE -- Should be FALSE for normal operation.
     );
