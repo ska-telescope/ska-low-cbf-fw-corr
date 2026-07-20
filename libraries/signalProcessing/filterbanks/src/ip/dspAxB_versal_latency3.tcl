@@ -1,15 +1,16 @@
 # Versal version uses DSP58, which has a wider output.
-
-create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name dsp_AxB_plus_PCIN_versal
+# This version has latency 3 clocks, which is used for the older FIR filter (fb_DSP25.vhd) which doesn't use the double rate clock.
+# The double rate clock version (fb_DSP25_versal.vhd) uses a latency of 4 (i.e. 4 double rate clocks)
+create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name dsp_AxB_plus_PCIN_versal_latency3
 set_property -dict [list \
   CONFIG.a_binarywidth {0} \
   CONFIG.a_width {27} \
   CONFIG.areg_3 {true} \
-  CONFIG.areg_4 {true} \
+  CONFIG.areg_4 {false} \
   CONFIG.b_binarywidth {0} \
   CONFIG.b_width {18} \
   CONFIG.breg_3 {true} \
-  CONFIG.breg_4 {true} \
+  CONFIG.breg_4 {false} \
   CONFIG.c_binarywidth {0} \
   CONFIG.c_width {48} \
   CONFIG.concat_binarywidth {0} \
@@ -27,19 +28,19 @@ set_property -dict [list \
   CONFIG.pcin_binarywidth {0} \
   CONFIG.pipeline_options {Expert} \
   CONFIG.preg_6 {true} \
-] [get_ips dsp_AxB_plus_PCIN_versal]
-create_ip_run [get_ips dsp_AxB_plus_PCIN_versal]
+] [get_ips dsp_AxB_plus_PCIN_versal_latency3]
+create_ip_run [get_ips dsp_AxB_plus_PCIN_versal_latency3]
 
-create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name DSP_AxB_versal
+create_ip -name dsp_macro -vendor xilinx.com -library ip -version 1.0 -module_name DSP_AxB_versal_latency3
 set_property -dict [list \
   CONFIG.a_binarywidth {0} \
   CONFIG.a_width {27} \
   CONFIG.areg_3 {true} \
-  CONFIG.areg_4 {true} \
+  CONFIG.areg_4 {false} \
   CONFIG.b_binarywidth {0} \
   CONFIG.b_width {18} \
   CONFIG.breg_3 {true} \
-  CONFIG.breg_4 {true} \
+  CONFIG.breg_4 {false} \
   CONFIG.c_binarywidth {0} \
   CONFIG.c_width {48} \
   CONFIG.concat_binarywidth {0} \
@@ -57,5 +58,5 @@ set_property -dict [list \
   CONFIG.pcin_binarywidth {0} \
   CONFIG.pipeline_options {Expert} \
   CONFIG.preg_6 {true} \
-] [get_ips DSP_AxB_versal]
-create_ip_run [get_ips DSP_AxB_versal]
+] [get_ips DSP_AxB_versal_latency3]
+create_ip_run [get_ips DSP_AxB_versal_latency3]

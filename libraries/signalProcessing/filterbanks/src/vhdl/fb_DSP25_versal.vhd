@@ -115,23 +115,28 @@ begin
     -- Delay the input to match the double rate processing
     -- The input is already staggered on clk, but needs to be staggered on clk_2x :
     --
-    --  dataX_i(0) | del1       | del2       | del3       | del4       | del5       | d0a  | d0b |     |      |                                                      <-- 1st tap : use del6
-    --             | dataX_i(1) | del1       | del2       | del3       | del4       |      | d1a | d1b |      |                                                      <-- 2nd tap : use del5, del6
-    --             |            | dataX_i(2) | del1       | del2       | del3       | del4       | d2a | d2b  |                                                      <-- 3rd tap : use del5
-    --             |            |            | dataX_i(3) | del1       | del2       | del3       |     | d3a  | d3b  |     |                                         <-- 4th tap : use del4, del5
-    --             |            |            |            | dataX_i(4) | del1       | del2       | del3       | d4a  | d4b |                                         <-- 5th tap : use del4
-    --             |            |            |            |            | dataX_i(5) | del1       | del2       |      | d5a | d5b |      |                            <-- 6th tap : use del3, del4
-    --             |            |            |            |            |            | dataX_i(6) | del1       | del2       | d6a | d6b  |                            <-- 7th tap : use del3
-    --             |            |            |            |            |            |            | dataX_i(7) | del1       |     | d7a  | d7b |      |               <-- 8th tap : use del2, del3
-    --             |            |            |            |            |            |            |            | dataX_i(8) | del1       | d8a | d8b  |               <-- 9th tap : use del2
-    --             |            |            |            |            |            |            |            |            | dataX_i(9) |     | d9a  | d9b  |     |            |                  <-- 10th tap : use del1, del2
-    --             |            |            |            |            |            |            |            |            |            | dataX_i(10)| d10a | d10b|            |                  <-- 11th tap : use del1
-    --             |            |            |            |            |            |            |            |            |            |            | dataX_i(11)| d11b |     | a_res | b_res |  <-- 12th tap : use data_i, del1    
-    --                                                                                                                                                                                         | data_o 
-    --
+    --  clk_n      |  0   |  1  |  0   |  1  |  0   |  1  |  0   |  1  |  0   |  1  |  0   |  1  |  0   |  1  |  0   |  1  |  0   |  1  |  0    |  1   | 0    |  1   |                                                     
+    -- -----------------------------------------------------------------------------------------------------------------------------------------------------------------                                            
+    --  dataX_i(0) | del1       | del2       | del3       | del4       | del5 | d0a | d0b  |     |      |                               |              |       <-- 1st tap : use del5, del6
+    --             | dataX_i(1) | del1       | del2       | del3       | del4       | d1a  | d1b |      |                               |              |       <-- 2nd tap : use del5
+    --             |            | dataX_i(2) | del1       | del2       | del3       | del4 | d2a | d2b  |                               |              |       <-- 3rd tap : use del4, del5
+    --             |            |            | dataX_i(3) | del1       | del2       | del3       | d3a  | d3b |      |                  |              |       <-- 4th tap : use del4
+    --             |            |            |            | dataX_i(4) | del1       | del2       | del3 | d4a | d4b  |                  |              |       <-- 5th tap : use del3, del4
+    --             |            |            |            |            | dataX_i(5) | del1       | del2       | d5a  | d5b |      |     |              |       <-- 6th tap : use del3, del4
+    --             |            |            |            |            |            | dataX_i(6) | del1       | del2 | d6a | d6b  |     |              |       <-- 7th tap : use del3
+    --             |            |            |            |            |            |            | dataX_i(7) | del1       | d7a  | d7b |       |      |       <-- 8th tap : use del2, del3
+    --             |            |            |            |            |            |            |            | dataX_i(8) | del1 | d8a | d8b   |      |       <-- 9th tap : use del2
+    --             |            |            |            |            |            |            |            |            | dataX_i(9) | d9a   | d9b  |      |            |                  <-- 10th tap : use del1, del2
+    --             |            |            |            |            |            |            |            |            |            |X_i(10)| d10a | d10b |            |                  <-- 11th tap : use del1
+    --             |            |            |            |            |            |            |            |            |            |              | d11a | d11b |     |      | a_res | b_res |  <-- 12th tap : use data_i    
+    --             |            |            |            |            |            |            |            |            |            |              |             |            |               | data_o 
+    --    
+    
     -- First filter tap (no pcin)
-    dataFull(0) <= data0_del6(0) & "00000000000" when clk_n = '0' else data1_del6(0) & "00000000000";
-    coef(0) <= coef_del6(0);
+    --dataFull(0) <= data0_del6(0) & "00000000000" when clk_n = '0' else data1_del6(0) & "00000000000";
+    --coef(0) <= coef_del6(0);
+    dataFull(0) <= data0_del5(0) & "00000000000" when clk_n = '1' else data1_del6(0) & "00000000000";
+    coef(0) <= coef_del5(0) when clk_n = '1' else coef_del6(0);
     
     dsp1i : DSP_AxB_versal
     port map (
@@ -143,8 +148,10 @@ begin
     );
     
     -- 2nd filter tap
-    dataFull(1) <= data0_del5(1) & "00000000000" when clk_n = '1' else data1_del6(1) & "00000000000";
-    coef(1) <= coef_del5(1) when clk_n = '1' else coef_del6(1);
+    --dataFull(1) <= data0_del5(1) & "00000000000" when clk_n = '1' else data1_del6(1) & "00000000000";
+    --coef(1) <= coef_del5(1) when clk_n = '1' else coef_del6(1);
+    dataFull(1) <= data0_del5(1) & "00000000000" when clk_n = '0' else data1_del5(1) & "00000000000";
+    coef(1) <= coef_del5(1);
     
     dsp2i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -157,8 +164,10 @@ begin
     );
     
     -- 3rd filter tap
-    dataFull(2) <= data0_del5(2) & "00000000000" when clk_n = '0' else data1_del5(2) & "00000000000";
-    coef(2) <= coef_del5(2);
+    --dataFull(2) <= data0_del5(2) & "00000000000" when clk_n = '0' else data1_del5(2) & "00000000000";
+    --coef(2) <= coef_del5(2);
+    dataFull(2) <= data0_del4(2) & "00000000000" when clk_n = '1' else data1_del5(2) & "00000000000";
+    coef(2) <= coef_del4(2) when clk_n = '1' else coef_del5(2);
     
     dsp3i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -171,8 +180,10 @@ begin
     );
     
     -- 4th filter tap
-    dataFull(3) <= data0_del4(3) & "00000000000" when clk_n = '1' else data1_del5(3) & "00000000000";
-    coef(3) <= coef_del4(3) when clk_n = '1' else coef_del5(3);
+    --dataFull(3) <= data0_del4(3) & "00000000000" when clk_n = '1' else data1_del5(3) & "00000000000";
+    --coef(3) <= coef_del4(3) when clk_n = '1' else coef_del5(3);
+    dataFull(3) <= data0_del4(3) & "00000000000" when clk_n = '0' else data1_del4(3) & "00000000000";
+    coef(3) <= coef_del4(3);
     
     dsp4i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -185,8 +196,10 @@ begin
     );
     
     -- 5th filter tap
-    dataFull(4) <= data0_del4(4) & "00000000000" when clk_n = '0' else data1_del4(4) & "00000000000";
-    coef(4) <= coef_del4(4);
+    --dataFull(4) <= data0_del4(4) & "00000000000" when clk_n = '0' else data1_del4(4) & "00000000000";
+    --coef(4) <= coef_del4(4);
+    dataFull(4) <= data0_del3(4) & "00000000000" when clk_n = '1' else data1_del4(4) & "00000000000";
+    coef(4) <= coef_del3(4) when clk_n = '1' else coef_del4(4);
     
     dsp5i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -199,8 +212,10 @@ begin
     );
     
     -- 6th filter tap
-    dataFull(5) <= data0_del3(5) & "00000000000" when clk_n = '1' else data1_del4(5) & "00000000000";
-    coef(5) <= coef_del3(5) when clk_n = '1' else coef_del4(5);
+    --dataFull(5) <= data0_del3(5) & "00000000000" when clk_n = '1' else data1_del4(5) & "00000000000";
+    --coef(5) <= coef_del3(5) when clk_n = '1' else coef_del4(5);
+    dataFull(5) <= data0_del3(5) & "00000000000" when clk_n = '0' else data1_del3(5) & "00000000000";
+    coef(5) <= coef_del3(5);
     
     dsp6i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -213,8 +228,10 @@ begin
     );
     
     -- 7th filter tap
-    dataFull(6) <= data0_del3(6) & "00000000000" when clk_n = '0' else data1_del3(6) & "00000000000";
-    coef(6) <= coef_del3(6);
+    --dataFull(6) <= data0_del3(6) & "00000000000" when clk_n = '0' else data1_del3(6) & "00000000000";
+    --coef(6) <= coef_del3(6);
+    dataFull(6) <= data0_del2(6) & "00000000000" when clk_n = '1' else data1_del3(6) & "00000000000";
+    coef(6) <= coef_del2(6) when clk_n = '1' else coef_del3(6);
     
     dsp7i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -227,8 +244,10 @@ begin
     );
     
     -- 8th filter tap
-    dataFull(7) <= data0_del2(7) & "00000000000" when clk_n = '1' else data1_del3(7) & "00000000000";
-    coef(7) <= coef_del2(7) when clk_n = '1' else coef_del3(7);
+    --dataFull(7) <= data0_del2(7) & "00000000000" when clk_n = '1' else data1_del3(7) & "00000000000";
+    --coef(7) <= coef_del2(7) when clk_n = '1' else coef_del3(7);
+    dataFull(7) <= data0_del2(7) & "00000000000" when clk_n = '0' else data1_del2(7) & "00000000000";
+    coef(7) <= coef_del2(7);
     
     dsp8i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -241,8 +260,10 @@ begin
     );
     
     -- 9th filter tap
-    dataFull(8) <= data0_del2(8) & "00000000000" when clk_n = '0' else data1_del2(8) & "00000000000";
-    coef(8) <= coef_del2(8);
+    --dataFull(8) <= data0_del2(8) & "00000000000" when clk_n = '0' else data1_del2(8) & "00000000000";
+    --coef(8) <= coef_del2(8);
+    dataFull(8) <= data0_del1(8) & "00000000000" when clk_n = '1' else data1_del2(8) & "00000000000";
+    coef(8) <= coef_del1(8) when clk_n = '1' else coef_del2(8);
     
     dsp9i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -255,8 +276,10 @@ begin
     );
     
     -- 10th filter tap
-    dataFull(9) <= data0_del1(9) & "00000000000" when clk_n = '1' else data1_del2(9) & "00000000000";
-    coef(9) <= coef_del1(9) when clk_n = '1' else coef_del2(9);
+    --dataFull(9) <= data0_del1(9) & "00000000000" when clk_n = '1' else data1_del2(9) & "00000000000";
+    --coef(9) <= coef_del1(9) when clk_n = '1' else coef_del2(9);
+    dataFull(9) <= data0_del1(9) & "00000000000" when clk_n = '0' else data1_del1(9) & "00000000000";
+    coef(9) <= coef_del1(9);
     
     dsp10i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -269,8 +292,10 @@ begin
     );
     
     -- 11th filter tap
-    dataFull(10) <= data0_del1(10) & "00000000000" when clk_n = '0' else data1_del1(10) & "00000000000";
-    coef(10) <= coef_del1(10);
+    --dataFull(10) <= data0_del1(10) & "00000000000" when clk_n = '0' else data1_del1(10) & "00000000000";
+    --coef(10) <= coef_del1(10);
+    dataFull(10) <= i_data0(10) & "00000000000" when clk_n = '1' else data1_del1(10) & "00000000000";
+    coef(10) <= i_coef(10) when clk_n = '1' else coef_del1(10);
     
     dsp11i : DSP_AxB_plus_PCIN_versal
     port map (
@@ -283,8 +308,10 @@ begin
     );
     
     -- Last filter tap
-    dataFull(11) <= i_data0(11) & "00000000000" when clk_n = '1' else data1_del1(11) & "00000000000";
-    coef(11) <= i_coef(11) when clk_n = '1' else coef_del1(11);
+    --dataFull(11) <= i_data0(11) & "00000000000" when clk_n = '1' else data1_del1(11) & "00000000000";
+    --coef(11) <= i_coef(11) when clk_n = '1' else coef_del1(11);
+    dataFull(11) <= i_data0(11) & "00000000000" when clk_n = '0' else i_data1(11) & "00000000000";
+    coef(11) <= i_coef(11);
     dsp12i : DSP_AxB_plus_PCIN_versal
     port map (
         clk  => clk_2x,

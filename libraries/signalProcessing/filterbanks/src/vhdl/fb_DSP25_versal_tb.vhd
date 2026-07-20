@@ -73,10 +73,15 @@ architecture Behavioral of fb_DSP25_versal_tb is
     signal data1_shift : t_slv_16_arr(11 downto 0) := (others => (others => '0'));
 
     ---------------------------------------------------------------------------
-    -- Filter coefficients (fixed, non-trivial 18-bit signed values).
-    -- All 12 taps are non-zero to exercise every DSP in the cascade.
+    -- Filter coefficients: continuously varying, driven by 12 independent
+    -- 18-bit Fibonacci LFSRs (one per tap, distinct seeds). This exercises
+    -- the DUT with time-varying coefficients rather than a fixed set, to
+    -- better emulate actual use of the DUT.
+    -- Poly: x^18+x^7+1 (primitive over GF(2)); feedback = bit17 xor bit6.
+    -- A maximal-length LFSR never enters the all-zero state, so every tap
+    -- stays non-zero and continues to exercise every DSP in the cascade.
     ---------------------------------------------------------------------------
-    signal coef_reg : t_slv_18_arr(11 downto 0) := (
+    signal coef_lfsr : t_slv_18_arr(11 downto 0) := (
         0  => std_logic_vector(to_signed( 16384, 18)),
         1  => std_logic_vector(to_signed( -8192, 18)),
         2  => std_logic_vector(to_signed(  4096, 18)),
@@ -89,6 +94,8 @@ architecture Behavioral of fb_DSP25_versal_tb is
         9  => std_logic_vector(to_signed(   -32, 18)),
         10 => std_logic_vector(to_signed(    16, 18)),
         11 => std_logic_vector(to_signed(    -8, 18)));
+
+    signal coef_reg : t_slv_18_arr(11 downto 0) := coef_lfsr;
 
     ---------------------------------------------------------------------------
     -- Filter outputs
@@ -171,6 +178,24 @@ begin
             if startup_done = '1' then
                 fb    := lfsr1(15) xor lfsr1(14) xor lfsr1(12) xor lfsr1(3);
                 lfsr1 <= lfsr1(14 downto 0) & fb;
+            end if;
+        end if;
+    end process;
+
+    ---------------------------------------------------------------------------
+    -- Coefficient LFSRs - one independent 18-bit LFSR per tap, so coef_reg
+    -- varies continuously and independently across taps.
+    ---------------------------------------------------------------------------
+    process(clk100)
+        variable fb : std_logic;
+    begin
+        if rising_edge(clk100) then
+            if startup_done = '1' then
+                for k in 0 to 11 loop
+                    fb := coef_lfsr(k)(17) xor coef_lfsr(k)(6);
+                    coef_lfsr(k) <= coef_lfsr(k)(16 downto 0) & fb;
+                end loop;
+                coef_reg <= coef_lfsr;
             end if;
         end if;
     end process;

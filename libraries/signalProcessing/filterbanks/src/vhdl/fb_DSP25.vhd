@@ -68,7 +68,7 @@ architecture Behavioral of fb_DSP25 is
     end component;
     
     -- Versal versions have a 58 bit wide accumulator.
-    component DSP_AxB_versal
+    component DSP_AxB_versal_latency3
     port (
         clk   : in std_logic;
         a     : in std_logic_vector(26 downto 0);
@@ -77,7 +77,7 @@ architecture Behavioral of fb_DSP25 is
         p     : out std_logic_vector(44 downto 0));
     end component;
 
-    component DSP_AxB_plus_PCIN_versal
+    component DSP_AxB_plus_PCIN_versal_latency3
     port (
         clk   : in std_logic;
         pcin  : in std_logic_vector(57 downto 0);
@@ -143,7 +143,7 @@ END GENERATE;
 
 versal_gen : IF (C_TARGET_DEVICE = "V80") GENERATE
     -- First filter tap (no pcin)
-    dsp_first : DSP_AxB_versal
+    dsp_first : DSP_AxB_versal_latency3
     port map (
         clk  => clk,
         a    => dataFull(0), -- in(26:0)
@@ -159,7 +159,7 @@ versal_gen : IF (C_TARGET_DEVICE = "V80") GENERATE
         
         dataFull(i) <= data_i(i) & "00000000000";
         
-        dspinst : DSP_AxB_plus_PCIN_versal
+        dspinst : DSP_AxB_plus_PCIN_versal_latency3
         port map (
             clk  => clk,
             pcin => pc58(i-1),     -- in(47:0)
@@ -173,7 +173,7 @@ versal_gen : IF (C_TARGET_DEVICE = "V80") GENERATE
     
     -- Last filter tap
     dataFull(TAPS - 1) <= data_i(TAPS - 1) & "00000000000";
-    dsp_last : DSP_AxB_plus_PCIN_versal
+    dsp_last : DSP_AxB_plus_PCIN_versal_latency3
     port map (
         clk  => clk,
         pcin => pc58(TAPS-2),         -- in(47:0)
