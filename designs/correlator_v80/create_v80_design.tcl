@@ -267,10 +267,10 @@ set bd_name         "top"
   # add_files -norecurse [make_wrapper -files [get_files "args_l.bd"] -top]
 
   add_files -fileset sources_1 [glob \
-    $COMMON_PATH/NOC/args_noc.vhd \
+    $COMMON_PATH/NOC/args_noc_v2.vhd \
   ]
   set_property library noc_lib [get_files {\
-    */NOC/args_noc.vhd \
+    */NOC/args_noc_v2.vhd \
   }]
 
   source $COMMON_PATH/NOC/noc_ip.tcl
