@@ -1,7 +1,7 @@
 ### Changelog
 ## Correlator Personality
 * 2.0.1
-    * 200G logic added to V80
+    * V80 scaleup to 6 instance correlator.
 * 2.0.0
     * Requires Processor 0.25.0+
     * U55 update to support scaleup for the V80.
