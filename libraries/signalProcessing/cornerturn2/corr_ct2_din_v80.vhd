@@ -120,25 +120,24 @@ entity corr_ct2_din_v80 is
         -------------------------------------------------------------------
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
-        -- two HBM interfaces
+        -- four HBM interfaces (one per fc mod 4 group)
         i_axi_clk : in std_logic;
-        -- 3 Gbytes for virtual channels 0-511
-        o_HBM_axi_aw      : out t_axi4_full_addr_arr(1 downto 0); -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready : in  std_logic_vector(1 downto 0);
-        o_HBM_axi_w       : out t_axi4_full_data_arr(1 downto 0); -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  : in  std_logic_vector(1 downto 0);
-        i_HBM_axi_b       : in  t_axi4_full_b_arr(1 downto 0)     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM_axi_aw      : out t_axi4_full_addr_arr(3 downto 0); -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
+        i_HBM_axi_awready : in  std_logic_vector(3 downto 0);
+        o_HBM_axi_w       : out t_axi4_full_data_arr(3 downto 0); -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
+        i_HBM_axi_wready  : in  std_logic_vector(3 downto 0);
+        i_HBM_axi_b       : in  t_axi4_full_b_arr(3 downto 0)     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
     );
 end corr_ct2_din_v80;
 
 architecture Behavioral of corr_ct2_din_v80 is
     
-    signal bufDout : t_slv_128_arr(11 downto 0);
-    signal bufWEFinal, bufWEFinal_del1 : std_logic_vector(11 downto 0);
-    signal bufWE_slv : t_slv_1_arr(11 downto 0);
-    signal bufWrAddr, bufWrAddrFinal, bufWrAddrFinal_del1 : std_logic_vector(14 downto 0);
+    signal bufDout : t_slv_128_arr(23 downto 0);
+    signal bufWEFinal, bufWEFinal_del1 : std_logic_vector(23 downto 0);
+    signal bufWE_slv : t_slv_1_arr(23 downto 0);
+    signal bufWrAddr, bufWrAddrFinal, bufWrAddrFinal_del1 : std_logic_vector(13 downto 0);
     signal bufWrData, bufWrDataFinal, bufWrDataFinal_del1 : t_slv_128_arr(2 downto 0);
-    signal bufRdAddr : t_slv_15_arr(1 downto 0);
+    signal bufRdAddr : t_slv_14_arr(3 downto 0);
     
     signal timeStep : std_logic_vector(5 downto 0);
     signal dataValidDel1, dataValidDel2 : std_logic := '0';
@@ -252,9 +251,11 @@ architecture Behavioral of corr_ct2_din_v80 is
     type SB_req_fsm_t is (get_SB0, wait_SB0, get_SB1, wait_SB1, get_SB2, wait_SB2, done);
     signal SB_req_fsm : SB_req_fsm_t := done;
     
-    signal bufDout_even_0_3, bufDout_even_4_7, bufDout_even_8_11 : std_logic_vector(255 downto 0);
-    signal bufDout_odd_0_3, bufDout_odd_4_7, bufDout_odd_8_11 : std_logic_vector(255 downto 0);
-    signal copyToHBM_done_odd, copyToHBM_done_even : std_logic;
+    signal bufDout_fc0_0_3, bufDout_fc0_4_7, bufDout_fc0_8_11 : std_logic_vector(255 downto 0);
+    signal bufDout_fc1_0_3, bufDout_fc1_4_7, bufDout_fc1_8_11 : std_logic_vector(255 downto 0);
+    signal bufDout_fc2_0_3, bufDout_fc2_4_7, bufDout_fc2_8_11 : std_logic_vector(255 downto 0);
+    signal bufDout_fc3_0_3, bufDout_fc3_4_7, bufDout_fc3_8_11 : std_logic_vector(255 downto 0);
+    signal copyToHBM_done : std_logic_vector(3 downto 0);
     signal vc1_valid, vc2_valid, vc3_valid, vc5_valid, vc6_valid, vc7_valid, vc9_valid, vc10_valid, vc11_valid : std_logic;
     
 begin
@@ -639,7 +640,7 @@ begin
             -- write enable is indexed by (6*i + 2*j + k) where
             --   k = 0-1 = even and odd time samples
             --   j = 0-2 = group of virtual channels (0-3, 4-7, 8-11)
-            --   i = 0-1 = even and odd indexed fine channels
+            --   i = 0-3 = fc mod 4 group
             -- 
             --      | WrEn="000000000001" | WrEn="000000000010" | WrEn="000000000100" | WrEn="000000001000" | WrEn="000000010000"  | WrEn="000000100000"  |   <-- Write enable vector for the memory blocks (for even indexed channels)
             --      |128 bits = 4 channels|
@@ -662,18 +663,21 @@ begin
             --                           fineChannel   -> fineChannel_del1
             --                                            bufWrDataFinal -> bufWrDataFinal_del1
             --                                            bufWEFinal     -> bufWEFinal_del1
-            if i_dataValid = '1' then
-                if (fineChannel(0) = '0' and timeStep(0) = '0') then
-                    bufWEFinal <= "000000010101";
-                elsif (fineChannel(0) = '0' and timeStep(0) = '1') then
-                    bufWEFinal <= "000000101010";
-                elsif (fineChannel(0) = '1' and timeStep(0) = '0') then
-                    bufWEFinal <= "010101000000";
-                else  -- (fineChannel(0) = '1' and timeStep(0) = '1') then
-                    bufWEFinal <= "101010000000";
-                end if;
+            -- WE decode: case on {fineChannel[1:0], timeStep[0]}  (3 bits -> 8 cases)
+            -- Buffer index = 6*i + 2*j + k  where i=fc mod4, j=vc group (0-2), k=time parity
+            if dataValidDel1 = '1' then
+                case fineChannel(1 downto 0) & timeStep(0) is
+                    when "000" => bufWEFinal <= x"000015"; -- fc mod4=0, t even: bits 0,2,4
+                    when "001" => bufWEFinal <= x"00002A"; -- fc mod4=0, t odd:  bits 1,3,5
+                    when "010" => bufWEFinal <= x"000540"; -- fc mod4=1, t even: bits 6,8,10
+                    when "011" => bufWEFinal <= x"000A80"; -- fc mod4=1, t odd:  bits 7,9,11
+                    when "100" => bufWEFinal <= x"015000"; -- fc mod4=2, t even: bits 12,14,16
+                    when "101" => bufWEFinal <= x"02A000"; -- fc mod4=2, t odd:  bits 13,15,17
+                    when "110" => bufWEFinal <= x"540000"; -- fc mod4=3, t even: bits 18,20,22
+                    when others => bufWEFinal <= x"A80000"; -- fc mod4=3, t odd: bits 19,21,23
+                end case;
             else
-                bufWEFinal <= "000000000000";
+                bufWEFinal <= (others => '0');
             end if;
             
             dataValidDel1 <= i_dataValid;
@@ -692,9 +696,9 @@ begin
                 bufWrAddrFinal <= bufWrAddr;
             else
                 -- 2nd and 4th group of 16 times go to the second half of the memory,
-                -- which starts at 3.5*4096 = 14336
-                -- There is an unused gap between the two halves of the buffers, since each half only uses 8*1728 = 13824 entries
-                bufWrAddrFinal <= std_logic_vector(unsigned(bufWrAddr) + 14336);
+                -- which starts at 3.5*2048 = 7168
+                -- There is an unused gap between the two halves, since each half only uses 8*864 = 6912 entries
+                bufWrAddrFinal <= std_logic_vector(unsigned(bufWrAddr) + 7168);
             end if;
             
             -----------------------------------------
@@ -828,20 +832,20 @@ begin
         end if;
     end process;
     
-    bufWrAddr(14) <= '0'; -- This is the address within the first half of the buffer. The next pipeline stage puts it in the second buffer if needed.
-    bufWrAddr(13 downto 3) <= fineChannel(11 downto 1);
+    bufWrAddr(13) <= '0'; -- MSB unused in first-half address; second-half offset added in next stage
+    bufWrAddr(12 downto 3) <= fineChannel(11 downto 2);  -- fc/4 index within each buffer (0-863)
     bufWrAddr(2 downto 0) <= timeStep(3 downto 1);
     
     -- ultraRAM buffer
-    buf_even_odd_fine_gen : for i in 0 to 1 generate
-        -- One buffer for even indexed and one for odd indexed fine channels
+    buf_fc_mod4_gen : for i in 0 to 3 generate
+        -- Four buffers, one per fc mod 4 group (fine channels 0,4,8,... / 1,5,9,... / 2,6,10,... / 3,7,11,...)
         buf_vchan_gen : for j in 0 to 2 generate
             -- 3 instances, one for each of the incoming virtual channels 0-3, 4-7 and 8-11
             buf_even_odd_time_gen : for k in 0 to 1 generate
                 ct2_input_bufi : xpm_memory_sdpram
                 generic map (    
                     -- Common module generics
-                    MEMORY_SIZE             => 3670016,        -- Total memory size in bits; 14 ultraRAMs, 14 x 4096 x 64 = 7 x 4096 x 128 = 28672 * 128 = 3670016
+                    MEMORY_SIZE             => 1835008,        -- Total memory size in bits; 7 ultraRAMs, 7 x 2048 x 128 = 14336 * 128 = 1835008
                     MEMORY_PRIMITIVE        => "ultra",        -- string; "auto", "distributed", "block" or "ultra" ;
                     CLOCKING_MODE           => "common_clock", -- string; "common_clock", "independent_clock" 
                     MEMORY_INIT_FILE        => "none",         -- string; "none" or "<filename>.mem" 
@@ -857,11 +861,11 @@ begin
                     -- Port A module generics
                     WRITE_DATA_WIDTH_A      => 128,            -- positive integer
                     BYTE_WRITE_WIDTH_A      => 128,            -- integer; 8, 9, or WRITE_DATA_WIDTH_A value
-                    ADDR_WIDTH_A            => 15,             -- positive integer; 7 ultraRAMs deep x 2 wide = (28672 addresses) x (128 bits)
+                    ADDR_WIDTH_A            => 14,             -- positive integer; 7 ultraRAMs at 2048 each = 14336 addresses
                 
                     -- Port B module generics
                     READ_DATA_WIDTH_B       => 128,            -- positive integer
-                    ADDR_WIDTH_B            => 15,             -- positive integer
+                    ADDR_WIDTH_B            => 14,             -- positive integer
                     READ_RESET_VALUE_B      => "0",            -- string
                     READ_LATENCY_B          => 8,              -- non-negative integer; Need one clock for every cascaded ultraRAM.
                     WRITE_MODE_B            => "read_first")   -- string; "write_first", "read_first", "no_change" 
@@ -892,132 +896,169 @@ begin
         end generate;
     end generate;
     
-    bufDout_even_0_3  <= bufDout(1) & bufDout(0);
-    bufDout_even_4_7  <= bufDout(3) & bufDout(2);
-    bufDout_even_8_11 <= bufDout(5) & bufDout(4);
-    
-    bufDout_odd_0_3  <= bufDout(7) & bufDout(6);
-    bufDout_odd_4_7  <= bufDout(9) & bufDout(8);
-    bufDout_odd_8_11 <= bufDout(11) & bufDout(10);
+    bufDout_fc0_0_3  <= bufDout(1)  & bufDout(0);
+    bufDout_fc0_4_7  <= bufDout(3)  & bufDout(2);
+    bufDout_fc0_8_11 <= bufDout(5)  & bufDout(4);
+
+    bufDout_fc1_0_3  <= bufDout(7)  & bufDout(6);
+    bufDout_fc1_4_7  <= bufDout(9)  & bufDout(8);
+    bufDout_fc1_8_11 <= bufDout(11) & bufDout(10);
+
+    bufDout_fc2_0_3  <= bufDout(13) & bufDout(12);
+    bufDout_fc2_4_7  <= bufDout(15) & bufDout(14);
+    bufDout_fc2_8_11 <= bufDout(17) & bufDout(16);
+
+    bufDout_fc3_0_3  <= bufDout(19) & bufDout(18);
+    bufDout_fc3_4_7  <= bufDout(21) & bufDout(20);
+    bufDout_fc3_8_11 <= bufDout(23) & bufDout(22);
     
     
     -----------------------------------------------------------------------------------------------
     -- At completion of 16 time samples, copy data from the ultraRAM buffer to the HBM
     
-    uram_readout_fine_even_i : entity ct_lib.corr_ct2_din2HBM_v80
+    uram_readout_fc0_i : entity ct_lib.corr_ct2_din2HBM_v80
     generic map (
-        g_DEBUG_ILA => False, -- BOOLEAN := FALSE;
-        g_ODD_FINE => '0'     -- std_logic := '0';  This module works through half the fine channels (3456/2 = 1728). Set this to 1 to process odd-indexed fine channels, or 0 for the even-indexed fine channels
+        g_DEBUG_ILA => False,
+        g_FC_MOD4   => "00"   -- fine channels 0,4,8,...
     ) port map (
-        i_rst     => i_rst,     -- in std_logic;
-        i_axi_clk => i_axi_clk, -- in std_logic;
-        --------------------------------------------------------------------
-        -- Instructions in to copy data to HBM
-        -- one bit for each group of 4 virtual channels. 
-        -- Goes high for a single clock cycle. e.g. if all three groups of virtual channels are available, this will go to "111" for one clock
-        i_copyToHBM => copyToHBM, -- in (2:0);
-        -- Which half of the HBM to write to. Switches every 849ms. 
-        i_copyToHBM_buffer => copyToHBM_buffer, -- in std_logic;
-        -- which group of 16 time samples we are up to. In total there are 12 groups of 16 times samples, for 12*16 = 192 time samples per 849ms frame
-        i_copyToHBM_time   => copyToHBM_time,   -- in (3:0);
-        -- index of the station within the subarray, for each of the 3 groups of 4 stations
-        i_copyToHBM_station => copyToHBM_station, -- in t_slv_12_arr(2 downto 0);
-        -- frequency channel for each of the 3 groups of station. 0 to 511, in units of 781.25 KHz
-        i_copyToHBM_skyFrequency => copyToHBM_skyFrequency, --  in t_slv_9_arr(2 downto 0);
-        --
-        i_copyToHBM_SB_stations => copyToHBM_SB_stations,       -- in t_slv_16_arr(2 downto 0);
-        i_copyToHBM_SB_coarseStart => copyToHBM_SB_coarseStart, -- in t_slv_16_arr(2 downto 0);
-        i_copyToHBM_SB_fineStart   => copyToHBM_SB_fineStart,   -- in t_slv_16_arr(2 downto 0);
-        i_copyToHBM_SB_n_fine      => copyToHBM_SB_n_fine,      -- in t_slv_24_arr(2 downto 0);
-        i_copyToHBM_SB_HBM_base_addr => copyToHBM_SB_HBM_base_addr, -- in t_slv_36_arr(2 downto 0);
-        -- trigger readout to the correlators once this data is written to the HBM
-        i_copyToHBM_trigger_readout => copyToHBM_trigger_readout,  -- in std_logic;
-        -- Indicate readout is complete
-        o_copyToHBM_done => copyToHBM_done_even, --  out std_logic;
-        -------------------------------------------------------------------
-        -- Read from the ultraRAM buffer
-        o_uram_rd_addr => bufRdAddr(0),     -- out (14:0);
-        -- 3 x 256 bit wide buses, for groups of stations 0-3, 4-7, 8-11
-        -- 8 clock read latency from o_uram_rd_addr to i_uram_rd_dataX_X
-        i_uram_rd_data0_3  => bufDout_even_0_3,  -- in (255:0);
-        i_uram_rd_data4_7  => bufDout_even_4_7,  -- in (255:0);
-        i_uram_rd_data8_11 => bufDout_even_8_11, -- in (255:0);
-        -------------------------------------------------------------------
-        -- Status
-        o_status1  => o_status1, -- out (31:0);  -- fifo counts and fsm states
-        o_max_copyData_time => o_max_copyData_time,        -- out (31:0); Time required to put out all the data
-        o_min_trigger_interval => o_min_trigger_interval,  -- out (31:0); Minimum time available
-        o_wr_overflow => o_wr_overflow,                    -- out (31:0); overflow + debug info when the overflow occurred.
-        -------------------------------------------------------------------
-        -- AXI interface to the HBM
-        -- Corner turn between filterbanks and correlator
-        o_HBM_axi_aw      => o_HBM_axi_aw(0), --  out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready => i_HBM_axi_awready(0), -- in  std_logic;
-        o_HBM_axi_w       => o_HBM_axi_w(0),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  => i_HBM_axi_wready(0),  -- in  std_logic;
-        i_HBM_axi_b       => i_HBM_axi_b(0)        -- in  t_axi4_full_b     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_rst     => i_rst,
+        i_axi_clk => i_axi_clk,
+        i_copyToHBM              => copyToHBM,
+        i_copyToHBM_buffer       => copyToHBM_buffer,
+        i_copyToHBM_time         => copyToHBM_time,
+        i_copyToHBM_station      => copyToHBM_station,
+        i_copyToHBM_skyFrequency => copyToHBM_skyFrequency,
+        i_copyToHBM_SB_stations      => copyToHBM_SB_stations,
+        i_copyToHBM_SB_coarseStart   => copyToHBM_SB_coarseStart,
+        i_copyToHBM_SB_fineStart     => copyToHBM_SB_fineStart,
+        i_copyToHBM_SB_n_fine        => copyToHBM_SB_n_fine,
+        i_copyToHBM_SB_HBM_base_addr => copyToHBM_SB_HBM_base_addr,
+        i_copyToHBM_trigger_readout  => copyToHBM_trigger_readout,
+        o_copyToHBM_done  => copyToHBM_done(0),
+        o_uram_rd_addr    => bufRdAddr(0),
+        i_uram_rd_data0_3  => bufDout_fc0_0_3,
+        i_uram_rd_data4_7  => bufDout_fc0_4_7,
+        i_uram_rd_data8_11 => bufDout_fc0_8_11,
+        o_status1              => o_status1,
+        o_max_copyData_time    => o_max_copyData_time,
+        o_min_trigger_interval => o_min_trigger_interval,
+        o_wr_overflow          => o_wr_overflow,
+        o_HBM_axi_aw      => o_HBM_axi_aw(0),
+        i_HBM_axi_awready => i_HBM_axi_awready(0),
+        o_HBM_axi_w       => o_HBM_axi_w(0),
+        i_HBM_axi_wready  => i_HBM_axi_wready(0),
+        i_HBM_axi_b       => i_HBM_axi_b(0)
     );
-    
-    uram_readout_fine_odd_i : entity ct_lib.corr_ct2_din2HBM_v80
+
+    uram_readout_fc1_i : entity ct_lib.corr_ct2_din2HBM_v80
     generic map (
-        g_DEBUG_ILA => False, -- BOOLEAN := FALSE;
-        g_ODD_FINE => '1'     -- std_logic := '0';  -- This module works through half the fine channels (3456/2 = 1728). Set this to 1 to process odd-indexed fine channels, or 0 for the even-indexed fine channels
+        g_DEBUG_ILA => False,
+        g_FC_MOD4   => "01"   -- fine channels 1,5,9,...
     ) port map (
-        i_rst     => i_rst,     -- in std_logic;
-        i_axi_clk => i_axi_clk, -- in std_logic;
-        --------------------------------------------------------------------
-        -- Instructions in to copy data to HBM
-        -- one bit for each group of 4 virtual channels. 
-        -- Goes high for a single clock cycle. e.g. if all three groups of virtual channels are available, this will go to "111" for one clock
-        i_copyToHBM => copyToHBM, -- in (2:0);
-        -- Which half of the HBM to write to. Switches every 849ms. 
-        i_copyToHBM_buffer => copyToHBM_buffer, -- in std_logic;
-        -- which group of 16 time samples we are up to. In total there are 12 groups of 16 times samples, for 12*16 = 192 time samples per 849ms frame
-        i_copyToHBM_time   => copyToHBM_time,   -- in (3:0);
-        -- index of the station within the subarray, for each of the 3 groups of 4 stations
-        i_copyToHBM_station => copyToHBM_station, -- in t_slv_12_arr(2 downto 0);
-        -- frequency channel for each of the 3 groups of station. 0 to 511, in units of 781.25 KHz
-        i_copyToHBM_skyFrequency => copyToHBM_skyFrequency, --  in t_slv_9_arr(2 downto 0);
-        --
-        i_copyToHBM_SB_stations => copyToHBM_SB_stations,       -- in t_slv_16_arr(2 downto 0);
-        i_copyToHBM_SB_coarseStart => copyToHBM_SB_coarseStart, -- in t_slv_16_arr(2 downto 0);
-        i_copyToHBM_SB_fineStart   => copyToHBM_SB_fineStart,   -- in t_slv_16_arr(2 downto 0);
-        i_copyToHBM_SB_n_fine      => copyToHBM_SB_n_fine,      -- in t_slv_24_arr(2 downto 0);
-        i_copyToHBM_SB_HBM_base_addr => copyToHBM_SB_HBM_base_addr, -- in t_slv_36_arr(2 downto 0);
-        -- trigger readout to the correlators once this data is written to the HBM
-        i_copyToHBM_trigger_readout => copyToHBM_trigger_readout,  -- in std_logic;
-        -- Indicate readout is complete
-        o_copyToHBM_done => copyToHBM_done_odd, --  out std_logic;
-        -------------------------------------------------------------------
-        -- Read from the ultraRAM buffer
-        o_uram_rd_addr => bufRdAddr(1),     -- out (14:0);
-        -- 3 x 256 bit wide buses, for groups of stations 0-3, 4-7, 8-11
-        -- 8 clock read latency from o_uram_rd_addr to i_uram_rd_dataX_X
-        i_uram_rd_data0_3  => bufDout_odd_0_3,  -- in (255:0);
-        i_uram_rd_data4_7  => bufDout_odd_4_7,  -- in (255:0);
-        i_uram_rd_data8_11 => bufDout_odd_8_11, -- in (255:0);
-        -------------------------------------------------------------------
-        -- Status
-        o_status1           => o_status2, -- out (31:0); fifo counts and fsm states
-        o_max_copyData_time => open,      -- out (31:0); Time required to put out all the data
-        o_min_trigger_interval => open,   -- out (31:0); Minimum time available
-        o_wr_overflow => open,            -- out (31:0); overflow + debug info when the overflow occurred.
-        -------------------------------------------------------------------
-        -- AXI interface to the HBM
-        -- Corner turn between filterbanks and correlator
-        o_HBM_axi_aw      => o_HBM_axi_aw(1),      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready => i_HBM_axi_awready(1), -- in  std_logic;
-        o_HBM_axi_w       => o_HBM_axi_w(1),       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  => i_HBM_axi_wready(1),  -- in  std_logic;
-        i_HBM_axi_b       => i_HBM_axi_b(1)        -- in  t_axi4_full_b     -- write response bus : in t_axi4_full_b; (.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        i_rst     => i_rst,
+        i_axi_clk => i_axi_clk,
+        i_copyToHBM              => copyToHBM,
+        i_copyToHBM_buffer       => copyToHBM_buffer,
+        i_copyToHBM_time         => copyToHBM_time,
+        i_copyToHBM_station      => copyToHBM_station,
+        i_copyToHBM_skyFrequency => copyToHBM_skyFrequency,
+        i_copyToHBM_SB_stations      => copyToHBM_SB_stations,
+        i_copyToHBM_SB_coarseStart   => copyToHBM_SB_coarseStart,
+        i_copyToHBM_SB_fineStart     => copyToHBM_SB_fineStart,
+        i_copyToHBM_SB_n_fine        => copyToHBM_SB_n_fine,
+        i_copyToHBM_SB_HBM_base_addr => copyToHBM_SB_HBM_base_addr,
+        i_copyToHBM_trigger_readout  => copyToHBM_trigger_readout,
+        o_copyToHBM_done  => copyToHBM_done(1),
+        o_uram_rd_addr    => bufRdAddr(1),
+        i_uram_rd_data0_3  => bufDout_fc1_0_3,
+        i_uram_rd_data4_7  => bufDout_fc1_4_7,
+        i_uram_rd_data8_11 => bufDout_fc1_8_11,
+        o_status1              => o_status2,
+        o_max_copyData_time    => open,
+        o_min_trigger_interval => open,
+        o_wr_overflow          => open,
+        o_HBM_axi_aw      => o_HBM_axi_aw(1),
+        i_HBM_axi_awready => i_HBM_axi_awready(1),
+        o_HBM_axi_w       => o_HBM_axi_w(1),
+        i_HBM_axi_wready  => i_HBM_axi_wready(1),
+        i_HBM_axi_b       => i_HBM_axi_b(1)
+    );
+
+    uram_readout_fc2_i : entity ct_lib.corr_ct2_din2HBM_v80
+    generic map (
+        g_DEBUG_ILA => False,
+        g_FC_MOD4   => "10"   -- fine channels 2,6,10,...
+    ) port map (
+        i_rst     => i_rst,
+        i_axi_clk => i_axi_clk,
+        i_copyToHBM              => copyToHBM,
+        i_copyToHBM_buffer       => copyToHBM_buffer,
+        i_copyToHBM_time         => copyToHBM_time,
+        i_copyToHBM_station      => copyToHBM_station,
+        i_copyToHBM_skyFrequency => copyToHBM_skyFrequency,
+        i_copyToHBM_SB_stations      => copyToHBM_SB_stations,
+        i_copyToHBM_SB_coarseStart   => copyToHBM_SB_coarseStart,
+        i_copyToHBM_SB_fineStart     => copyToHBM_SB_fineStart,
+        i_copyToHBM_SB_n_fine        => copyToHBM_SB_n_fine,
+        i_copyToHBM_SB_HBM_base_addr => copyToHBM_SB_HBM_base_addr,
+        i_copyToHBM_trigger_readout  => copyToHBM_trigger_readout,
+        o_copyToHBM_done  => copyToHBM_done(2),
+        o_uram_rd_addr    => bufRdAddr(2),
+        i_uram_rd_data0_3  => bufDout_fc2_0_3,
+        i_uram_rd_data4_7  => bufDout_fc2_4_7,
+        i_uram_rd_data8_11 => bufDout_fc2_8_11,
+        o_status1              => open,
+        o_max_copyData_time    => open,
+        o_min_trigger_interval => open,
+        o_wr_overflow          => open,
+        o_HBM_axi_aw      => o_HBM_axi_aw(2),
+        i_HBM_axi_awready => i_HBM_axi_awready(2),
+        o_HBM_axi_w       => o_HBM_axi_w(2),
+        i_HBM_axi_wready  => i_HBM_axi_wready(2),
+        i_HBM_axi_b       => i_HBM_axi_b(2)
+    );
+
+    uram_readout_fc3_i : entity ct_lib.corr_ct2_din2HBM_v80
+    generic map (
+        g_DEBUG_ILA => False,
+        g_FC_MOD4   => "11"   -- fine channels 3,7,11,...
+    ) port map (
+        i_rst     => i_rst,
+        i_axi_clk => i_axi_clk,
+        i_copyToHBM              => copyToHBM,
+        i_copyToHBM_buffer       => copyToHBM_buffer,
+        i_copyToHBM_time         => copyToHBM_time,
+        i_copyToHBM_station      => copyToHBM_station,
+        i_copyToHBM_skyFrequency => copyToHBM_skyFrequency,
+        i_copyToHBM_SB_stations      => copyToHBM_SB_stations,
+        i_copyToHBM_SB_coarseStart   => copyToHBM_SB_coarseStart,
+        i_copyToHBM_SB_fineStart     => copyToHBM_SB_fineStart,
+        i_copyToHBM_SB_n_fine        => copyToHBM_SB_n_fine,
+        i_copyToHBM_SB_HBM_base_addr => copyToHBM_SB_HBM_base_addr,
+        i_copyToHBM_trigger_readout  => copyToHBM_trigger_readout,
+        o_copyToHBM_done  => copyToHBM_done(3),
+        o_uram_rd_addr    => bufRdAddr(3),
+        i_uram_rd_data0_3  => bufDout_fc3_0_3,
+        i_uram_rd_data4_7  => bufDout_fc3_4_7,
+        i_uram_rd_data8_11 => bufDout_fc3_8_11,
+        o_status1              => open,
+        o_max_copyData_time    => open,
+        o_min_trigger_interval => open,
+        o_wr_overflow          => open,
+        o_HBM_axi_aw      => o_HBM_axi_aw(3),
+        i_HBM_axi_awready => i_HBM_axi_awready(3),
+        o_HBM_axi_w       => o_HBM_axi_w(3),
+        i_HBM_axi_wready  => i_HBM_axi_wready(3),
+        i_HBM_axi_b       => i_HBM_axi_b(3)
     );
     
     
     -- Trigger the readout of 849ms of data to the correlator cores
+    -- fc3 instance is last to finish (highest fine channel index written)
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
-            if (copyToHBM_done_odd = '1') then
+            if (copyToHBM_done(3) = '1') then
                 trigger_readout <= '1';
                 trigger_frameCount <= recent_frameCount;
             else

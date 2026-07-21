@@ -180,6 +180,18 @@ ska-low-cbf-fw-testing:
   - when: manual
     allow_failure: true
 
+# Reuse mode: a 'v80_reuse=<jobid>' keyword in the commit message tells the
+# pipeline to skip the expensive Vivado compile and instead pull the build/
+# artifact from a previous 'vivado compile v80' job (given by <jobid>).
+.v80_reuse_skip: &v80_reuse_skip
+  # Skip this job when a reuse job id has been supplied.
+  - if: '$CI_COMMIT_MESSAGE =~ /v80_reuse=[0-9]+/'
+    when: never
+
+.v80_reuse_run: &v80_reuse_run
+  # Run this job (on success) when a reuse job id has been supplied.
+  - if: '$CI_COMMIT_MESSAGE =~ /v80_reuse=[0-9]+/'
+
 ### V80 CI jobs
 create project v80:
   stage: .pre
@@ -208,6 +220,8 @@ create project v80:
 
 fpga lint v80:
   stage: lint
+  rules:
+    - if: '$CI_COMMIT_TITLE !~ /docs/ && $CI_PIPELINE_SOURCE != "merge_request_event" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_COMMIT_TAG == null && $CI_COMMIT_TITLE !~ /v80_b/'
   # allow this job to be cancelled if new pipeline comes along
   interruptible: true
   needs:
@@ -229,15 +243,19 @@ fpga lint v80:
   script:
     - common/scripts/lint_step_v80.sh
 
-build v80:
+# STAGE 1 of the old 'build v80' job: the expensive Vivado HW compile.
+# Its build/ artifact is retained for 90 days so a later pipeline can reuse it
+# via the 'v80_reuse=<jobid>' commit keyword. Skipped entirely in reuse mode.
+vivado compile v80:
   stage: build
   rules:
-   - *v80_build_rules
+    - *v80_reuse_skip
+    - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
-  interruptible: true
+  interruptible: false
   allow_failure: true
   needs:
-    - fpga lint v80
+    - create project v80
   timeout: 12 hours
   variables:
     TARGET_ALVEO: "v80"
@@ -259,11 +277,62 @@ build v80:
     - cd common/v80_infra
     - cp -R /home/gitlab-runner/iprepo .
     - cd ../..
-    # back at repo root, execute build script.
-    - ./run_v80.sh
+    # back at repo root, run STAGE 1 only (Vivado HW compile).
+    - ./run_v80_hw.sh
   artifacts:
     paths:
-      #- build/
+      - build/ARGS/py/correlator_v80/fpgamap_*.py
+      - build/v80/v80_top.xsa
+      - build/v80/v80_top.runs/impl_1/v80_top.pdi
+      - build/v80/v80_top.runs/impl_1/v80_top.ltx
+      - build/v80/v80_top.runs/impl_1/*.rpt
+      - build/v80/v80_top.runs/impl_1/*.log
+    expire_in: 90 days
+    when: always
+
+# STAGE 2 of the old 'build v80' job: FW + PDI assembly + packaging (fast).
+# In normal mode it consumes build/ from 'vivado compile v80'. In reuse mode
+# (v80_reuse=<jobid> in the commit) that job is skipped and this job fetches
+# build/ from the referenced previous job instead.
+assemble v80:
+  stage: build
+  rules:
+    - *v80_reuse_run
+    - *v80_build_rules
+  interruptible: true
+  allow_failure: true
+  needs:
+    - job: vivado compile v80
+      artifacts: true
+      optional: true   # absent in reuse mode
+  timeout: 2 hours
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2025.1"
+    VIVADO_VERSION_IN_USE: "2025.1"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "v80_top"
+    CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
+    VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+  before_script:
+    - *self_test
+    # Reuse mode: pull build/ from a previous 'vivado compile v80' job.
+    - |
+      REUSE_ID=$(echo "$CI_COMMIT_MESSAGE" | grep -oP 'v80_reuse=\K[0-9]+' || true)
+      if [ -n "$REUSE_ID" ]; then
+        common/scripts/fetch_hw_build.sh "$REUSE_ID"
+      else
+        echo "Normal mode: using build/ compiled by 'vivado compile v80' in this pipeline."
+      fi
+    - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
+  script:
+    # STAGE 2 only (FW + PDI + package). No Vivado place & route here.
+    - ./run_v80_rest.sh
+  artifacts:
+    paths:
       - output/
     when: always
 
@@ -272,7 +341,7 @@ publish v80 package:
   rules:
     - *package_rules_v80
   needs:
-    - job: build v80
+    - job: assemble v80
   tags:
     - shell 
   variables:

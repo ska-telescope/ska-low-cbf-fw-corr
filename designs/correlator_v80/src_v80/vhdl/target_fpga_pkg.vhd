@@ -46,8 +46,17 @@ PACKAGE target_fpga_pkg IS
     constant c_V80_HBM_CT1_READ_VNOC0 : boolean := false;
     constant c_V80_HBM_CT1_READ_VNOC1 : boolean := false;
     
+    -- Four separate 4 GB HBM regions for CT2 write, one per fc mod 4 group.
+    -- The SB table base address is an offset within each 2 GB half; hbm_noc_if
+    -- adds this physical base so that each fc group lands in its own region.
+    constant c_V80_HBM_BASE_CT2_WRITE0_ADDR : std_logic_vector(63 downto 0) := x"0000004000000000"; -- 0  GB (= c_V80_HBM_BASE_CT2_ADDR)
+    constant c_V80_HBM_BASE_CT2_WRITE1_ADDR : std_logic_vector(63 downto 0) := x"0000004100000000"; -- 4  GB
+    constant c_V80_HBM_BASE_CT2_WRITE2_ADDR : std_logic_vector(63 downto 0) := x"0000004200000000"; -- 8  GB
+    constant c_V80_HBM_BASE_CT2_WRITE3_ADDR : std_logic_vector(63 downto 0) := x"0000004300000000"; -- 12 GB
     constant c_V80_HBM_BASE_CT2_WRITE0_VNOC : boolean := false; -- true to use VNOC, false to use dedicated HBM interfaces at the top of SLR0
     constant c_V80_HBM_BASE_CT2_WRITE1_VNOC : boolean := false;
+    constant c_V80_HBM_BASE_CT2_WRITE2_VNOC : boolean := false;
+    constant c_V80_HBM_BASE_CT2_WRITE3_VNOC : boolean := false;
     -- HBM ILA
     constant c_V80_HBM_ILA_VNOC : boolean := false;
 

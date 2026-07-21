@@ -938,7 +938,7 @@ begin
             elsif (poly_fsm_del(9) = calc_t_start) then
                 -- Fetch from configuration memory the offset in seconds from the integration to the 
                 -- start of validity for the polynomial (word 7).
-                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(10))))) + 7);
+                poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(9))))) + 7);
             elsif (poly_fsm_del(0) = get_c0) then
                 poly_rd_addr <= std_logic_vector(unsigned(vc_base_addr(to_integer(unsigned(vc_count_del(0))))) + 0);
             elsif (poly_fsm_del(0) = get_c1) then

@@ -86,18 +86,18 @@ architecture Behavioral of corr_ct2_wrapper_v80 is
     signal wr_overflow : std_logic_vector(31 downto 0); --
     signal dout_min_start_gap : std_logic_vector(31 downto 0);
     
-    signal HBM_axi_aw : t_axi4_full_addr_arr(1 downto 0); -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
-    signal HBM_axi_awready : std_logic_vector(1 downto 0);
-    signal HBM_axi_w : t_axi4_full_data_arr(1 downto 0); -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
-    signal HBM_axi_wready : std_logic_vector(1 downto 0);
-    signal HBM_axi_b : t_axi4_full_b_arr(1 downto 0);     -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+    signal HBM_axi_aw : t_axi4_full_addr_arr(3 downto 0); -- write address bus
+    signal HBM_axi_awready : std_logic_vector(3 downto 0);
+    signal HBM_axi_w : t_axi4_full_data_arr(3 downto 0); -- w data bus
+    signal HBM_axi_wready : std_logic_vector(3 downto 0);
+    signal HBM_axi_b : t_axi4_full_b_arr(3 downto 0);    -- write response bus
     signal HBM_axi_ar_dummy : t_axi4_full_addr;
-    signal HBM_axi_arready : std_logic_vector(1 downto 0);
+    signal HBM_axi_arready : std_logic_vector(3 downto 0);
     signal dummy_slv8 : std_logic_vector(7 downto 0) := x"00";
     signal dummy_slv8_zeros : t_slv_8_arr(5 downto 0);
     signal dummy_slv32 : std_logic_vector(31 downto 0);
     signal HBM_axi_rready_dummy : std_logic;
-    signal HBM_axi_bready : std_logic_vector(1 downto 0);
+    signal HBM_axi_bready : std_logic_vector(3 downto 0);
     
 begin
     
@@ -154,11 +154,11 @@ begin
         -- AXI interface to the HBM
         -- Corner turn between filterbanks and correlator
         -- Expected to be up to 18 Gbyte of unified memory used by the correlators
-        o_HBM_axi_aw      => HBM_axi_aw,      -- out t_axi4_full_addr_arr(1 downto 0); -- write address bus : out t_axi4_full_addr_arr(4 downto 0)(.valid, .addr(39:0), .len(7:0))
-        i_HBM_axi_awready => HBM_axi_awready, -- in std_logic_vector(1 downto 0);
-        o_HBM_axi_w       => HBM_axi_w,       -- out t_axi4_full_data_arr(1 downto 0); -- w data bus : out t_axi4_full_data_arr(4 downto 0)(.valid, .data(511:0), .last, .resp(1:0))
-        i_HBM_axi_wready  => HBM_axi_wready,  -- in std_logic_vector(1 downto 0);
-        i_HBM_axi_b       => HBM_axi_b,       -- in t_axi4_full_b_arr(1 downto 0);     -- write response bus : in t_axi4_full_b_arr(4 downto 0)(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
+        o_HBM_axi_aw      => HBM_axi_aw,      -- out t_axi4_full_addr_arr(3 downto 0);
+        i_HBM_axi_awready => HBM_axi_awready, -- in std_logic_vector(3 downto 0);
+        o_HBM_axi_w       => HBM_axi_w,       -- out t_axi4_full_data_arr(3 downto 0);
+        i_HBM_axi_wready  => HBM_axi_wready,  -- in std_logic_vector(3 downto 0);
+        i_HBM_axi_b       => HBM_axi_b,       -- in t_axi4_full_b_arr(3 downto 0);
         
         -- signals used in testing to initiate readout of the buffer when HBM is preloaded with data,
         -- so we don't have to wait for the previous processing stages to complete.
@@ -198,12 +198,12 @@ begin
     
     ------------------------------------------------------------------
     -- Instantiate HBM 
-    -- two interface for writing to HBM only. 
+    -- four interfaces for writing to HBM only, one per fine channel group (fc mod 4).
     -- CT2 reads occur in the correlators.
     
     HBM0i : entity signal_processing_common.hbm_noc_if
     generic map (
-        g_HBM_base_addr => c_V80_HBM_BASE_CT2_ADDR, -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE0_ADDR, -- fc mod 4 = 0, 0-4 GB
         g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE0_VNOC -- Use the direct HBM interfaces, not the VNOC
     ) port map (
         clk  => i_axi_clk, --  in std_logic;
@@ -223,24 +223,59 @@ begin
     
     HBM1i : entity signal_processing_common.hbm_noc_if
     generic map (
-        g_HBM_base_addr => c_V80_HBM_BASE_CT2_ADDR,  -- std_logic_vector(63:0); Comes from /designs/correlator_v80/src_v80/vhdl/target_fpga_pkg.vhd
-        g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE1_VNOC -- Use the direct HBM interfaces, not the VNOC
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE1_ADDR, -- fc mod 4 = 1, 4-8 GB
+        g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE1_VNOC
     ) port map (
-        clk  => i_axi_clk, --  in std_logic;
-        -- write
-        i_HBM_axi_aw      => HBM_axi_aw(1),      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_awready => hbm_axi_awready(1), -- out std_logic;
-        i_HBM_axi_w       => HBM_axi_w(1),       -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
-        o_HBM_axi_wready  => HBM_axi_wready(1),  -- out std_logic;
-        o_HBM_axi_b       => HBM_axi_b(1),       -- out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
-        i_HBM_axi_bready  => HBM_axi_bready(1),  -- in std_logic;
-        -- read
-        i_HBM_axi_ar => HBM_axi_ar_dummy,        -- in t_axi4_full_addr;
-        o_HBM_axi_arready => HBM_axi_arready(1), -- out std_logic;
-        o_HBM_axi_r  => open,                    -- out t_axi4_full_data;
-        i_HBM_axi_rready => HBM_axi_rready_dummy -- in std_logic
+        clk  => i_axi_clk,
+        i_HBM_axi_aw      => HBM_axi_aw(1),
+        o_HBM_axi_awready => hbm_axi_awready(1),
+        i_HBM_axi_w       => HBM_axi_w(1),
+        o_HBM_axi_wready  => HBM_axi_wready(1),
+        o_HBM_axi_b       => HBM_axi_b(1),
+        i_HBM_axi_bready  => HBM_axi_bready(1),
+        i_HBM_axi_ar => HBM_axi_ar_dummy,
+        o_HBM_axi_arready => HBM_axi_arready(1),
+        o_HBM_axi_r  => open,
+        i_HBM_axi_rready => HBM_axi_rready_dummy
     );
-    HBM_axi_bready <= "11";
+
+    HBM2i : entity signal_processing_common.hbm_noc_if
+    generic map (
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE2_ADDR, -- fc mod 4 = 2, 8-12 GB
+        g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE2_VNOC
+    ) port map (
+        clk  => i_axi_clk,
+        i_HBM_axi_aw      => HBM_axi_aw(2),
+        o_HBM_axi_awready => hbm_axi_awready(2),
+        i_HBM_axi_w       => HBM_axi_w(2),
+        o_HBM_axi_wready  => HBM_axi_wready(2),
+        o_HBM_axi_b       => HBM_axi_b(2),
+        i_HBM_axi_bready  => HBM_axi_bready(2),
+        i_HBM_axi_ar => HBM_axi_ar_dummy,
+        o_HBM_axi_arready => HBM_axi_arready(2),
+        o_HBM_axi_r  => open,
+        i_HBM_axi_rready => HBM_axi_rready_dummy
+    );
+
+    HBM3i : entity signal_processing_common.hbm_noc_if
+    generic map (
+        g_HBM_base_addr => c_V80_HBM_BASE_CT2_WRITE3_ADDR, -- fc mod 4 = 3, 12-16 GB
+        g_USE_VNOC => c_V80_HBM_BASE_CT2_WRITE3_VNOC
+    ) port map (
+        clk  => i_axi_clk,
+        i_HBM_axi_aw      => HBM_axi_aw(3),
+        o_HBM_axi_awready => hbm_axi_awready(3),
+        i_HBM_axi_w       => HBM_axi_w(3),
+        o_HBM_axi_wready  => HBM_axi_wready(3),
+        o_HBM_axi_b       => HBM_axi_b(3),
+        i_HBM_axi_bready  => HBM_axi_bready(3),
+        i_HBM_axi_ar => HBM_axi_ar_dummy,
+        o_HBM_axi_arready => HBM_axi_arready(3),
+        o_HBM_axi_r  => open,
+        i_HBM_axi_rready => HBM_axi_rready_dummy
+    );
+
+    HBM_axi_bready <= "1111";
     HBM_axi_ar_dummy.valid <= '0';
     HBM_axi_ar_dummy.addr <= (others => '0');
     HBM_axi_ar_dummy.len <= (others => '0');

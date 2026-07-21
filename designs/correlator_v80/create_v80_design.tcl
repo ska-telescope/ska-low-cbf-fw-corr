@@ -122,13 +122,13 @@ set bd_name         "top"
   
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
-  # 200G config for lower ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
-  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
+  # # 200G config for lower ports.
+  # source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
+  # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
 
-  # 200G config for upper ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
-  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
+  # # 200G config for upper ports.
+  # source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
+  # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
 
   # --------------------------------------------------------------------------------
   add_files -fileset sources_1 [glob \
@@ -267,10 +267,12 @@ set bd_name         "top"
   # add_files -norecurse [make_wrapper -files [get_files "args_l.bd"] -top]
 
   add_files -fileset sources_1 [glob \
-    $COMMON_PATH/NOC/args_noc.vhd \
+    $COMMON_PATH/NOC/args_noc_v2.vhd \
+    $COMMON_PATH/NOC/axi_bram_ctrl_noc.vhd \
   ]
   set_property library noc_lib [get_files {\
-    */NOC/args_noc.vhd \
+    */NOC/args_noc_v2.vhd \
+    */NOC/axi_bram_ctrl_noc.vhd \
   }]
 
   source $COMMON_PATH/NOC/noc_ip.tcl

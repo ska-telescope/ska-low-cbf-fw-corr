@@ -560,17 +560,17 @@ set_property SOURCE_SET sources_1 [get_filesets sim_ct2]
 add_files -fileset sim_ct2 [glob \
 $RLIBRARIES_PATH/signalProcessing/cornerturn2/ct2_v80_tb.vhd \
 $DESIGN_PATH/src_v80/tb/HBM_axi_tbModel.vhd \
-$DESIGN_PATH/src_v80/tb/HBM_axi_TwoInterface_tbModel.vhd \
+$DESIGN_PATH/src_v80/tb/HBM_axi_tbModel_multi.vhd \
 ]
 #$DESIGN_PATH/src_v80/tb/tb_correlatorCore_behav.wcfg \
 
 set_property library correlator_lib [get_files {\
  */src_v80/tb/HBM_axi_tbModel.vhd \
- */src_v80/tb/HBM_axi_TwoInterface_tbModel.vhd \
+ */src_v80/tb/HBM_axi_tbModel_multi.vhd \
 }]
 
 set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/HBM_axi_tbModel.vhd]
-set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/HBM_axi_TwoInterface_tbModel.vhd]
+set_property file_type {VHDL 2008} [get_files  $DESIGN_PATH/src_v80/tb/HBM_axi_tbModel_multi.vhd]
 
 current_fileset -simset [ get_filesets sim_ct2 ]
 

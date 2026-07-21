@@ -169,7 +169,11 @@ entity corr_ct2_dout_v80 is
         o_ar_fsm_dbg : out std_logic_vector(3 downto 0);
         o_readout_fsm_dbg : out std_logic_vector(3 downto 0);
         o_arFIFO_wr_count : out std_logic_vector(6 downto 0);
-        o_dataFIFO_wrCount : out std_logic_vector(9 downto 0);
+        o_dataFIFO_wrCount : out std_logic_vector(10 downto 0);
+        -- High water marks (max fill level seen since i_rst) for the two FIFOs
+        o_arFIFO_wr_count_high_water   : out std_logic_vector(6 downto 0);
+        o_dataFIFO_wr_count_high_water : out std_logic_vector(10 downto 0);
+        o_overflow_underflow  : out std_logic_vector(1 downto 0);
         o_readout_error       : out std_logic;
         o_recent_start_gap    : out std_logic_vector(31 downto 0);
         o_recent_readout_time : out std_logic_vector(31 downto 0);
@@ -204,6 +208,9 @@ architecture Behavioral of corr_ct2_dout_v80 is
     signal dataFIFO_dout : std_logic_Vector(255 downto 0);
     signal dataFIFO_rdCount : std_logic_vector(9 downto 0);
     signal dataFIFO_wrCount : std_logic_vector(9 downto 0);
+    signal dataFIFO_rready : std_logic := '0';
+    signal arFIFO_wr_count_high_water   : std_logic_vector(6 downto 0) := (others => '0');
+    signal dataFIFO_wr_count_high_water : std_logic_vector(10 downto 0) := (others => '0');
     --
     signal SB_stations : std_logic_vector(15 downto 0); -- 16 bits, the number of (sub)stations in this subarray-beam
     signal SB_coarseStart : std_logic_vector(8 downto 0);  -- The first coarse channel in this subarray-beam
@@ -230,6 +237,7 @@ architecture Behavioral of corr_ct2_dout_v80 is
     
     signal cur_fineChannelOffset_Ext : std_logic_vector(23 downto 0);
     signal HBM_addr, HBM_addr_hold : std_logic_vector(35 downto 0);
+    signal HBM_fc_group, HBM_fc_group_hold : std_logic_vector(1 downto 0) := "00";
     signal HBM_addr_hold_valid, clear_hold : std_logic := '0';
     signal HBM_addr_bad, HBM_fine_high : std_logic := '0';
     signal cur_timeBase : std_logic_vector(3 downto 0) := "0000";
@@ -263,6 +271,8 @@ architecture Behavioral of corr_ct2_dout_v80 is
     signal recent_readout_time, readout_time : std_logic_vector(31 downto 0) := x"00000000";
     signal start_Del1 : std_logic;
     signal min_start_gap : std_logic_vector(31 downto 0) := x"ffffffff";
+    signal dataFIFO_overflow, dataFIFO_underflow, dataFIFO_overflow_hold, dataFIFO_underflow_hold : std_logic := '0';
+    signal waitCount : std_logic_vector(2 downto 0) := "000";
     
 begin
     
@@ -272,11 +282,36 @@ begin
             o_ar_fsm_dbg <= ar_fsm_dbg;
             o_readout_fsm_dbg <= readout_fsm_dbg;
             o_arFIFO_wr_count <= arFIFO_wr_count;
-            o_dataFIFO_wrCount <= dataFIFO_wrCount;
+            o_dataFIFO_wrCount <= '0' & dataFIFO_wrCount;
             o_readout_error <= readout_error;
             o_recent_start_gap <= recent_start_gap;
             o_recent_readout_time <= recent_readout_time;
             o_min_start_gap <= min_start_gap;
+            o_overflow_underflow <= dataFIFO_overflow_hold & dataFIFO_underflow_hold;
+
+            -- Track high water marks (max fill level) for the ar and data FIFOs.
+            -- Cleared by i_rst so each capture starts fresh.
+            if i_rst = '1' then
+                arFIFO_wr_count_high_water   <= (others => '0');
+                dataFIFO_wr_count_high_water <= (others => '0');
+                dataFIFO_underflow_hold <= '0';
+                dataFIFO_overflow_hold <= '0';
+            else
+                if unsigned(arFIFO_wr_count) > unsigned(arFIFO_wr_count_high_water) then
+                    arFIFO_wr_count_high_water <= arFIFO_wr_count;
+                end if;
+                if unsigned(dataFIFO_wrCount) > unsigned(dataFIFO_wr_count_high_water) then
+                    dataFIFO_wr_count_high_water <= '0' & dataFIFO_wrCount;
+                end if;
+                if dataFIFO_underflow = '1' then
+                    dataFIFO_underflow_hold <= '1';
+                end if;
+                if dataFIFO_overflow = '1' then
+                    dataFIFO_overflow_hold <= '1';
+                end if;
+            end if;
+            o_arFIFO_wr_count_high_water   <= arFIFO_wr_count_high_water;
+            o_dataFIFO_wr_count_high_water <= dataFIFO_wr_count_high_water;
         end if;
     end process;
     
@@ -301,7 +336,8 @@ begin
         o_HBM_addr         => HBM_addr,       -- out (35:0);
         o_out_of_range     => HBM_addr_bad,   -- out std_logic; Indicates that the values for (i_coarse_channel, i_fine_channel, i_station, i_time_block) are out of range, and thus o_HBM_addr is not valid.
         o_fine_high        => HBM_fine_high,  -- out std_logic; Indicates that the fine channel selected is higher than the maximum fine channel (i.e. > (i_SB_coarseStart * 3456 + i_SB_fineStart))
-        o_valid            => HBM_addr_valid  -- out std_logic; Some fixed number of clock cycles after i_valid.
+        o_valid            => HBM_addr_valid, -- out std_logic; Some fixed number of clock cycles after i_valid.
+        o_fc_group         => HBM_fc_group    -- out (1:0); i_fine_channel(1:0) delayed to match o_HBM_addr; selects the 4 GB HBM region.
     );
      
     cur_fineChannelOffset_ext(23 downto 7) <= (others => '0');
@@ -341,6 +377,7 @@ begin
                 HBM_addr_hold_valid <= '0';
             elsif HBM_addr_valid = '1' then
                 HBM_addr_hold <= HBM_addr;
+                HBM_fc_group_hold <= HBM_fc_group;
                 HBM_addr_hold_valid <= '1';
             elsif clear_hold = '1' then
                 HBM_Addr_hold_valid <= '0';
@@ -455,7 +492,7 @@ begin
                             -- check there is space in the ar FIFO.
                             -- Up to 4 requests get made at a time, so make sure there is 
                             -- at least 4 slots free in the ar fifo.
-                            if (unsigned(arFIFO_wr_count) < 56) then
+                            if (unsigned(arFIFO_wr_count) < 48) then
                                 ar_fsm <= set_ar;
                             end if;
                         end if;
@@ -490,9 +527,10 @@ begin
                         clear_hold <= '1';
                         o_SB_req <= '0';
                         if HBM_addr_valid = '1' then
-                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr(35 downto 8);
+                            -- bits 33:32 select the 4 GB HBM region (fc_group × 4 GB)
+                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr(35 downto 34) & HBM_fc_group & HBM_addr(31 downto 8);
                         elsif HBM_addr_hold_valid = '1' then
-                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr_hold(35 downto 8);
+                            o_HBM_axi_ar.addr(35 downto 8) <= HBM_addr_hold(35 downto 34) & HBM_fc_group_hold & HBM_addr_hold(31 downto 8);
                         end if;
                         if HBM_addr_valid = '1' or HBM_addr_hold_valid = '1' then
                             ar_fsm <= wait_ar;
@@ -519,7 +557,10 @@ begin
                     when set_ar2 =>
                         ar_fsm_dbg <= "0110";
                         -- Set the HBM address for (up to) 3 remaining 256-byte blocks.
+                        -- Station offset is at most 3 × 256 bytes, so it cannot carry into bits 33:32.
+                        -- We therefore add it to the full slice and then overwrite bits 33:32 with HBM_fc_group_hold.
                         o_HBM_axi_ar.addr(35 downto 8) <= std_logic_vector(unsigned(HBM_addr_hold(35 downto 8)) + unsigned(cur_station_offset_ext));
+                        o_HBM_axi_ar.addr(33 downto 32) <= HBM_fc_group_hold;
                         o_HBM_axi_ar.valid <= '1';
                         ar_fsm <= wait_ar;
                         
@@ -855,13 +896,13 @@ begin
         dout => dataFIFO_dout,     -- READ_DATA_WIDTH-bit output: Read Data: The output data bus is driven when reading the FIFO.
         empty => open,             -- 1-bit output: Empty Flag: When asserted, this signal indicates that- the FIFO is empty.
         full => dataFIFO_full,     -- 1-bit output: Full Flag: When asserted, this signal indicates that the FIFO is full.
-        overflow => open,          -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
+        overflow => dataFIFO_overflow,  -- 1-bit output: Overflow: This signal indicates that a write request (wren) during the prior clock cycle was rejected, because the FIFO is full
         prog_empty => open,        -- 1-bit output: Programmable Empty: This signal is asserted when the number of words in the FIFO is less than or equal to the programmable empty threshold value.
         prog_full => open,         -- 1-bit output: Programmable Full: This signal is asserted when the number of words in the FIFO is greater than or equal to the programmable full threshold value.
         rd_data_count => dataFIFO_rdCount,     -- RD_DATA_COUNT_WIDTH-bit output: Read Data Count: This bus indicates the number of words read from the FIFO.
         rd_rst_busy => open,       -- 1-bit output: Read Reset Busy: Active-High indicator that the FIFO read domain is currently in a reset state.
         sbiterr => open,           -- 1-bit output: Single Bit Error: Indicates that the ECC decoder detected and fixed a single-bit error.
-        underflow => open,         -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
+        underflow => dataFIFO_underflow, -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
         wr_ack => open,            -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => dataFIFO_wrCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
         wr_rst_busy => open,       -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
@@ -876,8 +917,24 @@ begin
     );
     
     dataFIFO_rdEn <= '1' when readout_fsm = send_data else '0';
-    dataFIFO_wrEn <= i_HBM_axi_r.valid and (not dataFIFO_full);
-    o_HBM_axi_rready <= not dataFIFO_full;
+
+    -- rready is registered and driven from the data FIFO write-data-count, deasserting
+    -- at 1000 words of the 1024-deep FIFO. The ~24 word margin leaves plenty of space
+    -- for beats already in flight during the one-cycle register delay, so the FIFO can
+    -- never actually reach full. This replaces the previous combinational
+    -- "not dataFIFO_full" backpressure.
+    process(i_axi_clk)
+    begin
+        if rising_edge(i_axi_clk) then
+            if unsigned(dataFIFO_wrCount) < 500 then
+                dataFIFO_rready <= '1';
+            else
+                dataFIFO_rready <= '0';
+            end if;
+        end if;
+    end process;
+    o_HBM_axi_rready <= dataFIFO_rready;
+    dataFIFO_wrEn <= i_HBM_axi_r.valid and dataFIFO_rready;
     
     -- Readout of the ar fifo and data fifo, send data to the correlator
     process(i_axi_clk)
@@ -911,21 +968,28 @@ begin
                             readoutBadPoly <= arFIFO_dout(133);
                             
                             if (arFIFO_dout(39 downto 38) = "00") then
-                                if (unsigned(dataFIFO_rdCount) >= 8) then
+                                if (unsigned(dataFIFO_rdCount) > 12) then
                                     -- Each ar request is for 8 x 32-byte words = 256 bytes
+                                    -- Check against 12 so that even if it decrements a few more from the previous read, there will
+                                    -- still be 8 words available to read out.
                                     readout_fsm <= send_data;
                                 else
-                                    readout_fsm <= wait_data;
+                                    readout_fsm <= wait_data;  -- Always go to wait_data to allow an extra clock for dataFIFO_rdCount to update
                                 end if;
                             else
                                 readout_fsm <= signal_correlator;
                             end if;
                         end if;
                         sendCount <= (others => '0');
+                        waitCount <= "000";
                         
                     when wait_data =>
                         readout_fsm_dbg <= "0001";
-                        if (unsigned(dataFIFO_rdCount) >= 8) then
+                        if waitCount /= "111" then
+                            -- waitCount ensures that dataFIFO_rdCount is up to date before we check it
+                            waitCount <= std_logic_vector(unsigned(waitCount) + 1);
+                        end if;
+                        if (unsigned(dataFIFO_rdCount) >= 8) and (unsigned(waitCount) > 4) then
                             readout_fsm <= send_data;
                         end if;
                         sendCount <= (others => '0');
@@ -936,6 +1000,7 @@ begin
                         if unsigned(sendCount) = 7 then
                             readout_fsm <= idle;
                         end if;
+                        waitCount <= "000";
                     
                     when signal_correlator =>
                         readout_fsm_dbg <= "0011";

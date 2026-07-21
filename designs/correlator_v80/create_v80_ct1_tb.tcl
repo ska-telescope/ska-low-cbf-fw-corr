@@ -504,8 +504,8 @@ add_files -fileset sources_1 [glob \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
+  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25_versal.vhd \
-  $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25_dummy.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
   $RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
@@ -536,14 +536,15 @@ set_property library filterbanks_lib [get_files {\
   *libraries/signalProcessing/filterbanks/src/vhdl/BRAMWrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/URAM64wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/ShiftandRound.vhd \
+  *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25_versal.vhd \
-  *libraries/signalProcessing/filterbanks/src/vhdl/fb_DSP25_dummy.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/correlatorFFT25wrapper.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/fineDelay.vhd \
   *libraries/signalProcessing/filterbanks/src/vhdl/RFI_weights.vhd \
 }]
 
 source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/dspAxB_versal.tcl
+source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/dspAxB_versal_latency3.tcl
 source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/CorFB_FFT.tcl
 source $RLIBRARIES_PATH/signalProcessing/filterbanks/src/ip/fineDelay.tcl
 
@@ -728,6 +729,7 @@ set_property SOURCE_SET sources_1 [get_filesets sim_ct1]
 
 add_files -fileset sim_ct1 [glob \
 $RLIBRARIES_PATH/signalProcessing/cornerturn1/ct1_v80_tb.vhd \
+$RLIBRARIES_PATH/signalProcessing/filterbanks/src/vhdl/fb_DSP25_versal_tb.vhd \
 $DESIGN_PATH/src_v80/tb/HBM_axi_tbModel.vhd \
 ]
 #$DESIGN_PATH/src_v80/tb/tb_correlatorCore_behav.wcfg \

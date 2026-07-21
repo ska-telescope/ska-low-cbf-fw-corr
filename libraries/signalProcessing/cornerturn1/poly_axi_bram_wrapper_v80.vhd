@@ -116,7 +116,7 @@ begin
             axi_bram_wrdata <= noc_wr_dat;
             
             -- Range of valid NOC (4-byte word) addresses is 0x1E000 to 0x1EBFF 
-            if noc_wr_adr(17 downto 12) = "011110" and (noc_wr_adr(11 downto 10) = "00" or noc_wr_adr(11 downto 10) = "01" or noc_wr_adr(11 downto 10) = "10") then
+            if noc_wren = '1' and noc_wr_adr(17 downto 12) = "011110" and (noc_wr_adr(11 downto 10) = "00" or noc_wr_adr(11 downto 10) = "01" or noc_wr_adr(11 downto 10) = "10") then
                 RFI_axi_bram_wrEn(0) <= '1';
             else
                 RFI_axi_bram_wrEn(0) <= '0';
