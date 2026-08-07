@@ -74,8 +74,9 @@ ENTITY correlator_core IS
         clk_300         : in std_logic;
         clk_600         : in std_logic;
         clk_300_rst     : in std_logic;
-        
-        i_dcmac_locked_300m : in std_logic;
+               
+        o_clk_data_input        : out std_logic;    -- 425 MHz, to S_AXI gasket
+        o_clk_data_input_rst    : out std_logic;
         
         -- Received data from 100GE
         i_axis_tdata    : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
@@ -88,8 +89,8 @@ ENTITY correlator_core IS
         o_dcmac_tx_data_0   : out seg_streaming_axi;
         i_dcmac_tx_ready_0  : in std_logic;
         
-        i_eth100g_clk       : in std_logic;
-        i_eth100g_locked    : in std_logic;
+        i_dcmac_clk         : in std_logic;
+        i_dcmac_locked      : in std_logic;
         
         i_vlan_stats        : in std_logic_vector(2 downto 0);
         
@@ -202,11 +203,14 @@ ARCHITECTURE structure OF correlator_core IS
     signal GTY_startup_rst : std_logic := '0';
 
     signal clk400 : std_logic;
-    signal clk425 : std_logic;
+    signal clk_425 : std_logic;
     
     signal clk_450          : std_logic;
     signal clk_450_rst      : std_logic := '1';
     signal clk_450_rst_cnt  : unsigned(31 downto 0) := x"00001000";
+    
+    signal clk_425_rst      : std_logic := '1';
+    signal clk_425_rst_cnt  : unsigned(31 downto 0) := x"00001000";
     
     signal clk_gt_freerun_use : std_logic;
     
@@ -370,7 +374,7 @@ ARCHITECTURE structure OF correlator_core IS
     signal data_to_player_wr    : STD_LOGIC;
     signal data_to_player_rdy   : STD_LOGIC;
     
-    signal eth100G_rst          : std_logic;
+    signal dcmac_rst            : std_logic;
     signal o_null               : t_axi4_lite_miso;
     
     signal eth_disable, eth_disable_done : std_logic;
@@ -385,9 +389,18 @@ ARCHITECTURE structure OF correlator_core IS
     signal HBM_axi_a_dummy : t_axi4_full_addr;
     signal HBM_axi_ready_dummy : std_logic;
     
-    signal vlan_stats_del       : std_logic_vector(2 downto 0);
+    signal vlan_stats_del       : t_slv_3_arr(1 downto 0);
+    
+    signal dcmac_locked_300     : std_logic;
+    signal dcmac_locked_425     : std_logic;
+    
+    signal sps_monitor_period_dcmac_clk             : std_logic_vector(15 downto 0);
+    signal sps_monitor_time_since_write_dcmac_clk   : std_logic_vector(15 downto 0);
     
 begin
+    
+    o_clk_data_input        <= clk_425;
+    o_clk_data_input_rst    <= clk_425_rst;
     
     ---------------------------------------------------------------------------
     -- CLOCKING & RESETS  --
@@ -402,7 +415,7 @@ begin
     i_mmcm_425 : clk_mmcm_425
     Port map ( 
         clk_in1     => clk_100,
-        clk_out1    => clk425
+        clk_out1    => clk_425
     );
 
     i_mmcm_450 : clk_mmcm_450
@@ -423,6 +436,18 @@ begin
         end if;
     end process;
 
+    reset_425_proc : process(clk_425)
+    begin
+        if rising_edge(clk_425) then
+            if clk_425_rst_cnt = 1 then
+                clk_425_rst     <= '0';
+            else
+                clk_425_rst_cnt <= clk_425_rst_cnt - 1;
+                clk_425_rst     <= '1';
+            end if;
+        end if;
+    end process;
+    
     ---------------------------------------------------------------------------
     -- System Peripheral Registers  --
     ---------------------------------------------------------------------------
@@ -510,12 +535,12 @@ begin
             i_axis_tuser => i_axis_tuser,   -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
             i_axis_tvalid => i_axis_tvalid, -- in std_logic;
 
-            i_data_clk    => clk_300, -- in std_logic;     -- 322 MHz for 100GE MAC
+            i_data_clk    => clk_425, -- in std_logic;     -- 322 MHz for 100GE MAC
             i_data_rst    => '0', -- OR use i_dcmac_locked_300m
 
             -- milliseconds between writing summaries to the HBM
-            i_period_ms        => system_fields_rw.sps_monitor_period, -- , -- : in std_logic_vector(15 downto 0);
-            o_time_since_wr_ms => system_fields_ro.sps_monitor_time_since_write, --  out std_logic_vector(15 downto 0); 
+            i_period_ms        => sps_monitor_period_dcmac_clk, --system_fields_rw.sps_monitor_period, -- , -- : in std_logic_vector(15 downto 0);
+            o_time_since_wr_ms => sps_monitor_time_since_write_dcmac_clk, --system_fields_ro.sps_monitor_time_since_write, --  out std_logic_vector(15 downto 0); 
             ----------------------------------------------------------------------------------
             -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
             i_ap_clk        => clk_300, -- in  std_logic;  -- Shared memory clock used to access the HBM.
@@ -530,35 +555,34 @@ begin
             o_wrAddr => system_fields_ro.sps_monitor_wr_addr -- out (31:0); Most recent address written to in the HBM, on i_ap_clk
         );
         
-        --        xpm_cdc_array_single_ap2ethi : xpm_cdc_array_single
-        --        generic map (
-        --            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
-        --            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
-        --            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
-        --            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
-        --            WIDTH => 16           -- DECIMAL; range: 1-1024
-        --        ) port map (
-        --            dest_out => sps_monitor_period_eth_clk,      -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
-        --            dest_clk => i_eth100G_clk, -- 1-bit input: Clock signal for the destination clock domain.
-        --            src_clk  => clk_300,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
-        --            src_in   => system_fields_rw.sps_monitor_period         -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
-        --        );
-                
-        --        xpm_cdc_array_single_eth2api : xpm_cdc_array_single
-        --        generic map (
-        --            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
-        --            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
-        --            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
-        --            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
-        --            WIDTH => 16           -- DECIMAL; range: 1-1024
-        --        ) port map (
-        --            dest_out => system_fields_ro.sps_monitor_time_since_write, -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
-        --            dest_clk => clk_300,               -- 1-bit input: Clock signal for the destination clock domain.
-        --            src_clk  => i_eth100G_clk,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
-        --            src_in   => sps_monitor_time_since_write_eth_clk -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
-        --        );
-        -- sps_monitor_period_eth_clk                    <= system_fields_rw.sps_monitor_period;
-        -- system_fields_ro.sps_monitor_time_since_write <= sps_monitor_time_since_write_eth_clk;
+        xpm_cdc_array_single_ap2ethi : xpm_cdc_array_single
+        generic map (
+            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
+            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
+            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
+            WIDTH => 16           -- DECIMAL; range: 1-1024
+        ) port map (
+            dest_out => sps_monitor_period_dcmac_clk,      -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
+            dest_clk => clk_425, -- 1-bit input: Clock signal for the destination clock domain.
+            src_clk  => clk_300,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
+            src_in   => system_fields_rw.sps_monitor_period         -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
+        );
+        
+        xpm_cdc_array_single_eth2api : xpm_cdc_array_single
+        generic map (
+            DEST_SYNC_FF => 2,   -- DECIMAL; range: 2-10
+            INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
+            SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+            SRC_INPUT_REG => 1,  -- DECIMAL; 0=do not register input, 1=register input
+            WIDTH => 16           -- DECIMAL; range: 1-1024
+        ) port map (
+            dest_out => system_fields_ro.sps_monitor_time_since_write, -- WIDTH-bit output: src_in synchronized to the destination clock domain. This output is registered.
+            dest_clk => clk_300,               -- 1-bit input: Clock signal for the destination clock domain.
+            src_clk  => clk_425,        -- 1-bit input: optional; required when SRC_INPUT_REG = 1
+            src_in   => sps_monitor_time_since_write_dcmac_clk -- WIDTH-bit input: Input single-bit array to be synchronized to destination clock domain. 
+        );
+
     end generate;
     
     -- NOC interface for either the HBM ILA or the SPS monitor
@@ -603,7 +627,7 @@ begin
             
             system_fields_ro.time_uptime                    <= uptime;
             system_fields_ro.status_clocks_locked           <= '1';
-            system_fields_ro.eth100G_locked                 <= i_dcmac_locked_300m;
+            system_fields_ro.eth100G_locked                 <= dcmac_locked_300;
             system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
             system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
             system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
@@ -646,26 +670,36 @@ begin
             system_fields_ro.packets_one_vlan_tag           <= vlan_stats(1);
             system_fields_ro.packets_two_vlan_tag           <= vlan_stats(2);
             
-            
-            vlan_stats_del  <= i_vlan_stats;
-            
+                        
             -- 0 = single vlan, 1 = double vlan, 2 = no vlan
-            if vlan_stats_del(0) = '0' AND i_vlan_stats(0) = '1' then
+            if vlan_stats_del(1)(0) = '0' AND vlan_stats_del(0)(0) = '1' then
                 vlan_stats(0)  <= std_logic_vector(unsigned(vlan_stats(0)) + 1);
             end if;
 
-            if vlan_stats_del(1) = '0' AND i_vlan_stats(1) = '1' then
+            if vlan_stats_del(1)(1) = '0' AND vlan_stats_del(0)(1) = '1' then
                 vlan_stats(1)  <= std_logic_vector(unsigned(vlan_stats(1)) + 1);
             end if;
             
-            if vlan_stats_del(2) = '0' AND i_vlan_stats(2) = '1' then
+            if vlan_stats_del(1)(2) = '0' AND vlan_stats_del(0)(2) = '1' then
                 vlan_stats(2)  <= std_logic_vector(unsigned(vlan_stats(2)) + 1);
             end if;            
             
         end if;
     end process;
 
+gen_vlan_cdc : FOR i in 0 to 2 GENERATE
+    i_vlan_cdc : entity signal_processing_common.sync
+    generic map (
+        WIDTH => 1
+    )
+    Port Map (
+        Clock_a     => clk_425,
+        data_in(0)  => i_vlan_stats(i),
 
+        Clock_b     => clk_300,
+        data_out(0) => vlan_stats_del(0)(i)
+    );
+END GENERATE;
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
@@ -679,8 +713,10 @@ begin
        g_INCLUDE_SPS_MONITOR   => g_INCLUDE_SPS_MONITOR
    ) port map (
        ----------------------------------------------------------------------
-       -- Received data from 100GE
-       -- Uses i_MACE_clk
+       -- Received data from DCMAC post streaming axi gasket
+       -- 
+       i_axis_clk     => clk_425,
+       i_axis_clk_rst => clk_425_rst,
        i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
        i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
        i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
@@ -692,10 +728,11 @@ begin
        o_data_to_player_wr     => data_to_player_wr,
        i_data_to_player_rdy    => data_to_player_rdy,
        --
-       i_eth100G_locked    => i_dcmac_locked_300m,
+       i_dcmac_locked_300   => dcmac_locked_300,
+       i_dcmac_locked_425   => dcmac_locked_425,
        -----------------------------------------------------------------------
        -- correlator processing clock, 425 MHz
-       i_clk425            => clk425,  -- in std_logic;
+       i_clk425            => clk_425,  -- in std_logic;
        -----------------------------------------------------------------------
        -- reset of the valid memory is in progress.
        o_validMemRstActive => o_validMemRstActive,
@@ -741,10 +778,10 @@ begin
     hbm_reset_combined(5 downto 1)      <= hbm_reset(5 downto 1);
     
     -----------------------------------------------------------------------------------------------------------
-    CMAC_100G_reset_proc : process(i_eth100G_clk)
+    CMAC_100G_reset_proc : process(i_dcmac_clk)
     begin
-        if rising_edge(i_eth100G_clk) then
-            eth100G_rst     <= NOT i_eth100G_locked;
+        if rising_edge(i_dcmac_clk) then
+            dcmac_rst     <= NOT i_dcmac_locked;
         end if;
     end process;
     
@@ -765,14 +802,43 @@ begin
         o_dcmac_ready           => open,
         
         -- to DCMAC
-        i_dcmac_clk             => i_eth100G_clk,
-        i_dcmac_clk_rst         => eth100G_rst,
+        i_dcmac_clk             => i_dcmac_clk,
+        i_dcmac_clk_rst         => dcmac_rst,
 
         -- segmented streaming AXI 
         o_data_to_transmit      => o_dcmac_tx_data_0,
         i_dcmac_ready           => i_dcmac_tx_ready_0
     );
 
+    -----------------------------------------------------------------------------------------------------------
+    -- generate locked/reset lines at different freq. 
+    i_dcmac_locked_300_cdc : xpm_cdc_single
+    generic map (
+        DEST_SYNC_FF    => 4,   
+        INIT_SYNC_FF    => 1,   
+        SRC_INPUT_REG   => 1,   
+        SIM_ASSERT_CHK  => 0    
+    )
+    port map (
+        dest_clk        => clk_300,   
+        dest_out        => dcmac_locked_300,         
+        src_clk         => i_dcmac_clk,    
+        src_in          => i_dcmac_locked
+    );
+    
+    i_dcmac_locked_425_cdc : xpm_cdc_single
+    generic map (
+        DEST_SYNC_FF    => 4,   
+        INIT_SYNC_FF    => 1,   
+        SRC_INPUT_REG   => 1,   
+        SIM_ASSERT_CHK  => 0    
+    )
+    port map (
+        dest_clk        => clk_425,   
+        dest_out        => dcmac_locked_425,         
+        src_clk         => i_dcmac_clk,    
+        src_in          => i_dcmac_locked
+    );
     -----------------------------------------------------------------------------------------------------------
 --    i_axis_tdata_gated  <= i_axis_tdata;
 --    i_axis_tkeep_gated  <= i_axis_tkeep;
@@ -799,7 +865,7 @@ begin
         o_fsm_dbg => eth_disable_fsm_dbg, --  out std_logic_vector(4 downto 0); -- fsm state 
         -----------------------------------------------------
         -- DCMAC has been changed to 300 MHz in the V80 via CDC one level up.
-        i_eth_clk    => clk_300, --  in std_logic;
+        i_eth_clk    => clk_425, --  in std_logic;
         -----------------------------------------------------
         -- Received data from 100GE
         i_axis_tdata => i_axis_tdata, --  in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
@@ -827,7 +893,7 @@ begin
             probe0(95 downto 64)    => i_eth100G_rx_bad_fcs,
             probe0(127 downto 96)   => i_eth100G_rx_bad_code,
             probe0(159 downto 128)  => i_eth100G_tx_total_packets,
-            probe0(160)             => i_dcmac_locked_300m,
+            probe0(160)             => dcmac_locked_300,
             
             probe0(191 downto 161)  => uptime(30 downto 0)
         );

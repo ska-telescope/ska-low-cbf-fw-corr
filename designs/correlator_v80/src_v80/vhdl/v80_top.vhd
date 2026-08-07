@@ -195,7 +195,10 @@ ARCHITECTURE structure OF v80_top IS
     signal dcmac_reset_sys_peripheral   : std_logic;
     signal clock_600_no_buffer : std_logic;
 
-signal vlan_stats           : std_logic_vector(2 downto 0);
+    signal vlan_stats           : std_logic_vector(2 downto 0);
+    
+    signal clk_data_input       : std_logic;
+    signal clk_data_input_rst   : std_logic;
 
 begin
 
@@ -378,7 +381,7 @@ begin
     i_200g_lower_dcmac_wrapper : entity versal_dcmac_lib.dcmac_200g_wrapper
     Generic map (
         G_UPPER_PCIBRACKET_PORT => FALSE,
-        G_DEBUG_ILA             => FALSE
+        G_DEBUG_ILA             => TRUE
     )
     Port map ( 
         i_clk                   => Clock_100_GTY_buf,
@@ -486,12 +489,12 @@ begin
 
 i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi 
     Port Map ( 
-        -- Data in from the 100GE MAC
+        -- Data in from the DCMAC
         i_MAC_clk               => dcmac_clk,
         i_MAC_rst               => NOT dcmac_locked(0),
         
-        i_clk_300               => clock_300,
-        i_clk_300_rst           => clock_300_rst,
+        i_dcmac_data_clk        => clk_data_input,
+        i_dcmac_data_rst        => clk_data_input_rst,
 
         -- Streaming AXI interface - compatible with CMAC S_AXI
         -- RX
@@ -502,7 +505,7 @@ i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi
         o_rx_axis_tuser         => rx_axis_tuser,
         o_rx_axis_tvalid        => rx_axis_tvalid,
         
-        o_dcmac_locked          => dcmac_locked_300m,
+        o_dcmac_locked          => open,
         
         o_vlan_stats            => vlan_stats,
 
@@ -540,8 +543,9 @@ i_correlator_core : entity correlator_lib.correlator_core
         clk_300             => clock_300,
         clk_600             => clock_600,
         clk_300_rst         => clock_300_rst,
-        
-        i_dcmac_locked_300m => dcmac_locked_300m,
+               
+        o_clk_data_input        => clk_data_input,
+        o_clk_data_input_rst    => clk_data_input_rst,
         
         -- Received data from 100GE
         i_axis_tdata        => rx_axis_tdata,
@@ -554,8 +558,8 @@ i_correlator_core : entity correlator_lib.correlator_core
         o_dcmac_tx_data_0   => dcmac_tx_data_0,
         i_dcmac_tx_ready_0  => dcmac_tx_ready_0,
         
-        i_eth100g_clk       => dcmac_clk,
-        i_eth100g_locked    => dcmac_locked(0),
+        i_dcmac_clk         => dcmac_clk,
+        i_dcmac_locked      => dcmac_locked(0),
         
         i_vlan_stats        => vlan_stats,
         -- reset of the valid memory is in progress.
