@@ -39,7 +39,7 @@ include:
   # This may not match the copy in our 'common' submodule!
   - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
     file: 'gitlab/build.yml'
-    ref: '5dcbb7954700034516440b22e0c4d7ce0cf9a739'
+    ref: 'be7849284084167a22f50af6bb47017b25ac9a3e'
   - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
     file: 'gitlab/simulate.yml'
     # ref: 'b199d7c80292a5f42cbddd7f83b8d14c6daf350c'
