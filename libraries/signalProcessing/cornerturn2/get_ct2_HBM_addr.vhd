@@ -106,6 +106,12 @@ architecture Behavioral of get_ct2_HBM_addr is
     signal HBM_base_station_time_fine_del7 : std_logic_vector(31 downto 0);
     signal time_x_stations_del3 : signed(19 downto 0);
     signal time_x_stations_x512 : std_logic_vector(31 downto 0);
+    signal coarse_fine_remaining_del1, coarse_fine_remaining_del2, coarse_fine_remaining_del3, coarse_fine_remaining_del4, coarse_fine_remaining_del5 : std_logic_vector(11 downto 0);
+    signal coarse_fine_remaining_valid_del1 : std_logic;
+    signal coarse_fine_remaining_valid_del2 : std_logic;
+    signal coarse_fine_remaining_valid_del3 : std_logic;
+    signal coarse_fine_remaining_valid_del4 : std_logic;
+    signal coarse_fine_remaining_valid_del5 : std_logic;
     
 begin
     
@@ -149,6 +155,22 @@ begin
                 bad_time <= '0';
             end if;
             
+            coarse_fine_remaining_del1 <= std_logic_vector(3456 - unsigned(i_fine_channel(11 downto 0)));
+            if (unsigned(i_fine_channel) <= 3456) then
+                coarse_fine_remaining_valid_del1 <= '1';
+            else
+                coarse_fine_remaining_valid_del1 <= '0';
+            end if;
+            if coarse_fine_remaining_valid_del1 = '1' then
+                coarse_fine_remaining_del2 <= coarse_fine_remaining_del1;
+            else
+                coarse_fine_remaining_del2 <= x"D80"; -- only valid for i_fine_channel < 3456
+            end if;
+            
+            coarse_fine_remaining_del3 <= coarse_fine_remaining_del2;
+            coarse_fine_remaining_del4 <= coarse_fine_remaining_del3;
+            coarse_fine_remaining_del5 <= coarse_fine_remaining_del4;
+            
             bad_del2 <= coarse_out_of_range or fine_low or bad_station or bad_time;
             bad_del3 <= bad_del2;
             bad_del4 <= bad_del3;
@@ -168,8 +190,10 @@ begin
             
             bad_del6 <= bad_del5;
             fine_high_del6 <= fine_high;
-            if (unsigned(fine_remaining) > 3456) then
-                fine_remaining_del6 <= x"D80"; -- 3456 decimal, i.e. all of the current coarse channel.
+            -- get fine channels remaining in the current coarse channel
+            -- Assumes (i_fine_channel < 3456)
+            if (unsigned(fine_remaining) > unsigned(coarse_fine_remaining_del5)) then
+                fine_remaining_del6 <= coarse_fine_remaining_del5; -- Saturates at 3456 decimal, i.e. all of the current coarse channel.
             else
                 fine_remaining_del6 <= fine_remaining(11 downto 0);
             end if;
