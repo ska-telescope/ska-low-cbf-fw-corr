@@ -195,7 +195,7 @@ ARCHITECTURE structure OF v80_top IS
     signal dcmac_reset_sys_peripheral   : std_logic;
     signal clock_600_no_buffer : std_logic;
 
-    signal vlan_stats           : std_logic_vector(2 downto 0);
+    signal vlan_stats           : t_slv_32_arr(2 downto 0);
     
     signal clk_data_input       : std_logic;
     signal clk_data_input_rst   : std_logic;
@@ -495,6 +495,9 @@ i_dcmac_to_cmac : entity versal_dcmac_lib.segment_to_saxi
         
         i_dcmac_data_clk        => clk_data_input,
         i_dcmac_data_rst        => clk_data_input_rst,
+        
+        i_clk_args_domain       => clock_300,
+        i_clk_args_domain_rst   => '0',
 
         -- Streaming AXI interface - compatible with CMAC S_AXI
         -- RX

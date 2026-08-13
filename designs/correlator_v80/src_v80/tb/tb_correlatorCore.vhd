@@ -261,6 +261,14 @@ architecture Behavioral of tb_correlatorCore is
     
     signal input_HBM_reset      : std_logic;
     
+    signal clk_data_input       : std_logic;
+    signal clk_data_input_rst   : std_logic;
+    
+    signal clk_425_rst_cnt      : unsigned(31 downto 0) := x"00001000";
+    signal clk_300_rst_cnt      : unsigned(31 downto 0) := x"00001000";
+    
+    signal clock_300_rst        : std_logic;
+    
     -- SPEAD packet is 8306 bytes
     -- 8306 / 64 = 129.78125    (78125 -> 1 byte in the last segment is valid, EOP is indicated as x"E", meaning 15 bytes invalid.
     --           
@@ -270,6 +278,8 @@ architecture Behavioral of tb_correlatorCore is
     signal test_sps_packetv3    : t_slv_512_arr(129 downto 0);
     signal packet_pos           : integer := 0;
     signal packet_vec_cnt       : integer := 0;
+    
+    signal vlan_stats           : t_slv_32_arr(2 downto 0);
     
     -- awready, wready bresp, bvalid, arready, rdata, rresp, rvalid, rdata
     -- +bid buser
@@ -329,6 +339,35 @@ begin
     eth100G_clk <= not eth100G_clk after 1.553 ns; -- 322 MHz
     
     dcmac_clk   <= not dcmac_clk after 2.564 ns;    -- 195 MHz
+    
+    -- 425 MHz
+    clk_data_input      <= not dcmac_clk after 1.176 ns;
+    
+    reset_425_proc : process(clk_data_input)
+    begin
+        if rising_edge(clk_data_input) then
+            if clk_425_rst_cnt = 1 then
+                clk_data_input_rst     <= '0';
+            else
+                clk_425_rst_cnt <= clk_425_rst_cnt - 1;
+                clk_data_input_rst     <= '1';
+            end if;
+        end if;
+    end process;
+
+    reset_300_proc : process(clk_300)
+    begin
+        if rising_edge(clk_300) then
+            if clk_300_rst_cnt = 1 then
+                clock_300_rst     <= '0';
+            else
+                clk_300_rst_cnt <= clk_300_rst_cnt - 1;
+                clock_300_rst     <= '1';
+            end if;
+        end if;
+    end process;
+        
+    
 
     eth100G_locking_proc: process(eth100G_clk)
     begin
@@ -635,8 +674,11 @@ dcmac_reset <= NOT dcmac_locked;
         i_MAC_clk               => dcmac_clk,
         i_MAC_rst               => dcmac_reset,
         
-        i_clk_300               => clk_300,
-        i_clk_300_rst           => clk_300_rst,
+        i_dcmac_data_clk        => clk_data_input,
+        i_dcmac_data_rst        => clk_data_input_rst,
+        
+        i_clk_args_domain       => clk_300,
+        i_clk_args_domain_rst   => '0',
 
         -- Streaming AXI interface - compatible with CMAC S_AXI
         -- RX
@@ -647,92 +689,99 @@ dcmac_reset <= NOT dcmac_locked;
         o_rx_axis_tuser         => rx_axi_tuser,
         o_rx_axis_tvalid        => rx_axi_tvalid,
         
-        o_dcmac_locked          => dcmac_locked_300m,
+        o_dcmac_locked          => open,
+        
+        o_vlan_stats            => vlan_stats,
 
         -- Segmented Streaming AXI, 512
         i_data_to_receive       => dcmac_rx_data_0
 
     );    
     
-    dut_2 : entity correlator_lib.correlator_core
-    generic map (
-        g_SIMULATION => TRUE, -- BOOLEAN;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
-        g_USE_META => FALSE,   -- BOOLEAN;  -- puts meta data in place of the filterbank data in the corner turn, to help debug the corner turn.
-        -- GLOBAL GENERICS for PERENTIE LOGIC
-        g_DEBUG_ILA                => FALSE, --  BOOLEAN
-        g_SPS_PACKETS_PER_FRAME    => g_SPS_PACKETS_PER_FRAME,   --  allowed values are 32, 64 or 128. 32 and 64 are for simulation. For real system, use 128.
+--    dut_2 : entity correlator_lib.correlator_core
+--    generic map (
+--        g_SIMULATION => TRUE, -- BOOLEAN;  -- when true, the 100GE core is disabled and instead the lbus comes from the top level pins
+--        g_USE_META => FALSE,   -- BOOLEAN;  -- puts meta data in place of the filterbank data in the corner turn, to help debug the corner turn.
+--        -- GLOBAL GENERICS for PERENTIE LOGIC
+--        g_DEBUG_ILA                => FALSE, --  BOOLEAN
+--        g_SPS_PACKETS_PER_FRAME    => g_SPS_PACKETS_PER_FRAME,   --  allowed values are 32, 64 or 128. 32 and 64 are for simulation. For real system, use 128.
 
-        -- All the HBM interfaces are the same width;
-        -- Actual interfaces used are : 
-        --  M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
-        --  M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
-        --  M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
-        --  M04, 512 Mbytes HBM; visibilities from first correlator instance
-        --  M05, 512 Mbytes HBM; visibilities from second correlator instance
-        g_HBM_INTERFACES     => g_HBM_INTERFACES,   -- integer := 5;
-        g_HBM_AXI_ADDR_WIDTH => 64,  -- integer := 64;
-        g_HBM_AXI_DATA_WIDTH => 512, -- integer := 512;
-        g_HBM_AXI_ID_WIDTH   => 1,   -- integer := 1
-        -- Number of correlator blocks to instantiate.
-        g_CORRELATORS        => g_CORRELATORS,  -- integer := 2
-        g_USE_DUMMY_FB       => g_USE_DUMMY_FB
-    ) port map (
-        clk_100         => clk_100,
-        clk_100_rst     => clk_100_rst,
+--        -- All the HBM interfaces are the same width;
+--        -- Actual interfaces used are : 
+--        --  M01, 3 Gbytes HBM; first stage corner turn, between LFAA ingest and the filterbanks
+--        --  M02, 3 Gbytes HBM; Correlator HBM for fine channels going to the first correlator instance; buffer between the filterbanks and the correlator
+--        --  M03, 3 Gbytes HBM; Correlator HBM for fine channels going to the Second correlator instance; buffer between the filterbanks and the correlator
+--        --  M04, 512 Mbytes HBM; visibilities from first correlator instance
+--        --  M05, 512 Mbytes HBM; visibilities from second correlator instance
+--        g_HBM_INTERFACES     => g_HBM_INTERFACES,   -- integer := 5;
+--        g_HBM_AXI_ADDR_WIDTH => 64,  -- integer := 64;
+--        g_HBM_AXI_DATA_WIDTH => 512, -- integer := 512;
+--        g_HBM_AXI_ID_WIDTH   => 1,   -- integer := 1
+--        -- Number of correlator blocks to instantiate.
+--        g_CORRELATORS        => g_CORRELATORS,  -- integer := 2
+--        g_USE_DUMMY_FB       => g_USE_DUMMY_FB
+--    ) port map (
+--        clk_100         => clk_100,
+--        clk_100_rst     => clk_100_rst,
         
-        clk_300         => clk_300,
-        clk_300_rst     => clk_300_rst,
+--        clk_300         => clk_300,
+--        clk_300_rst     => clock_300_rst,
+               
+--        o_clk_data_input        => clk_data_input,
+--        o_clk_data_input_rst    => clk_data_input_rst,
+--        -----------------------------------------------------------------------
+--        -- Ports used for simulation only.
+--        --
+--        -- Received data from 100GE
+--        i_axis_tdata    => rx_axi_tdata,   -- in (511:0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+--        i_axis_tkeep    => rx_axi_tkeep,   -- in (63:0);  -- one bit per byte in i_axi_tdata
+--        i_axis_tlast    => rx_axi_tlast,   -- in std_logic;
+--        i_axis_tuser    => rx_axi_tuser,   -- in (79:0);  -- Timestamp for the packet.
+--        i_axis_tvalid   => rx_axi_tvalid, -- in std_logic;
         
-        -----------------------------------------------------------------------
-        -- Ports used for simulation only.
-        --
-        -- Received data from 100GE
-        i_axis_tdata    => rx_axi_tdata,   -- in (511:0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        i_axis_tkeep    => rx_axi_tkeep,   -- in (63:0);  -- one bit per byte in i_axi_tdata
-        i_axis_tlast    => rx_axi_tlast,   -- in std_logic;
-        i_axis_tuser    => rx_axi_tuser,   -- in (79:0);  -- Timestamp for the packet.
-        i_axis_tvalid   => rx_axi_tvalid, -- in std_logic;
+--        -- Data to be transmitted on 100GE
+--        o_dcmac_tx_data_0   => dcmac_tx_data_0,
+--        i_dcmac_tx_ready_0  => dcmac_tx_ready_0,
         
-        -- Data to be transmitted on 100GE
-        o_dcmac_tx_data_0   => dcmac_tx_data_0,
-        i_dcmac_tx_ready_0  => dcmac_tx_ready_0,
+--        i_dcmac_clk         => dcmac_clk,
+--        i_dcmac_locked      => '1',
         
-        i_eth100g_clk           => clk_300, --  in std_logic;
-        i_eth100g_locked        => dcmac_locked_300m,       -- in std_logic;
-        -- reset of the valid memory is in progress.
-        o_validMemRstActive => validMemRstActive, -- out std_logic;
-
-        i_PTP_time_ARGs_clk  => (others => '0'), -- in (79:0);
-        o_eth100_reset_final => open, -- out std_logic;
-        o_fec_enable_322m    => open, -- out std_logic;
+--        -- reset of the valid memory is in progress.
+--        i_vlan_stats        => vlan_stats,
+--        -- reset of the valid memory is in progress.
+--        o_validMemRstActive => open,
         
-        i_eth100G_rx_total_packets => (others => '0'), -- in (31:0);
-        i_eth100G_rx_bad_fcs       => (others => '0'), -- in (31:0);
-        i_eth100G_rx_bad_code      => (others => '0'), -- in (31:0);
-        i_eth100G_tx_total_packets => (others => '0'), -- in (31:0);
+--        -- Other signals to/from the timeslave 
+--        i_PTP_time_ARGs_clk     => (others => '0'),
+--        o_dcmac_reset           => open,
+        
+--        i_eth100G_rx_total_packets  => open,
+--        i_eth100G_rx_bad_fcs        => open,
+--        i_eth100G_rx_bad_code       => open,
+--        i_eth100G_tx_total_packets  => open,
         
        
-        -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
-        -- used in testing with pre-load of the second corner turn HBM data
-        i_ct2_readout_start  => ct2_readout_start, -- in std_logic;
-        i_ct2_readout_buffer => ct2_readout_buffer, -- in std_logic;
-        i_ct2_readout_frameCount => ct2_readout_frameCount, -- in (31:0);
+--        -- trigger readout of the second corner turn data without waiting for the rest of the signal chain.
+--        -- used in testing with pre-load of the second corner turn HBM data
+--        i_ct2_readout_start  => ct2_readout_start, -- in std_logic;
+--        i_ct2_readout_buffer => ct2_readout_buffer, -- in std_logic;
+--        i_ct2_readout_frameCount => ct2_readout_frameCount, -- in (31:0);
         
-        i_input_HBM_reset   => input_HBM_reset,
-        ---------------------------------------------------------------
-        -- copy of the bus taking data to be written to the HBM.
-        -- Used for simulation only, to check against the model data.
-        o_tb_data      => cor0_tb_data,     -- out (255:0);
-        o_tb_visValid  => cor0_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
-        o_tb_TCIvalid  => cor0_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
-        o_tb_dcount    => cor0_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
-        o_tb_cell      => cor0_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
-        o_tb_tile      => cor0_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
-        o_tb_channel   => cor0_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
-       -- Start of a burst of data through the filterbank, 
-        -- Used in the testbench to trigger download of the data written into the CT2 memory.
-        o_FB_out_sof   => FB_out_sof        -- out std_logic
-    );
+--        i_input_HBM_reset   => input_HBM_reset,
+--        ---------------------------------------------------------------
+--        -- copy of the bus taking data to be written to the HBM.
+--        -- Used for simulation only, to check against the model data.
+--        o_tb_data      => cor0_tb_data,     -- out (255:0);
+--        o_tb_visValid  => cor0_tb_visValid, -- out std_logic; -- o_tb_data is valid visibility data
+--        o_tb_TCIvalid  => cor0_tb_TCIvalid, -- out std_logic; -- i_data is valid TCI & DV data
+--        o_tb_dcount    => cor0_tb_dcount,   -- out (7:0);  -- counts the 256 transfers for one cell of visibilites, or 16 transfers for the centroid data. 
+--        o_tb_cell      => cor0_tb_cell,     -- out (7:0);  -- in (7:0);  -- a "cell" is a 16x16 station block of correlations
+--        o_tb_tile      => cor0_tb_tile,     -- out (9:0);  -- a "tile" is a 16x16 block of cells, i.e. a 256x256 station correlation.
+--        o_tb_channel   => cor0_tb_channel,  -- out (23:0) -- first fine channel index for this correlation.
+--       -- Start of a burst of data through the filterbank, 
+--        -- Used in the testbench to trigger download of the data written into the CT2 memory.
+--        o_FB_out_sof   => FB_out_sof        -- out std_logic
+--    );
     
     
     dut_dcmac_to_cmac_same_freq : entity versal_dcmac_lib.segment_to_saxi 
@@ -741,8 +790,11 @@ dcmac_reset <= NOT dcmac_locked;
         i_MAC_clk               => dcmac_clk,
         i_MAC_rst               => dcmac_reset,
         
-        i_clk_300               => dcmac_clk,
-        i_clk_300_rst           => dcmac_reset,
+        i_dcmac_data_clk        => dcmac_clk,
+        i_dcmac_data_rst        => dcmac_reset,
+
+        i_clk_args_domain       => clk_300,
+        i_clk_args_domain_rst   => '0',
 
         -- Streaming AXI interface - compatible with CMAC S_AXI
         -- RX

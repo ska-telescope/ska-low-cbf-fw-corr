@@ -92,7 +92,7 @@ ENTITY correlator_core IS
         i_dcmac_clk         : in std_logic;
         i_dcmac_locked      : in std_logic;
         
-        i_vlan_stats        : in std_logic_vector(2 downto 0);
+        i_vlan_stats        : in t_slv_32_arr(2 downto 0);
         
         -- reset of the valid memory is in progress.
         o_validMemRstActive : out std_logic;
@@ -665,41 +665,16 @@ begin
             system_fields_ro.hbm_5_status_2                 <= HBM_gasket_stat(4,2);
             system_fields_ro.hbm_5_status_3                 <= HBM_gasket_stat(4,3);
             system_fields_ro.hbm_5_status_4                 <= HBM_gasket_stat(4,4);
-            
-            system_fields_ro.packets_no_vlan_tag            <= vlan_stats(0);
-            system_fields_ro.packets_one_vlan_tag           <= vlan_stats(1);
-            system_fields_ro.packets_two_vlan_tag           <= vlan_stats(2);
-            
-                        
-            -- 0 = single vlan, 1 = double vlan, 2 = no vlan
-            if vlan_stats_del(1)(0) = '0' AND vlan_stats_del(0)(0) = '1' then
-                vlan_stats(0)  <= std_logic_vector(unsigned(vlan_stats(0)) + 1);
-            end if;
 
-            if vlan_stats_del(1)(1) = '0' AND vlan_stats_del(0)(1) = '1' then
-                vlan_stats(1)  <= std_logic_vector(unsigned(vlan_stats(1)) + 1);
-            end if;
-            
-            if vlan_stats_del(1)(2) = '0' AND vlan_stats_del(0)(2) = '1' then
-                vlan_stats(2)  <= std_logic_vector(unsigned(vlan_stats(2)) + 1);
-            end if;            
-            
+
+            -- 0 = single vlan, 1 = double vlan, 2 = no vlan
+            system_fields_ro.packets_no_vlan_tag            <= i_vlan_stats(0);
+            system_fields_ro.packets_one_vlan_tag           <= i_vlan_stats(1);
+            system_fields_ro.packets_two_vlan_tag           <= i_vlan_stats(2);
+                        
         end if;
     end process;
 
-gen_vlan_cdc : FOR i in 0 to 2 GENERATE
-    i_vlan_cdc : entity signal_processing_common.sync
-    generic map (
-        WIDTH => 1
-    )
-    Port Map (
-        Clock_a     => clk_425,
-        data_in(0)  => i_vlan_stats(i),
-
-        Clock_b     => clk_300,
-        data_out(0) => vlan_stats_del(0)(i)
-    );
-END GENERATE;
     --------------------------------------------------------------------------
     --  Correlator Signal Processing
     
