@@ -26,6 +26,14 @@
 --                + 256 * [fine_channel * 12 * ceil(i_SB_stations/4) + i_time_block * ceil(i_SB_stations/4) + station]
 --
 --  ---------------------------------------------------------
+--  Note on memory allocation by the software :
+--  The addressing means that if :
+--    (i_fine_channel mod 4) /= 0
+--  Then the number of fine channel memory slots used could be higher than ceil((number of fine channels)/4),
+--  since the calculated fine channels fall across a multiple-of-4 boundary.
+--  The software needs to (and does) take account of this in setting HBM base addresses to ensure there is no overlap.
+--  
+--  ---------------------------------------------------------
 --  Aside : Each 256 byte block of data contains data for : 
 --    * 16 time samples
 --    * 4 stations

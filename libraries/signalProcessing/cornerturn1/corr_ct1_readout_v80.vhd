@@ -12,6 +12,10 @@
 --
 --    commands in (i_currentBuffer, i_readStart, i_Nchannels)
 --        |
+--    Command register (single register stage) holds the command until this module is idle.
+--     (A start that arrives while the previous frame is still being read would otherwise
+--      corrupt the HBM transaction bookkeeping; see the notes at "cmd_pending" below.)
+--        |
 --    Wait until all previous memory read requests have returned, and the buffer is empty.
 --        |
 --    Generate Read addresses on the AXI bus to shared memory ------------>>>----------------
@@ -240,7 +244,9 @@ architecture Behavioral of corr_ct1_readout_v80 is
     type ar_fsm_type is (waitDelaysValid, getCoarseDelays0, getCoarseDelays1, getDataIdle, getBufData, set_araddr,
                          waitARReady_both, wait_axi_ARReady, wait_axi2_ARReady, checkAllVirtualChannelsDone, waitAllDone,
                          checkDone_wait0, checkDone_wait1, checkDone_wait2, checkDone_wait3, checkDone, done);
-    signal ar_fsm, ar_fsmDel1, ar_fsmDel2, ar_fsmDel3, ar_fsmDel4 : ar_fsm_type;
+    -- Note the initial value of "done"; the command register (see start_fsm below) will not
+    -- issue a start until ar_fsm is done, so it must not power up in a busy state.
+    signal ar_fsm, ar_fsmDel1, ar_fsmDel2, ar_fsmDel3, ar_fsmDel4 : ar_fsm_type := done;
     signal pendingReads, bufMaxUsed : t_slv_11_arr(11 downto 0);
     signal ARFIFO_wrBeats : std_logic_vector(10 downto 0);
     
@@ -294,6 +300,48 @@ architecture Behavioral of corr_ct1_readout_v80 is
     signal validMemWrEn, validMemWrEnDel1, validMemWrEnDel2 : std_logic;
     signal axi_arvalidDel1 : std_logic;
     signal readStartDel1, readStartDel2 : std_logic;
+
+    ---------------------------------------------------------------------------------------
+    -- Command register, and the state machine that starts a frame from it.
+    --
+    -- i_readStart is not used directly to start a readout. Instead the command
+    -- (i_currentBuffer, i_integration, i_Nchannels, i_clocksPerPacket) is captured in a
+    -- single register stage, and the readout is only started once this module is idle.
+    --
+    -- Starting a frame while the previous frame still has HBM reads in flight corrupts the
+    -- transaction bookkeeping :
+    --   - "pendingReads" is zeroed while beats are still to come back, so the returning
+    --     beats decrement it below zero. It wraps to a large number, bufMaxUsed for that
+    --     buffer is then permanently over the space_available threshold, and ar_fsm waits
+    --     in getDataIdle forever -> the module locks up until it is reset.
+    --   - ar_regUsed is cleared mid-burst, so the next beat of the old burst pops a fresh
+    --     ARFIFO entry and every subsequent burst is attributed to the wrong buffer.
+    -- ar_fsm only reaches "done" after waitAllDone has seen both AR FIFOs drain, and those
+    -- FIFOs are drained one entry per returned beat, so "ar_fsm = done" is a guarantee that
+    -- there are no HBM transactions in flight. That is what makes the start safe.
+    --
+    -- If a second i_readStart arrives while one is already pending, the newest command
+    -- replaces the pending one and cmd_overwritten is pulsed. Keeping the older command
+    -- would mean reading a buffer whose preload data (in the previous buffer, which is the
+    -- one being written by then) has already been overwritten, so it is better to skip a
+    -- frame and resynchronise.
+    signal cmd_pending, cmd_take, cmd_overwritten : std_logic := '0';
+    signal cmd_currentBuffer   : std_logic_vector(1 downto 0);
+    signal cmd_integration     : std_logic_vector(31 downto 0);
+    signal cmd_Nchannels       : std_logic_vector(11 downto 0);
+    signal cmd_clocksPerPacket : std_logic_vector(15 downto 0);
+    -- Internal, gated replacement for i_readStart. Only ever pulses when the module is idle.
+    signal readStart : std_logic := '0';
+    signal module_idle : std_logic;
+    -- Flushes the shadow FIFOs (ARFIFO, bufFIFO, delayFIFO, coarseFIFO) before each frame,
+    -- so a frame that ended abnormally cannot leave residue in them for the next frame.
+    signal start_flush : std_logic := '0';
+    signal fifo_rst_busy : std_logic;
+    signal ARFIFO_wrRstBusy, ARFIFO2_wrRstBusy : std_logic;
+    signal bufFIFO_wrRstBusy, delayFIFO_wrRstBusy, coarseFIFO_wrRstBusy : std_logic_vector(11 downto 0);
+    type start_fsm_t is (cmd_idle, cmd_flush, cmd_flush_wait, cmd_issue, cmd_wait_busy, cmd_wait_done);
+    signal start_fsm : start_fsm_t := cmd_idle;
+    signal start_wait_count : std_logic_vector(5 downto 0) := "000000";
 
     type rd_fsm_type is (reset_output_fifos_start, reset_output_fifos_wait, reset_output_fifos, reset_output_fifos_wait1, reset_output_fifos_wait2, rd_wait, rd_bufX, rd_start, idle);
     signal rd_fsm : rd_fsm_type := idle;
@@ -472,7 +520,125 @@ begin
     o_axi2_ar.addr <= x"0" & axi_araddr2;
     
     o_validMemReadAddr <= validMemAddr;
-    
+
+    ---------------------------------------------------------------------------------------
+    -- Command register and start state machine.
+    -- See the notes with the signal declarations for why i_readStart is not used directly.
+
+    -- The module is idle when :
+    --   - ar_fsm = done          : all read requests issued and both AR FIFOs drained,
+    --                              i.e. no HBM read transactions in flight.
+    --   - rd_fsm = idle          : all output packets for the frame have been sent.
+    --   - poly_fsm = done and poly_idle = '1' : delay calculation has finished.
+    module_idle <= '1' when ((ar_fsm = done) and (rd_fsm = idle) and (poly_fsm = done) and
+                             (poly_idle = '1') and (rstInternal = '0') and (rstFIFOs = '0'))
+                       else '0';
+
+    fifo_rst_busy <= '1' when (ARFIFO_wrRstBusy = '1' or ARFIFO2_wrRstBusy = '1' or
+                               bufFIFO_wrRstBusy /= x"000" or delayFIFO_wrRstBusy /= x"000" or
+                               coarseFIFO_wrRstBusy /= x"000")
+                         else '0';
+
+    process(shared_clk)
+    begin
+        if rising_edge(shared_clk) then
+            -- Capture the command.
+            -- i_readStart takes priority over cmd_take, so a start that arrives in the same
+            -- clock as the pending command is absorbed is still registered, and runs after
+            -- the frame that is just being started.
+            if rstInternal = '1' then
+                cmd_pending <= '0';
+            elsif i_readStart = '1' then
+                cmd_currentBuffer   <= i_currentBuffer;
+                cmd_integration     <= i_integration;
+                cmd_Nchannels       <= i_Nchannels;
+                cmd_clocksPerPacket <= i_clocksPerPacket;
+                cmd_pending         <= '1';
+            elsif cmd_take = '1' then
+                cmd_pending <= '0';
+            end if;
+
+            -- A start arrived while one was already pending, so that earlier command is
+            -- discarded and a frame is skipped.
+            cmd_overwritten <= i_readStart and cmd_pending;
+
+            if rstInternal = '1' then
+                start_fsm <= cmd_idle;
+                readStart <= '0';
+                cmd_take <= '0';
+                start_flush <= '0';
+            else
+                case start_fsm is
+                    when cmd_idle =>
+                        readStart <= '0';
+                        cmd_take <= '0';
+                        if cmd_pending = '1' and module_idle = '1' then
+                            start_flush <= '1';
+                            start_wait_count <= "000111"; -- hold the FIFO reset for 8 clocks
+                            start_fsm <= cmd_flush;
+                        end if;
+
+                    when cmd_flush =>
+                        -- Hold the shadow FIFO reset. The XPM FIFOs need their reset held for
+                        -- several clocks. This also gives the bufFIFO_wrEnDel1 -> pendingReads
+                        -- pipeline time to settle after the last beat of the previous frame.
+                        if unsigned(start_wait_count) = 0 then
+                            start_flush <= '0';
+                            start_wait_count <= "001111";
+                            start_fsm <= cmd_flush_wait;
+                        else
+                            start_wait_count <= std_logic_vector(unsigned(start_wait_count) - 1);
+                        end if;
+
+                    when cmd_flush_wait =>
+                        -- Wait for the FIFO resets to complete. The count enforces a minimum
+                        -- wait, since rstFIFOsDel1 lags rstFIFOs and fifo_rst_busy would
+                        -- otherwise be sampled before it has gone high.
+                        if unsigned(start_wait_count) /= 0 then
+                            start_wait_count <= std_logic_vector(unsigned(start_wait_count) - 1);
+                        elsif fifo_rst_busy = '0' then
+                            start_fsm <= cmd_issue;
+                        end if;
+
+                    when cmd_issue =>
+                        -- readStart and cmd_take are both registered, so they go high together
+                        -- in the next clock. That clock is the one in which ar_fsm and poly_fsm
+                        -- copy cmd_currentBuffer etc. into ar_* and poly_*, i.e. the command is
+                        -- only marked as taken in the clock it is actually absorbed. A new
+                        -- i_readStart before that point simply replaces the pending command and
+                        -- is the one that gets started here.
+                        readStart <= '1';
+                        cmd_take <= '1';
+                        start_wait_count <= "011111";
+                        start_fsm <= cmd_wait_busy;
+
+                    when cmd_wait_busy =>
+                        -- Wait for the state machines to leave their idle states before testing
+                        -- module_idle again. rd_fsm is the slowest, it does not move until
+                        -- shared_to_FB_valid_del1, four clocks after readStart.
+                        readStart <= '0';
+                        cmd_take <= '0';
+                        if unsigned(start_wait_count) = 0 then
+                            start_fsm <= cmd_wait_done;
+                        else
+                            start_wait_count <= std_logic_vector(unsigned(start_wait_count) - 1);
+                        end if;
+
+                    when cmd_wait_done =>
+                        if module_idle = '1' then
+                            start_fsm <= cmd_idle;
+                        end if;
+
+                    when others =>
+                        readStart <= '0';
+                        cmd_take <= '0';
+                        start_flush <= '0';
+                        start_fsm <= cmd_idle;
+                end case;
+            end if;
+        end if;
+    end process;
+
     process(shared_clk)
         variable bufSampleTemp : t_slv_20_arr(11 downto 0);
         variable bufSamplesToRead20bit : t_slv_20_arr(11 downto 0);
@@ -550,12 +716,12 @@ begin
             if rstInternal = '1' then
                 poly_fsm <= done;
                 poly_fsm_dbg <= "0000";
-            elsif i_readStart = '1' then
+            elsif readStart = '1' then
                 poly_fsm <= start;
                 poly_vc_base <= x"0000"; -- first of 12 consecutive virtual channels that are calculated in parallel
-                poly_integration <= i_integration; -- in std_logic_vector(31 downto 0); Which integration is this for ?
-                poly_ct_frame <= i_currentBuffer;
-                Nchannels <= i_Nchannels;
+                poly_integration <= cmd_integration; -- in std_logic_vector(31 downto 0); Which integration is this for ?
+                poly_ct_frame <= cmd_currentBuffer;
+                Nchannels <= cmd_Nchannels;
                 poly_fsm_dbg <= "0001";
             else
                 case poly_fsm is
@@ -617,6 +783,8 @@ begin
                 end case;
             end if;
             
+            -- Warning only; the command register defers the start until the delay calculation
+            -- for the previous frame has finished, so this no longer corrupts the readout.
             if i_readStart = '1' and poly_idle = '0' then
                 o_bad_readstart <= '1';
             else
@@ -798,42 +966,46 @@ begin
             
             -----------------------------------------------------------------------------
             -- State machine to read from the shared memory
-            readStartDel1 <= i_readStart;
+            readStartDel1 <= readStart;
             readStartDel2 <= readStartDel1;
-            
+
             rstDel1 <= i_rst;
             rstDel2 <= rstDel1;
             rstInternal <= rstDel2;
-            rstFIFOs <= rstDel1;
+            -- start_flush clears the shadow FIFOs (ARFIFO, bufFIFO, delayFIFO, coarseFIFO) and
+            -- the buffer write pointers before each frame starts, so residue from a frame that
+            -- ended abnormally cannot be carried into the next one. The module is idle at this
+            -- point, so nothing in flight is discarded.
+            rstFIFOs <= rstDel1 or start_flush;
             rstFIFOsDel1 <= rstFIFOs;
             o_ar_fsm_dbg <= ar_fsm_dbg;
             --
             if rstInternal = '1' then
                 ar_fsm <= done;
-            elsif i_readStart = '1' then
+            elsif readStart = '1' then
                 -- start generating read addresses.
                 ar_fsm <= waitDelaysValid;
                 ar_fsm_buffer <= "0000";
                 ar_virtualChannel <= (others => '0');
-                ar_currentBuffer <= i_currentBuffer;
-                if i_currentBuffer = "00" then
+                ar_currentBuffer <= cmd_currentBuffer;
+                if cmd_currentBuffer = "00" then
                     ar_previousBuffer <= "10";
-                elsif i_currentBuffer = "01" then
+                elsif cmd_currentBuffer = "01" then
                     ar_previousBuffer <= "00";
-                else -- i_currentBuffer = "10" 
+                else -- cmd_currentBuffer = "10"
                     ar_previousBuffer <= "01";
                 end if;
-                if i_currentBuffer = "00" then
+                if cmd_currentBuffer = "00" then
                     ar_nextBuffer <= "01";
-                elsif i_currentBuffer = "01" then
+                elsif cmd_currentBuffer = "01" then
                     ar_nextBuffer <= "10";
-                else -- i_currentBuffer = "10" 
+                else -- cmd_currentBuffer = "10"
                     ar_nextBuffer <= "00";
                 end if;
-                
-                ar_integration <= i_integration;
-                ar_NChannels <= i_NChannels;
-                ar_clocksPerPacket <= i_clocksPerPacket;
+
+                ar_integration <= cmd_integration;
+                ar_NChannels <= cmd_NChannels;
+                ar_clocksPerPacket <= cmd_clocksPerPacket;
                 axi_arvalid0 <= '0';
                 axi_arvalid2 <= '0';
                 ar_fsm_dbg <= "00000";
@@ -885,7 +1057,19 @@ begin
                     when getDataIdle =>
                         ar_fsm_dbg <= "00100";
                         -- Check there is space available in the buffers (buffers are 1024 words), and if so then get more data for the buffer with the least amount of data
-                        if space_available /= "000000000000" then
+                        -- The space check has to be on the buffer that is actually selected below (maxUsed_final_sel),
+                        -- not on any buffer. space_available has no bufHasMoreSamples qualifier, whereas maxUsed_final_sel
+                        -- is the least full buffer among those that still have samples to fetch, so testing
+                        -- "space_available /= 0" allowed a buffer that had finished fetching (or an unused slot, which
+                        -- sits at bufMaxUsed = 0 for the whole group) to hold this condition true while the read below
+                        -- was issued to a different buffer that was already full - overflowing that buffer's 640 words
+                        -- and wrapping its write pointer. maxUsed_final_sel lags bufMaxUsed by the depth of the selection
+                        -- tree, but space_available is indexed with it here so the space check still uses current data for
+                        -- whichever buffer is selected. ar_fsm_buffer is registered in the same cycle, so the buffer
+                        -- checked is the buffer read.
+                        -- maxUsed_final_valid is already guaranteed to be '1' on entry from checkDone, but is included
+                        -- so this state cannot issue a read when no buffer needs one.
+                        if maxUsed_final_valid = '1' and space_available(to_integer(unsigned(maxUsed_final_sel))) = '1' then
                             ar_fsm <= getBufData;
                         end if;
                         ar_fsm_buffer <= maxUsed_final_sel;
@@ -1158,8 +1342,12 @@ begin
                 ARFIFO_wrEn <= '0';
             end if;
             
-            if i_readStart = '1' and ar_fsm /= done then
+            if (i_readStart = '1' and (ar_fsm /= done or cmd_pending = '1' or start_fsm /= cmd_idle)) or
+               (cmd_overwritten = '1') then
                 -- Flag an error; we were asked to start reading but we haven't finished reading the previous frame.
+                -- The command is held in the command register and started when this module goes idle, so this is a
+                -- warning that the readout is running late rather than a fatal condition. cmd_overwritten means a
+                -- second start arrived while one was still pending, so a frame was skipped.
                 o_readOverflow <= '1';
             else
                 o_readOverflow <= '0';
@@ -1176,7 +1364,10 @@ begin
 
             -- Keep track of the number of pending read words in the ARFIFO for each buffer, for the first HBM interface only.
             for i in 0 to 11 loop
-                if (i_readStart = '1') then
+                if (readStart = '1') then
+                    -- Safe to zero this here; readStart only pulses once ar_fsm has reached
+                    -- "done", which requires both AR FIFOs to have drained, so there are no
+                    -- outstanding beats left to decrement it below zero.
                     pendingReads(i) <= (others => '0');
                 elsif ARFIFO_wrEn = '1' and unsigned(ARFIFO_din(15 downto 12)) = i and (bufFIFO_wrEnDel1(i) = '0') then
                     -- When bufFIFO_wrEnDel1 is high, then the data stops being accounted for in "pendingReads" and is accounted for by bufFIFO_wrDataCount instead. 
@@ -1288,7 +1479,7 @@ begin
         underflow => open,        -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
         wr_ack => open,           -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => ARFIFO_WrDataCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
-        wr_rst_busy => open,      -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
+        wr_rst_busy => ARFIFO_wrRstBusy, -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
         din => ARFIFO_dinDel7,    -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
         injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
         injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection: 
@@ -1335,7 +1526,7 @@ begin
         underflow => open,         -- 1-bit output: Underflow: Indicates that the read request (rd_en) during the previous clock cycle was rejected because the FIFO is empty.
         wr_ack => open,            -- 1-bit output: Write Acknowledge: This signal indicates that a write request (wr_en) during the prior clock cycle is succeeded.
         wr_data_count => ARFIFO2_WrDataCount, -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count: This bus indicates the number of words written into the FIFO.
-        wr_rst_busy => open,       -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
+        wr_rst_busy => ARFIFO2_wrRstBusy, -- 1-bit output: Write Reset Busy: Active-High indicator that the FIFO write domain is currently in a reset state.
         din => ARFIFO_dinDel7,     -- WRITE_DATA_WIDTH-bit input: Write Data: The input data bus used when writing the FIFO.
         injectdbiterr => '0',      -- 1-bit input: Double Bit Error Injection
         injectsbiterr => '0',      -- 1-bit input: Single Bit Error Injection: 
@@ -1369,7 +1560,7 @@ begin
             end if;
             
             for i in 0 to 11 loop
-                if (rstFIFOs = '1' or i_readStart = '1') then
+                if (rstFIFOs = '1' or readStart = '1') then
                     -- buffers of 640 words each
                     bufWrAddr_low32bytes_buf(i) <= std_logic_vector(to_unsigned(i*640,13));
                 elsif axi_rvalid_del1 = '1' then
@@ -1382,7 +1573,7 @@ begin
                     end if;
                 end if;
                 
-                if (rstFIFOs = '1' or i_readStart = '1') then
+                if (rstFIFOs = '1' or readStart = '1') then
                     -- buffers of 640 words each
                     bufWrAddr_high32bytes_buf(i) <= std_logic_vector(to_unsigned(i*640,13));
                 elsif axi_rvalid2_del1 = '1' then
@@ -1397,7 +1588,7 @@ begin
             end loop;
             
             -- As data comes back from the memory, write to the buffer fifos
-            if rstFIFOs = '1' or i_readStart = '1' then  
+            if rstFIFOs = '1' or readStart = '1' then
                 ar_regUsed <= '0';
             elsif ar_regUsed = '0' and i_axi_r.valid = '1' then
                 rdata_rdStartOffset <= ARFIFO_dout(7 downto 4);  -- Number of valid samples (only applies to first or last reads for a channel)
@@ -1417,7 +1608,7 @@ begin
                 end if;
             end if;
             
-            if rstFIFOs = '1' or i_readStart = '1' then  
+            if rstFIFOs = '1' or readStart = '1' then
                 ar2_regUsed <= '0';
             elsif ar2_regUsed = '0' and i_axi2_r.valid = '1' then
                 rdata2_beats <= ARFIFO2_dout(11 downto 8);         -- Number of beats in this read (i.e. number of 512 bit data words to expect); "000" = 1 beat, up to "111" = 8 beats.
@@ -1512,7 +1703,7 @@ begin
             underflow => open,        -- 1-bit output: Underflow
             wr_ack => open,           -- 1-bit output: Write Acknowledge: Iindicates that a write request (wr_en) during the prior clock cycle is succeeded.
             wr_data_count => bufFIFO_wrDataCount(i), -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count
-            wr_rst_busy => open,      -- 1-bit output: Write Reset Busy
+            wr_rst_busy => bufFIFO_wrRstBusy(i), -- 1-bit output: Write Reset Busy
             din => bufFIFO_din,       -- Same for all FIFOs, since we only write to one fifo at a time. WRITE_DATA_WIDTH-bit input: Write Data; 
             injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
             injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection
@@ -1583,7 +1774,7 @@ begin
             underflow => open,        -- 1-bit output: Underflow
             wr_ack => open,           -- 1-bit output: Write Acknowledge: Iindicates that a write request (wr_en) during the prior clock cycle is succeeded.
             wr_data_count => delayFIFO_wrDataCount(i), -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count
-            wr_rst_busy => open,      -- 1-bit output: Write Reset Busy
+            wr_rst_busy => delayFIFO_wrRstBusy(i), -- 1-bit output: Write Reset Busy
             din => delayFIFO_din,     -- Same for all FIFOs, since we only write to one fifo at a time. WRITE_DATA_WIDTH-bit input: Write Data; 
             injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
             injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection
@@ -1639,7 +1830,7 @@ begin
             underflow => open,        -- 1-bit output: Underflow
             wr_ack => open,           -- 1-bit output: Write Acknowledge: Iindicates that a write request (wr_en) during the prior clock cycle is succeeded.
             wr_data_count => coarseFIFO_wrDataCount(i), -- WR_DATA_COUNT_WIDTH-bit output: Write Data Count
-            wr_rst_busy => open,      -- 1-bit output: Write Reset Busy
+            wr_rst_busy => coarseFIFO_wrRstBusy(i), -- 1-bit output: Write Reset Busy
             din => coarseFIFO_din,       -- Same for all FIFOs, since we only write to one fifo at a time. WRITE_DATA_WIDTH-bit input: Write Data; 
             injectdbiterr => '0',     -- 1-bit input: Double Bit Error Injection
             injectsbiterr => '0',     -- 1-bit input: Single Bit Error Injection
