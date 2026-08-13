@@ -2,6 +2,8 @@
 ## Correlator Personality
 * 2.0.1
     * V80 scaleup to 6 instance correlator.
+    * Fix - Zoom bug in CT2 SKB-1509
+    * Update resets and CI pipeline.
 * 2.0.0
     * Requires Processor 0.25.0+
     * U55 update to support scaleup for the V80.
