@@ -102,6 +102,11 @@ entity correlator_data_reader is
         i_from_spead_pack   : in spead_to_hbm_bus;
         o_to_spead_pack     : out hbm_to_spead_bus
     );
+
+    -- prevent optimisation across module boundaries.
+    attribute keep_hierarchy : string;
+    attribute keep_hierarchy of correlator_data_reader : entity is "yes";   
+    
 end correlator_data_reader;
 
 architecture Behavioral of correlator_data_reader is
@@ -400,6 +405,11 @@ begin
     begin
         if rising_edge(i_axi_clk) then
             reset           <= i_axi_rst OR i_local_reset;
+
+            -- packetiser should not need these signals until the data for the packet is ready... many cycles.
+            o_to_spead_pack.current_array           <= cor_tri_sub_array;
+            o_to_spead_pack.freq_index              <= cor_tri_freq_index;
+            o_to_spead_pack.time_ref                <= cor_tri_time_ref;
         end if;
     end process;
 
@@ -412,14 +422,10 @@ begin
     current_page_ct1        <= i_from_spead_pack.current_page_ct1;
 
     o_to_spead_pack.spead_data              <= spead_data;
-    o_to_spead_pack.current_array           <= cor_tri_sub_array;
     o_to_spead_pack.spead_data_rdy          <= spead_data_rdy;
     o_to_spead_pack.spead_data_pending      <= spead_data_pending;
     o_to_spead_pack.byte_count              <= byte_count;
-    o_to_spead_pack.freq_index              <= cor_tri_freq_index;
-    o_to_spead_pack.time_ref                <= cor_tri_time_ref;
     o_to_spead_pack.hbm_readout_complete    <= hbm_readout_complete;
-
     o_to_spead_pack.valid_del_poly          <= not cor_tri_bad_poly;
     o_to_spead_pack.statically_flagged      <= '0';
     o_to_spead_pack.dynamically_flagged     <= '0';
