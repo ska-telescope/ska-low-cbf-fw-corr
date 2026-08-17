@@ -312,29 +312,29 @@ end process;
 rd_hbm_sm_proc: process (clk)
 begin
     if rising_edge(clk) then
-        -- if reset = '1' then
-        --     HBM_reader_fsm      <= IDLE;
-        --     hbm_reader_fsm_debug    <= x"F";
-        --     hbm_reader_fsm_debug_d  <= x"F";
-        --     meta_data_addr      <= (others => '0');
-        --     meta_data_quantity  <= (others => '0');
-        --     vis_data_addr       <= (others => '0');
-        --     o_HBM_curr_addr     <= (others => '0');
-        --     meta_ready          <= '0';
+         if reset = '1' then
+             HBM_reader_fsm      <= IDLE;
+             hbm_reader_fsm_debug    <= x"F";
+             hbm_reader_fsm_debug_d  <= x"F";
+             meta_data_addr      <= (others => '0');
+             meta_data_quantity  <= (others => '0');
+             vis_data_addr       <= (others => '0');
+             o_HBM_curr_addr     <= (others => '0');
+             meta_ready          <= '0';
             
-        --     hbm_axi_ar_valid    <= '0';
+             hbm_axi_ar_valid    <= '0';
             
-        --     hbm_axi_ar_addr     <= x"00000000";
-        --     hbm_rd_loop_cnt     <= x"0";
-        --     data_returned_done  <= '0';
-        --     meta_cells          <= x"00";
-        --     meta_cell_inc       <= x"00";
-        --     meta_to_get         <= x"00";
-        --     last_flag_goal      <= x"00";
-        --     hbm_data_sel        <= '0';
-        --     row_cell_offset     <= CELL_OFFSET_ROW;
-        --     next_cell_row       <= CELL_OFFSET_ROW(26 downto 0) & '0';
-        -- else
+             hbm_axi_ar_addr     <= x"00000000";
+             hbm_rd_loop_cnt     <= x"0";
+             data_returned_done  <= '0';
+             meta_cells          <= x"00";
+             meta_cell_inc       <= x"00";
+             meta_to_get         <= x"00";
+             last_flag_goal      <= x"00";
+             hbm_data_sel        <= '0';
+             row_cell_offset     <= CELL_OFFSET_ROW;
+             next_cell_row       <= CELL_OFFSET_ROW(26 downto 0) & '0';
+         else
             
             hbm_reader_fsm_debug_d <= hbm_reader_fsm_debug;
 
@@ -520,29 +520,6 @@ begin
                     HBM_reader_fsm <= IDLE;
 
             end case;
-
-        if reset = '1' then
-            HBM_reader_fsm      <= IDLE;
-            hbm_reader_fsm_debug    <= x"F";
-            hbm_reader_fsm_debug_d  <= x"F";
-            meta_data_addr      <= (others => '0');
-            meta_data_quantity  <= (others => '0');
-            vis_data_addr       <= (others => '0');
-            o_HBM_curr_addr     <= (others => '0');
-            meta_ready          <= '0';
-            
-            hbm_axi_ar_valid    <= '0';
-            
-            hbm_axi_ar_addr     <= x"00000000";
-            hbm_rd_loop_cnt     <= x"0";
-            data_returned_done  <= '0';
-            meta_cells          <= x"00";
-            meta_cell_inc       <= x"00";
-            meta_to_get         <= x"00";
-            last_flag_goal      <= x"00";
-            hbm_data_sel        <= '0';
-            row_cell_offset     <= CELL_OFFSET_ROW;
-            next_cell_row       <= CELL_OFFSET_ROW(26 downto 0) & '0';
         end if;
     end if;
 end process;
