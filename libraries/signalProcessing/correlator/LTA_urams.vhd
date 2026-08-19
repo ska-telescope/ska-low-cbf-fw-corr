@@ -113,6 +113,10 @@ architecture Behavioral of LTA_urams is
     attribute dont_touch of select_row_dout0 : signal is "true";
     attribute dont_touch of select_row_dout1 : signal is "true";
     
+    attribute max_fanout : integer;
+    attribute max_fanout of select_row_dout0 : signal is 80;
+    attribute max_fanout of select_row_dout1 : signal is 80;
+    
 begin
     
     accumulator_rdAddr(3 downto 0) <= i_readCount(5 downto 2);
