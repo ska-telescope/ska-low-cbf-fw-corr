@@ -71,28 +71,22 @@ raw-build:
   # A tag pipeline does NOT rebuild the firmware. That used to mean up to 24h of
   # v++ plus 12h of 'vivado compile v80' just to give this job something to
   # package, and it released a fresh, differently-routed build rather than the
-  # one that was tested on main. Instead we pull the packages that the
-  # main-branch pipeline for this same commit already published to the GitLab
-  # package registry, and repackage those for the CAR.
+  # one that was tested on main. Instead we ask the package registry for the
+  # newest '-main.<sha>' package this project has published and repackage that
+  # for the CAR. Note the tag has nothing to do with which build is chosen: a
+  # tag is often cut on a commit main never built.
   #
-  # See common/scripts/fetch_car_packages.sh - it fails the job if a platform's
-  # package is missing or if the V80 build failed timing.
+  # See common/scripts/fetch_car_packages.sh - it fails the job if a required
+  # platform has no package in that build, or if the V80 build failed timing.
   rules:
-    # Only a tag pipeline uploads to the CAR, and on any other pipeline the
-    # source packages do not exist yet ('publish dev package' / 'publish v80
-    # package' run in a later stage than this job), so there is nothing to do.
-    # The imported job's rule was just 'exists: raw/**/*'.
+    # Only a tag pipeline uploads to the CAR, so there is nothing to do
+    # otherwise. The imported job's rule was just 'exists: raw/**/*'.
     - if: $CI_COMMIT_TAG
       exists:
         - raw/**/*
   needs: []   # inputs come from the package registry, not from this pipeline
   variables:
     BUILD_STRING: "CI CAR Package. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT}. Tag ${CI_COMMIT_TAG}. Commit ${CI_COMMIT_SHORT_SHA}."
-    # Vitis version each platform's 'publish ... package' job ran under - it is
-    # part of the package file name we have to ask for. Keep CAR_V80_VITIS in
-    # sync with the VITIS_VERSION override in 'publish v80 package'.
-    CAR_U55_VITIS: "$VITIS_VERSION"
-    CAR_V80_VITIS: "2025.1"
   before_script:
     - common/scripts/fetch_car_packages.sh
 
