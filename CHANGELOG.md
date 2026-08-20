@@ -1,12 +1,17 @@
 ### Changelog
 ## Correlator Personality
 * 2.0.1
-    * V80 scaleup to 6 instance correlator.
-    * Fix - Zoom bug in CT2 SKB-1509
-    * Update resets and CI pipeline.
+    * V80   - First release to CAR.
+            - Scaleup to 6 instance correlator.
+            - 100G top port of V80 configured.
+            - Processor version - 0.27.0+
+    * U55C  - Zoom bug in CT2 SKB-1509.
+            - Update constraints and some resets for timing.
+            - Processor version - 0.26.3+
+    * CI pipeline.
 * 2.0.0
     * Requires Processor 0.25.0+
-    * U55 update to support scaleup for the V80.
+    * U55C update to support scaleup for the V80.
 * 1.0.4
     * Fix - Half precision for 1,2,or 3 station data packets.
 * 1.0.3
@@ -34,7 +39,7 @@
         * To be used with software version 0.18.1
 * 0.1.8
     * V80 support added, no firmware release.
-    * Current codebase supports both V80 and U55.
+    * Current codebase supports both V80 and U55C.
     * Add multiple IPv4 destinations with UDP port ranges for each subarray-beam entry.
     * Use with software version 0.18.0
 * 0.1.7
