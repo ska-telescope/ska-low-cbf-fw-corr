@@ -84,6 +84,7 @@ architecture ultrascale of cmac is
     
     attribute max_fanout : integer;
     attribute max_fanout of c6_load_readout_delay : signal is 108;
+    attribute max_fanout of c6_load_readout : signal is 108;
     
 begin  -- architecture rtl    
 
