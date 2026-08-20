@@ -70,6 +70,17 @@ mkdir -p output/reports/impl_1
 cp build/v80/v80_top.runs/impl_1/*.rpt output/reports/impl_1
 cp build/v80/v80_top.runs/impl_1/*.log output/reports/impl_1
 
+# Check that everything the 'output/' artifact is supposed to contain is really
+# there, before the timing check and before GitLab collects the artifact.
+# GitLab only WARNS about artifact paths that match nothing, and output/ is also
+# what package_firmware_v80.sh tars for the package registry and what the CAR
+# release is built from - so a gap here propagates a long way.
+#
+# This runs FIRST because the timing check below greps runme.log, and 'grep -q'
+# on a missing file returns 2, which lands in the else branch and reports
+# "met timing". A missing log must not read as a pass.
+./common/scripts/check_v80_artifacts.sh assemble || exit 1
+
 # check timing in runme.log
    File=output/reports/impl_1/runme.log
 
