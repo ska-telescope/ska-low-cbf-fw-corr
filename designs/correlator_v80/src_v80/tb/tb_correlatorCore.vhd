@@ -261,7 +261,7 @@ architecture Behavioral of tb_correlatorCore is
     
     signal input_HBM_reset      : std_logic;
     
-    signal clk_data_input       : std_logic;
+    signal clk_data_input       : std_logic := '0';
     signal clk_data_input_rst   : std_logic;
     
     signal clk_425_rst_cnt      : unsigned(31 downto 0) := x"00001000";
@@ -269,15 +269,177 @@ architecture Behavioral of tb_correlatorCore is
     
     signal clock_300_rst        : std_logic;
     
-    -- SPEAD packet is 8306 bytes
-    -- 8306 / 64 = 129.78125    (78125 -> 1 byte in the last segment is valid, EOP is indicated as x"E", meaning 15 bytes invalid.
-    --           
-    signal word_0_data_0        : std_logic_vector(127 downto 0)  := ChangeEndian(x"248a07463b5e62000a050a0208004500");
-    
-    signal test_sps_packet      : t_slv_512_arr(129 downto 0);
-    signal test_sps_packetv3    : t_slv_512_arr(129 downto 0);
-    signal packet_pos           : integer := 0;
-    signal packet_vec_cnt       : integer := 0;
+    ------------------------------------------------------------------------------------
+    -- Segmented-AXI test packet stimulus (dcmac_rx_data_0)
+    --
+    -- Segmented-AXI framing (which 64-byte beat carries EOP, which of its four 16-byte
+    -- segments EOP falls in, and how many trailing bytes in that segment are invalid)
+    -- is derived directly from each packet's total on-wire byte count (Ethernet header
+    -- through end of UDP payload, excluding FCS), so the asserted tlast/empty position
+    -- always matches the length encoded in the packet's own IP/UDP headers.
+    ------------------------------------------------------------------------------------
+    type t_seg_frame_info is record
+        last_word_idx : integer;                     -- index of the beat containing EOP
+        eop_seg_idx   : integer;                      -- 0..3, which segment carries EOP
+        eop_seg       : std_logic_vector(3 downto 0); -- one-hot form of eop_seg_idx
+        eop_empty     : std_logic_vector(3 downto 0); -- invalid byte count in that segment
+    end record;
+
+    function calc_seg_frame_info(total_bytes : integer) return t_seg_frame_info is
+        variable info            : t_seg_frame_info;
+        variable last_word_idx   : integer;
+        variable valid_last_word : integer;
+        variable eop_seg_idx     : integer;
+        variable valid_eop_seg   : integer;
+    begin
+        last_word_idx    := (total_bytes - 1) / 64;
+        valid_last_word  := total_bytes - last_word_idx * 64;
+        eop_seg_idx       := (valid_last_word - 1) / 16;
+        valid_eop_seg     := valid_last_word - eop_seg_idx * 16;
+        info.last_word_idx := last_word_idx;
+        info.eop_seg_idx   := eop_seg_idx;
+        case eop_seg_idx is
+            when 0 => info.eop_seg := x"1";
+            when 1 => info.eop_seg := x"2";
+            when 2 => info.eop_seg := x"4";
+            when others => info.eop_seg := x"8";
+        end case;
+        info.eop_empty := std_logic_vector(to_unsigned(16 - valid_eop_seg, 4));
+        return info;
+    end function;
+
+    -- Total on-wire byte count for each test packet (Ethernet header through end of UDP payload).
+    constant c_V2_TOTAL_BYTES       : integer := 8306; -- SPEAD v2, no VLAN
+    constant c_V3_TOTAL_BYTES       : integer := 8290; -- SPEAD v3, no VLAN
+    constant c_V2_VLAN2_TOTAL_BYTES : integer := 8314; -- SPEAD v2, two stacked 802.1Q VLAN tags
+    constant c_V3_VLAN2_TOTAL_BYTES : integer := 8298; -- SPEAD v3, two stacked 802.1Q VLAN tags
+
+    -- Test packet indices, used by c_PACKET_TYPES and get_test_packet_word below.
+    constant c_PKT_V2       : integer := 0;
+    constant c_PKT_V3       : integer := 1;
+    constant c_PKT_V2_VLAN2 : integer := 2;
+    constant c_PKT_V3_VLAN2 : integer := 3;
+
+    type t_seg_frame_info_arr is array (0 to 3) of t_seg_frame_info;
+    constant c_TEST_PACKET_FRAME_INFO : t_seg_frame_info_arr := (
+        c_PKT_V2       => calc_seg_frame_info(c_V2_TOTAL_BYTES),
+        c_PKT_V3       => calc_seg_frame_info(c_V3_TOTAL_BYTES),
+        c_PKT_V2_VLAN2 => calc_seg_frame_info(c_V2_VLAN2_TOTAL_BYTES),
+        c_PKT_V3_VLAN2 => calc_seg_frame_info(c_V3_VLAN2_TOTAL_BYTES)
+    );
+
+    -- Packet data taken from PCAP, copy hex stream from wireshark; ChangeEndian converts
+    -- it to match the streaming AXI byte ordering. Only word(0)/word(1)/word(2) carry
+    -- meaningful header content - beats beyond word_idx=2 up to last_word_idx just repeat
+    -- word(2) (filler); the true valid length is entirely controlled by
+    -- c_TEST_PACKET_FRAME_INFO above, not by how much of the array is populated.
+    constant c_test_packet_v2 : t_slv_512_arr(0 to 2) := (
+        0 => ChangeEndian(x"248a07463b5e62000a050a020800450020647687000080117b970a050a020a000a64f0d0123420504c1253040206000000088001001500050a08800400000000"),
+        1 => ChangeEndian(x"2000902700005e72eab7960000154251c0009011001501122e6eb000000000000417b00100000000001033000000000000008080808080808080808080808080"),
+        2 => ChangeEndian(x"80808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080")
+    );
+
+    constant c_test_packet_v3 : t_slv_512_arr(0 to 2) := (
+        0 => ChangeEndian(x"001122334455001122334455080045002054acdc4000401159ba0a0000010a000002123412342040000053040206000000068001000100000006800400000000"),
+        1 => ChangeEndian(x"2000b010ffff000004d2b000000000010064b0010101015e00003300000000000000000000000000000000000000000000000000000000000000000000000000"),
+        2 => ChangeEndian(x"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    );
+
+    -- v2 with two stacked 802.1Q VLAN tags (TPID 0x8100, VID 100 outer / VID 200 inner)
+    -- inserted between the source MAC and the Ethertype. IP/UDP header fields unchanged.
+    constant c_test_packet_v2_vlan2 : t_slv_512_arr(0 to 2) := (
+        0 => ChangeEndian(x"248a07463b5e62000a050a0281000064810000c80800450020647687000080117b970a050a020a000a64f0d0123420504c125304020600000008800100150005"),
+        1 => ChangeEndian(x"0a088004000000002000902700005e72eab7960000154251c0009011001501122e6eb000000000000417b0010000000000103300000000000000808080808080"),
+        2 => ChangeEndian(x"80808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080")
+    );
+
+    -- v3 with two stacked 802.1Q VLAN tags (TPID 0x8100, VID 100 outer / VID 200 inner)
+    -- inserted between the source MAC and the Ethertype. IP/UDP header fields unchanged.
+    constant c_test_packet_v3_vlan2 : t_slv_512_arr(0 to 2) := (
+        0 => ChangeEndian(x"00112233445500112233445581000064810000c8080045002054acdc4000401159ba0a0000010a00000212341234204000005304020600000006800100010000"),
+        1 => ChangeEndian(x"00068004000000002000b010ffff000004d2b000000000010064b0010101015e0000330000000000000000000000000000000000000000000000000000000000"),
+        2 => ChangeEndian(x"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+    );
+
+    function get_test_packet_word(pkt_type : integer; word_idx : integer) return std_logic_vector is
+        variable idx : integer;
+    begin
+        if word_idx < 2 then
+            idx := word_idx;
+        else
+            idx := 2;
+        end if;
+        case pkt_type is
+            when c_PKT_V2       => return c_test_packet_v2(idx);
+            when c_PKT_V3       => return c_test_packet_v3(idx);
+            when c_PKT_V2_VLAN2 => return c_test_packet_v2_vlan2(idx);
+            when others         => return c_test_packet_v3_vlan2(idx);
+        end case;
+    end function;
+
+    ------------------------------------------------------------------------------------
+    -- Reference model for dut_1_dcmac_to_cmac's output (rx_axi_tdata/tkeep/tlast/tvalid).
+    --
+    -- segment_to_saxi.vhd's double-VLAN strip path (p_vlan_detected="11", see
+    -- vlan_proc/segment_to_saxi.vhd around line 634) replaces the outer+inner 802.1Q tags
+    -- (original bytes 12..21, 10 bytes: 2x(TPID+TCI) plus the real Ethertype that followed
+    -- them) with a single hardcoded 2-byte 0x0800 Ethertype at the same starting offset -
+    -- a net -8 bytes. Everything else (MAC addresses, and the IP header onward, including
+    -- its now-stale length fields, which the DUT does not currently recompute) is passed
+    -- through unchanged. Non-VLAN packets pass through byte-for-byte with no change at all.
+    ------------------------------------------------------------------------------------
+    function get_expected_byte(pkt_type : integer; byte_idx : integer) return std_logic_vector is
+        variable src_idx : integer;
+        variable word    : std_logic_vector(511 downto 0);
+        variable bit_lo  : integer;
+        variable is_vlan : boolean;
+    begin
+        is_vlan := (pkt_type = c_PKT_V2_VLAN2) or (pkt_type = c_PKT_V3_VLAN2);
+        if is_vlan and byte_idx = 12 then
+            return x"08";
+        elsif is_vlan and byte_idx = 13 then
+            return x"00";
+        elsif is_vlan and byte_idx >= 14 then
+            src_idx := byte_idx + 8;
+        else
+            src_idx := byte_idx;
+        end if;
+        word   := get_test_packet_word(pkt_type, src_idx / 64);
+        bit_lo := (src_idx mod 64) * 8;
+        return word(bit_lo + 7 downto bit_lo);
+    end function;
+
+    function get_expected_total_bytes(pkt_type : integer) return integer is
+    begin
+        case pkt_type is
+            when c_PKT_V2       => return c_V2_TOTAL_BYTES;
+            when c_PKT_V3       => return c_V3_TOTAL_BYTES;
+            when c_PKT_V2_VLAN2 => return c_V2_VLAN2_TOTAL_BYTES - 8;
+            when others         => return c_V3_VLAN2_TOTAL_BYTES - 8;
+        end case;
+    end function;
+
+    function count_valid_bytes(tkeep : std_logic_vector(63 downto 0)) return integer is
+        variable cnt : integer := 0;
+    begin
+        for b in 0 to 63 loop
+            if tkeep(b) = '1' then
+                cnt := cnt + 1;
+            end if;
+        end loop;
+        return cnt;
+    end function;
+
+    -- test_packet_running_proc steps through each of these types in turn: for each type
+    -- it sends c_PACKETS_PER_GROUP copies back-to-back at full line rate, then
+    -- c_PACKETS_PER_GROUP copies individually gapped, then waits c_INTER_TYPE_WAIT before
+    -- moving on to the next type.
+    type t_int_arr is array (natural range <>) of integer;
+    constant c_PACKET_TYPES      : t_int_arr(0 to 3) := (c_PKT_V2, c_PKT_V3, c_PKT_V2_VLAN2, c_PKT_V3_VLAN2);
+    constant c_PACKETS_PER_GROUP : integer := 10;
+    constant c_INTER_PACKET_GAP  : integer := 100; -- idle dcmac_clk cycles between packets in the gapped group
+    constant c_INTER_TYPE_WAIT   : time    := 1 us; -- wait after each type's two groups before moving to the next type
+    constant c_END_OF_TEST_WAIT : time    := 2 us; -- wait after the last packet is sent before the simulation finishes
     
     signal vlan_stats           : t_slv_32_arr(2 downto 0);
     
@@ -338,10 +500,10 @@ begin
     
     eth100G_clk <= not eth100G_clk after 1.553 ns; -- 322 MHz
     
-    dcmac_clk   <= not dcmac_clk after 2.564 ns;    -- 195 MHz
-    
-    -- 425 MHz
-    clk_data_input      <= not dcmac_clk after 1.176 ns;
+    dcmac_clk   <= not dcmac_clk after 1.2594 ns;    -- 397 MHz (i_MAC_clk)
+
+    -- 425 MHz (i_dcmac_data_clk)
+    clk_data_input      <= not clk_data_input after 1.1765 ns;
     
     reset_425_proc : process(clk_data_input)
     begin
@@ -473,19 +635,10 @@ clk_300_rst <= NOT ap_rst_n;
     
     
     -------------------------------------------------------------------------------------------
-    -- DCMAC test packet 
+    -- DCMAC test packet
     -------------------------------------------------------------------------------------------------------------------------------
-    -- Data taken from PCAP, copy hex stream from wireshark
-    -- Need to change Endianness to match Streaming AXI format.
--- v1/v2
-    test_sps_packet(0)      <= ChangeEndian(x"248a07463b5e62000a050a020800450020647687000080117b970a050a020a000a64f0d0123420504c1253040206000000088001001500050a08800400000000");
-    test_sps_packet(1)      <= ChangeEndian(x"2000902700005e72eab7960000154251c0009011001501122e6eb000000000000417b00100000000001033000000000000008080808080808080808080808080");
-    test_sps_packet(2)      <= ChangeEndian(x"80808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080808080");    
-
--- v3
-    test_sps_packetv3(0)    <= ChangeEndian(x"001122334455001122334455080045002054acdc4000401159ba0a0000010a000002123412342040000053040206000000068001000100000006800400000000");
-    test_sps_packetv3(1)    <= ChangeEndian(x"2000b010ffff000004d2b000000000010064b0010101015e00003300000000000000000000000000000000000000000000000000000000000000000000000000");
-    test_sps_packetv3(2)    <= ChangeEndian(x"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+    -- Test packet data/framing constants are declared above (c_test_packet_*,
+    -- c_TEST_PACKET_FRAME_INFO, c_PACKET_TYPES). See test_packet_running_proc below.
 
     dcmac_running_proc : process
 
@@ -511,68 +664,194 @@ clk_300_rst <= NOT ap_rst_n;
     end process;    
 
 
-    test_packet_running_proc : process(dcmac_clk)
-    begin
-        if rising_edge(dcmac_clk) then
-        
-            if dcmac_run = '1' then
-                if packet_pos = 130 then
-                
-                    dcmac_rx_data_0.tvalid <= '0';
-                else
-                    packet_pos  <= packet_pos + 1;
-                    dcmac_rx_data_0.tvalid <= '1';
-                end if;
-                
-                if packet_pos = 0 then
+    -- Drives dcmac_rx_data_0, stepping through c_PACKET_TYPES in turn. For each type:
+    --   c_PACKETS_PER_GROUP copies back-to-back at full line rate (no idle beats),
+    --   then c_PACKETS_PER_GROUP copies individually gapped by c_INTER_PACKET_GAP,
+    --   then a c_INTER_TYPE_WAIT idle period before moving on to the next type.
+    test_packet_running_proc : process
+        procedure send_packet(pkt_type : in integer) is
+            variable v_last_word : integer;
+            variable v_data512   : std_logic_vector(511 downto 0);
+        begin
+            v_last_word := c_TEST_PACKET_FRAME_INFO(pkt_type).last_word_idx;
+            for word_idx in 0 to v_last_word loop
+                v_data512 := get_test_packet_word(pkt_type, word_idx);
+                dcmac_rx_data_0.tdata0 <= v_data512(127 downto 0);
+                dcmac_rx_data_0.tdata1 <= v_data512(255 downto 128);
+                dcmac_rx_data_0.tdata2 <= v_data512(383 downto 256);
+                dcmac_rx_data_0.tdata3 <= v_data512(511 downto 384);
+                dcmac_rx_data_0.tvalid <= '1';
+
+                if word_idx = 0 then
                     dcmac_rx_data_0.sop <= x"1";
                 else
                     dcmac_rx_data_0.sop <= x"0";
                 end if;
-                if packet_pos = 129 then
-                    dcmac_rx_data_0.eop         <= x"8";
-                    dcmac_rx_data_0.empty(0)    <= x"0";
-                    dcmac_rx_data_0.empty(1)    <= x"0";
-                    dcmac_rx_data_0.empty(2)    <= x"0";
-                    dcmac_rx_data_0.empty(3)    <= x"e";
-                else
-                    dcmac_rx_data_0.eop         <= x"0";
-                    dcmac_rx_data_0.empty(0)    <= x"0";
-                    dcmac_rx_data_0.empty(1)    <= x"0";
-                    dcmac_rx_data_0.empty(2)    <= x"0";
-                    dcmac_rx_data_0.empty(3)    <= x"0";
-                end if;
-            
-                if packet_pos < 2 then
-                    packet_vec_cnt <= packet_pos;
-                else
-                    packet_vec_cnt <= 2;
-                end if;
-            else
-                packet_vec_cnt  <= 0;
-                packet_pos      <= 0;
-                dcmac_rx_data_0.tvalid      <= '0';
-                dcmac_rx_data_0.eop         <= x"0";
-                dcmac_rx_data_0.empty(0)    <= x"0";
-                dcmac_rx_data_0.empty(1)    <= x"0";
-                dcmac_rx_data_0.empty(2)    <= x"0";
-                dcmac_rx_data_0.empty(3)    <= x"0";
-                dcmac_rx_data_0.sop         <= x"0";
-            end if;
-             
-            dcmac_rx_data_0.enable      <= x"F";
-            dcmac_rx_data_0.tuser_err   <= x"0";
-            dcmac_rx_data_0.ready       <= '0';
-        
-        end if;
-    end process;
-    
-dcmac_rx_data_0.tdata0  <= test_sps_packetv3(packet_vec_cnt)(127 downto 0);
-dcmac_rx_data_0.tdata1  <= test_sps_packetv3(packet_vec_cnt)(255 downto 128);
-dcmac_rx_data_0.tdata2  <= test_sps_packetv3(packet_vec_cnt)(383 downto 256);
-dcmac_rx_data_0.tdata3  <= test_sps_packetv3(packet_vec_cnt)(511 downto 384);   
 
-    
+                if word_idx = v_last_word then
+                    dcmac_rx_data_0.eop <= c_TEST_PACKET_FRAME_INFO(pkt_type).eop_seg;
+                    -- segments before the EOP segment are fully valid, the EOP segment
+                    -- carries the computed invalid-byte count, anything after is unused.
+                    for seg in 0 to 3 loop
+                        if seg < c_TEST_PACKET_FRAME_INFO(pkt_type).eop_seg_idx then
+                            dcmac_rx_data_0.empty(seg) <= x"0";
+                        elsif seg = c_TEST_PACKET_FRAME_INFO(pkt_type).eop_seg_idx then
+                            dcmac_rx_data_0.empty(seg) <= c_TEST_PACKET_FRAME_INFO(pkt_type).eop_empty;
+                        else
+                            dcmac_rx_data_0.empty(seg) <= x"F";
+                        end if;
+                    end loop;
+                else
+                    dcmac_rx_data_0.eop      <= x"0";
+                    dcmac_rx_data_0.empty(0) <= x"0";
+                    dcmac_rx_data_0.empty(1) <= x"0";
+                    dcmac_rx_data_0.empty(2) <= x"0";
+                    dcmac_rx_data_0.empty(3) <= x"0";
+                end if;
+
+                wait until rising_edge(dcmac_clk);
+            end loop;
+        end procedure;
+
+        procedure idle_gap(n_cycles : in integer) is
+        begin
+            dcmac_rx_data_0.tvalid   <= '0';
+            dcmac_rx_data_0.sop      <= x"0";
+            dcmac_rx_data_0.eop      <= x"0";
+            dcmac_rx_data_0.empty(0) <= x"0";
+            dcmac_rx_data_0.empty(1) <= x"0";
+            dcmac_rx_data_0.empty(2) <= x"0";
+            dcmac_rx_data_0.empty(3) <= x"0";
+            for i in 1 to n_cycles loop
+                wait until rising_edge(dcmac_clk);
+            end loop;
+        end procedure;
+    begin
+        dcmac_rx_data_0.tvalid    <= '0';
+        dcmac_rx_data_0.sop       <= x"0";
+        dcmac_rx_data_0.eop       <= x"0";
+        dcmac_rx_data_0.empty(0)  <= x"0";
+        dcmac_rx_data_0.empty(1)  <= x"0";
+        dcmac_rx_data_0.empty(2)  <= x"0";
+        dcmac_rx_data_0.empty(3)  <= x"0";
+        dcmac_rx_data_0.enable    <= x"F";
+        dcmac_rx_data_0.tuser_err <= x"0";
+        dcmac_rx_data_0.ready     <= '0';
+
+        wait until dcmac_run = '1';
+        wait until rising_edge(dcmac_clk);
+
+        for type_idx in c_PACKET_TYPES'range loop
+            -- c_PACKETS_PER_GROUP copies back-to-back at full line rate
+            for i in 1 to c_PACKETS_PER_GROUP loop
+                send_packet(c_PACKET_TYPES(type_idx));
+            end loop;
+
+            -- c_PACKETS_PER_GROUP copies, each individually gapped
+            idle_gap(c_INTER_PACKET_GAP);
+            for i in 1 to c_PACKETS_PER_GROUP loop
+                send_packet(c_PACKET_TYPES(type_idx));
+                idle_gap(c_INTER_PACKET_GAP);
+            end loop;
+
+            if type_idx /= c_PACKET_TYPES'high then
+                wait for c_INTER_TYPE_WAIT;
+            end if;
+        end loop;
+
+        report "segmented AXI stimulus: all packet types complete";
+        wait for c_END_OF_TEST_WAIT;
+        report "simulation successfully finished";
+        finish;
+    end process;
+
+    -- Verifies dut_1_dcmac_to_cmac's output (rx_axi_tdata/tkeep/tlast/tvalid, clocked on
+    -- clk_data_input) against the same c_PACKET_TYPES / c_PACKETS_PER_GROUP sequence driven
+    -- into dcmac_rx_data_0 above, confirming only the VLAN tags (per get_expected_byte) were
+    -- stripped and nothing else changed. Limitation: this walks the expected packet list in
+    -- lock-step with the DUT's output stream - if the DUT ever drops, duplicates, or splits
+    -- a packet's tlast, this checker will misalign and report a cascade of mismatches from
+    -- that point on rather than cleanly identifying the one bad packet.
+    output_check_proc : process
+        variable v_pkt_type        : integer;
+        variable v_expected_bytes  : integer;
+        variable v_byte_pos        : integer;
+        variable v_valid_this_beat : integer;
+        variable v_mismatches      : integer := 0;
+        variable v_packets_checked : integer := 0;
+        variable v_exp_byte        : std_logic_vector(7 downto 0);
+        variable v_act_byte        : std_logic_vector(7 downto 0);
+    begin
+        wait until dcmac_run = '1';
+
+        for type_idx in c_PACKET_TYPES'range loop
+            for grp in 1 to 2 loop -- 1 : back-to-back group, 2 : gapped group
+                for pkt_num in 1 to c_PACKETS_PER_GROUP loop
+                    v_pkt_type       := c_PACKET_TYPES(type_idx);
+                    v_expected_bytes := get_expected_total_bytes(v_pkt_type);
+                    v_byte_pos       := 0;
+
+                    loop
+                        wait until rising_edge(clk_data_input);
+                        exit when rx_axi_tvalid = '1';
+                    end loop;
+
+                    loop
+                        v_valid_this_beat := count_valid_bytes(rx_axi_tkeep);
+
+                        for b in 0 to 63 loop
+                            if b < v_valid_this_beat then
+                                v_exp_byte := get_expected_byte(v_pkt_type, v_byte_pos);
+                                v_act_byte := rx_axi_tdata(8*b+7 downto 8*b);
+                                if v_act_byte /= v_exp_byte then
+                                    report "output_check_proc: byte mismatch, packet type "
+                                        & integer'image(v_pkt_type) & " (group " & integer'image(grp)
+                                        & " #" & integer'image(pkt_num) & ") byte "
+                                        & integer'image(v_byte_pos) & " expected "
+                                        & integer'image(to_integer(unsigned(v_exp_byte))) & " got "
+                                        & integer'image(to_integer(unsigned(v_act_byte)))
+                                        severity error;
+                                    v_mismatches := v_mismatches + 1;
+                                end if;
+                                v_byte_pos := v_byte_pos + 1;
+                            end if;
+                        end loop;
+
+                        if rx_axi_tlast = '1' then
+                            if v_byte_pos /= v_expected_bytes then
+                                report "output_check_proc: packet type " & integer'image(v_pkt_type)
+                                    & " (group " & integer'image(grp) & " #" & integer'image(pkt_num)
+                                    & ") length mismatch, expected " & integer'image(v_expected_bytes)
+                                    & " got " & integer'image(v_byte_pos)
+                                    severity error;
+                                v_mismatches := v_mismatches + 1;
+                            end if;
+                            exit;
+                        end if;
+
+                        loop
+                            wait until rising_edge(clk_data_input);
+                            exit when rx_axi_tvalid = '1';
+                        end loop;
+                    end loop;
+
+                    v_packets_checked := v_packets_checked + 1;
+                end loop;
+            end loop;
+        end loop;
+
+        if v_mismatches = 0 then
+            report "output_check_proc: PASSED, " & integer'image(v_packets_checked) & " packets verified";
+        else
+            report "output_check_proc: FAILED, " & integer'image(v_mismatches) & " mismatches across "
+                & integer'image(v_packets_checked) & " packets"
+                severity error;
+        end if;
+
+        wait;
+    end process;
+
+
     process
         file cmdfile: TEXT;
         variable line_in : Line;
