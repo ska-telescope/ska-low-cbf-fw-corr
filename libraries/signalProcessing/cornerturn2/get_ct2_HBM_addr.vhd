@@ -106,7 +106,21 @@ architecture Behavioral of get_ct2_HBM_addr is
     signal HBM_base_station_time_fine_del7 : std_logic_vector(31 downto 0);
     signal time_x_stations_del3 : signed(19 downto 0);
     signal time_x_stations_x512 : std_logic_vector(31 downto 0);
+    signal coarse_fine_remaining_del1, coarse_fine_remaining_del2, coarse_fine_remaining_del3, coarse_fine_remaining_del4, coarse_fine_remaining_del5 : std_logic_vector(11 downto 0);
+    signal coarse_fine_remaining_valid_del1 : std_logic;
+    signal coarse_fine_remaining_valid_del2 : std_logic;
+    signal coarse_fine_remaining_valid_del3 : std_logic;
+    signal coarse_fine_remaining_valid_del4 : std_logic;
+    signal coarse_fine_remaining_valid_del5 : std_logic;
     
+    signal SB_coarseStart_reg   : std_logic_vector(8 downto 0);
+    signal coarse_channel_reg   : std_logic_vector(8 downto 0);
+    signal fine_channel_reg     : std_logic_vector(23 downto 0);
+    signal SB_fineStart_reg     : std_logic_vector(11 downto 0);
+    signal SB_stations_reg      : std_logic_vector(15 downto 0);
+    signal station_reg          : std_logic_vector(11 downto 0);
+    signal time_block_reg       : std_logic_vector(2 downto 0);
+
 begin
     
     -- Drop low 2 bits of i_station, since we only return 512-byte aligned addresses.
@@ -123,35 +137,60 @@ begin
     process(i_axi_clk)
     begin
         if rising_edge(i_axi_clk) then
+
+            SB_coarseStart_reg   <= i_SB_coarseStart;
+            coarse_channel_reg   <= i_coarse_channel;
+            fine_channel_reg     <= i_fine_channel;
+            SB_fineStart_reg     <= i_SB_fineStart;
+            SB_stations_reg      <= i_SB_stations;
+            station_reg          <= i_station;
+            time_block_reg       <= i_time_block;
+
             
             -- Check that the inputs are in range.
-            if (unsigned(i_coarse_channel) < unsigned(i_SB_coarseStart)) then
+            if (unsigned(coarse_channel_reg) < unsigned(SB_coarseStart_reg)) then
                 coarse_out_of_range <= '1';
             else
                 coarse_out_of_range <= '0';
             end if;
             
-            if ((unsigned(i_coarse_channel) = unsigned(i_SB_coarseStart)) and (unsigned(i_fine_channel) < unsigned(i_SB_fineStart))) then
+            if ((unsigned(coarse_channel_reg) = unsigned(SB_coarseStart_reg)) and (unsigned(fine_channel_reg) < unsigned(SB_fineStart_reg))) then
                 fine_low <= '1';
             else
                 fine_low <= '0';
             end if;
             
-            if (unsigned(i_station) >= unsigned(i_SB_stations)) then
+            if (unsigned(station_reg) >= unsigned(SB_stations_reg)) then
                 bad_station <= '1';
             else
                 bad_station <= '0';
             end if;
             
-            if (i_time_block = "110" or i_time_block = "111") then
+            if (time_block_reg = "110" or time_block_reg = "111") then
                 bad_time <= '1';
             else
                 bad_time <= '0';
             end if;
             
+            coarse_fine_remaining_del1 <= std_logic_vector(3456 - unsigned(fine_channel_reg(11 downto 0)));
+            if (unsigned(fine_channel_reg) <= 3456) then
+                coarse_fine_remaining_valid_del1 <= '1';
+            else
+                coarse_fine_remaining_valid_del1 <= '0';
+            end if;
+            if coarse_fine_remaining_valid_del1 = '1' then
+                coarse_fine_remaining_del2 <= coarse_fine_remaining_del1;
+            else
+                coarse_fine_remaining_del2 <= x"D80"; -- only valid for i_fine_channel < 3456
+            end if;
+            
+            --coarse_fine_remaining_del3 <= coarse_fine_remaining_del2;
+            coarse_fine_remaining_del4 <= coarse_fine_remaining_del2;
+            coarse_fine_remaining_del5 <= coarse_fine_remaining_del4;
+            
             bad_del2 <= coarse_out_of_range or fine_low or bad_station or bad_time;
-            bad_del3 <= bad_del2;
-            bad_del4 <= bad_del3;
+            --bad_del3 <= bad_del2;
+            bad_del4 <= bad_del2;
             bad_del5 <= bad_del4;
             
             SB_N_fine_del1 <= SB_N_Fine;
@@ -168,8 +207,10 @@ begin
             
             bad_del6 <= bad_del5;
             fine_high_del6 <= fine_high;
-            if (unsigned(fine_remaining) > 3456) then
-                fine_remaining_del6 <= x"D80"; -- 3456 decimal, i.e. all of the current coarse channel.
+            -- get fine channels remaining in the current coarse channel
+            -- Assumes (i_fine_channel < 3456)
+            if (unsigned(fine_remaining) > unsigned(coarse_fine_remaining_del5)) then
+                fine_remaining_del6 <= coarse_fine_remaining_del5; -- Saturates at 3456 decimal, i.e. all of the current coarse channel.
             else
                 fine_remaining_del6 <= fine_remaining(11 downto 0);
             end if;

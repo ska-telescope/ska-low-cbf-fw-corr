@@ -39,7 +39,7 @@ include:
   # This may not match the copy in our 'common' submodule!
   - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
     file: 'gitlab/build.yml'
-    # ref: 'b199d7c80292a5f42cbddd7f83b8d14c6daf350c'
+    # ref: 'be7849284084167a22f50af6bb47017b25ac9a3e'
   - project: 'ska-telescope/low-cbf/ska-low-cbf-fw-common'
     file: 'gitlab/simulate.yml'
     # ref: 'b199d7c80292a5f42cbddd7f83b8d14c6daf350c'
@@ -61,14 +61,102 @@ include:
 
 raw-build:
   # note: this is modifying a job imported from templates-repository!
-  needs:
-    - job: v++
-      optional: true  # v++ job doesn't always exist in pipeline
+  #
+  # The imported job runs 'make raw-package-all', which tars up EVERY directory
+  # under raw/ and drops the archives in build/raw. raw-publish then pushes each
+  # of those archives to the CAR when the pipeline is for a tag.
+  #   raw/ska-low-cbf-fw-corr-u55c
+  #   raw/ska-low-cbf-fw-corr-v80
+  #
+  # A tag pipeline does NOT rebuild the firmware. That used to mean up to 24h of
+  # v++ plus 12h of 'vivado compile v80' just to give this job something to
+  # package, and it released a fresh, differently-routed build rather than the
+  # one that was tested on main. Instead we ask the package registry for the
+  # newest '-main.<sha>' package this project has published and repackage that
+  # for the CAR. Note the tag has nothing to do with which build is chosen: a
+  # tag is often cut on a commit main never built.
+  #
+  # See common/scripts/fetch_car_packages.sh - it fails the job if a required
+  # platform has no package in that build, or if the V80 build failed timing.
+  rules:
+    # Only a tag pipeline uploads to the CAR, so there is nothing to do
+    # otherwise. The imported job's rule was just 'exists: raw/**/*'.
+    - if: $CI_COMMIT_TAG
+      exists:
+        - raw/**/*
+  needs: []   # inputs come from the package registry, not from this pipeline
   variables:
     BUILD_STRING: "CI CAR Package. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT}. Tag ${CI_COMMIT_TAG}. Commit ${CI_COMMIT_SHORT_SHA}."
   before_script:
-    # we check if the build directory exists because v++ doesn't always run
-    - if [ -d build ]; then source common/scripts/util.sh; prepare_package_files raw/ska-low-cbf-fw-corr-u55c "$BUILD_STRING"; fi;
+    - common/scripts/fetch_car_packages.sh
+
+raw-publish:
+  # note: this is modifying a job imported from templates-repository!
+  # Without an explicit 'needs', GitLab hands this job every artifact from
+  # earlier stages. All it actually needs is raw-build's build/raw.
+  needs:
+    - job: raw-build
+      artifacts: true
+
+####################################################################################################################
+### Tag pipelines must not rebuild
+# raw-build now takes the release contents from the main-branch build's package,
+# so rebuilding for a tag is pure waste (and would release bits nobody tested).
+#
+# These are copies of '.build_rules' and '.package_rules' from
+# ska-low-cbf-fw-common's gitlab/build.yml with the '- if: $CI_COMMIT_TAG'
+# clause turned into 'never'. They have to be copies: YAML anchors do not cross
+# GitLab 'include:' boundaries, so '*build_rules' is not visible in this file.
+# If the rules in common change, these need the same change.
+.build_rules_no_tag: &build_rules_no_tag
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # tag - the CAR release comes from the main-branch build, see 'raw-build'
+  - if: $CI_COMMIT_TAG
+    when: never
+  # merge request
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  # main branch
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # 'build' keyword in commit title
+  - if: $CI_COMMIT_TITLE =~ /build/
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
+
+.package_rules_no_tag: &package_rules_no_tag
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # tag - the CAR release comes from the main-branch build, see 'raw-build'
+  - if: $CI_COMMIT_TAG
+    when: never
+  # merge request
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    when: manual
+    allow_failure: true
+  # main branch
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # 'build' keyword in commit title
+  - if: $CI_COMMIT_TITLE =~ /build/
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
+
+# Overrides of jobs imported from ska-low-cbf-fw-common. 'rules' is replaced
+# wholesale, everything else in those jobs is inherited unchanged.
+package kernel:
+  rules: *build_rules_no_tag
+
+generate xo:
+  rules: *build_rules_no_tag
+
+v++:
+  rules: *build_rules_no_tag
+
+publish dev package:
+  rules: *package_rules_no_tag
 
 # Low PSI CI job creation rules
 .low_psi_rules: &low_psi_rules
@@ -97,7 +185,8 @@ psi-low-test:
   rules:
     - *low_psi_rules
   needs:
-    - publish dev package
+    - job: publish dev package
+      optional: true  # absent in tag pipelines (no rebuild on tag)
   variables:
     # GitLab ID for ska-telescope/low-cbf/ska-low-cbf-integration
     TRIGGER_PROJECT: 48248401
@@ -131,7 +220,8 @@ ska-low-cbf-fw-testing:
   rules:
     - *low_psi_rules
   needs:
-    - publish dev package
+    - job: publish dev package
+      optional: true  # absent in tag pipelines (no rebuild on tag)
   trigger:
     project: "ska-telescope/low-cbf/ska-low-cbf-fw-testing"
   variables:
@@ -151,8 +241,9 @@ ska-low-cbf-fw-testing:
   - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   # main branch
   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  # tag (so raw-publish has something to publish)
+  # tag - the CAR release comes from the main-branch build, see 'raw-build'
   - if: $CI_COMMIT_TAG
+    when: never
   # 'build' keyword in commit title
   #- if: $CI_COMMIT_TITLE =~ /build/
   - if: $CI_COMMIT_TITLE =~ /v80_b/
@@ -171,8 +262,9 @@ ska-low-cbf-fw-testing:
     allow_failure: true
   # main branch
   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  # tag (so raw-publish has something to publish)
+  # tag - the CAR release comes from the main-branch build, see 'raw-build'
   - if: $CI_COMMIT_TAG
+    when: never
   # 'build' keyword in commit title
   #- if: $CI_COMMIT_TITLE =~ /build/
   - if: $CI_COMMIT_TITLE =~ /v80_b/
@@ -195,6 +287,12 @@ ska-low-cbf-fw-testing:
 ### V80 CI jobs
 create project v80:
   stage: .pre
+  rules:
+    # tag - nothing downstream of this runs on a tag any more (the CAR release
+    # comes from the main-branch build), so do not spin up Vivado for it.
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: on_success
   needs:
     - ARGS
   tags:

@@ -70,6 +70,9 @@ signal finished_pack        : std_logic_vector(3 downto 0) := x"0";
 
 signal enable_check         : std_logic;
 
+attribute max_fanout : integer;
+attribute max_fanout of gearbox_position : signal is 100;
+
 begin
 
 --------------------------------------------------------

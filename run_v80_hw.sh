@@ -20,4 +20,16 @@ echo -e "*********************************************************"
 echo -e "**********             HW complete              *********"
 echo -e "*********************************************************"
 
-exit $RC
+if [ $RC -ne 0 ]; then
+    echo "ERROR: create_v80.sh exited ${RC}."
+    exit $RC
+fi
+
+# create_v80.sh pipes Vivado through ccze and ends with a success echo, so a
+# zero exit code does not prove the compile worked. Check that the files this
+# job is supposed to archive actually exist: GitLab only WARNS about an
+# 'artifacts: paths:' entry that matches nothing, so without this a build that
+# produced no PDI would upload a partial artifact and still go green.
+./common/scripts/check_v80_artifacts.sh hw || exit 1
+
+exit 0
