@@ -110,8 +110,8 @@ architecture Behavioral of LTA_urams is
     signal select_row_dout0 : std_logic_vector(15 downto 0);
     signal select_row_dout1 : std_logic_vector(15 downto 0);
     attribute dont_touch : string;
-    attribute dont_touch of select_row_dout0 : signal is "true";
-    attribute dont_touch of select_row_dout1 : signal is "true";
+    -- attribute dont_touch of select_row_dout0 : signal is "true";
+    -- attribute dont_touch of select_row_dout1 : signal is "true";
     
     attribute max_fanout : integer;
     attribute max_fanout of select_row_dout0 : signal is 80;
