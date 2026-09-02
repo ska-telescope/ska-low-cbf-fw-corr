@@ -309,19 +309,19 @@ begin
         qsfp1_4x_gtx_n          => qsfp1_4x_gtx_n,
         
         ------------------------
-        o_dcmac_clk             => open, --dcmac_clk,
+        o_dcmac_clk             => dcmac_clk,
         
-        i_dcmac_rst_trigger     => '0', --dcmac_reset_sys_peripheral,
+        i_dcmac_rst_trigger     => dcmac_reset_sys_peripheral,
         
-        o_port_0_rx_bus         => open, --dcmac_rx_data_0,
-        o_port_1_rx_bus         => open, --dcmac_rx_data_1,
+        o_port_0_rx_bus         => dcmac_rx_data_0,
+        o_port_1_rx_bus         => dcmac_rx_data_1,
 
-        o_port_0_tx_bus         => null_seg_streaming_axi, --dcmac_tx_data_0,
-        o_port_0_tx_ready       => open, --dcmac_tx_ready_0,
-        o_port_1_tx_bus         => null_seg_streaming_axi, --dcmac_tx_data_1,
+        o_port_0_tx_bus         => dcmac_tx_data_0,
+        o_port_0_tx_ready       => dcmac_tx_ready_0,
+        o_port_1_tx_bus         => dcmac_tx_data_1,
 
-        o_port_0_locked         => open, --dcmac_locked(0),
-        o_port_1_locked         => open --dcmac_locked(1)
+        o_port_0_locked         => dcmac_locked(0),
+        o_port_1_locked         => dcmac_locked(1)
     );
 -- END GENERATE;
 -- ----------------------------------------------------------------
