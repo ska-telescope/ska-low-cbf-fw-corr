@@ -405,6 +405,7 @@ ARCHITECTURE structure OF correlator_core IS
     signal HBM_axi_arsizei : t_slv_3_arr(g_HBM_INTERFACES - 1 downto 0);
     signal HBM_axi_arbursti : t_slv_2_arr(g_HBM_INTERFACES - 1 downto 0);
     signal HBM_shared : t_slv_64_arr(g_HBM_interfaces-1 downto 0);
+    signal HBM_shared_reg : t_slv_64_arr(g_HBM_interfaces-1 downto 0);
     
     signal axi_dbg : std_logic_vector(127 downto 0);
     signal axi_dbg_valid : std_logic;
@@ -612,6 +613,9 @@ begin
     begin
         if rising_edge(ap_clk) then
             ap_rst <= not ap_rst_n;
+            
+            
+            HBM_shared_reg  <= HBM_shared;
         end if;
     end process;
 
@@ -1278,13 +1282,13 @@ begin
         
         -- ar and aw addresses need to be set to the correct offset within the HBM
         HBM_axi_araddr256Mbytei(i) <= HBM_axi_ar(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
-        HBM_axi_araddri(i)(63 downto 36) <= HBM_shared(i)(63 downto 36);
-        HBM_axi_araddri(i)(35 downto 28) <= std_logic_vector(unsigned(HBM_shared(i)(35 downto 28)) + unsigned(HBM_axi_araddr256Mbytei(i)));
+        HBM_axi_araddri(i)(63 downto 36) <= HBM_shared_reg(i)(63 downto 36);
+        HBM_axi_araddri(i)(35 downto 28) <= std_logic_vector(unsigned(HBM_shared_reg(i)(35 downto 28)) + unsigned(HBM_axi_araddr256Mbytei(i)));
         HBM_axi_araddri(i)(27 downto 0) <= HBM_axi_ar(i).addr(27 downto 0);
         
         HBM_axi_awaddr256Mbytei(i) <= HBM_axi_aw(i).addr(35 downto 28); -- 8 bit address of 256MByte pieces, within 64 Gbytes ((35:0) addresses 64 Gbytes)
-        HBM_axi_awaddri(i)(63 downto 36) <= HBM_shared(i)(63 downto 36);
-        HBM_axi_awaddri(i)(35 downto 28) <= std_logic_vector(unsigned(HBM_shared(i)(35 downto 28)) + unsigned(HBM_axi_awaddr256Mbytei(i)));
+        HBM_axi_awaddri(i)(63 downto 36) <= HBM_shared_reg(i)(63 downto 36);
+        HBM_axi_awaddri(i)(35 downto 28) <= std_logic_vector(unsigned(HBM_shared_reg(i)(35 downto 28)) + unsigned(HBM_axi_awaddr256Mbytei(i)));
         HBM_axi_awaddri(i)(27 downto 0) <= HBM_axi_aw(i).addr(27 downto 0);
         
         -- register slice ports that have a fixed value.
