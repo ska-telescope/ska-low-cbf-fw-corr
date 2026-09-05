@@ -76,10 +76,10 @@ set bd_name         "top"
   # ----------------------------------------
   # Add base files
   add_files -fileset sources_1 [glob \
-  $DESIGN_PATH/src_v80/vhdl/v80_top.vhd \
+  $DESIGN_PATH/src_v80/vhdl/v80_top_100g.vhd \
   ]
 
-  set_property file_type {VHDL 2008} [get_files  *src_v80/vhdl/v80_top.vhd]
+  set_property file_type {VHDL 2008} [get_files  *src_v80/vhdl/v80_top_100g.vhd]
 
   # ----------------------------------------
   # V80 - BD - Create block diagram
@@ -109,26 +109,26 @@ set bd_name         "top"
   # Add DCMAC BD
   # 100G config
 
-  #   if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
-  #   source $COMMON_PATH/DCMAC/dcmac_two_100g_bd.tcl
-  # } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
-  #   source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2025_1.tcl
-  # } else {
-  #   puts "###################################################"
-  #   puts "        UNSUPPORTED VERSION OF VIVADO"
-  #   puts "###################################################"
-  #   exit
-  # }
+    if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2025_1.tcl
+  } else {
+    puts "###################################################"
+    puts "        UNSUPPORTED VERSION OF VIVADO"
+    puts "###################################################"
+    exit
+  }
   
-  # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
+  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
-  # 200G config for lower ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
-  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
+  # # 200G config for lower ports.
+  # source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
+  # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
 
-  # 200G config for upper ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
-  add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
+  # # 200G config for upper ports.
+  # source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
+  # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
 
   # --------------------------------------------------------------------------------
   add_files -fileset sources_1 [glob \
@@ -776,7 +776,7 @@ update_compile_order -fileset sim_dcmac
 
 ######################
 ## NoC is not supported in VHDL simulation in 2024.2, need to deactivate these files from sim
-set_property used_in_simulation false [get_files  $REPO_BASE/designs/correlator_v80/src_v80/vhdl/v80_top.vhd]
+set_property used_in_simulation false [get_files  $REPO_BASE/designs/correlator_v80/src_v80/vhdl/v80_top_100g.vhd]
 set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.gen/sources_1/bd/top/hdl/top_wrapper.vhd]
 set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.srcs/sources_1/bd/top/top.bd]
 
