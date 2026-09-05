@@ -491,6 +491,62 @@ ARCHITECTURE structure OF correlator_core IS
         m_axi_rvalid : IN STD_LOGIC;
         m_axi_rready : OUT STD_LOGIC);
     END COMPONENT;
+
+    COMPONENT axi_reg_slice512_SLR1C
+    PORT (
+        aclk : IN STD_LOGIC;
+        aresetn : IN STD_LOGIC;
+        s_axi_awaddr : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        s_axi_awlen : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+        s_axi_awsize : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+        s_axi_awburst : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+        s_axi_awvalid : IN STD_LOGIC;
+        s_axi_awready : OUT STD_LOGIC;
+        s_axi_wdata : IN STD_LOGIC_VECTOR(511 DOWNTO 0);
+        s_axi_wstrb : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        s_axi_wlast : IN STD_LOGIC;
+        s_axi_wvalid : IN STD_LOGIC;
+        s_axi_wready : OUT STD_LOGIC;
+        s_axi_bresp : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+        s_axi_bvalid : OUT STD_LOGIC;
+        s_axi_bready : IN STD_LOGIC;
+        s_axi_araddr : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        s_axi_arlen : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+        s_axi_arsize : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+        s_axi_arburst : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+        s_axi_arvalid : IN STD_LOGIC;
+        s_axi_arready : OUT STD_LOGIC;
+        s_axi_rdata : OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
+        s_axi_rresp : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+        s_axi_rlast : OUT STD_LOGIC;
+        s_axi_rvalid : OUT STD_LOGIC;
+        s_axi_rready : IN STD_LOGIC;
+        m_axi_awaddr : OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+        m_axi_awlen : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+        m_axi_awsize : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+        m_axi_awburst : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+        m_axi_awvalid : OUT STD_LOGIC;
+        m_axi_awready : IN STD_LOGIC;
+        m_axi_wdata : OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
+        m_axi_wstrb : OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+        m_axi_wlast : OUT STD_LOGIC;
+        m_axi_wvalid : OUT STD_LOGIC;
+        m_axi_wready : IN STD_LOGIC;
+        m_axi_bresp : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+        m_axi_bvalid : IN STD_LOGIC;
+        m_axi_bready : OUT STD_LOGIC;
+        m_axi_araddr : OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+        m_axi_arlen : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+        m_axi_arsize : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+        m_axi_arburst : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+        m_axi_arvalid : OUT STD_LOGIC;
+        m_axi_arready : IN STD_LOGIC;
+        m_axi_rdata : IN STD_LOGIC_VECTOR(511 DOWNTO 0);
+        m_axi_rresp : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+        m_axi_rlast : IN STD_LOGIC;
+        m_axi_rvalid : IN STD_LOGIC;
+        m_axi_rready : OUT STD_LOGIC);
+    END COMPONENT;
     
     signal eth_disable, eth_disable_done : std_logic;
     signal i_axis_tdata_gated : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
@@ -1313,66 +1369,129 @@ begin
         HBM_axi_awid(i)(0) <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
         HBM_axi_arid(i)(0) <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
         
+        gen_axi_slice_reg : if (i = 0) OR (i = 2) OR (i = 5) generate
         -- Register slice for the HBM AXI interfaces
-        HBM_reg_slice : axi_reg_slice512_LLFFL
-        port map (
-            aclk    => ap_clk, --  IN STD_LOGIC;
-            aresetn => ap_rst_n, --  IN STD_LOGIC;
-            -- 
-            s_axi_awaddr   => HBM_axi_awaddri(i), -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-            s_axi_awlen    => HBM_axi_aw(i).len,  -- IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-            s_axi_awsize   => HBM_axi_awsizei(i), -- IN STD_LOGIC_VECTOR(2 DOWNTO 0);
-            s_axi_awburst  => HBM_axi_awbursti(i), -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
-            s_axi_awvalid  => HBM_axi_aw(i).valid,  -- IN STD_LOGIC;
-            s_axi_awready  => HBM_axi_awreadyi(i),  -- OUT STD_LOGIC;
-            s_axi_wdata    => HBM_axi_w(i).data,    -- IN STD_LOGIC_VECTOR(511 DOWNTO 0);
-            s_axi_wstrb    => HBM_axi_wstrbi(i),    -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-            s_axi_wlast    => HBM_axi_w(i).last,    -- IN STD_LOGIC;
-            s_axi_wvalid   => HBM_axi_w(i).valid,   -- IN STD_LOGIC;
-            s_axi_wready   => HBM_axi_wreadyi(i),   -- OUT STD_LOGIC;
-            s_axi_bresp    => HBM_axi_b(i).resp,    --  OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-            s_axi_bvalid   => HBM_axi_b(i).valid,   -- OUT STD_LOGIC;
-            s_axi_bready   => HBM_axi_breadyi(i),   -- IN STD_LOGIC;
-            s_axi_araddr   => HBM_axi_araddri(i),   -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
-            s_axi_arlen    => HBM_axi_ar(i).len,    -- IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-            s_axi_arsize   => HBM_axi_arsizei(i),   -- IN STD_LOGIC_VECTOR(2 DOWNTO 0);
-            s_axi_arburst  => HBM_axi_arbursti(i),  -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
-            s_axi_arvalid  => HBM_axi_ar(i).valid,  -- IN STD_LOGIC;
-            s_axi_arready  => HBM_axi_arreadyi(i),  -- OUT STD_LOGIC;
-            s_axi_rdata    => HBM_axi_r(i).data,    -- OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
-            s_axi_rresp    => HBM_axi_r(i).resp,    -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-            s_axi_rlast    => HBM_axi_r(i).last,    -- OUT STD_LOGIC;
-            s_axi_rvalid   => HBM_axi_r(i).valid,   -- OUT STD_LOGIC;
-            s_axi_rready   => HBM_axi_rreadyi(i),   -- IN STD_LOGIC;
-            --
-            m_axi_awaddr   => HBM_axi_awaddr(i), -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
-            m_axi_awlen    => HBM_axi_awlen(i),  -- OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
-            m_axi_awsize   => HBM_axi_awsize(i), -- OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
-            m_axi_awburst  => HBM_axi_awburst(i), -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-            m_axi_awvalid  => HBM_axi_awvalid(i),  -- OUT STD_LOGIC;
-            m_axi_awready  => HBM_axi_awready(i),  -- IN STD_LOGIC;
-            m_axi_wdata    => HBM_axi_wdata(i),    -- OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
-            m_axi_wstrb    => HBM_axi_wstrb(i),    -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
-            m_axi_wlast    => HBM_axi_wlast(i),    -- OUT STD_LOGIC;
-            m_axi_wvalid   => HBM_axi_wvalid(i),   -- OUT STD_LOGIC;
-            m_axi_wready   => HBM_axi_wready(i),   -- IN STD_LOGIC;
-            m_axi_bresp    => HBM_axi_bresp(i),    -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
-            m_axi_bvalid   => HBM_axi_bvalid(i),   -- IN STD_LOGIC;
-            m_axi_bready   => HBM_axi_bready(i),   -- OUT STD_LOGIC;
-            m_axi_araddr   => HBM_axi_araddr(i),   -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
-            m_axi_arlen    => HBM_axi_arlen(i),    -- OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
-            m_axi_arsize   => HBM_axi_arsize(i),   -- OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
-            m_axi_arburst  => HBM_axi_arburst(i),  -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-           
-            m_axi_arvalid  => HBM_axi_arvalid(i),  -- OUT STD_LOGIC;
-            m_axi_arready  => HBM_axi_arready(i),  -- IN STD_LOGIC;
-            m_axi_rdata    => HBM_axi_rdata(i),    -- IN STD_LOGIC_VECTOR(511 DOWNTO 0);
-            m_axi_rresp    => HBM_axi_rresp(i),    -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
-            m_axi_rlast    => HBM_axi_rlast(i),    -- IN STD_LOGIC;
-            m_axi_rvalid   => HBM_axi_rvalid(i),   -- IN STD_LOGIC;
-            m_axi_rready   => HBM_axi_rready(i)    --: OUT STD_LOGIC
-        );
-        
+            HBM_reg_slice : axi_reg_slice512_LLFFL
+            port map (
+                aclk    => ap_clk, --  IN STD_LOGIC;
+                aresetn => ap_rst_n, --  IN STD_LOGIC;
+                -- 
+                s_axi_awaddr   => HBM_axi_awaddri(i), -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+                s_axi_awlen    => HBM_axi_aw(i).len,  -- IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+                s_axi_awsize   => HBM_axi_awsizei(i), -- IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+                s_axi_awburst  => HBM_axi_awbursti(i), -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_awvalid  => HBM_axi_aw(i).valid,  -- IN STD_LOGIC;
+                s_axi_awready  => HBM_axi_awreadyi(i),  -- OUT STD_LOGIC;
+                s_axi_wdata    => HBM_axi_w(i).data,    -- IN STD_LOGIC_VECTOR(511 DOWNTO 0);
+                s_axi_wstrb    => HBM_axi_wstrbi(i),    -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+                s_axi_wlast    => HBM_axi_w(i).last,    -- IN STD_LOGIC;
+                s_axi_wvalid   => HBM_axi_w(i).valid,   -- IN STD_LOGIC;
+                s_axi_wready   => HBM_axi_wreadyi(i),   -- OUT STD_LOGIC;
+                s_axi_bresp    => HBM_axi_b(i).resp,    --  OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_bvalid   => HBM_axi_b(i).valid,   -- OUT STD_LOGIC;
+                s_axi_bready   => HBM_axi_breadyi(i),   -- IN STD_LOGIC;
+                s_axi_araddr   => HBM_axi_araddri(i),   -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+                s_axi_arlen    => HBM_axi_ar(i).len,    -- IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+                s_axi_arsize   => HBM_axi_arsizei(i),   -- IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+                s_axi_arburst  => HBM_axi_arbursti(i),  -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_arvalid  => HBM_axi_ar(i).valid,  -- IN STD_LOGIC;
+                s_axi_arready  => HBM_axi_arreadyi(i),  -- OUT STD_LOGIC;
+                s_axi_rdata    => HBM_axi_r(i).data,    -- OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
+                s_axi_rresp    => HBM_axi_r(i).resp,    -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_rlast    => HBM_axi_r(i).last,    -- OUT STD_LOGIC;
+                s_axi_rvalid   => HBM_axi_r(i).valid,   -- OUT STD_LOGIC;
+                s_axi_rready   => HBM_axi_rreadyi(i),   -- IN STD_LOGIC;
+                --
+                m_axi_awaddr   => HBM_axi_awaddr(i), -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+                m_axi_awlen    => HBM_axi_awlen(i),  -- OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+                m_axi_awsize   => HBM_axi_awsize(i), -- OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+                m_axi_awburst  => HBM_axi_awburst(i), -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+                m_axi_awvalid  => HBM_axi_awvalid(i),  -- OUT STD_LOGIC;
+                m_axi_awready  => HBM_axi_awready(i),  -- IN STD_LOGIC;
+                m_axi_wdata    => HBM_axi_wdata(i),    -- OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
+                m_axi_wstrb    => HBM_axi_wstrb(i),    -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+                m_axi_wlast    => HBM_axi_wlast(i),    -- OUT STD_LOGIC;
+                m_axi_wvalid   => HBM_axi_wvalid(i),   -- OUT STD_LOGIC;
+                m_axi_wready   => HBM_axi_wready(i),   -- IN STD_LOGIC;
+                m_axi_bresp    => HBM_axi_bresp(i),    -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                m_axi_bvalid   => HBM_axi_bvalid(i),   -- IN STD_LOGIC;
+                m_axi_bready   => HBM_axi_bready(i),   -- OUT STD_LOGIC;
+                m_axi_araddr   => HBM_axi_araddr(i),   -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+                m_axi_arlen    => HBM_axi_arlen(i),    -- OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+                m_axi_arsize   => HBM_axi_arsize(i),   -- OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+                m_axi_arburst  => HBM_axi_arburst(i),  -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+            
+                m_axi_arvalid  => HBM_axi_arvalid(i),  -- OUT STD_LOGIC;
+                m_axi_arready  => HBM_axi_arready(i),  -- IN STD_LOGIC;
+                m_axi_rdata    => HBM_axi_rdata(i),    -- IN STD_LOGIC_VECTOR(511 DOWNTO 0);
+                m_axi_rresp    => HBM_axi_rresp(i),    -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                m_axi_rlast    => HBM_axi_rlast(i),    -- IN STD_LOGIC;
+                m_axi_rvalid   => HBM_axi_rvalid(i),   -- IN STD_LOGIC;
+                m_axi_rready   => HBM_axi_rready(i)    --: OUT STD_LOGIC
+            );
+        end generate;
+
+        gen_axi_slice_1SLR : if (i = 1) OR (i = 3) OR (i = 4) generate
+        -- Register slice for the HBM AXI interfaces
+            HBM_reg_slice : axi_reg_slice512_SLR1C
+            port map (
+                aclk    => ap_clk, --  IN STD_LOGIC;
+                aresetn => ap_rst_n, --  IN STD_LOGIC;
+                -- 
+                s_axi_awaddr   => HBM_axi_awaddri(i), -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+                s_axi_awlen    => HBM_axi_aw(i).len,  -- IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+                s_axi_awsize   => HBM_axi_awsizei(i), -- IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+                s_axi_awburst  => HBM_axi_awbursti(i), -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_awvalid  => HBM_axi_aw(i).valid,  -- IN STD_LOGIC;
+                s_axi_awready  => HBM_axi_awreadyi(i),  -- OUT STD_LOGIC;
+                s_axi_wdata    => HBM_axi_w(i).data,    -- IN STD_LOGIC_VECTOR(511 DOWNTO 0);
+                s_axi_wstrb    => HBM_axi_wstrbi(i),    -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+                s_axi_wlast    => HBM_axi_w(i).last,    -- IN STD_LOGIC;
+                s_axi_wvalid   => HBM_axi_w(i).valid,   -- IN STD_LOGIC;
+                s_axi_wready   => HBM_axi_wreadyi(i),   -- OUT STD_LOGIC;
+                s_axi_bresp    => HBM_axi_b(i).resp,    --  OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_bvalid   => HBM_axi_b(i).valid,   -- OUT STD_LOGIC;
+                s_axi_bready   => HBM_axi_breadyi(i),   -- IN STD_LOGIC;
+                s_axi_araddr   => HBM_axi_araddri(i),   -- IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+                s_axi_arlen    => HBM_axi_ar(i).len,    -- IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+                s_axi_arsize   => HBM_axi_arsizei(i),   -- IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+                s_axi_arburst  => HBM_axi_arbursti(i),  -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_arvalid  => HBM_axi_ar(i).valid,  -- IN STD_LOGIC;
+                s_axi_arready  => HBM_axi_arreadyi(i),  -- OUT STD_LOGIC;
+                s_axi_rdata    => HBM_axi_r(i).data,    -- OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
+                s_axi_rresp    => HBM_axi_r(i).resp,    -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+                s_axi_rlast    => HBM_axi_r(i).last,    -- OUT STD_LOGIC;
+                s_axi_rvalid   => HBM_axi_r(i).valid,   -- OUT STD_LOGIC;
+                s_axi_rready   => HBM_axi_rreadyi(i),   -- IN STD_LOGIC;
+                --
+                m_axi_awaddr   => HBM_axi_awaddr(i), -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+                m_axi_awlen    => HBM_axi_awlen(i),  -- OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+                m_axi_awsize   => HBM_axi_awsize(i), -- OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+                m_axi_awburst  => HBM_axi_awburst(i), -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+                m_axi_awvalid  => HBM_axi_awvalid(i),  -- OUT STD_LOGIC;
+                m_axi_awready  => HBM_axi_awready(i),  -- IN STD_LOGIC;
+                m_axi_wdata    => HBM_axi_wdata(i),    -- OUT STD_LOGIC_VECTOR(511 DOWNTO 0);
+                m_axi_wstrb    => HBM_axi_wstrb(i),    -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+                m_axi_wlast    => HBM_axi_wlast(i),    -- OUT STD_LOGIC;
+                m_axi_wvalid   => HBM_axi_wvalid(i),   -- OUT STD_LOGIC;
+                m_axi_wready   => HBM_axi_wready(i),   -- IN STD_LOGIC;
+                m_axi_bresp    => HBM_axi_bresp(i),    -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                m_axi_bvalid   => HBM_axi_bvalid(i),   -- IN STD_LOGIC;
+                m_axi_bready   => HBM_axi_bready(i),   -- OUT STD_LOGIC;
+                m_axi_araddr   => HBM_axi_araddr(i),   -- OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+                m_axi_arlen    => HBM_axi_arlen(i),    -- OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+                m_axi_arsize   => HBM_axi_arsize(i),   -- OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+                m_axi_arburst  => HBM_axi_arburst(i),  -- OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+            
+                m_axi_arvalid  => HBM_axi_arvalid(i),  -- OUT STD_LOGIC;
+                m_axi_arready  => HBM_axi_arready(i),  -- IN STD_LOGIC;
+                m_axi_rdata    => HBM_axi_rdata(i),    -- IN STD_LOGIC_VECTOR(511 DOWNTO 0);
+                m_axi_rresp    => HBM_axi_rresp(i),    -- IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+                m_axi_rlast    => HBM_axi_rlast(i),    -- IN STD_LOGIC;
+                m_axi_rvalid   => HBM_axi_rvalid(i),   -- IN STD_LOGIC;
+                m_axi_rready   => HBM_axi_rready(i)    --: OUT STD_LOGIC
+            );
+        end generate;
         
     end generate;
     
