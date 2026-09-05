@@ -19,7 +19,8 @@ add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hierarchical *u_100G_port_a]
 add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */cor1geni.icor1/cor1i/row_mult_gen[*].col_mult_gen[*].cmultsi}]
 ##add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hierarchical */cor1geni.icor1/cor1i]
 # Add HBM read and packetiser for Correlator Instance 1 to SLR0, closest to HBM.
-add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */cor1geni.icor1/HBM_reader}]
+add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */cor1geni.icor1/HBM_reader}]
+add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */cor2geni.icor2/HBM_reader}]
 add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */spead_packetiser_top}]
 
 #add_cells_to_pblock pblock_dynamic_SLR2 [get_cells -hier -filter {NAME =~ */cor2geni.icor2/cor1i/row_mult_gen[*].col_mult_gen[*].cmultsi}]
@@ -27,13 +28,25 @@ add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */spea
 # HBM interface components
 # LFAA In / CT1 / FB
 add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[0].hbm_resetter}]
-add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[0].HBM_reg_slice}]
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[0].gen_axi_slice_reg.HBM_reg_slice}]
 
-# HBM ILA
-#add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[5].hbm_resetter}]
-#add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[5].HBM_reg_slice}]
-# SPS stats in the same SLR as CMAC
-#add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */hbm_sps_mon_gen.sps_statsi}]
+# HBM single slr crossing constraint
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[1].gen_axi_slice_1SLR.HBM_reg_slice*slr_master*}]
+add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[1].gen_axi_slice_1SLR.HBM_reg_slice*slr_slave*}]
+
+# Spead Packetiser 1
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[3].gen_axi_slice_1SLR.HBM_reg_slice*slr_master*}]
+add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[3].gen_axi_slice_1SLR.HBM_reg_slice*slr_slave*}]
+# Spead Packetiser 2
+add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[4].gen_axi_slice_1SLR.HBM_reg_slice*slr_master*}]
+add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[4].gen_axi_slice_1SLR.HBM_reg_slice*slr_slave*}]
+
+# HBM 0 - LFAA/CT1
+# HBM 1 - Ct2/Corr1
+# HBM 2 - Ct2/Corr2
+# HBM 3 - Corr1 Packetiser
+# HBM 4 - Corr2 Packetiser
+# HBM 5 - Stats
 
 ########################################################################################################################
 ## Time constraints if there is only 1 x 100G with TS on the top QSFP port.

@@ -449,6 +449,162 @@ publish v80 package:
     - common/scripts/package_firmware_v80.sh
 
 ####################################################################################################################
+### V80 100G networking design
+#
+# A second V80 design built from designs/correlator_v80/create_v80_100g_design.tcl
+# instead of create_v80_design.tcl, selected by the V80_DESIGN_TCL variable that
+# create_v80.sh reads.
+#
+# It deliberately reuses build/v80 and the 'v80_top' project name, so the whole
+# downstream flow - create_fw_project.sh, create_pdi.sh, run_v80_rest.sh,
+# check_v80_artifacts.sh - is shared with the standard V80 chain and needs no
+# changes. Each job gets its own workspace, so the two chains never collide on
+# disk, and their artifacts are kept apart by 'needs'.
+#
+# Where they MUST differ is the package name. package_firmware_v80.sh builds
+# '<personality>_<platform>_<version>...', so without V80_PLATFORM the 100G
+# package would upload under exactly the same file name as the standard V80
+# build and silently replace it in the registry.
+#
+# ARGS is shared: this design uses the same 'correlator_v80' kernel and fpgamap,
+# so there is no separate register map to generate.
+#
+# Not wired up here: the 'v80_reuse=' artifact-reuse mode (keyed to the standard
+# chain's job ids), the CAR release path, and fpga lint.
+
+# When to build the 100G design. Same shape as .v80_build_rules, with its own
+# keyword so the two chains can be triggered independently.
+.v80_100g_build_rules: &v80_100g_build_rules
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # tag - releases come from the main-branch build, see 'raw-build'
+  - if: $CI_COMMIT_TAG
+    when: never
+  # merge request
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  # main branch
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # 'v80_100g_b' keyword in commit title, to build this chain on its own
+  - if: $CI_COMMIT_TITLE =~ /v80_100g_b/
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
+
+.package_rules_v80_100g: &package_rules_v80_100g
+  # Do not build if 'docs' in commit title
+  - if: ($CI_COMMIT_TITLE =~ /docs/)
+    when: never
+  # merge request
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    when: manual
+    allow_failure: true
+  # main branch
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # tag - releases come from the main-branch build, see 'raw-build'
+  - if: $CI_COMMIT_TAG
+    when: never
+  # 'v80_100g_b' keyword in commit title
+  - if: $CI_COMMIT_TITLE =~ /v80_100g_b/
+  # default - allow manual trigger but don't require it for pipeline success
+  - when: manual
+    allow_failure: true
+
+# STAGE 1: the expensive Vivado HW compile for the 100G design.
+# Needs 'ARGS' rather than a create-project job: create_v80.sh deletes and
+# regenerates both build/ARGS and build/v80 itself, so a separate Vivado
+# project-creation step would be thrown away.
+vivado compile v80 100g:
+  stage: build
+  rules:
+    - *v80_100g_build_rules
+  interruptible: false
+  allow_failure: true
+  needs:
+    - ARGS
+  timeout: 12 hours
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2025.1"
+    VIVADO_VERSION_IN_USE: "2025.1"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "v80_top"    # project name based on general approach
+    V80_DESIGN_TCL: "create_v80_100g_design.tcl"
+    VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+  before_script:
+    - *self_test
+    - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
+  script:
+    - pwd
+    # copy protected ip repos into structure for building
+    - cd common/v80_infra
+    - cp -R /home/gitlab-runner/iprepo .
+    - cd ../..
+    - ./run_v80_hw.sh
+  artifacts:
+    paths:
+      - build/ARGS/py/correlator_v80/fpgamap_*.py
+      - build/v80/v80_top.xsa
+      - build/v80/v80_top.runs/impl_1/v80_top.pdi
+      - build/v80/v80_top.runs/impl_1/v80_top.ltx
+      - build/v80/v80_top.runs/impl_1/*.rpt
+      - build/v80/v80_top.runs/impl_1/*.log
+    expire_in: 90 days
+    when: always
+
+# STAGE 2: FW + PDI assembly + packaging for the 100G design.
+assemble v80 100g:
+  stage: build
+  rules:
+    - *v80_100g_build_rules
+  interruptible: true
+  allow_failure: true
+  needs:
+    - job: vivado compile v80 100g
+      artifacts: true
+  timeout: 2 hours
+  variables:
+    TARGET_ALVEO: "v80"
+    VITIS_VERSION: "2025.1"
+    VIVADO_VERSION_IN_USE: "2025.1"
+    EXTRA_DEVELOPER_TAG: ""
+    PERSONALITY: "v80_top"
+    V80_DESIGN_TCL: "create_v80_100g_design.tcl"
+    VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
+  tags:
+    - v80
+    - $EXTRA_DEVELOPER_TAG
+  before_script:
+    - *self_test
+    - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
+  script:
+    - ./run_v80_rest.sh
+  artifacts:
+    paths:
+      - output/
+    when: always
+
+publish v80 100g package:
+  stage: publish
+  rules:
+    - *package_rules_v80_100g
+  needs:
+    - job: assemble v80 100g
+  tags:
+    - shell
+  variables:
+    BUILD_STRING: "CI development build, V80 100G networking design. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
+    VITIS_VERSION: "2025.1"
+    # Distinguishes this from the standard V80 package. Without it both upload
+    # as '<personality>_v80_<version>...' and the second overwrites the first.
+    V80_PLATFORM: "v80_100g"
+  script:
+    - common/scripts/package_firmware_v80.sh
+
+####################################################################################################################
 ### Integration Tests in Low PSI
 
 .low_psi_rules: &low_psi_rules

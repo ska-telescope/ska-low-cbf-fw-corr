@@ -3,9 +3,8 @@
 #  See the file LICENSE for more info.
 
 
-## This script creates a Vivado Vitis project,
-## It synthesizes and produces an output bitfile to be programmed
-## to an Alveo from the source in this git repository
+## This script creates a Vivado project for the corner turn 1 testbench for the v80
+# A standalone project for the testbench avoids issues with missing files, missing NOC support, long startup times building unused stuff, etc. 
 
 ######################################################################
 ## CLI support
@@ -55,22 +54,10 @@ fi
 
 #####################################################################
 
-TARGET_ALVEO=(v80)
+TARGET_ALVEO=(v80_dcmac) 
 XILINX_PATH=/tools/Xilinx
 VIVADO_VERSION_IN_USE=$SPECIFIED_VIVADO_VERSION
 kernel="correlator_v80"
-
-# Which design to build, as a file name inside designs/correlator_v80/.
-# Defaults to the standard correlator V80 design, so existing callers are
-# unaffected. Set V80_DESIGN_TCL to build a variant, e.g.
-#   V80_DESIGN_TCL=create_v80_100g_design.tcl ./create_v80.sh 2025.1 build
-#
-# Variants deliberately share build/v80 and the 'v80_top' project name, so the
-# whole downstream flow - create_fw_project.sh, create_pdi.sh, run_v80_rest.sh,
-# check_v80_artifacts.sh and every CI artifact path - works unchanged. The
-# variant's .tcl must therefore create its project as 'v80_top' in build/v80,
-# exactly as create_v80_design.tcl does.
-V80_DESIGN_TCL="${V80_DESIGN_TCL:-create_v80_design.tcl}"
 
 ## Add version to Env
 export VIVADO_VERSION_IN_USE=$SPECIFIED_VIVADO_VERSION
@@ -85,14 +72,6 @@ fi
 
 export GITREPO=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 echo -e "\nBase Git directory: $GITREPO"
-
-DESIGN_TCL="$GITREPO/designs/correlator_v80/${V80_DESIGN_TCL}"
-if [ ! -f "$DESIGN_TCL" ]; then
-    echo -e "\nDesign script not found: $DESIGN_TCL"
-    echo -e "Check V80_DESIGN_TCL (currently '${V80_DESIGN_TCL}')."
-    exit 4
-fi
-echo -e "Design script: $DESIGN_TCL"
 export SVN=$GITREPO
 echo -e "\n"
 source $GITREPO/tools/bin/setup_radiohdl.sh 
@@ -115,8 +94,8 @@ fi
 
 # ##Clean the build directory if we pass in a command line parameter called clean
 # if [ "$1" = "clean" ]; then
-    echo -e "Deleting Build Directory $GITREPO/build/v80"
-    rm -rf $GITREPO/build/v80
+    echo -e "Deleting Build Directory $GITREPO/build/$TARGET_ALVEO"
+    rm -rf $GITREPO/build/$TARGET_ALVEO
 # fi
 
 sleep 5s
@@ -152,18 +131,18 @@ fi
 
 sleep 5s
 
-if [ "$2" = "build" ]; then
-    echo -e "Creating and building project"
-    sleep 5s
-    echo 
-    echo "<><><><><><><><><><><><><>  Build Vivado Project <><><><><><><><><><><><><><>" | $COLOUR
-    echo
-    echo "Target Device for project is " $TARGET_ALVEO | $COLOUR
-    echo "Vivado Version for project is " $VIVADO_VERSION_IN_USE | $COLOUR
-    echo
-
-    vivado -mode batch -source "$DESIGN_TCL" -source $GITREPO/common/v80_infra/scripts/build_v80_design.tcl -tclargs $kernel | $COLOUR
-else
+#if [ "$2" = "build" ]; then
+#    echo -e "Creating and building project"
+#    sleep 5s
+#    echo 
+#    echo "<><><><><><><><><><><><><>  Build Vivado Project <><><><><><><><><><><><><><>" | $COLOUR
+#    echo
+#    echo "Target Device for project is " $TARGET_ALVEO | $COLOUR
+#    echo "Vivado Version for project is " $VIVADO_VERSION_IN_USE | $COLOUR
+#    echo
+#
+#    vivado -mode batch -source $GITREPO/designs/correlator_v80/create_v80_ct1_tb.tcl -source $GITREPO/common/v80_infra/scripts/build_v80_design.tcl -tclargs $kernel | $COLOUR
+#else
     echo -e "Creating project."
     echo 
     echo "<><><><><><><><><><><><><>  Vivado Create Project <><><><><><><><><><><><><>" | $COLOUR
@@ -172,7 +151,7 @@ else
     echo "Vivado Version for project is " $VIVADO_VERSION_IN_USE | $COLOUR
     echo
 
-    vivado -mode batch -source "$DESIGN_TCL" -tclargs $kernel | $COLOUR
-fi
+    vivado -mode batch -source $GITREPO/designs/correlator_v80/create_v80_dcmac.tcl -tclargs $kernel | $COLOUR
+#fi
 
 echo "Script complete"

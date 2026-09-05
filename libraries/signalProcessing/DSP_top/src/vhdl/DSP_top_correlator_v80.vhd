@@ -58,8 +58,10 @@ entity DSP_top_correlator_v80 is
     );
     port (
         -----------------------------------------------------------------------
-        -- Received data from 100GE
-        -- Note this uses i_MACE_clk
+       -- Received data from DCMAC post streaming axi gasket
+       -- 
+        i_axis_clk     : in std_logic;
+        i_axis_clk_rst : in std_logic;
         i_axis_tdata   : in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
         i_axis_tkeep   : in std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
         i_axis_tlast   : in std_logic;                      
@@ -71,7 +73,8 @@ entity DSP_top_correlator_v80 is
         o_data_to_player_wr     : OUT STD_LOGIC;
         i_data_to_player_rdy    : IN STD_LOGIC;
         --
-        i_eth100G_locked    : in std_logic;
+        i_dcmac_locked_300      : IN STD_LOGIC;
+        i_dcmac_locked_425      : IN STD_LOGIC;
         -----------------------------------------------------------------------
         -- Other processing clocks.
         i_clk425 : in std_logic; -- 425 MHz
@@ -268,6 +271,9 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
    
     signal FB_scaling : std_logic_vector(4 downto 0);
     
+    signal dcmac_rst_300    : STD_LOGIC;
+    signal dcmac_rst_425    : STD_LOGIC;
+    
 begin
     
     HBM_axi_a_dummy.valid <= '0';
@@ -298,6 +304,13 @@ begin
     --  - Notifies the corner turn, which generates the write address part of the AXI memory interface.
     --  - Outputs the data part of the packet on the wdata part of the AXI memory interface.
     LFAAingest_packetCount(47 downto 40)    <= x"00";
+    
+    dcmac_lock_to_reset_425_proc : process(i_axis_clk)
+    begin
+        if rising_edge(i_axis_clk) then
+            dcmac_rst_425   <= NOT i_dcmac_locked_425;
+        end if;
+    end process;
 
 
     LFAAin : entity LFAADecode100G_lib.LFAADecodeTop100G
@@ -314,8 +327,8 @@ begin
         i_axis_tlast     => i_axis_tlast, --  in std_logic;                      
         i_axis_tuser     => i_axis_tuser, --  in (79:0);  -- Timestamp for the packet, from the PTP core
         i_axis_tvalid    => i_axis_tvalid, -- in std_logic;
-        i_100GE_clk      => i_MACE_clk,    -- Single clock used for registers and 100GE interface in the v80
-        i_100GE_rst      => eth100G_rst,
+        i_100GE_clk      => i_axis_clk,    -- Single clock used for registers and 100GE interface in the v80
+        i_100GE_rst      => dcmac_rst_425,
         --i_data_rst       => '0',            -- in std_logic;
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
         o_virtualChannel => LFAAingest_virtualChannel,  -- out(15:0), single number to uniquely identify the channel+station for this packet.
@@ -783,7 +796,7 @@ begin
         i_table_add_remove        => table_add_remove,        -- in std_logic;
         -- streaming AXI to CMAC
         i_cmac_clk          => i_MACE_clk,
-        i_cmac_clk_rst      => eth100G_rst,
+        i_cmac_clk_rst      => dcmac_rst_300,
         o_bytes_to_transmit  => o_bytes_to_transmit,
         o_data_to_player     => o_data_to_player,
         o_data_to_player_wr  => o_data_to_player_wr,
@@ -792,10 +805,10 @@ begin
         i_debug             => (others => '0')
     );
     
-    CMAC_100G_reset_proc : process(i_MACE_clk)
+    dcmac_lock_to_reset_300_proc : process(i_MACE_clk)
     begin
         if rising_edge(i_MACE_clk) then
-            eth100G_rst     <= NOT i_eth100G_locked;
+            dcmac_rst_300   <= NOT i_dcmac_locked_300;
         end if;
     end process;
     
