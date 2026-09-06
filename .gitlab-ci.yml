@@ -361,7 +361,12 @@ vivado compile v80:
     - *v80_build_rules
   # allow this job to be cancelled if new pipeline comes along
   interruptible: false
-  allow_failure: true
+  # NOT allow_failure. run_v80_hw.sh ends with 'check_v80_artifacts.sh hw',
+  # which fails the job when the compile did not produce the PDI, the LTX, the
+  # XSA or the reports this job is supposed to archive - GitLab itself only
+  # WARNS about an artifacts path that matches nothing. Letting the failure
+  # stand means 'assemble v80' is skipped rather than run against a partial or
+  # absent artifact.
   needs:
     - create project v80
   timeout: 12 hours
@@ -408,6 +413,15 @@ assemble v80:
     - *v80_reuse_run
     - *v80_build_rules
   interruptible: true
+  # Deliberately allow_failure, unlike 'vivado compile v80'. This job also fails
+  # on a timing miss (run_v80_rest.sh greps impl_1/runme.log), and while V80
+  # timing closure is in progress a timing failure must not block the pipeline
+  # or stop the package being published - the same reason the timing gate is
+  # currently disabled in fetch_car_packages.sh.
+  #
+  # The "no bitstream at all" case is caught upstream instead: 'vivado compile
+  # v80' is NOT allow_failure, so a compile that produced no PDI fails the
+  # pipeline and this job never runs.
   allow_failure: true
   needs:
     - job: vivado compile v80
@@ -529,7 +543,10 @@ vivado compile v80 100g:
   rules:
     - *v80_100g_build_rules
   interruptible: false
-  allow_failure: true
+  # NOT allow_failure - same reasoning as 'vivado compile v80'. The artifact
+  # check in run_v80_hw.sh fails this job when the PDI or LTX are missing, and
+  # that failure must skip 'assemble v80 100g' rather than feed it a partial
+  # artifact.
   needs:
     - ARGS
   timeout: 12 hours
@@ -571,6 +588,9 @@ assemble v80 100g:
   rules:
     - *v80_100g_build_rules
   interruptible: true
+  # allow_failure - same reasoning as 'assemble v80': a timing miss must not
+  # block. The no-bitstream case is caught by 'vivado compile v80 100g', which
+  # is not allow_failure.
   allow_failure: true
   needs:
     - job: vivado compile v80 100g
