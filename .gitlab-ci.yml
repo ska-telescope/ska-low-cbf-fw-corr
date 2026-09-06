@@ -15,6 +15,16 @@ variables:
   XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm"
   RIVIERA_TARGET: "Riviera-PRO-2022.10-x64" # version for 2022.2
 
+  # Platform label in the V80 package file name, i.e.
+  # '<personality>_<V80_PLATFORM>_<version>...'. The standard V80 design is the
+  # 200G networking one, so it says so rather than being the unqualified 'v80'.
+  #
+  # Single source of truth on purpose: 'publish v80 package' uses it to NAME the
+  # package (package_firmware_v80.sh) and 'raw-build' uses it to FIND that
+  # package again for a release (fetch_car_packages.sh). They must agree.
+  # 'publish v80 100g package' overrides it locally.
+  V80_PLATFORM: "v80_200g"
+
   PERSONALITY: "correlator"
   TARGET_ALVEO: "u55"
   # we escape the $ for BASEDIR to allow evaluation later
