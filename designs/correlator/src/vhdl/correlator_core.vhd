@@ -1369,7 +1369,7 @@ begin
         HBM_axi_awid(i)(0) <= '0';   -- We only use a single ID -- out std_logic_vector(0 downto 0);
         HBM_axi_arid(i)(0) <= '0';     -- ID are not used. -- out std_logic_vector(0 downto 0);
         
-        gen_axi_slice_reg : if (i = 0) OR (i = 2) OR (i = 5) generate
+        gen_axi_slice_reg : if (i = 0) OR (i = 5) generate
         -- Register slice for the HBM AXI interfaces
             HBM_reg_slice : axi_reg_slice512_LLFFL
             port map (
@@ -1431,7 +1431,7 @@ begin
             );
         end generate;
 
-        gen_axi_slice_1SLR : if (i = 1) OR (i = 3) OR (i = 4) generate
+        gen_axi_slice_1SLR : if (i = 1) OR (i = 2) OR (i = 3) OR (i = 4) generate
         -- Register slice for the HBM AXI interfaces
             HBM_reg_slice : axi_reg_slice512_SLR1C
             port map (
