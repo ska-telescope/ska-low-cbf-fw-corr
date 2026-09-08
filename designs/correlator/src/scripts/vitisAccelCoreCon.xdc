@@ -34,8 +34,8 @@ add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_
 add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[1].gen_axi_slice_1SLR.HBM_reg_slice*slr_master*}]
 add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[1].gen_axi_slice_1SLR.HBM_reg_slice*slr_slave*}]
 
-add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[2].gen_axi_slice_1SLR.HBM_reg_slice*slr_master*}]
-add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[2].gen_axi_slice_1SLR.HBM_reg_slice*slr_slave*}]
+# add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[2].gen_axi_slice_1SLR.HBM_reg_slice*slr_master*}]
+# add_cells_to_pblock pblock_dynamic_SLR1 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[2].gen_axi_slice_1SLR.HBM_reg_slice*slr_slave*}]
 
 # Spead Packetiser 1
 add_cells_to_pblock pblock_dynamic_SLR0 [get_cells -hier -filter {NAME =~ */axi_HBM_gen[3].gen_axi_slice_1SLR.HBM_reg_slice*slr_master*}]
