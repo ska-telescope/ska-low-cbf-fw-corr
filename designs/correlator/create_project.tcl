@@ -45,20 +45,21 @@ set_property target_simulator XSim [current_project]
 ############################################################
 # Timeslave files
 ############################################################
-set_property  ip_repo_paths  $timeslave_repo [current_project]
-update_ip_catalog
+# removed PTP from design.
+# set_property  ip_repo_paths  $timeslave_repo [current_project]
+# update_ip_catalog
 
-  # generate Timeslave BD - Instance 1 - U55C TOP PORT.
-  # based on Vitis version.
-  if { $env(VITIS_VERSION) == "2021.2" } {
-    source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
-  } else {
-    # 2022.2
-    source $COMMON_PATH/ptp/src/ts_$env(VITIS_VERSION).tcl
-  }
+#   # generate Timeslave BD - Instance 1 - U55C TOP PORT.
+#   # based on Vitis version.
+#   if { $env(VITIS_VERSION) == "2021.2" } {
+#     source $COMMON_PATH/ptp/src/genBD_timeslave.tcl
+#   } else {
+#     # 2022.2
+#     source $COMMON_PATH/ptp/src/ts_$env(VITIS_VERSION).tcl
+#   }
 
-make_wrapper -files [get_files $workingDir/$env(PERSONALITY).srcs/sources_1/bd/ts/ts.bd] -top
-add_files -norecurse $workingDir/$env(PERSONALITY).gen/sources_1/bd/ts/hdl/ts_wrapper.vhd
+# make_wrapper -files [get_files $workingDir/$env(PERSONALITY).srcs/sources_1/bd/ts/ts.bd] -top
+# add_files -norecurse $workingDir/$env(PERSONALITY).gen/sources_1/bd/ts/hdl/ts_wrapper.vhd
 
 add_files -fileset sources_1 [glob \
  $COMMON_PATH/ptp/src/CMAC_100G_wrap_w_timeslave.vhd \
