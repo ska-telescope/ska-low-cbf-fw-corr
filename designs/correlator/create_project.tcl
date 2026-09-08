@@ -632,8 +632,8 @@ set_property file_type {VHDL 2008} [get_files  *libraries/signalProcessing/DSP_t
 ##############################################################
 # timeslave causes simulation problems in vivado, remove it from the simulation.
 set_property used_in_simulation false [get_files  *common/libraries/ptp/src/CMAC_100G_wrap_w_timeslave.vhd]
-set_property used_in_simulation false [get_files  *correlator.gen/sources_1/bd/ts/hdl/ts_wrapper.vhd]
-set_property used_in_simulation false [get_files  *correlator.srcs/sources_1/bd/ts/ts.bd]
+#set_property used_in_simulation false [get_files  *correlator.gen/sources_1/bd/ts/hdl/ts_wrapper.vhd]
+#set_property used_in_simulation false [get_files  *correlator.srcs/sources_1/bd/ts/ts.bd]
 set_property used_in_simulation false [get_files  *designs/correlator/src/vhdl/u55c/correlator.vhd]
 set_property used_in_simulation false [get_files  *correlator/Timeslave/timeslave/Timeslave_timeslave_reg.vhd]
 
