@@ -10,7 +10,10 @@
 ALLOWED_ALVEO=(u55) #ALVEO is either U50 or U55 as of Sept 2021
 KERNELS_TO_GEN=(cor)
 XILINX_PATH=/tools/Xilinx
-VIVADO_VERSION_IN_USE=2022.2
+# Override for a one-off build against another toolchain, the same way
+# VIVADO_STACK is picked up below:
+#   VIVADO_VERSION_IN_USE=2022.2 ./RunMe.sh u55 cor "..."
+VIVADO_VERSION_IN_USE=${VIVADO_VERSION_IN_USE:-2025.1}
 
 # use ptp submodule (we assume it's initialised)
 PTP_IP="${PWD}/pub-timeslave/hw/cores"
@@ -174,10 +177,32 @@ echo "$GITREPO/build"
 
 export VITIS_VERSION=$VIVADO_VERSION_IN_USE
 
+# Where settings64.sh lives depends on the version - the version and the tool
+# name swap places at 2025.1:
+#
+#   2024.2 and earlier   ${XILINX_PATH}/Vitis/<version>/settings64.sh
+#   2025.1 and later     ${XILINX_PATH}/<version>/Vitis/settings64.sh
+#
+# Same rule as common/scripts/vitis_settings.sh (the CI path) and create_v80.sh.
+VIVADO_MAJOR=${VIVADO_VERSION_IN_USE%%.*}
+if [[ "$VIVADO_MAJOR" =~ ^[0-9]+$ ]] && [ "$VIVADO_MAJOR" -ge 2025 ]; then
+    VITIS_SETTINGS=${XILINX_PATH}/$VIVADO_VERSION_IN_USE/Vitis/settings64.sh
+else
+    VITIS_SETTINGS=${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh
+fi
+
+if [ ! -f "$VITIS_SETTINGS" ]; then
+    echo "Error: can't find Vitis $VIVADO_VERSION_IN_USE at $VITIS_SETTINGS"
+    exit 6
+fi
+
 # If you wish to just generate the .CCFG , issue the following command
 #python3 $GITREPO/tools/args/gen_c_config.py -f $kernel
-echo "Sourcing ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh"
-source ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh | $TEE_LOG | $COLOUR
+echo "Sourcing $VITIS_SETTINGS" | $TEE_LOG
+# Deliberately not piped. 'source x | tee' runs the source in a subshell, so the
+# PATH it exports is thrown away - which is why this used to be done twice, once
+# for the log and once for real.
+source "$VITIS_SETTINGS"
 
 echo
 echo "<><><><><><><><><><><><><>  Vivado Create Project <><><><><><><><><><><><><>" | $TEE_LOG
@@ -186,7 +211,6 @@ echo "Kernel for project is " $kernel | $TEE_LOG
 echo "Target Device for project is " $TARGET_ALVEO | $TEE_LOG
 echo "Vivado Version for project is " $VIVADO_VERSION_IN_USE | $TEE_LOG
 echo
-source ${XILINX_PATH}/Vitis/$VIVADO_VERSION_IN_USE/settings64.sh
 
 
 vivado $STACK_ARG -mode batch -source $GITREPO/designs/$kernel/create_project.tcl -tclargs $kernel | $TEE_LOG | $COLOUR

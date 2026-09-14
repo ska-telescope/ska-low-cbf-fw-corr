@@ -10,10 +10,25 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  VITIS_VERSION: "2022.2"
+  # Toolchain for the U55C (Vitis) chain. The V80 jobs already pin 2025.1
+  # themselves, so this is now the same version everywhere; those per-job pins
+  # are kept as explicit documentation rather than because they still differ.
+  #
+  # This also picks the runner: every Vitis job carries the tag
+  # "vitis-$VITIS_VERSION", so the runners must be tagged "vitis-2025.1" or the
+  # U55C chain sits pending rather than failing. The install-path change that
+  # goes with 2025.1 is in common/scripts/vitis_settings.sh.
+  VITIS_VERSION: "2025.1"
   GITLAB_PROJECT_ID: 38134197  # used in manual build (upload)
+  # Stays on the 2022.2-era platform: "xdma_3_202210_1" is the last U55C XDMA
+  # platform AMD released, so the toolchain moves forward and the platform does
+  # not.
   XPFM: "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm"
-  RIVIERA_TARGET: "Riviera-PRO-2022.10-x64" # version for 2022.2
+  # Inert in this repo: EXTRA_MATLAB_MODEL_DIR is "" below, which resolves every
+  # sim job rule to "never". Left on the 2022.2 pairing rather than guessed
+  # forward - if sims are re-enabled, pair this with the Riviera actually
+  # installed next to Vitis 2025.1.
+  RIVIERA_TARGET: "Riviera-PRO-2022.10-x64" # version for 2022.2 (unused, see above)
 
   # Platform label in the V80 package file name, i.e.
   # '<personality>_<V80_PLATFORM>_<version>...'. The standard V80 design is the
