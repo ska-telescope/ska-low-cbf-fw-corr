@@ -9,7 +9,7 @@
 -------------------------------------------------------------------------------
 
 LIBRARY IEEE, UNISIM, common_lib, axi4_lib, technology_lib, dsp_top_lib, correlator_lib, stats_lib;
-LIBRARY xpm, spead_lib;
+LIBRARY xpm, spead_lib, ethernet_lib;
 
 USE IEEE.STD_LOGIC_1164.ALL;
 USE IEEE.NUMERIC_STD.ALL;
@@ -62,7 +62,7 @@ ENTITY correlator_core IS
         g_HBM_AXI_ID_WIDTH   : integer := 1;
         -- Number of correlator blocks to instantiate.
         -- Set g_CORRELATORS to 0 and g_USE_DUMMY_FB to True for fast build times.
-        g_CORRELATORS        : integer := 2;  -- 1 or 2
+        g_CORRELATORS        : integer := 1;  -- 1 or 2
         g_USE_DUMMY_FB       : boolean := FALSE; -- Should be FALSE for normal operation.
         g_INCLUDE_SPS_MONITOR : boolean := TRUE
     );
@@ -554,6 +554,13 @@ ARCHITECTURE structure OF correlator_core IS
     signal i_axis_tlast_gated : std_logic;
     signal i_axis_tuser_gated : std_logic_vector(79 downto 0); -- Timestamp for the packet.
     signal i_axis_tvalid_gated : std_logic;
+    
+    signal axis_tdata_rm_vlan   : std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
+    signal axis_tkeep_rm_vlan   : std_logic_vector(63 downto 0);  -- one bit per byte in i_axi_tdata
+    signal axis_tlast_rm_vlan   : std_logic;
+    signal axis_tuser_rm_vlan   : std_logic_vector(79 downto 0); -- Timestamp for the packet.
+    signal axis_tvalid_rm_vlan  : std_logic;
+
     signal eth_disable_fsm_dbg : std_logic_vector(4 downto 0);
     signal hbm_reset_actual : std_logic_vector(5 downto 0);
     signal lfaaDecode_reset : std_logic;
@@ -570,6 +577,8 @@ ARCHITECTURE structure OF correlator_core IS
     signal sps_mon_w  : t_axi4_full_data;
     signal logic_HBM_axi_wreadyi_sigproc : std_logic_vector(5 downto 0);
     signal logic_HBM_axi_awreadyi_sigproc : std_logic_vector(5 downto 0);
+
+    signal vlan_stats           : t_slv_32_arr(2 downto 0);
     
 begin
     
@@ -973,13 +982,21 @@ begin
         src_in      => i_eth100G_locked 
     );
 
-    system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
-    system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
-    system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
-    system_fields_ro.eth100G_tx_total_packets       <= i_eth100G_tx_total_packets;
-    system_fields_ro.eth100g_ptp_nano_seconds       <= i_PTP_time_ARGs_clk(31 downto 0);
-    system_fields_ro.eth100g_ptp_lower_seconds      <= i_PTP_time_ARGs_clk(63 downto 32);
-    system_fields_ro.eth100g_ptp_upper_seconds      <= x"0000" & i_PTP_time_ARGs_clk(79 downto 64);
+
+    p_sys_periph_reg : process(ap_clk)
+    begin
+        if rising_edge(ap_clk) then
+            system_fields_ro.eth100G_rx_total_packets       <= i_eth100G_rx_total_packets;
+            system_fields_ro.eth100G_rx_bad_fcs             <= i_eth100G_rx_bad_fcs;
+            system_fields_ro.eth100G_rx_bad_code            <= i_eth100G_rx_bad_code;
+            system_fields_ro.eth100G_tx_total_packets       <= i_eth100G_tx_total_packets;
+
+            -- 0 = single vlan, 1 = double vlan, 2 = no vlan
+            system_fields_ro.packets_no_vlan_tag            <= vlan_stats(0);
+            system_fields_ro.packets_one_vlan_tag           <= vlan_stats(1);
+            system_fields_ro.packets_two_vlan_tag           <= vlan_stats(2);
+        end if;
+    end process;
     
     process(clk_gt_freerun_use)
     begin
@@ -1086,11 +1103,11 @@ begin
         g_INCLUDE_SPS_MONITOR   => g_INCLUDE_SPS_MONITOR -- If sps monitor is included, HBM ILA is removed
     ) port map (
         -- Received data from 100GE
-        i_axis_tdata   => i_axis_tdata_gated,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
-        i_axis_tkeep   => i_axis_tkeep_gated,  -- in (63:0);  one bit per byte in i_axi_tdata
-        i_axis_tlast   => i_axis_tlast_gated,  -- in std_logic;                      
-        i_axis_tuser   => i_axis_tuser_gated,  -- in (79:0);  Timestamp for the packet.
-        i_axis_tvalid  => i_axis_tvalid_gated, -- in std_logic;
+        i_axis_tdata   => axis_tdata_rm_vlan,  -- in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
+        i_axis_tkeep   => axis_tkeep_rm_vlan,  -- in (63:0);  one bit per byte in i_axi_tdata
+        i_axis_tlast   => axis_tlast_rm_vlan,  -- in std_logic;                      
+        i_axis_tuser   => axis_tuser_rm_vlan,  -- in (79:0);  Timestamp for the packet.
+        i_axis_tvalid  => axis_tvalid_rm_vlan, -- in std_logic;
         -- Data to be transmitted on 100GE
         o_bytes_to_transmit     => bytes_to_transmit,
         o_data_to_player        => data_to_player,
@@ -1236,6 +1253,36 @@ begin
         -----------------------------------------------------
     );    
     
+    ----------------------------------------------------------------------------------------------------------
+    i_vlan_strip : entity ethernet_lib.saxi_vlan_stripper 
+    Generic map ( 
+        g_DEBUG_ILA             => FALSE
+    )
+    Port map ( 
+        i_mac_data_clk          => i_eth100G_clk,
+        i_mac_data_rst          => '0',
+
+        i_clk_args_domain       => ap_clk,
+        i_clk_args_domain_rst   => '0',
+        -------------------------------------------------
+        -- Received data from 100GE
+        i_axis_tdata            => i_axis_tdata_gated,
+        i_axis_tkeep            => i_axis_tkeep_gated,
+        i_axis_tlast            => i_axis_tlast_gated,
+        i_axis_tuser            => i_axis_tuser_gated,
+        i_axis_tvalid           => i_axis_tvalid_gated,
+        -- Data output
+        o_axis_tdata            => axis_tdata_rm_vlan,
+        o_axis_tkeep            => axis_tkeep_rm_vlan,
+        o_axis_tlast            => axis_tlast_rm_vlan,
+        o_axis_tuser            => axis_tuser_rm_vlan,
+        o_axis_tvalid           => axis_tvalid_rm_vlan,
+        -------------------------------------------------
+        -- Stats
+        o_vlan_stats            => vlan_stats
+
+    );
+
     -- register for SLR crossing
     process(ap_clk)
     begin

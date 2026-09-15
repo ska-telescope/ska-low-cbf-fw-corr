@@ -377,6 +377,7 @@ add_files -fileset sources_1 [glob \
   $COMMON_PATH/common/src/vhdl/rdy_valid_reg_slice.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ethernet_pkg.vhd \
   $COMMON_PATH/ethernet/src/vhdl/ipv4_chksum.vhd \
+  $COMMON_PATH/ethernet/saxi_vlan_stripper.vhd \
 ]
 set_property library signal_processing_common [get_files {\
  */common/src/vhdl/sync.vhd \
@@ -399,7 +400,10 @@ set_property library common_lib [get_files {\
 set_property library ethernet_lib [get_files {\
 *ethernet/src/vhdl/ethernet_pkg.vhd \
 *ethernet/src/vhdl/ipv4_chksum.vhd \
+*ethernet/saxi_vlan_stripper.vhd \
 }]
+
+set_property file_type {VHDL 2008} [get_files $COMMON_PATH/ethernet/saxi_vlan_stripper.vhd]
 
 source $COMMON_PATH/common/src/args_axi_terminus.tcl
 
