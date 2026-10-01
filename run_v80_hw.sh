@@ -30,6 +30,7 @@ fi
 # job is supposed to archive actually exist: GitLab only WARNS about an
 # 'artifacts: paths:' entry that matches nothing, so without this a build that
 # produced no PDI would upload a partial artifact and still go green.
-./common/scripts/check_v80_artifacts.sh hw || exit 1
+# The ARGS personality is named because the build also generates dev_v80.
+V80_ARGS_PERSONALITY=correlator_v80 ./common/scripts/check_v80_artifacts.sh hw || exit 1
 
 exit 0
