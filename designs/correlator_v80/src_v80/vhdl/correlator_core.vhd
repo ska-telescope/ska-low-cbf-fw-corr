@@ -834,7 +834,7 @@ begin
         g_RESTART_HOLDOFF => 2048 -- : integer := 4096
     ) port map (
         -- Reset signal is on i_ap_clk
-        i_ap_clk  => clk_300,      --  in std_logic;
+        i_ap_clk  => clk_425,      --  in std_logic;
         i_reset   => eth_disable, --  in std_logic;  
         o_reset   => eth_disable_done,     --  out std_logic; -- Goes high following i_reset after the 100G ethernet has been blocked
         o_fsm_dbg => eth_disable_fsm_dbg, --  out std_logic_vector(4 downto 0); -- fsm state 

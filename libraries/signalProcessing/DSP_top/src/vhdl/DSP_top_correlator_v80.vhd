@@ -19,7 +19,7 @@
 --
 -------------------------------------------------------------------------------
 
-LIBRARY IEEE, common_lib, axi4_lib, ct_lib, DSP_top_lib, signal_processing_common;
+LIBRARY IEEE, common_lib, axi4_lib, ct_lib, DSP_top_lib, signal_processing_common, noc_lib;
 library LFAADecode100G_lib, DSP_top_lib, filterbanks_lib, spead_lib, correlator_lib;
 use ct_lib.all;
 use DSP_top_lib.DSP_top_pkg.all;
@@ -157,6 +157,10 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     signal LFAAingest_virtualChannel : std_logic_vector(15 downto 0);  -- single number to uniquely identify the channel+station for this packet.
     signal LFAAingest_packetCount    : std_logic_vector(47 downto 0);  -- Packet count from the SPEAD header.
     signal LFAAingest_valid          : std_logic;                      -- out std_logic
+
+    signal LFAAingest_virtualChannel_300MHz : std_logic_vector(15 downto 0);  -- single number to uniquely identify the channel+station for this packet.
+    signal LFAAingest_packetCount_300MHz    : std_logic_vector(47 downto 0);  -- Packet count from the SPEAD header.
+    signal LFAAingest_valid_300MHz          : std_logic;                      -- out std_logic
     
     signal LFAAingest_wvalid : std_logic;
     signal LFAAingest_wready : std_logic;
@@ -216,7 +220,6 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     
     signal cor_packet_data : t_slv_256_arr((g_MAX_CORRELATORS-1) downto 0);
     signal cor_packet_valid : std_logic_vector((g_MAX_CORRELATORS-1) downto 0);
-    signal LFAAingest_totalChannels : std_logic_vector(11 downto 0);
 
     signal FB_out_sof : std_logic;
 
@@ -228,11 +231,18 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     signal FB_meta_valid          : std_logic_vector(11 downto 0);
     
     signal ct_rst_del1, ct_rst_del2 : std_logic := '0';
-    signal reset_to_ct_1 : std_logic;
+    signal reset_to_ct_1        : std_logic;
+    signal reset_to_ct_1_300MHz : std_logic;
     signal freq_index0_repeat : std_logic;
     signal FD_bad_poly : std_logic_vector(11 downto 0);
-    signal LFAAingest_table_select : std_logic;
+    
+    signal LFAAingest_table_select          : std_logic;
+    signal LFAAingest_table_select_425MHz   : std_logic;
     signal totalChannelsTable0, totalChannelsTable1 : std_logic_vector(11 downto 0);
+
+    signal totalChannelsTable0_300MHz : std_logic_vector(11 downto 0);
+    signal totalChannelsTable1_300MHz : std_logic_vector(11 downto 0);
+
     signal FB_demap_table_select : std_logic;
     signal FB_lastChannel : std_logic;
     signal FD_lastChannel, FD_demap_table_select : std_logic;
@@ -253,6 +263,10 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     
     signal SPS_HBM_axi_aw, CT1_HBM_axi_ar : t_axi4_full_addr_arr(1 downto 0);
     signal SPS_HBM_axi_w, CT1_HBM_axi_r : t_axi4_full_data_arr(1 downto 0);
+
+    signal SPS_HBM_axi_aw_425MHz        : t_axi4_full_addr_arr(1 downto 0);
+    signal SPS_HBM_axi_awready_425MHz   : std_logic_vector(1 downto 0);
+
     signal SPS_HBM_axi_wready, SPS_HBM_axi_awready, SPS_HBM_axi_bready, CT1_HBM_axi_arready, CT1_HBM_axi_rready : std_logic_vector(1 downto 0);
     signal SPS_HBM_axi_b : t_axi4_full_b_arr(1 downto 0);   
     signal dummy_slv32 : std_logic_vector(31 downto 0) := x"00000000";
@@ -274,6 +288,17 @@ ARCHITECTURE structure OF DSP_top_correlator_v80 IS
     signal dcmac_rst_300    : STD_LOGIC;
     signal dcmac_rst_425    : STD_LOGIC;
     
+    -----------------------------------------------------------------------
+    -- CDC: packet headers  i_100GE_clk -> i_MACE_clk
+    -- Packed bus: virtualChannel(16) & packetCount(40) = 56 bits
+    -----------------------------------------------------------------------
+    constant c_CDC_DATA_W : integer := 56;
+    signal cdc_data_src_in   : std_logic_vector(c_CDC_DATA_W-1 downto 0);
+    signal cdc_data_src_send : std_logic;
+    signal cdc_data_src_rcv  : std_logic;
+    signal cdc_data_dest_out : std_logic_vector(c_CDC_DATA_W-1 downto 0);
+    signal cdc_data_dest_req : std_logic;
+
 begin
     
     HBM_axi_a_dummy.valid <= '0';
@@ -319,8 +344,6 @@ begin
         -- correlator supports 3072 virtual channels
         g_MAX_VC  => "0011"
     ) port map(
-        -- single clock domain
-        i_clk => i_MACE_clk,
         -- Data in from the 100GE MAC
         i_axis_tdata     => i_axis_tdata, --  in (511:0); 64 bytes of data, 1st byte in the packet is in bits 7:0.
         i_axis_tkeep     => i_axis_tkeep, --  in (63:0);  one bit per byte in i_axi_tdata
@@ -333,7 +356,7 @@ begin
         -- Data to the corner turn. This is just some header information about each LFAA packet, needed to generate the address the data is to be written to.
         o_virtualChannel => LFAAingest_virtualChannel,  -- out(15:0), single number to uniquely identify the channel+station for this packet.
         o_packetCount    => LFAAingest_packetCount(39 downto 0), -- out(31:0). Packet count from the SPEAD header.
-        o_totalChannels  => LFAAingest_totalChannels,   -- out (11:0);
+        o_totalChannels  => open,   -- out (11:0);
         o_totalChannelsTable0 => totalChannelsTable0, -- out (11:0)
         o_totalChannelsTable1 => totalChannelsTable1, -- out (11:0)
         o_totalStations  => open, -- LFAAingest_totalStations,   -- out (11:0);
@@ -349,12 +372,14 @@ begin
         -- AXI lite Interface, not used for V80, registers are connected to the NOC at a lower level
         i_s_axi_mosi  => c_axi4_lite_mosi_rst, -- in t_axi4_lite_mosi;
         o_s_axi_miso  => open, -- out t_axi4_lite_miso;
-        i_s_axi_rst   => i_MACE_rst,
+        -- single clock domain
+        i_clk => i_axis_clk,
+        i_s_axi_rst   => dcmac_rst_425,
         -- registers AXI Full interface
         i_vcstats_MM_IN  => c_axi4_full_mosi_null, -- in  t_axi4_full_mosi;
         o_vcstats_MM_OUT => open,                  -- out t_axi4_full_miso;
         -- control signal in to select which virtual channel table to use
-        i_vct_table_select => LFAAingest_table_select, -- in std_logic;
+        i_vct_table_select => LFAAingest_table_select_425MHz, -- in std_logic;
         -- hbm reset   
         o_hbm_reset        => HBM_reset_ct1, -- o_hbm_reset(0),
         i_hbm_status       => i_hbm_status(0),
@@ -375,10 +400,10 @@ begin
         g_HBM_base_addr => c_V80_HBM_BASE_CT1_ADDR, -- std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
         g_USE_VNOC => c_V80_HBM_SPS_DECODE_VNOC0    -- True to use VNOC, otherwise false for HBM specific NOC interfaces at the top of SLR0
     ) port map (
-        clk  => i_MACE_clk, --  in std_logic;
+        clk  => i_axis_clk, --  in std_logic;
         -- write
-        i_HBM_axi_aw      => SPS_HBM_axi_aw(0),      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_awready => SPS_HBM_axi_awready(0), -- out std_logic;
+        i_HBM_axi_aw      => SPS_HBM_axi_aw_425MHz(0),      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_awready => SPS_HBM_axi_awready_425MHz(0), -- out std_logic;
         i_HBM_axi_w       => SPS_HBM_axi_w(0),       -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
         o_HBM_axi_wready  => SPS_HBM_axi_wready(0),  -- out std_logic;
         o_HBM_axi_b       => SPS_HBM_axi_b(0),       -- out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
@@ -395,10 +420,10 @@ begin
         g_HBM_base_addr => c_V80_HBM_BASE_CT1_ADDR, -- std_logic_vector(63 downto 0) := x"0000004600000000";  -- default is the HBM base address
         g_USE_VNOC => c_V80_HBM_SPS_DECODE_VNOC1   -- True to use VNOC, otherwise false for HBM specific NOC interfaces at the top of SLR0
     ) port map (
-        clk  => i_MACE_clk, --  in std_logic;
+        clk  => i_axis_clk, --  in std_logic;
         -- write
-        i_HBM_axi_aw      => SPS_HBM_axi_aw(1),      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
-        o_HBM_axi_awready => SPS_HBM_axi_awready(1), -- out std_logic;
+        i_HBM_axi_aw      => SPS_HBM_axi_aw_425MHz(1),      -- in t_axi4_full_addr; -- write address bus : out t_axi4_full_addr(.valid, .addr(39:0), .len(7:0))
+        o_HBM_axi_awready => SPS_HBM_axi_awready_425MHz(1), -- out std_logic;
         i_HBM_axi_w       => SPS_HBM_axi_w(1),       -- in t_axi4_full_data; -- w data bus : out t_axi4_full_data(.valid, .data(511:0), .last, .resp(1:0))
         o_HBM_axi_wready  => SPS_HBM_axi_wready(1),  -- out std_logic;
         o_HBM_axi_b       => SPS_HBM_axi_b(1),       -- out t_axi4_full_b;     -- write response bus : in t_axi4_full_b(.valid, .resp); resp of "00" or "01" means ok, "10" or "11" means the write failed.
@@ -410,6 +435,121 @@ begin
         i_HBM_axi_rready => HBM_axi_ready_dummy -- in std_logic
     );
     SPS_HBM_axi_bready(1 downto 0) <= "11";
+    ---------------------------------------------------------------------------------------------------
+    aw0_ct1_cdc : entity noc_lib.axi_aw_cdc
+    port map (
+        clk_in            => i_MACE_clk,
+        i_axi_aw          => SPS_HBM_axi_aw(0),
+        o_axi_awready     => SPS_HBM_axi_awready(0),
+
+        clk_out           => i_axis_clk,
+        o_axi_aw          => SPS_HBM_axi_aw_425MHz(0),
+        i_axi_awready     => SPS_HBM_axi_awready_425MHz(0),
+        o_fifo_full_error => open
+    );
+
+    aw1_ct1_cdc : entity noc_lib.axi_aw_cdc
+    port map (
+        clk_in            => i_MACE_clk,
+        i_axi_aw          => SPS_HBM_axi_aw(1),
+        o_axi_awready     => SPS_HBM_axi_awready(1),
+
+        clk_out           => i_axis_clk,
+        o_axi_aw          => SPS_HBM_axi_aw_425MHz(1),
+        i_axi_awready     => SPS_HBM_axi_awready_425MHz(1),
+        o_fifo_full_error => open
+    );
+    
+    ---------------------------------------------------------------------------------------------------
+    -- cross 425MHz to 300
+    -------------------------------------------------------------------------
+    -- CDC: packet headers  i_100GE_clk -> i_MACE_clk
+    -- Pack all per-packet header fields into one wide bus.
+    -- Use o_valid as src_send; guard with src_rcv to prevent back-to-back sends.
+    -- dest_ack is tied to dest_req for immediate single-cycle self-acknowledgement.
+    -------------------------------------------------------------------------
+    
+    p_lfaa_to_ct1_meta_data: process(i_axis_clk)
+    begin
+        if rising_edge(i_axis_clk) then
+            if LFAAingest_valid = '1' then
+                cdc_data_src_in     <= LFAAingest_virtualChannel & LFAAingest_packetCount(39 downto 0);
+                cdc_data_src_send   <= '1';
+            elsif cdc_data_src_rcv = '1' then
+                cdc_data_src_send   <= '0';
+            end if;
+        end if;
+    end process;
+    
+    cdc_header : xpm_cdc_handshake
+    generic map (
+        DEST_EXT_HSK   => 1,
+        DEST_SYNC_FF   => 4,
+        INIT_SYNC_FF   => 0,
+        SIM_ASSERT_CHK => 0,
+        SRC_SYNC_FF    => 4,
+        WIDTH          => c_CDC_DATA_W
+    )
+    port map (
+        src_clk  => i_axis_clk,
+        src_in   => cdc_data_src_in,
+        src_send => cdc_data_src_send,
+        src_rcv  => cdc_data_src_rcv,
+        dest_clk => i_MACE_clk,
+        dest_out => cdc_data_dest_out,
+        dest_req => cdc_data_dest_req,
+        dest_ack => cdc_data_dest_req   -- immediate self-ack: dest_req high for 1 cycle
+    );
+
+    LFAAingest_virtualChannel_300MHz    <= cdc_data_dest_out(55 downto 40);
+    LFAAingest_packetCount_300MHz       <= x"00" & cdc_data_dest_out(39 downto 0);
+    LFAAingest_valid_300MHz             <= cdc_data_dest_req;
+
+    cdc_chantable_0_sig : entity signal_processing_common.sync
+    generic map (
+        WIDTH => 12
+    )
+    Port Map ( 
+        Clock_a     => i_axis_clk,
+        data_in     => totalChannelsTable0,
+        
+        Clock_b     => i_MACE_clk,
+        data_out    => totalChannelsTable0_300MHz
+    );
+    cdc_chantable_1_sig : entity signal_processing_common.sync
+    generic map (
+        WIDTH => 12
+    )
+    Port Map ( 
+        Clock_a     => i_axis_clk,
+        data_in     => totalChannelsTable1,
+        
+        Clock_b     => i_MACE_clk,
+        data_out    => totalChannelsTable1_300MHz
+    );
+    cdc_lfaa_to_ct1_rst : entity signal_processing_common.sync
+    generic map (
+        WIDTH => 1
+    )
+    Port Map ( 
+        Clock_a     => i_axis_clk,
+        data_in(0)  => reset_to_ct_1,
+        
+        Clock_b     => i_MACE_clk,
+        data_out(0) => reset_to_ct_1_300MHz
+    );
+    cdc_ct1_to_lfaa_table_sel : entity signal_processing_common.sync
+    generic map (
+        WIDTH => 1
+    )
+    Port Map ( 
+        Clock_a     => i_MACE_clk,
+        data_in(0)  => LFAAingest_table_select,
+        
+        Clock_b     => i_axis_clk,
+        data_out(0) => LFAAingest_table_select_425MHz
+    );    
+    
     
     ---------------------------------------------------------------------------------------------------
     
@@ -428,16 +568,16 @@ begin
         i_poly_full_axi_mosi => c_axi4_full_mosi_null, --  in  t_axi4_full_mosi; -- => mc_full_mosi(c_corr_ct1_full_index),
         o_poly_full_axi_miso => open, --  out t_axi4_full_miso; -- => mc_full_miso(c_corr_ct1_full_index),
         -- other config (from LFAA ingest config, must be the same for the corner turn)
-        i_totalChannelsTable0 => totalChannelsTable0, -- out (11:0); Total virtual channels in vct table 0
-        i_totalChannelsTable1 => totalChannelsTable1, -- out (11:0); Total virtual channels in vct table 1
-        i_rst => reset_to_ct_1,
+        i_totalChannelsTable0 => totalChannelsTable0_300MHz, -- out (11:0); Total virtual channels in vct table 0
+        i_totalChannelsTable1 => totalChannelsTable1_300MHz, -- out (11:0); Total virtual channels in vct table 1
+        i_rst => reset_to_ct_1_300MHz,
         o_rst => ct_rst, -- reset output from a register in the corner turn; used to reset downstream modules.
         -- Headers for each valid packet received by the LFAA ingest.
         -- LFAA packets are about 8300 bytes long, so at 100Gbps each LFAA packet is about 660 ns long. This is about 200 of the interface clocks (@300MHz)
         -- These signals use i_shared_clk
-        i_virtualChannel => LFAAingest_virtualChannel, -- in std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station; this module supports values in the range 0 to 1023.
-        i_packetCount    => LFAAingest_packetCount,    -- in std_logic_vector(31 downto 0);
-        i_valid          => LFAAingest_valid, --  in std_logic;
+        i_virtualChannel => LFAAingest_virtualChannel_300MHz, -- in std_logic_vector(15 downto 0); -- Single number which incorporates both the channel and station; this module supports values in the range 0 to 1023.
+        i_packetCount    => LFAAingest_packetCount_300MHz,    -- in std_logic_vector(31 downto 0);
+        i_valid          => LFAAingest_valid_300MHz, --  in std_logic;
         -- select the table to use in LFAA Ingest. Changes to the configuration tables to be used (in ingest, ct1, and ct2) are sequenced from within corner turn 1
         o_vct_table_select => LFAAingest_table_select,  -- out std_logic;
         --
