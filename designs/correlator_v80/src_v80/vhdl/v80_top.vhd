@@ -381,7 +381,7 @@ begin
     i_dcmac_wrapper : entity versal_dcmac_lib.dcmac_200g_wrapper
     Generic map (
         G_UPPER_PCIBRACKET_PORT => FALSE,
-        G_DEBUG_ILA             => TRUE
+        G_DEBUG_ILA             => FALSE
     )
     Port map ( 
         i_clk                   => Clock_100_GTY_buf,
