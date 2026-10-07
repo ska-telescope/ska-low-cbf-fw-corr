@@ -373,8 +373,8 @@ begin
         i_s_axi_mosi  => c_axi4_lite_mosi_rst, -- in t_axi4_lite_mosi;
         o_s_axi_miso  => open, -- out t_axi4_lite_miso;
         -- single clock domain
-        i_clk => i_axis_clk,
-        i_s_axi_rst   => dcmac_rst_425,
+        i_clk           => i_axis_clk,
+        i_s_axi_rst     => i_axis_clk_rst,
         -- registers AXI Full interface
         i_vcstats_MM_IN  => c_axi4_full_mosi_null, -- in  t_axi4_full_mosi;
         o_vcstats_MM_OUT => open,                  -- out t_axi4_full_miso;
