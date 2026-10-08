@@ -269,10 +269,13 @@ set bd_name         "top"
   add_files -fileset sources_1 [glob \
     $COMMON_PATH/NOC/args_noc_v2.vhd \
     $COMMON_PATH/NOC/axi_bram_ctrl_noc.vhd \
+    $COMMON_PATH/NOC/axi_aw_cdc.vhd \
   ]
+  
   set_property library noc_lib [get_files {\
     */NOC/args_noc_v2.vhd \
     */NOC/axi_bram_ctrl_noc.vhd \
+    */NOC/axi_aw_cdc.vhd \
   }]
 
   source $COMMON_PATH/NOC/noc_ip.tcl
