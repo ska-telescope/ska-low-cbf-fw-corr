@@ -1,0 +1,6 @@
+# Docs build dependencies, used by both Read the Docs and the GitLab docs-build job.
+# Python 3.10 (GitLab CI image) limits Sphinx to 8.1.x.
+--extra-index-url https://artefact.skao.int/repository/pypi-internal/simple
+sphinx==8.1.3
+sphinx-rtd-theme==3.1.0
+ska-ser-sphinx-theme==0.2.1
