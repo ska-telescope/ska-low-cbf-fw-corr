@@ -8,13 +8,13 @@
 ######################################################################
 ## CLI support
 
-SUPPORTED_VERSIONS=(2024.2 2025.1)
+SUPPORTED_VERSIONS=(2026.1)
 ShowHelp()
 {
     echo "####################################################"
     echo "Usage: ${0##*/} [-h] <vitis version> "
     echo ""
-    echo "e.g. ${0##*/} 2024.2 "
+    echo "e.g. ${0##*/} 2026.1 "
     echo ""
     echo "-h    Print this help then exit"
     echo "Supported Vivado Version: ${SUPPORTED_VERSIONS[*]}"    
@@ -103,13 +103,6 @@ sleep 5s
 if [ ! -d "$GITREPO/build/$TARGET_ALVEO" ]; then
     echo -e "Creating directory $GITREPO/build/$TARGET_ALVEO"
     mkdir -p $GITREPO/build/$TARGET_ALVEO
-fi
-
-##Check for IP repo not included in common
-if [ ! -d "$GITREPO/common/v80_infra/iprepo" ]; then
-    echo -e "IPrepo dir missing from /common/v80_infra/iprepo"
-    echo -e "Seek help from a higher power."
-    exit 1
 fi
 
 echo "Generate build info file"

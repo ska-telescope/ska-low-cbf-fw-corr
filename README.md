@@ -68,10 +68,10 @@ specifically mentions another license.
 * AMD / Xilinx tool 
   * U55C - platform 3 for Ubuntu 22.04 - Vitis 2022.2
     * License required is 100G CMAC for US+. (Free from AMD license website)
-  * V80 - Vivado 2024.2
+  * V80 - Vivado 2026.1, on AMD's AMR base design (see common/v80_infra/README.MD)
     * Licenses required
       * 600G DCMAC for Versal. (Free from AMD license website)
-      * SMBuS IP core for AVED. (Free from AMD, requires V80 Lounge access as of Q2 2025)
+    * AMR ships the SMBus IP as source, so no SMBus licence or protected IP is needed.
 
 ## Tool Environment
 

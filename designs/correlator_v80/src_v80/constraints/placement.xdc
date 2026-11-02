@@ -1,0 +1,1 @@
+add_cells_to_pblock pblock_SLR1 [get_cells -hierarchical *eth_block]

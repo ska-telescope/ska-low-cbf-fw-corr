@@ -69,9 +69,7 @@ set bd_name         "top"
   set_property target_language VHDL [current_project]
   set_property target_simulator XSim [current_project]
 
-  # Set project IP repositories
-  set_property ip_repo_paths "$COMMON/v80_infra/iprepo" [current_project]
-  update_ip_catalog
+  # No IP repository: this simulation project only uses AMD's own IP
 
   # # ----------------------------------------
   # # Add base files
@@ -109,25 +107,15 @@ set bd_name         "top"
   # Add DCMAC BD
   # 100G config
 
-    if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
-    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd.tcl
-  } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
-    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2025_1.tcl
-  } else {
-    puts "###################################################"
-    puts "        UNSUPPORTED VERSION OF VIVADO"
-    puts "###################################################"
-    exit
-  }
-  
+  source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2026_1.tcl
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
   # 200G config for lower ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
+  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2026_1.tcl
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
 
   # 200G config for upper ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
+  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2026_1.tcl
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
 
   # --------------------------------------------------------------------------------

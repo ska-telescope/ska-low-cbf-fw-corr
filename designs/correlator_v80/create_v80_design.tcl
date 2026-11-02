@@ -69,9 +69,13 @@ set bd_name         "top"
   set_property target_language VHDL [current_project]
   set_property target_simulator XSim [current_project]
 
-  # Set project IP repositories
-  set_property ip_repo_paths "$COMMON/v80_infra/iprepo" [current_project]
+  # Set project IP repositories - AMR's SMBus IP
+  set_property ip_repo_paths "$COMMON/v80_infra/ip" [current_project]
   update_ip_catalog
+
+  # AMR: the device image is split into a boot PDI (CIPS, NoC, DDR, HBM) and a
+  # PL PDI, which the host loads after boot
+  set_property segmented_configuration true [current_project]
 
   # ----------------------------------------
   # Add base files
@@ -86,19 +90,8 @@ set bd_name         "top"
   create_bd_design  ${bd_name}
   current_bd_design ${bd_name}
 
-  # Add base to block diagram
-
-  if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
-    source $COMMON/v80_infra/src/top_bd/create_bd_design.tcl
-  } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
-    source $COMMON/v80_infra/src/top_bd/create_bd_design_2025_1.tcl
-  } else {
-    puts "###################################################"
-    puts "        UNSUPPORTED VERSION OF VIVADO"
-    puts VIVADO_VERSION_IN_USE
-    puts "###################################################"
-    exit
-  }
+  # Add base to block diagram: AMR's V80 base design, Vivado 2026.1
+  source $COMMON/v80_infra/src/top_bd/create_bd_design_2026_1.tcl
 
   create_root_design ""
 
@@ -123,11 +116,11 @@ set bd_name         "top"
   # add_files -norecurse [make_wrapper -files [get_files "dcmac_two_100g_bd.bd"] -top]
 
   # 200G config for lower ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
+  source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2026_1.tcl
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_lower_bd.bd"] -top]
 
   # 200G config for upper ports.
-  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
+  source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2026_1.tcl
   add_files -norecurse [make_wrapper -files [get_files "dcmac_two_200g_upper_bd.bd"] -top]
 
   # --------------------------------------------------------------------------------
@@ -283,7 +276,10 @@ set bd_name         "top"
   # This file will need to be tailored to each personality
   add_files -fileset constrs_1 -norecurse "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"
   set_property USED_IN {synthesis_pre} [get_files "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"]
-  
+
+  add_files -fileset constrs_1 -norecurse "$DESIGN_PATH/src_v80/constraints/placement.xdc"
+  set_property USED_IN {synthesis_pre} [get_files "$DESIGN_PATH/src_v80/constraints/placement.xdc"]
+
   #############################################################
   # tech memory
   # (Used by ARGs)
@@ -798,19 +794,6 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
   add_files -fileset constrs_1 -norecurse "$COMMON/v80_infra/constraints/impl.xdc"
   add_files -fileset constrs_1 -norecurse "$COMMON/v80_infra/constraints/impl.pins.xdc"
   add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/opt.post.tcl"
-  add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/write_device_image.pre.tcl"
-
-  # 2025.1 added dont-touch to CIPS in BD
-  if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
-    add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/place.pre.tcl"
-  } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
-    add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/2025.1/place.pre.tcl"
-  } else {
-    puts "###################################################"
-    puts "        UNSUPPORTED VERSION OF VIVADO"
-    puts "###################################################"
-    exit
-  }
 
   set_property strategy Flow_PerfOptimized_high [get_runs synth_1]
   set_property strategy Performance_ExtraTimingOpt [get_runs impl_1]
@@ -819,8 +802,6 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
   set_property -dict { used_in_synthesis false    processing_order NORMAL } [get_files *impl.pins.xdc]
 
   set_property STEPS.OPT_DESIGN.TCL.POST         [get_files *opt.post.tcl]                [get_runs impl_1]
-  set_property STEPS.PLACE_DESIGN.TCL.PRE        [get_files *place.pre.tcl]               [get_runs impl_1]
-  set_property STEPS.WRITE_DEVICE_IMAGE.TCL.PRE  [get_files *write_device_image.pre.tcl]  [get_runs impl_1]
 
   set_property AUTO_INCREMENTAL_CHECKPOINT 0 [get_runs synth_1]
   

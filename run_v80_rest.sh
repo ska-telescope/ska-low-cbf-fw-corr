@@ -22,14 +22,14 @@ if [ ! -f build/v80/v80_top.xsa ]; then
 fi
 
 # compile fw
-./common/v80_infra/create_fw_project.sh 2025.1
+./common/v80_infra/create_fw_project.sh 2026.1 || exit 1
 
 echo -e "*********************************************************"
 echo -e "**********             FW complete              *********"
 echo -e "*********************************************************"
 
 # combine to make PDI
-./common/v80_infra/create_pdi.sh 2025.1
+./common/v80_infra/create_pdi.sh 2026.1 || exit 1
 
 echo -e "*********************************************************"
 echo -e "**********            PDI complete              *********"
@@ -49,8 +49,10 @@ fi
 
 cp addresses.hbm output/
 
-# bitstream file
+# bitstream file, and the PL image that is not in it - the card boots with the
+# PL empty and the host loads v80_top_pld.pdi with 'ami_tool pdi_program'
 cp build/v80/v80_top.pdi output/
+cp build/v80/v80_top_pld.pdi output/
 
 # find and copy ltx file
 find . -name 'v80_top.ltx' | xargs cp -t output/

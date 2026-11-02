@@ -10,14 +10,16 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  # Toolchain for the U55C (Vitis) chain. The V80 jobs already pin 2025.1
-  # themselves, so this is now the same version everywhere; those per-job pins
-  # are kept as explicit documentation rather than because they still differ.
+  # Toolchain for the U55C (Vitis) chain. The V80 jobs pin their own release
+  # per job: 2026.1, which the AMR base design (common/v80_infra) needs.
   #
   # This also picks the runner: every Vitis job carries the tag
   # "vitis-$VITIS_VERSION", so the runners must be tagged "vitis-2025.1" or the
   # U55C chain sits pending rather than failing. The install-path change that
   # goes with 2025.1 is in common/scripts/vitis_settings.sh.
+  #
+  # For now the V80 jobs carry it too, from their own 2026.1 pin, so they only
+  # go to runners tagged both "v80" and "vitis-2026.1".
   VITIS_VERSION: "2025.1"
   GITLAB_PROJECT_ID: 38134197  # used in manual build (upload)
   # Stays on the 2022.2-era platform: "xdma_3_202210_1" is the last U55C XDMA
@@ -322,12 +324,13 @@ create project v80:
     - ARGS
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
     - $EXTRA_CREATE_PROJECT_TAG
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "correlator_v80" # used to choose design
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
@@ -352,13 +355,14 @@ fpga lint v80:
   timeout: 2 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
+    VITIS_VERSION: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -387,31 +391,29 @@ vivado compile v80:
   timeout: 12 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
     - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
   script:
     - pwd   # this should report the dir of the cloned repo in the runner
-    # copy protected ip repos into structure for building
-    - cd common/v80_infra
-    - cp -R /home/gitlab-runner/iprepo .
-    - cd ../..
     # back at repo root, run STAGE 1 only (Vivado HW compile).
     - ./run_v80_hw.sh
   artifacts:
     paths:
       - build/ARGS/py/correlator_v80/fpgamap_*.py
       - build/v80/v80_top.xsa
-      - build/v80/v80_top.runs/impl_1/v80_top.pdi
+      - build/v80/v80_top.runs/impl_1/*_boot.pdi
+      - build/v80/v80_top.runs/impl_1/*_pld.pdi
       - build/v80/v80_top.runs/impl_1/v80_top.ltx
       - build/v80/v80_top.runs/impl_1/*.rpt
       - build/v80/v80_top.runs/impl_1/*.log
@@ -445,14 +447,15 @@ assemble v80:
   timeout: 2 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -483,7 +486,7 @@ publish v80 package:
     - shell 
   variables:
     BUILD_STRING: "CI development build. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
-    VITIS_VERSION: "2025.1"
+    VITIS_VERSION: "2026.1"
   script:
     - common/scripts/package_firmware_v80.sh
 
@@ -567,30 +570,28 @@ vivado compile v80 100g:
   timeout: 12 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     V80_DESIGN_TCL: "create_v80_100g_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
     - source "${XILINX_PATH}/${VITIS_VERSION}/Vivado/settings64.sh"
   script:
     - pwd
-    # copy protected ip repos into structure for building
-    - cd common/v80_infra
-    - cp -R /home/gitlab-runner/iprepo .
-    - cd ../..
     - ./run_v80_hw.sh
   artifacts:
     paths:
       - build/ARGS/py/correlator_v80/fpgamap_*.py
       - build/v80/v80_top.xsa
-      - build/v80/v80_top.runs/impl_1/v80_top.pdi
+      - build/v80/v80_top.runs/impl_1/*_boot.pdi
+      - build/v80/v80_top.runs/impl_1/*_pld.pdi
       - build/v80/v80_top.runs/impl_1/v80_top.ltx
       - build/v80/v80_top.runs/impl_1/*.rpt
       - build/v80/v80_top.runs/impl_1/*.log
@@ -613,14 +614,15 @@ assemble v80 100g:
   timeout: 2 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"
     V80_DESIGN_TCL: "create_v80_100g_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -642,7 +644,7 @@ publish v80 100g package:
     - shell
   variables:
     BUILD_STRING: "CI development build, V80 100G networking design. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
-    VITIS_VERSION: "2025.1"
+    VITIS_VERSION: "2026.1"
     # Distinguishes this from the standard V80 package. Without it both upload
     # as '<personality>_v80_<version>...' and the second overwrites the first.
     V80_PLATFORM: "v80_100g"

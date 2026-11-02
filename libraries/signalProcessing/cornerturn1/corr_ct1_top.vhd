@@ -324,6 +324,10 @@ architecture Behavioral of corr_ct1_top is
     signal chan0, chan1, chan2, chan3 : std_logic_vector(9 downto 0);
     signal ok0, ok1, ok2, ok3 : std_logic := '0';
     signal validOut : std_logic;
+
+    attribute max_fanout : integer;
+    attribute max_fanout of validOut : signal is 250;
+
     signal validOutDel : std_logic;
     signal outputCountAddr : std_logic_vector(9 downto 0);
     signal outputCountWrData : std_logic_vector(31 downto 0);
