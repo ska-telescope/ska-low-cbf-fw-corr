@@ -524,9 +524,9 @@ begin
         
         sps_statsi : entity stats_lib.sps_statistics_top
         generic map (
-            g_BUFFER_ADDR_BITS => 29,  -- integer := 30; -- number of bits in the HBM address; 30 = 2^30 bytes = 1 GByte
-            g_USE_512BIT       => '0', -- std_logic := '0';    -- use 512 bit wide axi interface (otherwise use 256 bit)
-            g_CLKS_PER_MILLISECOND => 300000 --  integer    -- Number of dsp_clk clks per 1 ms
+            g_BUFFER_ADDR_BITS => 29,  -- integer := 30;    Number of bits in the HBM address; 30 = 2^30 bytes = 1 GByte
+            g_USE_512BIT       => '0', -- std_logic := '0'; Use 512 bit wide axi interface (otherwise use 256 bit)
+            g_CLKS_PER_MILLISECOND => 425000 --  integer    Number of i_data_clk clks per 1 ms
         ) port map (
             -- Data in from the 100GE MAC
             i_axis_tdata => i_axis_tdata,   -- in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
@@ -535,8 +535,8 @@ begin
             i_axis_tuser => i_axis_tuser,   -- in std_logic_vector(79 downto 0);  -- Timestamp for the packet.
             i_axis_tvalid => i_axis_tvalid, -- in std_logic;
 
-            i_data_clk    => clk_425, -- in std_logic;     -- 322 MHz for 100GE MAC
-            i_data_rst    => '0', -- OR use i_dcmac_locked_300m
+            i_data_clk    => clk_425, -- in std_logic; 425 MHz for 200GE MAC
+            i_data_rst    => clk_425_rst, -- OR use i_dcmac_locked_300m
 
             -- milliseconds between writing summaries to the HBM
             i_period_ms        => sps_monitor_period_dcmac_clk, --system_fields_rw.sps_monitor_period, -- , -- : in std_logic_vector(15 downto 0);
@@ -544,14 +544,18 @@ begin
             ----------------------------------------------------------------------------------
             -- Data out to the memory interface; This is the wdata portion of the AXI full bus.
             i_ap_clk        => clk_300, -- in  std_logic;  -- Shared memory clock used to access the HBM.
-            i_ap_rst        => '0',    --  in  std_logic;
+            i_ap_rst        => clk_300_rst,    --  in  std_logic;
             o_axi_aw        => sps_mon_aw,      -- out t_axi4_full_addr; -- write address bus : out t_axi4_full_addr (.valid, .addr(39:0), .len(7:0))
             i_axi_awready   => sps_mon_awready, -- in std_logic;
             o_axi_w         => sps_mon_w,       -- out t_axi4_full_data; -- w data bus : out t_axi4_full_data; (.valid, .data(511:0), .last, .resp(1:0))
             i_axi_wready    => sps_mon_wready,  -- in std_logic;
             -----------------------------------------------------------------------------------
             -- Configuration and status
-            o_status => open, -- out std_logic_vector(31 downto 0); -- ??? put something in here
+            o_status => system_fields_ro.sps_monitor_dbg, -- out (31:0);
+            o_status2 => system_fields_ro.sps_monitor_dbg2, -- out (31:0);
+            o_status3 => system_fields_ro.sps_monitor_dbg3, -- out (31:0);
+            o_status4 => system_fields_ro.sps_monitor_dbg4, -- out (31:0);
+            o_status5 => system_fields_ro.sps_monitor_dbg5, -- out (31:0);
             o_wrAddr => system_fields_ro.sps_monitor_wr_addr -- out (31:0); Most recent address written to in the HBM, on i_ap_clk
         );
         
