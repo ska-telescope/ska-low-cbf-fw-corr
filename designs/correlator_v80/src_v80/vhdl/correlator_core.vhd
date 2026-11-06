@@ -526,7 +526,8 @@ begin
         generic map (
             g_BUFFER_ADDR_BITS => 29,  -- integer := 30;    Number of bits in the HBM address; 30 = 2^30 bytes = 1 GByte
             g_USE_512BIT       => '0', -- std_logic := '0'; Use 512 bit wide axi interface (otherwise use 256 bit)
-            g_CLKS_PER_MILLISECOND => 425000 --  integer    Number of i_data_clk clks per 1 ms
+            g_CLKS_PER_MILLISECOND => 425000, --  integer    Number of i_data_clk clks per 1 ms
+            g_DEBUG_ILA        => FALSE -- boolean := FALSE; Instantiate the 2 debug ILAs in stats_hbm_write
         ) port map (
             -- Data in from the 100GE MAC
             i_axis_tdata => i_axis_tdata,   -- in std_logic_vector(511 downto 0); -- 64 bytes of data, 1st byte in the packet is in bits 7:0.
@@ -551,11 +552,11 @@ begin
             i_axi_wready    => sps_mon_wready,  -- in std_logic;
             -----------------------------------------------------------------------------------
             -- Configuration and status
-            o_status => system_fields_ro.sps_monitor_dbg, -- out (31:0);
-            o_status2 => system_fields_ro.sps_monitor_dbg2, -- out (31:0);
-            o_status3 => system_fields_ro.sps_monitor_dbg3, -- out (31:0);
-            o_status4 => system_fields_ro.sps_monitor_dbg4, -- out (31:0);
-            o_status5 => system_fields_ro.sps_monitor_dbg5, -- out (31:0);
+            o_status => open, -- system_fields_ro.sps_monitor_dbg, -- out (31:0);
+            o_status2 => open, -- system_fields_ro.sps_monitor_dbg2, -- out (31:0);
+            o_status3 => open, -- system_fields_ro.sps_monitor_dbg3, -- out (31:0);
+            o_status4 => open, -- system_fields_ro.sps_monitor_dbg4, -- out (31:0);
+            o_status5 => open, -- system_fields_ro.sps_monitor_dbg5, -- out (31:0);
             o_wrAddr => system_fields_ro.sps_monitor_wr_addr -- out (31:0); Most recent address written to in the HBM, on i_ap_clk
         );
         
