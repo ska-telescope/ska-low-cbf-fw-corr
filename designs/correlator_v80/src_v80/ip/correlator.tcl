@@ -1,5 +1,5 @@
 create_ip -name axis_ila -vendor xilinx.com -library ip -version 1.3 -module_name ila_0
-set_property -dict [list CONFIG.C_PROBE0_WIDTH {192} CONFIG.C_DATA_DEPTH {2048}] [get_ips ila_0]
+set_property -dict [list CONFIG.C_PROBE0_WIDTH {128} CONFIG.C_DATA_DEPTH {4096}] [get_ips ila_0]
 create_ip_run [get_ips ila_0]
 
 create_ip -name axis_ila -vendor xilinx.com -library ip -version 1.3 -module_name ila_8k

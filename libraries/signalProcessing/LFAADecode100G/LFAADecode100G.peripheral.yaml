@@ -81,6 +81,20 @@ peripherals:
               reset_value       : 0x0C00
               field_description : "Maximum number of virtual channels supported by the virtual channel table"
           #################################
+          - - field_name        : vc_per_pipeline
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0400
+              field_description : "Maximum number of virtual channels supported per pipeline. The PSS range is 1024 to 1280 depending on the clock speed."
+          #################################
+          - - field_name        : vc_pipeline_spacing
+              width             : 16
+              access_mode       : RO
+              reset_value       : 0x0800
+              field_description : "Spacing of assigned virtual channels (i.e. bits 31:16 of the second word in each table entry) per pipeline. 
+                                   For PSS, this is 2048, so that assigned virtual channels in the range 0-2047 go to the first pipeline, 2048-4095 to the second pipeline.
+                                   (although note vc_per_pipeline is at most 1280, so, e.g. at most virtual channels 0-1279 can be assigned for the first pipeline"
+          #################################
           - - field_name        : total_stations_table0
               width             : 16
               access_mode       : RW
