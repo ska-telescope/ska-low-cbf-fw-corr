@@ -143,7 +143,7 @@ ARCHITECTURE structure OF v80_top IS
     component ila_0 is
     Port ( 
         clk : in STD_LOGIC;
-        probe0 : in STD_LOGIC_VECTOR(191 downto 0));
+        probe0 : in STD_LOGIC_VECTOR(127 downto 0));
     end component;
     
     ---------------------------------------------------------------------------------------
@@ -523,7 +523,7 @@ debug_gen : if g_DEBUG_ILA GENERATE
         clk                     => clock_300,
         probe0(31 downto 0)     => std_logic_vector(clock_300_rst_cnt),
         probe0(32)              => clock_300_rst,
-        probe0(191 downto 33)   => (others => '0')
+        probe0(127 downto 33)   => (others => '0')
     );
 end generate;
 

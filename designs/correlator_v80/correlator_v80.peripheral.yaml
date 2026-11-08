@@ -427,7 +427,7 @@ peripherals:
               access_mode       : RO
               reset_value       : 0x0
               field_description : "Number of milliseconds since last HBM write from the SPS statistics module. This will count from 0 up to sps_monitor_period"
-          #################################
+          #################################       
           - - field_name        : sps_monitor_wr_addr
               width             : 32
               access_mode       : RO
