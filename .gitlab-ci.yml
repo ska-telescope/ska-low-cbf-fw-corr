@@ -15,9 +15,13 @@ variables:
   # built with Vitis 2025.1 by run_v80_rest.sh, because 2026.1 disables xsct.
   #
   # This also picks the runner: every Vitis job carries the tag
-  # "vitis-$VITIS_VERSION", so the runners must be tagged "vitis-2025.1" or the
-  # U55C chain sits pending rather than failing. The install-path change that
-  # goes with 2025.1 is in common/scripts/vitis_settings.sh.
+  # "vitis-$VITIS_VERSION", so the U55C runners must be tagged "vitis-2025.1"
+  # or the U55C chain sits pending rather than failing. The install-path change
+  # that goes with 2025.1 is in common/scripts/vitis_settings.sh.
+  #
+  # The V80 jobs that run the tools carry the same tag with their own
+  # VITIS_VERSION, so they need a runner tagged both "v80" and "vitis-2026.1".
+  # That runner must also have Vitis 2025.1 installed, for the AMC firmware.
   VITIS_VERSION: "2025.1"
   GITLAB_PROJECT_ID: 38134197  # used in manual build (upload)
   # Stays on the 2022.2-era platform: "xdma_3_202210_1" is the last U55C XDMA
@@ -322,6 +326,7 @@ create project v80:
     - ARGS
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
     - $EXTRA_CREATE_PROJECT_TAG
   variables:
@@ -359,6 +364,7 @@ fpga lint v80:
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -395,6 +401,7 @@ vivado compile v80:
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -453,6 +460,7 @@ assemble v80:
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -575,6 +583,7 @@ vivado compile v80 100g:
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -621,6 +630,7 @@ assemble v80 100g:
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
