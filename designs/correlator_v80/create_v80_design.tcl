@@ -283,6 +283,9 @@ set bd_name         "top"
   # This file will need to be tailored to each personality
   add_files -fileset constrs_1 -norecurse "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"
   set_property USED_IN {synthesis_pre} [get_files "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"]
+
+  add_files -fileset constrs_1 -norecurse "$DESIGN_PATH/src_v80/constraints/placement.xdc"
+  set_property USED_IN {synthesis_pre} [get_files "$DESIGN_PATH/src_v80/constraints/placement.xdc"]
   
   #############################################################
   # tech memory
