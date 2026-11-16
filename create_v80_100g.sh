@@ -7,8 +7,8 @@
 ## dev machine. It only selects the design .tcl and hands everything else to
 ## create_v80.sh, so all of that script's arguments and behaviour apply:
 ##
-##   ./create_v80_100g.sh 2025.1          create the Vivado project only
-##   ./create_v80_100g.sh 2025.1 build    create the project and build it
+##   ./create_v80_100g.sh 2026.1          create the Vivado project only
+##   ./create_v80_100g.sh 2026.1 build    create the project and build it
 ##   ./create_v80_100g.sh -h              help
 ##
 ## In CI the same thing is done by setting V80_DESIGN_TCL on the job instead of

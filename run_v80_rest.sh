@@ -21,7 +21,7 @@ if [ ! -f build/v80/v80_top.xsa ]; then
     exit 1
 fi
 
-# compile fw
+# compile fw - stays on Vitis 2025.1 for xsct, see common/v80_infra/create_fw_project.sh
 ./common/v80_infra/create_fw_project.sh 2025.1
 
 echo -e "*********************************************************"
@@ -29,7 +29,7 @@ echo -e "**********             FW complete              *********"
 echo -e "*********************************************************"
 
 # combine to make PDI
-./common/v80_infra/create_pdi.sh 2025.1
+./common/v80_infra/create_pdi.sh 2026.1
 
 echo -e "*********************************************************"
 echo -e "**********            PDI complete              *********"
