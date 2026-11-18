@@ -94,35 +94,35 @@ ENTITY v80_top IS
         mcio2_100mhz_clk_n      : in STD_LOGIC;
         
         ---------------------------------------------------------
-        -- qsfp0_322mhz_clk_p      : in STD_LOGIC;
-        -- qsfp0_322mhz_clk_n      : in STD_LOGIC;
+        qsfp0_322mhz_clk_p      : in STD_LOGIC;
+        qsfp0_322mhz_clk_n      : in STD_LOGIC;
         
-        -- qsfp0_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
-        -- qsfp0_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
+        qsfp0_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
+        qsfp0_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
         
-        -- qsfp0_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
-        -- qsfp0_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0);
+        qsfp0_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
+        qsfp0_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0);
 
-        -- qsfp1_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
-        -- qsfp1_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
+        qsfp1_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
+        qsfp1_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
         
-        -- qsfp1_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
-        -- qsfp1_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0);
+        qsfp1_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
+        qsfp1_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0)
         
-        qsfp2_322mhz_clk_p      : in STD_LOGIC;
-        qsfp2_322mhz_clk_n      : in STD_LOGIC;
+        -- qsfp2_322mhz_clk_p      : in STD_LOGIC;
+        -- qsfp2_322mhz_clk_n      : in STD_LOGIC;
 
-        qsfp2_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
-        qsfp2_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
+        -- qsfp2_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
+        -- qsfp2_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
         
-        qsfp2_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
-        qsfp2_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0);
+        -- qsfp2_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
+        -- qsfp2_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0);
 
-        qsfp3_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
-        qsfp3_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
+        -- qsfp3_4x_grx_p          : in STD_LOGIC_VECTOR(3 downto 0);
+        -- qsfp3_4x_grx_n          : in STD_LOGIC_VECTOR(3 downto 0);
         
-        qsfp3_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
-        qsfp3_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0)  
+        -- qsfp3_4x_gtx_p          : out STD_LOGIC_VECTOR(3 downto 0);
+        -- qsfp3_4x_gtx_n          : out STD_LOGIC_VECTOR(3 downto 0)  
     );
 END v80_top;
 
@@ -380,7 +380,7 @@ begin
 
     i_dcmac_wrapper : entity versal_dcmac_lib.dcmac_200g_wrapper
     Generic map (
-        G_UPPER_PCIBRACKET_PORT => FALSE,
+        G_UPPER_PCIBRACKET_PORT => TRUE,    -- top QSFP cages (qsfp0/1), DCMAC_X1Y1 - same DCMAC as the 100G build
         G_DEBUG_ILA             => FALSE
     )
     Port map ( 
@@ -396,20 +396,20 @@ begin
         
         ------------------------
         
-        qsfp0_322mhz_clk_p      => qsfp2_322mhz_clk_p,
-        qsfp0_322mhz_clk_n      => qsfp2_322mhz_clk_n,
+        qsfp0_322mhz_clk_p      => qsfp0_322mhz_clk_p,
+        qsfp0_322mhz_clk_n      => qsfp0_322mhz_clk_n,
         
-        qsfp0_4x_grx_p          => qsfp3_4x_grx_p,
-        qsfp0_4x_grx_n          => qsfp3_4x_grx_n,
+        qsfp0_4x_grx_p          => qsfp0_4x_grx_p,
+        qsfp0_4x_grx_n          => qsfp0_4x_grx_n,
         
-        qsfp0_4x_gtx_p          => qsfp3_4x_gtx_p,
-        qsfp0_4x_gtx_n          => qsfp3_4x_gtx_n,
+        qsfp0_4x_gtx_p          => qsfp0_4x_gtx_p,
+        qsfp0_4x_gtx_n          => qsfp0_4x_gtx_n,
         
-        qsfp1_4x_grx_p          => qsfp2_4x_grx_p,
-        qsfp1_4x_grx_n          => qsfp2_4x_grx_n,
+        qsfp1_4x_grx_p          => qsfp1_4x_grx_p,
+        qsfp1_4x_grx_n          => qsfp1_4x_grx_n,
         
-        qsfp1_4x_gtx_p          => qsfp2_4x_gtx_p,
-        qsfp1_4x_gtx_n          => qsfp2_4x_gtx_n,
+        qsfp1_4x_gtx_p          => qsfp1_4x_gtx_p,
+        qsfp1_4x_gtx_n          => qsfp1_4x_gtx_n,
         
         ------------------------------------------------
         
