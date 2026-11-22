@@ -1,5 +1,8 @@
 ### Changelog
 ## Correlator Personality
+* 2.0.3
+    * V80
+        * Only the 100G build is released to the CAR at this time (ska-low-cbf-fw-corr-v80). The 200G build is not released.
 * 2.0.2
     * Processor version - 1.0.0+
     * V80
@@ -7,6 +10,7 @@
             * 100G build are labelled correlator_v80_100g_**
             * 200G build are labelled correlator_v80_200g_**
             * 100G is connected to top QSFP cage, 200G is connected to bottom QSFP cage.
+        * The 200G build is the V80 build released to the CAR for this version (Do Not Use).
     * U55C
         * VLAN removal added for NVIDIA compatibility.
 * 2.0.1
