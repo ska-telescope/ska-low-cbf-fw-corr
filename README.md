@@ -66,7 +66,7 @@ specifically mentions another license.
 ## FPGA IDE
 
 * AMD / Xilinx tool 
-  * U55C - platform 3 for Ubuntu 22.04 - Vitis 2022.2
+  * U55C - platform 3 for Ubuntu 22.04 - Vitis 2025.1
     * License required is 100G CMAC for US+. (Free from AMD license website)
   * V80 - Vivado 2024.2
     * Licenses required

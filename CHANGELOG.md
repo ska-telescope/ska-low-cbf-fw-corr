@@ -5,7 +5,7 @@
     * V80
         * Two builds are generated.
             * 100G build are labelled correlator_v80_100g_**
-            * 200G build are labelled correlator_v80_**
+            * 200G build are labelled correlator_v80_200g_**
             * 100G is connected to top QSFP cage, 200G is connected to bottom QSFP cage.
     * U55C
         * VLAN removal added for NVIDIA compatibility.
