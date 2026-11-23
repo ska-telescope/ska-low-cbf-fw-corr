@@ -10,7 +10,7 @@
 ######################################################################
 ## CLI support
 
-SUPPORTED_VERSIONS=(2024.2 2025.1)
+SUPPORTED_VERSIONS=(2024.2 2025.1 2026.1)
 ShowHelp()
 {
     echo "####################################################"
@@ -63,7 +63,7 @@ kernel="correlator_v80"
 # Which design to build, as a file name inside designs/correlator_v80/.
 # Defaults to the standard correlator V80 design, so existing callers are
 # unaffected. Set V80_DESIGN_TCL to build a variant, e.g.
-#   V80_DESIGN_TCL=create_v80_100g_design.tcl ./create_v80.sh 2025.1 build
+#   V80_DESIGN_TCL=create_v80_100g_design.tcl ./create_v80.sh 2026.1 build
 #
 # Variants deliberately share build/v80 and the 'v80_top' project name, so the
 # whole downstream flow - create_fw_project.sh, create_pdi.sh, run_v80_rest.sh,
