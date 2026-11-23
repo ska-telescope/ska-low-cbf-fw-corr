@@ -92,6 +92,8 @@ set bd_name         "top"
     source $COMMON/v80_infra/src/top_bd/create_bd_design.tcl
   } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
     source $COMMON/v80_infra/src/top_bd/create_bd_design_2025_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
+    source $COMMON/v80_infra/src/top_bd/create_bd_design_2026_1.tcl
   } else {
     puts "###################################################"
     puts "        UNSUPPORTED VERSION OF VIVADO"
@@ -113,6 +115,8 @@ set bd_name         "top"
     source $COMMON_PATH/DCMAC/dcmac_two_100g_bd.tcl
   } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
     source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2025_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2026_1.tcl
   } else {
     puts "###################################################"
     puts "        UNSUPPORTED VERSION OF VIVADO"
@@ -283,7 +287,11 @@ set bd_name         "top"
   # This file will need to be tailored to each personality
   add_files -fileset constrs_1 -norecurse "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"
   set_property USED_IN {synthesis_pre} [get_files "$DESIGN_PATH/src_v80/constraints/noc_addresses.xdc"]
-  
+
+  add_files -fileset constrs_1 -norecurse "$DESIGN_PATH/src_v80/constraints/placement.xdc"
+  # Implementation only: pblock_SLR1 is created in impl.xdc, so read this after it (LATE).
+  set_property -dict { used_in_synthesis false    processing_order LATE } [get_files "$DESIGN_PATH/src_v80/constraints/placement.xdc"]
+
   #############################################################
   # tech memory
   # (Used by ARGs)
@@ -804,6 +812,9 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
   if { $env(VIVADO_VERSION_IN_USE) == "2024.2" } {
     add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/place.pre.tcl"
   } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
+    add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/2025.1/place.pre.tcl"
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
+    # same hook as 2025.1
     add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/2025.1/place.pre.tcl"
   } else {
     puts "###################################################"

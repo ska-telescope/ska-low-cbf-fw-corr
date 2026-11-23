@@ -10,14 +10,18 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  # Toolchain for the U55C (Vitis) chain. The V80 jobs already pin 2025.1
-  # themselves, so this is now the same version everywhere; those per-job pins
-  # are kept as explicit documentation rather than because they still differ.
+  # Toolchain for the U55C (Vitis) chain. The V80 jobs pin their own version
+  # (2026.1) per job, so this only applies to U55C. V80 AMC firmware is still
+  # built with Vitis 2025.1 by run_v80_rest.sh, because 2026.1 disables xsct.
   #
   # This also picks the runner: every Vitis job carries the tag
-  # "vitis-$VITIS_VERSION", so the runners must be tagged "vitis-2025.1" or the
-  # U55C chain sits pending rather than failing. The install-path change that
-  # goes with 2025.1 is in common/scripts/vitis_settings.sh.
+  # "vitis-$VITIS_VERSION", so the U55C runners must be tagged "vitis-2025.1"
+  # or the U55C chain sits pending rather than failing. The install-path change
+  # that goes with 2025.1 is in common/scripts/vitis_settings.sh.
+  #
+  # The V80 jobs that run the tools carry the same tag with their own
+  # VITIS_VERSION, so they need a runner tagged both "v80" and "vitis-2026.1".
+  # That runner must also have Vitis 2025.1 installed, for the AMC firmware.
   VITIS_VERSION: "2025.1"
   GITLAB_PROJECT_ID: 38134197  # used in manual build (upload)
   # Stays on the 2022.2-era platform: "xdma_3_202210_1" is the last U55C XDMA
@@ -328,12 +332,13 @@ create project v80:
     - ARGS
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
     - $EXTRA_CREATE_PROJECT_TAG
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "correlator_v80" # used to choose design
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
@@ -358,13 +363,14 @@ fpga lint v80:
   timeout: 2 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
+    VITIS_VERSION: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -393,14 +399,15 @@ vivado compile v80:
   timeout: 12 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -451,14 +458,15 @@ assemble v80:
   timeout: 2 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"
     CREATE_PRJ_SCRIPT_PATH: "$${BASEDIR}/designs/${PERSONALITY}/create_v80_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -489,7 +497,7 @@ publish v80 package:
     - shell 
   variables:
     BUILD_STRING: "CI development build. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
-    VITIS_VERSION: "2025.1"
+    VITIS_VERSION: "2026.1"
   script:
     - common/scripts/package_firmware_v80.sh
 
@@ -577,14 +585,15 @@ vivado compile v80 100g:
   timeout: 12 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"    # project name based on general approach
     V80_DESIGN_TCL: "create_v80_100g_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -623,14 +632,15 @@ assemble v80 100g:
   timeout: 2 hours
   variables:
     TARGET_ALVEO: "v80"
-    VITIS_VERSION: "2025.1"
-    VIVADO_VERSION_IN_USE: "2025.1"
+    VITIS_VERSION: "2026.1"
+    VIVADO_VERSION_IN_USE: "2026.1"
     EXTRA_DEVELOPER_TAG: ""
     PERSONALITY: "v80_top"
     V80_DESIGN_TCL: "create_v80_100g_design.tcl"
     VIVADO_BUILD_BASE_DIR: "$${BASEDIR}/build/v80"
   tags:
     - v80
+    - vitis-$VITIS_VERSION
     - $EXTRA_DEVELOPER_TAG
   before_script:
     - *self_test
@@ -652,7 +662,7 @@ publish v80 100g package:
     - shell
   variables:
     BUILD_STRING: "CI development build, V80 100G networking design. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT} on branch ${CI_COMMIT_BRANCH}. Commit ${CI_COMMIT_SHORT_SHA}."
-    VITIS_VERSION: "2025.1"
+    VITIS_VERSION: "2026.1"
     # Distinguishes this from the standard V80 package. Without it both upload
     # as '<personality>_v80_<version>...' and the second overwrites the first.
     V80_PLATFORM: "v80_100g"

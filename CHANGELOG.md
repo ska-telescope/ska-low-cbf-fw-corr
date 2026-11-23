@@ -1,5 +1,8 @@
 ### Changelog
 ## Correlator Personality
+* 2.0.4
+    * V80
+        * AVED built with 2026.1
 * 2.0.3
     * V80
         * Only the 100G build is released to the CAR at this time (ska-low-cbf-fw-corr-v80). The 200G build is not released.
