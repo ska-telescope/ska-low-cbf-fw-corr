@@ -1,19 +1,28 @@
 ### Changelog
 ## Correlator Personality
+* 2.0.3
+    * V80
+        * Only the 100G build is released to the CAR at this time (ska-low-cbf-fw-corr-v80). The 200G build is not released.
 * 2.0.2
-    * V80   - Two builds are generated.
-                - 100G build are labelled correlator_v80_100g_**
-                - 200G build are labelled correlator_v80_**
-                - 100G is connected to top QSFP cage, 200G is connected to bottom QSFP cage.
-    * U55C  - VLAN removal added for NVIDIA compatibility.
+    * Processor version - 1.0.0+
+    * V80
+        * Two builds are generated.
+            * 100G build are labelled correlator_v80_100g_**
+            * 200G build are labelled correlator_v80_200g_**
+            * 100G is connected to top QSFP cage, 200G is connected to bottom QSFP cage.
+        * The 200G build is the V80 build released to the CAR for this version (Do Not Use).
+    * U55C
+        * VLAN removal added for NVIDIA compatibility.
 * 2.0.1
-    * V80   - First release to CAR.
-            - Scaleup to 6 instance correlator.
-            - 100G top port of V80 configured.
-            - Processor version - 0.27.0+
-    * U55C  - Zoom bug in CT2 SKB-1509.
-            - Update constraints and some resets for timing.
-            - Processor version - 0.26.3+
+    * V80
+        * First release to CAR.
+        * Scaleup to 6 instance correlator.
+        * 100G top port of V80 configured.
+        * Processor version - 0.27.0+
+    * U55C
+        * Zoom bug in CT2 SKB-1509.
+        * Update constraints and some resets for timing.
+        * Processor version - 0.26.3+
     * CI pipeline.
 * 2.0.0
     * Requires Processor 0.25.0+
