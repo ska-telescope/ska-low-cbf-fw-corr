@@ -34,10 +34,11 @@ variables:
   # '<personality>_<V80_PLATFORM>_<version>...'. The standard V80 design is the
   # 200G networking one, so it says so rather than being the unqualified 'v80'.
   #
-  # Single source of truth on purpose: 'publish v80 package' uses it to NAME the
-  # package (package_firmware_v80.sh) and 'raw-build' uses it to FIND that
-  # package again for a release (fetch_car_packages.sh). They must agree.
-  # 'publish v80 100g package' overrides it locally.
+  # 'publish v80 package' uses it to NAME the package (package_firmware_v80.sh);
+  # 'publish v80 100g package' overrides it with 'v80_100g'. 'raw-build' uses it
+  # to FIND the package to release (fetch_car_packages.sh), and currently also
+  # overrides it with 'v80_100g' so the 100G design is the one sent to the CAR -
+  # see the note in that job.
   V80_PLATFORM: "v80_200g"
 
   PERSONALITY: "correlator"
@@ -112,6 +113,11 @@ raw-build:
   needs: []   # inputs come from the package registry, not from this pipeline
   variables:
     BUILD_STRING: "CI CAR Package. Pipeline ${CI_PIPELINE_ID} created at ${CI_PIPELINE_CREATED_AT}. Tag ${CI_COMMIT_TAG}. Commit ${CI_COMMIT_SHORT_SHA}."
+    # TEMPORARY: release the 100G V80 design to the CAR, not the 200G one.
+    # fetch_car_packages.sh picks the V80 file by V80_PLATFORM, so overriding it
+    # here (and only here) switches which design is released. The publish jobs
+    # are untouched. Delete this line to go back to releasing the 200G design.
+    V80_PLATFORM: "v80_100g"
   before_script:
     - common/scripts/fetch_car_packages.sh
 
@@ -509,7 +515,11 @@ publish v80 package:
 # so there is no separate register map to generate.
 #
 # Not wired up here: the 'v80_reuse=' artifact-reuse mode (keyed to the standard
-# chain's job ids), the CAR release path, and fpga lint.
+# chain's job ids) and fpga lint.
+#
+# This IS the V80 design released to the CAR at the moment: 'raw-build'
+# overrides V80_PLATFORM to 'v80_100g' so fetch_car_packages.sh picks this
+# package rather than the 200G one.
 
 # When to build the 100G design. Same shape as .v80_build_rules, with its own
 # keyword so the two chains can be triggered independently.

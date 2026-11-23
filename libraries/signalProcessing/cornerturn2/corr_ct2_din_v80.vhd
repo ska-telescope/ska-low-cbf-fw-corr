@@ -341,7 +341,7 @@ begin
                 bad_poly_fsm <= clear_memory;
                 bad_poly_buffer <= i_frameCount_849ms(0); -- Which buffer we are writing to in the bad_poly memory
                 bp_addr <= (others => '0');
-                bp_wr_en <= (others => '0');
+                bp_wr_en <= (others => '1');
                 bad_poly <= bad_poly_del1;
                 bp_wr_data <= '0';
             else
