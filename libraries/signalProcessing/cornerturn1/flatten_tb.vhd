@@ -32,7 +32,10 @@ use std.textio.all;
 
 entity flatten_tb is
     generic (
-        g_DATA_SELECT : integer := 1  -- 0 = impulse, 1 = pseudo-random LFSR
+        g_DATA_SELECT : integer := 1; -- 0 = impulse, 1 = pseudo-random LFSR
+        -- Simulation time in microseconds at which the PASS/FAIL summary is
+        -- printed. Must be less than the xsim.simulate.runtime of the run.
+        g_REPORT_US   : integer := 98
     );
 end flatten_tb;
 
@@ -101,6 +104,12 @@ architecture Behavioral of flatten_tb is
     signal clk_num        : integer := 0;
     signal data_mismatch  : integer := 0;
     signal tuser_mismatch : integer := 0;
+    -- A mismatch count of zero only means something if the two filters were
+    -- actually compared on real data. compare_count counts the clocks where
+    -- both filters were valid; nonzero_count counts those carrying non-zero
+    -- data. The summary fails the test if either is zero.
+    signal compare_count  : integer := 0;
+    signal nonzero_count  : integer := 0;
     signal mismatch : std_logic := '0';
 
 begin
@@ -180,9 +189,19 @@ begin
     -- Single 0x40 sample at the start of each 512-clock valid burst.
     ---------------------------------------------------------------------------
     gen_pulse : if g_DATA_SELECT = 0 generate
-        din      <= x"40" when (startup_done = '1' and ccount(8 downto 0) = "000000000") else x"00";
+        -- valid_in is high for the upper half of every 512-clock ccount cycle,
+        -- i.e. when ccount(8) = '1'. The impulse must therefore sit on the
+        -- FIRST clock of that window, ccount(8 downto 0) = "100000000".
+        -- It used to be placed at ccount(8 downto 0) = "000000000", which
+        -- forces ccount(8) = '0' and hence valid_in = '0', so the impulse was
+        -- never shifted into either filter and both produced only zeros --
+        -- the mode reported 0 mismatches without comparing anything.
+        din      <= x"40" when (startup_done = '1' and ccount(8 downto 0) = "100000000") else x"00";
         valid_in <= startup_done and ccount(8);
-        tuser(0) <= startup_done and ccount(8);
+        -- Flag only the impulse sample itself. The tuser comparison then also
+        -- checks that both filters delay the side channel by the same number
+        -- of clocks as the data, rather than holding tuser high throughout.
+        tuser(0) <= '1' when (startup_done = '1' and ccount(8 downto 0) = "100000000") else '0';
     end generate;
 
     ---------------------------------------------------------------------------
@@ -247,6 +266,11 @@ begin
         
             if valid_out = '1' and valid_out_dclk = '1' then
 
+                compare_count <= compare_count + 1;
+                if dout /= x"0000" or dout_dclk /= x"0000" then
+                    nonzero_count <= nonzero_count + 1;
+                end if;
+
                 if dout /= dout_dclk then
                     data_mismatch <= data_mismatch + 1;
                     write(L, string'("DATA  MISMATCH clk="));
@@ -276,28 +300,29 @@ begin
     ---------------------------------------------------------------------------
     -- Summary and simulation end
     ---------------------------------------------------------------------------
---    report_proc : process
---        variable L : line;
---    begin
---        wait for 5000 us;
---        write(L, string'("=== flatten_tb result ==="));
---        writeline(output, L);
---        write(L, string'("g_DATA_SELECT    = "));
---        write(L, g_DATA_SELECT);
---        writeline(output, L);
---        write(L, string'("Data mismatches  = "));
---        write(L, data_mismatch);
---        writeline(output, L);
---        write(L, string'("Tuser mismatches = "));
---        write(L, tuser_mismatch);
---        writeline(output, L);
---        if data_mismatch = 0 and tuser_mismatch = 0 then
---            write(L, string'("PASS: sps_flatten and sps_flatten_dclk outputs are identical."));
---        else
---            write(L, string'("FAIL"));
---        end if;
---        writeline(output, L);
---        report "Simulation complete" severity failure;
---    end process;
+    report_proc : process
+        variable L : line;
+    begin
+        -- Printed before the end of the run; g_REPORT_US must be less than the
+        -- simulation runtime set by the calling script.
+        wait for g_REPORT_US * 1 us;
+        write(L, string'("=== flatten_tb result ===")); writeline(output, L);
+        write(L, string'("g_DATA_SELECT     = ")); write(L, g_DATA_SELECT); writeline(output, L);
+        write(L, string'("Samples compared  = ")); write(L, compare_count);  writeline(output, L);
+        write(L, string'("Non-zero outputs  = ")); write(L, nonzero_count);  writeline(output, L);
+        write(L, string'("Data mismatches   = ")); write(L, data_mismatch);  writeline(output, L);
+        write(L, string'("Tuser mismatches  = ")); write(L, tuser_mismatch); writeline(output, L);
+        if compare_count = 0 then
+            write(L, string'("FAIL: the two filters were never valid on the same clock - nothing was compared."));
+        elsif nonzero_count = 0 then
+            write(L, string'("FAIL: every compared sample was zero - the stimulus never reached the filters."));
+        elsif data_mismatch = 0 and tuser_mismatch = 0 then
+            write(L, string'("PASS: sps_flatten and sps_flatten_dclk outputs are identical."));
+        else
+            write(L, string'("FAIL: outputs differ."));
+        end if;
+        writeline(output, L);
+        wait;
+    end process;
 
 end Behavioral;

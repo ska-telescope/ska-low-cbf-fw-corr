@@ -3,6 +3,11 @@ sim_frames : 2
 # Select the ripple filter to use, corresponds to the register setting
 ripple : 0
 
+# SPS data pattern, must match the g_DATA_RFI generic in ct1_v80_tb.vhd
+#   0 : normal data, the absolute sample index as a ramp (+ virtual channel in Yim)
+#   1 : alternating 65536-sample blocks of all-RFI (0x80 bytes) and zeros
+data_rfi : 0
+
 polynomials:
   # each entry is for a particular virtual channel
   0:

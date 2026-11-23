@@ -171,7 +171,6 @@ def ct1_config(config):
     """
     # keys start from 0, so add 1 to get total sources
     total_sources = np.max(list(config["polynomials"].keys())) + 1
-    print(f"total_sources = {total_sources}")
     # each source has 2*80 bytes of configuration data
     # store as 4-byte integers so 40 entries per source
     config_array_buf0 = np.zeros(1024*20, np.uint32)
@@ -206,11 +205,13 @@ def ct1_config(config):
         # bits 31:0 = buf_integration : Integration period at which the polynomial becomes valid. Integration period
         #                     is in units of 0.84934656 seconds, i.e. units of (384 SPS packets) 
         # bit 32 = Entry is valid.
-        config_array_buf0[vc*20+18] = np.frombuffer(np.int32(src_cfg["integration0"]).tobytes(), dtype=np.uint32)
-        config_array_buf1[vc*20+18] = np.frombuffer(np.int32(src_cfg["integration1"]).tobytes(), dtype=np.uint32)
-        
-        config_array_buf0[vc*20+19] = np.frombuffer(np.int32(src_cfg["valid0"]).tobytes(), dtype=np.uint32)
-        config_array_buf1[vc*20+19] = np.frombuffer(np.int32(src_cfg["valid1"]).tobytes(), dtype=np.uint32)
+        # np.frombuffer returns a one element array; index it so numpy is not asked
+        # to convert an array to a scalar, which is deprecated since numpy 1.25.
+        config_array_buf0[vc*20+18] = np.frombuffer(np.int32(src_cfg["integration0"]).tobytes(), dtype=np.uint32)[0]
+        config_array_buf1[vc*20+18] = np.frombuffer(np.int32(src_cfg["integration1"]).tobytes(), dtype=np.uint32)[0]
+
+        config_array_buf0[vc*20+19] = np.frombuffer(np.int32(src_cfg["valid0"]).tobytes(), dtype=np.uint32)[0]
+        config_array_buf1[vc*20+19] = np.frombuffer(np.int32(src_cfg["valid1"]).tobytes(), dtype=np.uint32)[0]
         
     return (config_array_buf0, config_array_buf1, RFI_thresholds, vc_max)
 
@@ -247,7 +248,6 @@ def get_tb_fb_data(tb_file, virtual_channels):
     #  1 integration ct_frame vc0 vc1 vc2 vc3 bad_poly last_channel demap_table_select
     # Remaining 3456 lines are packet data :
     #  5  vc0_pol0_re vc0_pol0_im vc0_pol1_re vc0_pol1_im vc1... vc2... vc3...
-    print("Loading data at the filterbank output")
     first_integration_set = False
     first_integration = 0
     integrations = 2
@@ -259,7 +259,6 @@ def get_tb_fb_data(tb_file, virtual_channels):
     # data [integration, frame, packet, vc, Hre/Him/Vre/Vim, fine_channel]
     sim_fbout = np.zeros((integrations,3,64,virtual_channels,4,3456), dtype = np.int32)
     vc_list = [None, None, None, None]  # list (not ndarray) so undriven VCs can be None
-    first_line = True
     linecount = 0
     
     for line in tb_file:
@@ -268,9 +267,6 @@ def get_tb_fb_data(tb_file, virtual_channels):
         # instantiated); hexint() returns None for those so parsing does not
         # fail, and the data samples are stored as the FB_X sentinel below.
         dint = [hexint(di) for di in dval]
-        if first_line:
-            print("filterbank output dint : ")
-            print(dint)
         if dint[0] == 1:  # line of meta data at the start of the packet
             if not first_integration_set:
                 first_integration_set = True
@@ -298,7 +294,6 @@ def get_tb_fb_data(tb_file, virtual_channels):
             dcount = 0
         else:
             # dint[0] == 5, the data part
-            first_line = False
             for vc_count in range(4):   # 4 virtual channels per line
                 vc = vc_list[vc_count]
                 if vc is None:
@@ -322,7 +317,6 @@ def get_tb_data(tb_file, virtual_channels):
     # array element:    0       1       2         3          4           5        6          7 
     #   - 4096 lines of data   
     #      C <re Hpol> <im Hpol> <re Vpol> <im Vpol> ... (x12 for 12 virtual channels)
-    print(f"Loading data at the output of corner turn 1 for {virtual_channels} virtual channels")
     first_integration_set = False
     first_integration = 0
     # Number of packets received for each integration, frame and virtual channel
@@ -399,80 +393,148 @@ def rfi_diff(a,b):
         b_test = b
     return np.abs(a_test - b_test)
 
+# Deripple filter selections, indexed by the "ripple" key in the yaml file, which
+# must match the ripple_select register written by the testbench.
+c_deripple_sets = {
+    0: (c_deripple0, "identity, no deripple (centre tap 65536)"),
+    1: (c_deripple1, "TPM 16d deripple (centre tap 69172)"),
+    2: (c_deripple2, "TPM 18a deripple (centre tap 68751)"),
+}
+
+
+def banner(text):
+    print("=" * 79)
+    print(text)
+    print("=" * 79)
+
+
+def section(text):
+    print()
+    print("-" * 79)
+    print(text)
+    print("-" * 79)
+
+
+def pct(match, mismatch):
+    """Match percentage as a string, for the report."""
+    total = match + mismatch
+    if total == 0:
+        return "(nothing compared)"
+    return f"({100.0 * match / total:.4f}%)"
+
+
 def main():
     # Read command-line arguments
     args = command_line_args()
     config = parse_config(args.configuration)
+    args.configuration.close()
     # convert config into a data file to load into the firmware
     (cfg_array0, cfg_array1, RFI_thresholds, vc_max) = ct1_config(config)
-    # Write to file.
+
+    integration_start = config["integration_start"]
+    sim_frames = config["sim_frames"]
+    if config["ripple"] not in c_deripple_sets:
+        print(f"ERROR : unsupported 'ripple' selection {config['ripple']} in the yaml file")
+        sys.exit(1)
+    (deripple, deripple_name) = c_deripple_sets[config["ripple"]]
+
+    # Must match the g_DATA_RFI generic in ct1_v80_tb.vhd.
+    #   0 : SPS data is the normal sample-index ramp (+ virtual channel in Yim)
+    #   1 : SPS data is replaced by alternating 65536-sample blocks of
+    #       0x80808080 (all four bytes flagged as RFI) and 0x00000000.
+    # Optional key, defaults to 0 so existing YAML files are unchanged.
+    data_rfi = config.get("data_rfi", 0)
+    if data_rfi:
+        data_rfi_name = "alternating 65536-sample blocks of RFI (0x80 bytes) and zeros"
+    else:
+        data_rfi_name = "absolute sample index as a ramp, virtual channel in Yim"
+
+    banner("Correlator corner turn 1 (V80) simulation check")
+    print(f"  Test configuration   : {args.configuration.name}")
+    print(f"  Virtual channels     : 0 to {vc_max} ({vc_max + 1} configured)")
+    print(f"  Frames simulated     : {sim_frames}, from integration {integration_start}")
+    print(f"  Deripple filter      : ripple = {config['ripple']}, {deripple_name}")
+    print(f"  SPS data pattern     : data_rfi = {data_rfi}, {data_rfi_name}")
+
+    # Write the register configuration for the firmware.
     # Writes are in blocks of 20 words, preceded by the address to write to.
-    total_blocks = vc_max+1
-    for b in range(total_blocks):
-        # 80 bytes per block
-        block_addr = b*80
-        block_addr2 = 3072*80 + b*80
-        non_zero = np.any(cfg_array0[b*20:(b*20+20)])
-        if non_zero:
-            args.data.write(f"[{block_addr:08x}]\n")
-            for n in range(20):
-                args.data.write(f"{cfg_array0[b*20+n]:08x}\n")
-            args.data.write(f"[{block_addr2:08x}]\n")
-            for n in range(20):
-                args.data.write(f"{cfg_array1[b*20+n]:08x}\n")
-    # write the RFI thresholds to the same file
-    # RFI thresholds are (up to) 3072 words, starting at byte address 491520 = x78000 (or 4-byte word address 0x1E000)
-    RFI_addr = 491520
-    args.data.write(f"[{RFI_addr:08x}]\n")
-    for b in range(20 * ((vc_max+20)//20)):   # Use a multiple of 20 words to make the vhdl testbench happy
-        args.data.write(f"{RFI_thresholds[b]:08x}\n")
-    
+    total_blocks = vc_max + 1
+    blocks_written = 0
+    # Use a multiple of 20 words for the thresholds to make the vhdl testbench happy
+    threshold_words = 20 * ((vc_max + 20) // 20)
+    if args.data:
+        for b in range(total_blocks):
+            # 80 bytes per block
+            block_addr = b * 80
+            block_addr2 = 3072 * 80 + b * 80
+            non_zero = np.any(cfg_array0[b*20:(b*20+20)])
+            if non_zero:
+                blocks_written += 1
+                args.data.write(f"[{block_addr:08x}]\n")
+                for n in range(20):
+                    args.data.write(f"{cfg_array0[b*20+n]:08x}\n")
+                args.data.write(f"[{block_addr2:08x}]\n")
+                for n in range(20):
+                    args.data.write(f"{cfg_array1[b*20+n]:08x}\n")
+        # write the RFI thresholds to the same file
+        # RFI thresholds are (up to) 3072 words, starting at byte address 491520 = x78000
+        # (or 4-byte word address 0x1E000)
+        RFI_addr = 491520
+        args.data.write(f"[{RFI_addr:08x}]\n")
+        for b in range(threshold_words):
+            args.data.write(f"{RFI_thresholds[b]:08x}\n")
+        args.data.close()
+        print(f"  Register config      : {blocks_written} polynomial block(s) and {threshold_words} RFI")
+        print(f"                         threshold word(s) written to {args.data.name}")
+    else:
+        print("  Register config      : not written (no -d/--data given)")
+
     # Get the output of the simulation.
     # vc_max is the highest configured virtual channel; the number of virtual
     # channels output by both CT1 and the filterbank is always padded up to a
     # multiple of 12, so size both loaders to vc_ceil12 (not vc_max+1 -- the
     # filterbank output can contain VC numbers beyond vc_max in the padded group).
     vc_ceil12 = int(np.ceil((vc_max+1) / 12.0) * 12)
+    if args.tbdata or args.fbdata:
+        print()
     if args.tbdata:
+        print(f"  Reading CT1 output from {args.tbdata.name} ...")
         (meta_data, data_data, packet_count) = get_tb_data(args.tbdata, vc_ceil12)
+        args.tbdata.close()
         tb_valid = True
     else:
         tb_valid = False
 
     if args.fbdata:
+        print(f"  Reading filterbank output from {args.fbdata.name} ...")
         (sim_fb_meta, sim_fb_data, sim_fb_packet_count) = get_tb_fb_data(args.fbdata, vc_ceil12)
+        args.fbdata.close()
         filterbank_fir_taps = open(f"{args.filterbank_taps}", "rt")
         fb = filterbank.PolyphaseFilterBank(filterbank_fir_taps)
+        filterbank_fir_taps.close()
         sim_fb_valid = True
-        # sim_fb_data[integration_offset, frame_in_integration, fb_pkt_out, vc, 0, fine_freq]
-        print("first fine frequency for first 4 virtual channels")
-        print(sim_fb_data[0,0,0,0,0,0])
-        print(sim_fb_data[0,0,0,1,0,0])
-        print(sim_fb_data[0,0,0,2,0,0])
-        print(sim_fb_data[0,0,0,3,0,0])
     else:
         sim_fb_valid = False
-    
-    # Calculate the expected delays for each virtual channel
-    integration_start = config["integration_start"]
-    sim_frames = config["sim_frames"]
-    if config["ripple"] == 0:
-        deripple = c_deripple0
-    elif config["ripple"] == 1:
-        deripple = c_deripple1
-    elif config["ripple"] == 2:
-        deripple = c_deripple2
-    else:
-        print("!!! ripple selection error")
-        sys.exit()
-    
+
+    if tb_valid or sim_fb_valid:
+        print("  Comparing with the python model ...")
+
     data_mismatch = 0
     data_match = 0
     meta_match = 0
     meta_mismatch = 0
     fd_mismatch = 0
     fd_match = 0
-    fd_skipped = 0   # samples the testbench wrote as 'X' (uninstantiated filterbanks)
+    fd_skipped = 0            # filterbank samples the testbench wrote as 'X'
+    fb_vc_skipped = 0         # (frame, virtual channel) pairs with no filterbank at all
+    rfi_flagged_samples = 0   # CT1 output samples expected to be replaced by -32768
+    fb_rfi_packets = 0        # filterbank output packets expected to be fully RFI marked
+    # The first few mismatches of each kind are collected here and printed in the
+    # report, so the output stays in one piece rather than being interleaved with
+    # progress messages.
+    data_examples = []
+    meta_examples = []
+    fd_examples = []
     for frame in range(sim_frames):
         integration_offset = frame // 3
         integration = integration_start + integration_offset
@@ -484,11 +546,11 @@ def main():
                 this_vc = src_cfg["virtual_channel"]
                 if vc == this_vc:
                     if vc_found == True:
-                        print(f"!!!! Multiple instances of virtual channel {this_vc} in config yaml file")
+                        print(f"  WARNING : virtual channel {this_vc} appears more than once in the yaml file")
                     vc_found = True
                     cfg_n = n
             if  not vc_found:
-                print(f"!!! frame {frame}, No specification for virtual channel {vc}")
+                print(f"  WARNING : frame {frame} has no yaml entry for virtual channel {vc}")
             else:
                 src_cfg = config["polynomials"][vc]
                 if (src_cfg["valid0"]==1) and (integration >= src_cfg["integration0"]):
@@ -513,7 +575,8 @@ def main():
                     Ypol_offset = src_cfg["Ypol_offset1"]
                 else:
                     if (not cfg0_valid) and (not cfg1_valid):
-                        print(f"No valid polynomials, ")
+                        print(f"  WARNING : vc {vc}, integration {integration} : no valid polynomial, "
+                          f"using poly0")
                     # select first configuration
                     poly = src_cfg["poly0"]
                     sky_freq = src_cfg["sky_freq0"]
@@ -568,11 +631,26 @@ def main():
                         # Likewise 49 tap FIR filter needs 24 extra sample at the front, 48 extra altogether.
                         first_sample = integration * 192 * 4096 + frame_in_integration * 64*4096 + packet*4096 - 6*4096 - coarse_delay - c_fir_taps//2
                         packet_samples = np.arange(first_sample,first_sample+4096+(c_fir_taps - 1))
-                        (expected_packet_Xre, Xre_flagged) = fix_8bit_rfi(packet_samples % 256)
-                        (expected_packet_Xim, Xim_flagged) = fix_8bit_rfi((packet_samples // 256) % 256)
-                        (expected_packet_Yre, Yre_flagged) = fix_8bit_rfi((packet_samples // 65536) % 256)
-                        (expected_packet_Yim, Yim_flagged) = fix_8bit_rfi(vc * np.ones(4096+c_fir_taps - 1))   # Yim is fixed to the virtual channel in the testbench
-                        any_flagged = Xre_flagged + Xim_flagged + Yre_flagged + Yim_flagged
+                        if data_rfi:
+                            # g_DATA_RFI = '1' : the testbench discards the ramp and drives all
+                            # four bytes to 0x80 or 0x00, selected by bit 16 of the absolute
+                            # sample index (flag_rfi <= '1' when absolute_sample(16) = '1').
+                            # fix_8bit_rfi maps 0x80 -> 0 (flagged) and 0x00 -> 0 (unflagged),
+                            # so the data is zero either way and only the flag differs.
+                            rfi_block = (packet_samples // 65536) % 2
+                            n_samples = 4096 + c_fir_taps - 1
+                            expected_packet_Xre = np.zeros(n_samples, dtype=np.int64)
+                            expected_packet_Xim = np.zeros(n_samples, dtype=np.int64)
+                            expected_packet_Yre = np.zeros(n_samples, dtype=np.int64)
+                            expected_packet_Yim = np.zeros(n_samples, dtype=np.int64)
+                            # all four bytes carry the same flag, matching the sum below
+                            any_flagged = 4 * rfi_block
+                        else:
+                            (expected_packet_Xre, Xre_flagged) = fix_8bit_rfi(packet_samples % 256)
+                            (expected_packet_Xim, Xim_flagged) = fix_8bit_rfi((packet_samples // 256) % 256)
+                            (expected_packet_Yre, Yre_flagged) = fix_8bit_rfi((packet_samples // 65536) % 256)
+                            (expected_packet_Yim, Yim_flagged) = fix_8bit_rfi(vc * np.ones(4096+c_fir_taps - 1))   # Yim is fixed to the virtual channel in the testbench
+                            any_flagged = Xre_flagged + Xim_flagged + Yre_flagged + Yim_flagged
                         #if (packet == 14) and (vc == 5):
                         #    print(f"dbg check : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}")
                         #    print(f"First 8 packet samples = {packet_samples[24:32]}")
@@ -599,6 +677,7 @@ def main():
                                 #    print(f"FIR {FIR_tap}, FIR tap = {c_deripple[FIR_tap]}, data = {expected_packet_Xre[sample + FIR_tap]}, cumulative sum = {expected_Xre}")
                             
                             if any_flagged[sample + c_fir_taps//2]:
+                                rfi_flagged_samples += 1
                                 expected_Xre = -32768
                                 expected_Xim = -32768
                                 expected_Yre = -32768
@@ -610,9 +689,16 @@ def main():
                                 expected_Yre = np.round(expected_Yre / 512)
                                 expected_Yim = np.round(expected_Yim / 512)
                             if (expected_Xre != Xre) or (expected_Xim != Xim) or (expected_Yre != Yre) or (expected_Yim != Yim):
-                                if data_mismatch < 20:
-                                    print(f"Bad sample : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}")
-                                    print(f"   At sample {sample}, expected ({expected_Xre},{expected_Xim},{expected_Yre},{expected_Yim}), testbench = ({Xre},{Xim},{Yre},{Yim})")
+                                # Keep the first few mismatches so the report can print them
+                                # in the CT1 section, instead of interleaving them with the
+                                # rest of the output as they are found.
+                                if len(data_examples) < 10:
+                                    data_examples.append(
+                                        f"vc {vc}, integration {integration}, frame "
+                                        f"{frame_in_integration}, packet {packet}, sample {sample} "
+                                        f"(coarse delay {coarse_delay}): expected ({expected_Xre},"
+                                        f"{expected_Xim},{expected_Yre},{expected_Yim}), testbench "
+                                        f"({Xre},{Xim},{Yre},{Yim})")
                                 data_mismatch += 1
                             else:
                                 data_match += 1 
@@ -623,19 +709,25 @@ def main():
                         phase_Y_tb = meta_data[integration_offset,frame_in_integration,packet,vc,3]
                         #if ((fine_delay_Xpol_tb != fine_delay_Xpol) or (fine_delay_Ypol_tb != fine_delay_Ypol) or (phase_X_tb != phase_X) or (phase_Y_tb != phase_Y)):
                         if ((np.abs(fine_delay_Xpol_tb - fine_delay_Xpol) > 1) or (np.abs(fine_delay_Ypol_tb - fine_delay_Ypol) > 1) or (np.abs(phase_X_tb - phase_X) > 1) or (np.abs(phase_Y_tb - phase_Y) > 1)):
-                            if meta_mismatch < 20:
-                                print(f"PYTHON : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")    
-                                print(f"    TB : fine X = {fine_delay_Xpol_tb}, fine Y = {fine_delay_Ypol_tb}, phase X = {phase_X_tb}, phase_Y = {phase_Y_tb}")
+                            if len(meta_examples) < 10:
+                                meta_examples.append(
+                                    f"vc {vc}, integration {integration}, frame {frame_in_integration}, "
+                                    f"packet {packet}, coarse delay {coarse_delay}: python fine X "
+                                    f"{fine_delay_Xpol}, fine Y {fine_delay_Ypol}, phase X {phase_X}, "
+                                    f"phase Y {phase_Y}; testbench fine X {fine_delay_Xpol_tb}, fine Y "
+                                    f"{fine_delay_Ypol_tb}, phase X {phase_X_tb}, phase Y {phase_Y_tb}")
                             meta_mismatch += 1
                         else:
                             meta_match += 1
                     else:
-                        print(f"No tb data : VC = {vc}, (int,frame,packet) = ({integration},{frame_in_integration},{packet}) coarse = {coarse_delay}, fine X = {fine_delay_Xpol}, fine Y = {fine_delay_Ypol}, phase X = {phase_X}, phase_Y = {phase_Y}")
+                        # No CT1 capture to compare against. The polynomial is still
+                        # evaluated above; the report says the stage was not checked.
+                        pass
                 
                 # Skip the filterbank comparison for VCs whose filterbank was
                 # not instantiated (no packets received -> testbench wrote 'X').
                 if sim_fb_valid and sim_fb_packet_count[integration_offset, frame_in_integration, vc] == 0:
-                    fd_skipped += 1
+                    fb_vc_skipped += 1
                 if sim_fb_valid and sim_fb_packet_count[integration_offset, frame_in_integration, vc] > 0:
                     # Get the data from the CT1 output from the testbench, and calculate the expected output
                     # from the filterbank
@@ -672,11 +764,6 @@ def main():
                             fb_out96x512 = np.reshape(fb_in_RFI[fb_pkt_out * 4096 : (fb_pkt_out * 4096 + 12*4096)],(96,512))
                             fb_out512x96_RFI = fb_out96x512.T
                             RFI_sum[pol,fb_pkt_out] = np.sum(fb_out512x96_RFI * RFI_analysis)
-                            
-                            if (vc == 0) and (fb_pkt_out < 8):
-                                print("rfi info : ")
-                                print(f"{np.sum(fb_out512x96_RFI,0)}")
-                                print(f"fb_pkt_out = {fb_pkt_out}, pol = {pol}, RFI_sum = {RFI_sum[pol,fb_pkt_out]}")
                             
                             if ((RFI_thresholds[vc] < 4294967295) and (RFI_sum[pol, fb_pkt_out] > RFI_thresholds[vc])):
                                 RFI_mark[pol, fb_pkt_out] = 1
@@ -718,6 +805,7 @@ def main():
                         
                         # Replace RFI marked values with -128
                         if ((RFI_mark[0, fb_pkt_out] == 1) or (RFI_mark[1, fb_pkt_out] == 1)):
+                            fb_rfi_packets += 1
                             for fine_freq in range(3456):
                                 fdelay_out[fb_pkt_out, fine_freq, 0] = -128 - 1j * 128
                                 fdelay_out[fb_pkt_out, fine_freq, 1] = -128 - 1j * 128
@@ -744,18 +832,108 @@ def main():
                             Emax = np.max([rfi_diff(Xre,p_Xre), rfi_diff(Xim,p_Xim), rfi_diff(Yre,p_Yre), rfi_diff(Yim,p_Yim)])
                             if (Emax > 2):
                                 fd_mismatch += 1
-                                if (fd_mismatch < 20):
-                                    print(f"fine delay output mismatch at integration {integration}, frame {frame_in_integration}, packet {fb_pkt_out}, vc {vc}, fine frequency {fine_freq}")
-                                    print(f"  Expected ({p_Xre} + 1i * {p_Xim}, {p_Yre} + 1i * {p_Yim}), Simulation ({Xre} + 1i * {Xim}, {Yre} + 1i * {Yim})")
+                                if len(fd_examples) < 10:
+                                    fd_examples.append(
+                                        f"integration {integration}, frame {frame_in_integration}, "
+                                        f"packet {fb_pkt_out}, vc {vc}, fine channel {fine_freq}: "
+                                        f"expected ({p_Xre} + 1j*{p_Xim}, {p_Yre} + 1j*{p_Yim}), "
+                                        f"simulation ({Xre} + 1j*{Xim}, {Yre} + 1j*{Yim})")
                             else:
                                 fd_match += 1
                                                         
+    # -----------------------------------------------------------------------
+    # Report
+    # -----------------------------------------------------------------------
+    ct1_ok = tb_valid and (data_mismatch == 0) and (meta_mismatch == 0) and (data_match > 0)
+    fb_ok = sim_fb_valid and (fd_mismatch == 0) and (fd_match > 0)
+
+    section("1. Corner turn 1 output")
+    if not tb_valid:
+        print("  Not checked : no CT1 capture was given (-t/--tbdata).")
+    else:
+        print(f"  Source   : {args.tbdata.name}")
+        print( "  Checked  : the per-packet delay meta data, and every sample of every output")
+        print( "             packet, for each virtual channel.")
+        print( "  Method   : the delay polynomial for the virtual channel is evaluated in python")
+        print( "             at the time of each packet, giving the coarse delay, the fine delay")
+        print( "             and the phase correction. The coarse delay fixes which SPS samples")
+        print( "             CT1 should have replayed; that sample stream is then filtered with")
+        print(f"             the selected {c_fir_taps}-tap deripple filter, divided by 512 and rounded to")
+        print( "             16 bits with convergent (banker's) rounding. A sample whose centre")
+        print( "             tap arrived flagged as RFI (input byte 0x80) is expected to come out")
+        print( "             as -32768. Samples must match exactly; the delay and phase meta data")
+        print( "             are allowed to differ by 1 LSB.")
+        print(f"  Coverage : {sim_frames} frame(s) x {vc_max + 1} virtual channel(s) x 75 packets per frame")
+        print( "             (11 preload + 64) x 4096 samples x 4 components (Xre, Xim, Yre, Yim)")
+        print()
+        print(f"  Delay / phase meta data : {meta_match:>10d} matched {meta_mismatch:>10d} mismatched   {pct(meta_match, meta_mismatch)}")
+        print(f"  Output samples          : {data_match:>10d} matched {data_mismatch:>10d} mismatched   {pct(data_match, data_mismatch)}")
+        print(f"  RFI flagged samples     : {rfi_flagged_samples:>10d} of those expected to be -32768")
+        if meta_examples:
+            print()
+            print("  First meta data mismatches :")
+            for e in meta_examples:
+                print(f"    {e}")
+        if data_examples:
+            print()
+            print("  First sample mismatches :")
+            for e in data_examples:
+                print(f"    {e}")
+        print()
+        print(f"  RESULT : {'PASS' if ct1_ok else 'FAIL'}")
+
+    section("2. Filterbank and fine delay output")
+    if not sim_fb_valid:
+        print("  Not checked : no filterbank capture was given (-f/--fbdata).")
+    else:
+        print(f"  Source   : {args.fbdata.name}")
+        print(f"  Taps     : {args.filterbank_taps}")
+        print( "  Checked  : all 3456 fine channels of every filterbank output packet, for both")
+        print( "             polarisations, after fine delay and phase correction.")
+        print( "  Method   : the CT1 output captured by the testbench (not the python")
+        print( "             expectation) is run through a python model of the polyphase")
+        print( "             filterbank, so this stage is tested independently of the CT1 result")
+        print( "             above. The fine delay and phase from the firmware meta data are")
+        print( "             applied to each fine channel, the result is scaled by 1/128 and")
+        print( "             values outside +/-127 are clipped to -128. Separately, SPS samples")
+        print( "             that arrived flagged as RFI are weighted by the filterbank alias")
+        print( "             power response and summed per output packet; where that sum exceeds")
+        print( "             the virtual channel's RFI threshold the whole output packet is")
+        print( "             expected to be -128 -128j. A sample matches when all four components")
+        print( "             are within 2 of the model, which absorbs the different rounding")
+        print( "             order used in the firmware.")
+        print(f"  Coverage : {sim_frames} frame(s) x 64 output packets x 3456 fine channels x 2")
+        print( "             polarisations x 2 components")
+        print()
+        print(f"  Fine delay output       : {fd_match:>10d} matched {fd_mismatch:>10d} mismatched   {pct(fd_match, fd_mismatch)}")
+        print(f"  RFI marked packets      : {fb_rfi_packets:>10d} output packets expected to be -128 -128j")
+        print(f"  Skipped, undriven 'X'   : {fd_skipped:>10d} samples, in {fb_vc_skipped} (frame, virtual channel) pair(s)")
+        print( "                             whose filterbank was not instantiated in the testbench")
+        if fd_examples:
+            print()
+            print("  First fine delay mismatches :")
+            for e in fd_examples:
+                print(f"    {e}")
+        print()
+        print(f"  RESULT : {'PASS' if fb_ok else 'FAIL'}")
+
+    print()
+    results = []
     if tb_valid:
-        print(f"checked {sim_frames} frames against simulation")
-        print(f"    data sample mismatch = {data_mismatch}, data samples matched = {data_match} ")
-        print(f"    meta data mismatch = {meta_mismatch}, meta data matched = {meta_match}")
+        results.append(ct1_ok)
     if sim_fb_valid:
-        print(f"    fine delay output mismatch = {fd_mismatch}, match count = {fd_match}, skipped (X) = {fd_skipped}")
+        results.append(fb_ok)
+    if not results:
+        # Generating the register configuration without checking a simulation is a
+        # normal use of this script, so this is not a failure.
+        banner("OVERALL : nothing checked, no simulation output files were given")
+        sys.exit(0)
+    elif all(results):
+        banner("OVERALL : PASS")
+        sys.exit(0)
+    else:
+        banner("OVERALL : FAIL")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
