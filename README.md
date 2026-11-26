@@ -68,7 +68,7 @@ specifically mentions another license.
 * AMD / Xilinx tool 
   * U55C - platform 3 for Ubuntu 22.04 - Vitis 2025.1
     * License required is 100G CMAC for US+. (Free from AMD license website)
-  * V80 - Vivado 2026.1, plus Vitis 2025.1 for the AMC firmware (xsct is disabled in 2026.1)
+  * V80 - Vivado 2026.2, plus Vitis 2025.1 for the AMC firmware (xsct is disabled from 2026.1)
     * Licenses required
       * 600G DCMAC for Versal. (Free from AMD license website)
       * SMBuS IP core for AVED. (Free from AMD, requires V80 Lounge access as of Q2 2025)

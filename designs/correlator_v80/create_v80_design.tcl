@@ -94,6 +94,8 @@ set bd_name         "top"
     source $COMMON/v80_infra/src/top_bd/create_bd_design_2025_1.tcl
   } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
     source $COMMON/v80_infra/src/top_bd/create_bd_design_2026_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.2" } {
+    source $COMMON/v80_infra/src/top_bd/create_bd_design_2026_2.tcl
   } else {
     puts "###################################################"
     puts "        UNSUPPORTED VERSION OF VIVADO"
@@ -127,6 +129,8 @@ set bd_name         "top"
   # 200G config for lower ports.
   if { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2026_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.2" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2026_2.tcl
   } else {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
   }
@@ -135,6 +139,8 @@ set bd_name         "top"
   # 200G config for upper ports.
   if { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2026_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.2" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2026_2.tcl
   } else {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
   }
@@ -819,7 +825,7 @@ set_property used_in_simulation false [get_files  $REPO_BASE/build/v80/v80_top.s
     add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/place.pre.tcl"
   } elseif { $env(VIVADO_VERSION_IN_USE) == "2025.1" } {
     add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/2025.1/place.pre.tcl"
-  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.1" || $env(VIVADO_VERSION_IN_USE) == "2026.2" } {
     # same hook as 2025.1
     add_files -fileset utils_1   -norecurse "$COMMON/v80_infra/constraints/2025.1/place.pre.tcl"
   } else {

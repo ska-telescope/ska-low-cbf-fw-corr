@@ -1,3 +1,6 @@
+# Vivado 2026.2 can no longer create floating_point 7.1 - use 7.2 there
+if {[package vcompare [version -short] 2026.2] >= 0} { set floating_point_ver 7.2 } else { set floating_point_ver 7.1 }
+
 create_ip -name axi_bram_ctrl -vendor xilinx.com -library ip -version 4.1 -module_name axi_bram_ctrl_ct1_poly
 set_property -dict [list \
   CONFIG.SUPPORTS_NARROW_BURST {0} \
@@ -7,7 +10,7 @@ set_property -dict [list \
   CONFIG.MEM_DEPTH {65536}] [get_ips axi_bram_ctrl_ct1_poly]
 create_ip_run [get_ips axi_bram_ctrl_ct1_poly]
 
-create_ip -name floating_point -vendor xilinx.com -library ip -version 7.1 -module_name fp64_add
+create_ip -name floating_point -vendor xilinx.com -library ip -version $floating_point_ver -module_name fp64_add
 set_property -dict [list \
   CONFIG.A_Precision_Type {Double} \
   CONFIG.Add_Sub_Value {Add} \
@@ -28,7 +31,7 @@ set_property -dict [list \
 ] [get_ips fp64_add]
 create_ip_run [get_ips fp64_add]
 
-create_ip -name floating_point -vendor xilinx.com -library ip -version 7.1 -module_name fp64_mult
+create_ip -name floating_point -vendor xilinx.com -library ip -version $floating_point_ver -module_name fp64_mult
 set_property -dict [list \
   CONFIG.A_Precision_Type {Double} \
   CONFIG.C_A_Exponent_Width {11} \
@@ -49,7 +52,7 @@ set_property -dict [list \
 ] [get_ips fp64_mult]
 create_ip_run [get_ips fp64_mult]
 
-create_ip -name floating_point -vendor xilinx.com -library ip -version 7.1 -module_name fp64_to_int
+create_ip -name floating_point -vendor xilinx.com -library ip -version $floating_point_ver -module_name fp64_to_int
 set_property -dict [list \
   CONFIG.A_Precision_Type {Double} \
   CONFIG.C_A_Exponent_Width {11} \
@@ -70,7 +73,7 @@ set_property -dict [list \
 ] [get_ips fp64_to_int]
 create_ip_run [get_ips fp64_to_int]
 
-create_ip -name floating_point -vendor xilinx.com -library ip -version 7.1 -module_name uint64_to_double
+create_ip -name floating_point -vendor xilinx.com -library ip -version $floating_point_ver -module_name uint64_to_double
 set_property -dict [list \
   CONFIG.A_Precision_Type {Uint64} \
   CONFIG.C_A_Exponent_Width {64} \
@@ -103,7 +106,7 @@ set_property -dict [list \
 ] [get_ips mult_x1e9]
 create_ip_run [get_ips mult_x1e9]
 
-create_ip -name floating_point -vendor xilinx.com -library ip -version 7.1 -module_name fp64_to_fp32
+create_ip -name floating_point -vendor xilinx.com -library ip -version $floating_point_ver -module_name fp64_to_fp32
 set_property -dict [list \
   CONFIG.A_Precision_Type {Double} \
   CONFIG.C_A_Exponent_Width {11} \

@@ -29,7 +29,7 @@ echo -e "**********             FW complete              *********"
 echo -e "*********************************************************"
 
 # combine to make PDI
-./common/v80_infra/create_pdi.sh 2026.1
+./common/v80_infra/create_pdi.sh 2026.2
 
 echo -e "*********************************************************"
 echo -e "**********            PDI complete              *********"

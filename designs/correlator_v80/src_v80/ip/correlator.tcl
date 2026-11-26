@@ -1,3 +1,6 @@
+# Vivado 2026.2 can no longer create clk_wizard 1.0 - use 2.0 there (same CONFIG names)
+if {[package vcompare [version -short] 2026.2] >= 0} { set clk_wizard_ver 2.0 } else { set clk_wizard_ver 1.0 }
+
 create_ip -name axis_ila -vendor xilinx.com -library ip -version 1.3 -module_name ila_0
 set_property -dict [list CONFIG.C_PROBE0_WIDTH {128} CONFIG.C_DATA_DEPTH {4096}] [get_ips ila_0]
 create_ip_run [get_ips ila_0]
@@ -22,7 +25,7 @@ create_ip -name axis_ila -vendor xilinx.com -library ip -version 1.3 -module_nam
 set_property -dict [list CONFIG.C_PROBE0_WIDTH {128} CONFIG.C_DATA_DEPTH {16384}  CONFIG.C_MEMORY_TYPE {1}] [get_ips ila_128_16k]
 create_ip_run [get_ips ila_128_16k]
 
-create_ip -name clk_wizard -vendor xilinx.com -library ip -version 1.0 -module_name clk_mmcm_425
+create_ip -name clk_wizard -vendor xilinx.com -library ip -version $clk_wizard_ver -module_name clk_mmcm_425
 set_property -dict [list \
   CONFIG.CLKOUT_DRIVES {BUFG,BUFG,BUFG,BUFG,BUFG,BUFG,BUFG} \
   CONFIG.CLKOUT_DYN_PS {None,None,None,None,None,None,None} \
@@ -37,7 +40,7 @@ set_property -dict [list \
 ] [get_ips clk_mmcm_425]
 create_ip_run [get_ips clk_mmcm_425]
 
-create_ip -name clk_wizard -vendor xilinx.com -library ip -version 1.0 -module_name clk_mmcm_400
+create_ip -name clk_wizard -vendor xilinx.com -library ip -version $clk_wizard_ver -module_name clk_mmcm_400
 set_property -dict [list \
   CONFIG.CLKOUT_DRIVES {BUFG,BUFG,BUFG,BUFG,BUFG,BUFG,BUFG} \
   CONFIG.CLKOUT_DYN_PS {None,None,None,None,None,None,None} \
@@ -52,7 +55,7 @@ set_property -dict [list \
 ] [get_ips clk_mmcm_400]
 create_ip_run [get_ips clk_mmcm_400]
 
-create_ip -name clk_wizard -vendor xilinx.com -library ip -version 1.0 -module_name clk_mmcm_450
+create_ip -name clk_wizard -vendor xilinx.com -library ip -version $clk_wizard_ver -module_name clk_mmcm_450
 set_property -dict [list \
   CONFIG.CLKOUT_DRIVES {BUFG,BUFG,BUFG,BUFG,BUFG,BUFG,BUFG} \
   CONFIG.CLKOUT_DYN_PS {None,None,None,None,None,None,None} \
@@ -76,7 +79,7 @@ set_property -dict [list \
 ] [get_ips ila_twoby256_4k]
 create_ip_run [get_ips ila_twoby256_4k]
 
-create_ip -name clk_wizard -vendor xilinx.com -library ip -version 1.0 -module_name clk_system_base
+create_ip -name clk_wizard -vendor xilinx.com -library ip -version $clk_wizard_ver -module_name clk_system_base
 set_property -dict [list \
   CONFIG.CLKOUT_DRIVES {No_buffer,BUFG,BUFG,BUFG,BUFG,BUFG,BUFG} \
   CONFIG.CLKOUT_DYN_PS {None,None,None,None,None,None,None} \

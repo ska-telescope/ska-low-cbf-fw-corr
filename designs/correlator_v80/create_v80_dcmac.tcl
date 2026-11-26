@@ -115,6 +115,8 @@ set bd_name         "top"
     source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2025_1.tcl
   } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
     source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2026_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.2" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_100g_bd_2026_2.tcl
   } else {
     puts "###################################################"
     puts "        UNSUPPORTED VERSION OF VIVADO"
@@ -127,6 +129,8 @@ set bd_name         "top"
   # 200G config for lower ports.
   if { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2026_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.2" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2026_2.tcl
   } else {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_lower_bd_2025_1.tcl
   }
@@ -135,6 +139,8 @@ set bd_name         "top"
   # 200G config for upper ports.
   if { $env(VIVADO_VERSION_IN_USE) == "2026.1" } {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2026_1.tcl
+  } elseif { $env(VIVADO_VERSION_IN_USE) == "2026.2" } {
+    source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2026_2.tcl
   } else {
     source $COMMON_PATH/DCMAC/dcmac_two_200g_upper_bd_2025_1.tcl
   }

@@ -13,7 +13,7 @@
 # so the assemble step (run_v80_rest.sh) can run without recompiling.
 
 # create project and compile
-./create_v80.sh 2026.1 build
+./create_v80.sh 2026.2 build
 RC=$?
 
 echo -e "*********************************************************"

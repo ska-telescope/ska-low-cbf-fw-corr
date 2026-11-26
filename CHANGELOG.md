@@ -1,5 +1,8 @@
 ### Changelog
 ## Correlator Personality
+* 2.0.5
+    * V80
+        * AVED built with 2026.2
 * 2.0.4
     * V80
         * AVED built with 2026.1
